@@ -31,5 +31,3 @@ Thumbs.db
 # transcribed, never built or shipped. They are separate svn working copies
 # with their own repository roots, and nothing here should ever enter this
 # one: `git add -A` would otherwise sweep in another company's source.
-vendor_backend/
-vendor_client/

@@ -1,0 +1,17 @@
+/build
+/node_modules
+/dist
+/uploads
+/downloads
+package-lock.json
+/.idea
+/.vscode
+# misc
+.DS_Store
+.env.development
+.env.test
+.env.production
+.env.staging
+.env
+/temp
+/.svn

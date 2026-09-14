@@ -1,0 +1,190 @@
+.custom-date-picker {
+  .react-date-picker__wrapper {
+    background-color: transparent;
+    border-color: var(--chakra-colors-gray-300);
+    padding: 6px;
+    border-radius: 6px;
+  }
+  
+  .react-date-picker__inputGroup__input {
+    color: var(--chakra-colors-gray-800);
+  }
+  
+  .react-date-picker__inputGroup__leadingZero {
+    margin-bottom: 1px;
+  }
+  
+  .react-date-picker__button__icon {
+    stroke: var(--chakra-colors-gray-600);
+  }
+
+  .calendar-custom-saturday {
+    color: inherit !important;
+  }
+
+  .react-date-picker__calendar {
+    z-index: 10;
+  }
+  
+  .react-calendar__tile {
+    border-radius: 8px;
+  }
+
+  .react-calendar__year-view .react-calendar__tile,
+  .react-calendar__decade-view .react-calendar__tile,
+  .react-calendar__century-view .react-calendar__tile {
+    padding: 21px 0.5em;
+  }
+
+  .react-calendar__tile--now {
+    background-color: var(--chakra-colors-teal-200);
+  }
+
+  .react-calendar__tile--now:enabled:hover,
+  .react-calendar__tile--now:enabled:focus {
+    background-color: var(--chakra-colors-teal-400);
+  }
+}
+
+[data-theme="dark"] .custom-date-picker {
+  background-color: transparent;
+  .react-date-picker__wrapper {
+    background-color: transparent;
+    border-color: var(--chakra-colors-whiteAlpha-300);
+  }
+
+  .react-date-picker__inputGroup__input {
+    color: var(--chakra-colors-white);
+  }
+
+  .react-calendar {
+    background-color: var(--chakra-colors-gray-700);
+  }
+
+  .react-calendar__tile:enabled:hover,
+  .react-calendar__tile:enabled:focus,
+  .react-calendar__navigation button:enabled:hover,
+  .react-calendar__navigation button:enabled:focus {
+    background-color: var(--chakra-colors-gray-800);
+    &.react-calendar__tile--active {
+      background: #006edc;
+    }
+  }
+
+  .react-calendar__navigation button[disabled] {
+    background-color: var(--chakra-colors-gray-700); 
+  }
+
+  .react-calendar__tile--now {
+    background-color: transparent;
+    border: 1px solid var(--chakra-colors-whiteAlpha-300);
+    &.react-calendar__tile--active {
+      background: #006edc;
+      border: none;
+    }
+  }
+
+  .react-calendar__tile--now:enabled:hover,
+  .react-calendar__tile--now:enabled:focus {
+    background-color: var(--chakra-colors-gray-800);
+  }
+}
+
+.texteditor-wrapper {
+  .rdw-editor-toolbar {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid;
+    border-color: var(--chakra-colors-gray-200);
+    .rdw-dropdown-wrapper {
+      background-color: transparent;
+      border-color: var(--chakra-colors-gray-200);
+      .rdw-dropdown-optionwrapper {
+        border-color: var(--chakra-colors-gray-200);
+      }
+    }
+    .rdw-option-wrapper {
+      background-color: transparent;
+      border-color: var(--chakra-colors-gray-200);
+    }
+  }
+}
+
+[data-theme="dark"] .texteditor-wrapper {
+  .rdw-editor-toolbar {
+    border-color: var(--chakra-colors-whiteAlpha-300);
+    .rdw-dropdown-wrapper {
+      border-color: var(--chakra-colors-whiteAlpha-300);
+      .rdw-dropdown-optionwrapper {
+        background-color: var(--chakra-colors-gray-700);
+        border-color: var(--chakra-colors-whiteAlpha-300);
+        .rdw-dropdownoption-active {
+          background-color: var(--chakra-colors-gray-600);
+        }
+      }
+    }
+    .rdw-option-wrapper {
+      border-color: var(--chakra-colors-whiteAlpha-300);
+    }
+  }
+}
+
+.texteditor-editor {
+  .public-DraftEditor-content {
+    min-height: 80px;
+    max-height: 360px;
+    margin: 6px 4px;
+    .public-DraftStyleDefault-block {
+      margin: 0px;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    h2 {
+      font-size: 22px;
+    }
+    h3 {
+      font-size: 20px;
+    }
+  }
+}
+
+.texteditor-article {
+  .public-DraftEditor-content {
+    min-height: 240px;
+    max-height: 400px;
+    margin: 6px 4px;
+    .public-DraftStyleDefault-block {
+      margin: 0px;
+    }
+  }
+}
+
+.texteditor-toolbar {
+  .rdw-block-wrapper {
+    .rdw-dropdown-wrapper {
+      .rdw-dropdown-optionwrapper :nth-child(2) {
+        font-size: 24px;
+      }
+      .rdw-dropdown-optionwrapper :nth-child(3) {
+        font-size: 22px;
+      }
+      .rdw-dropdown-optionwrapper :nth-child(4) {
+        font-size: 20px;
+      }
+    }
+  }
+}
+
+.newsmodal-content {
+  max-width: 1200px !important;
+  border-top-left-radius: 6vw !important;
+  border-top-right-radius: 6vw !important;
+  header {
+    padding: 0 !important;
+    background: none !important;
+  }
+  img {
+    width: 100% !important;
+  }
+}

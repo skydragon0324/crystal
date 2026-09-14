@@ -1,0 +1,37 @@
+const express = require('express');
+const router = express.Router();
+const authController = require('../../controllers/authController');
+const apiController = require('../../controllers/client/clientApiController');
+const userController = require('../../controllers/client/clientUserController');
+const productController = require('../../controllers/client/clientProductController');
+const eshopController = require('../../controllers/client/clientEshopController');
+const appstoreController = require('../../controllers/client/clientAppstoreController');
+const { validateGetProductNameBySN, validateCheckProductDuplicationBySN, validateAddRegisterProdLog, validateCheckRegisterPhone, validateAddRegisterPhoneLog } = require('../../middleware/clientProductValidators');
+
+router.get('/appstore_wallet_balance', authController.verifyUserToken, apiController.fetchAppstoreWalletBalance);
+router.get('/appstore_wallet_balance_v2', authController.verifyUserToken, apiController.fetchAppstoreWalletBalanceV2);
+router.get('/appstore_wallet_transactions', authController.verifyUserToken, appstoreController.fetchAppstoreWalletTransactions);
+router.get('/appstore_wallet_transactions_v2', authController.verifyUserToken, appstoreController.fetchAppstoreWalletTransactionsV2);
+router.get('/eprod_regist_balance', authController.verifyUserToken, apiController.fetchEprodRegistBalance);
+router.get('/eprod_regist_add_log', authController.verifyUserToken, apiController.fetchEprodRegistAddLog);
+router.get('/register_point_log', authController.verifyUserToken, userController.fetchRegisterPointLog);
+router.get('/soft_point_log', authController.verifyUserToken, userController.fetchSoftPointLog);
+router.get('/soft_point_rank', authController.verifyUserToken, userController.fetchSoftPointRank);
+router.get('/eshop_wallet_balance', authController.verifyUserToken, eshopController.fetchEshopWalletBalance);
+router.get('/eshop_wallet_transactions', authController.verifyUserToken, eshopController.fetchEshopeWalletTransactions);
+router.get('/eshop_point_rank', authController.verifyUserToken, userController.fetchEshopPointRank);
+router.get('/account_total_info', authController.verifyUserToken, apiController.fetchAccountTotalInfo);
+router.get('/account_total_info_v2', authController.verifyUserToken, apiController.fetchAccountTotalInfoV2);
+router.get('/activity_point_balance', authController.verifyUserToken, userController.fetchActivityPointBalance);
+router.get('/activity_point_log', authController.verifyUserToken, userController.fetchActivityPointLog);
+router.get('/activity_point_rank', authController.verifyUserToken, userController.fetchActivityPointRank);
+router.post('/eprod_name_by_sn', authController.verifyUserToken, validateGetProductNameBySN, apiController.getProductNameBySN);
+router.post('/eprod_name_by_sn_v2', authController.verifyUserToken, validateGetProductNameBySN, apiController.getProductNameBySnV2);
+router.post('/eprod_register_check', authController.verifyUserToken, validateCheckProductDuplicationBySN, apiController.checkProductDuplicationBySN);
+router.post('/register_prod_add', authController.verifyUserToken, validateAddRegisterProdLog, apiController.addRegisterProduct);
+router.post('/register_prod_add_v2', authController.verifyUserToken, validateAddRegisterProdLog, apiController.addRegisterProductV2);
+router.get('/register_phone_log', authController.verifyUserToken, productController.fetchRegisterPhoneLog);
+router.post('/register_phone_log_add', authController.verifyUserToken, validateAddRegisterPhoneLog, productController.addRegisterPhoneLog);
+router.post('/register_phone_log_check', authController.verifyUserToken, validateCheckRegisterPhone, productController.checkRegisterPhoneLog);
+
+module.exports = router;

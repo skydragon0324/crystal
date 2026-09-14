@@ -1,0 +1,106 @@
+-- devices
+CREATE SEQUENCE "DEVICES_S" MINVALUE 1 MAXVALUE 9999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE;
+
+CREATE TABLE devices (
+  device_pk NUMBER PRIMARY KEY,
+  user_pk NUMBER NOT NULL,
+  cid VARCHAR2(12) NOT NULL,
+  phone_brand VARCHAR2(100) NOT NULL,
+  phone_model VARCHAR2(100) NOT NULL,
+  phone_imei VARCHAR2(20) NOT NULL,
+  last_logged_in DATE DEFAULT CURRENT_TIMESTAMP,
+  is_deleted NUMBER(1) DEFAULT 0,
+  report_status NUMBER(1) DEFAULT -1,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_devices_user_pk FOREIGN KEY (user_pk) REFERENCES users(user_pk),
+  CONSTRAINT uq_devices_user_cid_imei UNIQUE (user_pk, cid, phone_imei)
+);
+
+COMMENT ON COLUMN "DEVICES"."USER_PK" IS 'users.user_pk';
+COMMENT ON COLUMN "DEVICES"."CID" IS 'SIM CID';
+COMMENT ON COLUMN "DEVICES"."PHONE_BRAND" IS 'phone brand';
+COMMENT ON COLUMN "DEVICES"."PHONE_MODEL" IS 'phone model';
+COMMENT ON COLUMN "DEVICES"."PHONE_IMEI" IS 'phone imei';
+COMMENT ON COLUMN "DEVICES"."LAST_LOGGED_IN" IS 'timestamp last login time';
+COMMENT ON COLUMN "DEVICES"."IS_DELETED" IS '1: deleted';
+COMMENT ON COLUMN "DEVICES"."REPORT_STATUS" IS 'report status, -1: none, device_reports.status';
+
+CREATE OR REPLACE TRIGGER device_pk_trigger
+BEFORE INSERT ON devices
+FOR EACH ROW
+BEGIN
+  IF :NEW.device_pk IS NULL THEN
+    SELECT "DEVICES_S".NEXTVAL
+    INTO :NEW.device_pk
+    FROM dual;
+  END IF;
+END;
+/
+
+CREATE SEQUENCE "DEVICE_REPORTS_S" MINVALUE 1 MAXVALUE 9999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE;
+
+CREATE TABLE device_reports (
+  report_pk NUMBER PRIMARY KEY,
+  device_pk NUMBER NOT NULL,
+  report_type NUMBER(1) DEFAULT 0 NOT NULL,
+  report_by NUMBER NOT NULL,
+  target_pk NUMBER,
+  status NUMBER(1) DEFAULT 0,
+  resolve_by NUMBER,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_device_report_dev_pk FOREIGN KEY (device_pk) REFERENCES devices(device_pk),
+  CONSTRAINT fk_device_report_target_pk FOREIGN KEY (target_pk) REFERENCES users(user_pk),
+  CONSTRAINT fk_device_report_resolve_by FOREIGN KEY (resolve_by) REFERENCES managers(manager_pk)
+);
+
+COMMENT ON COLUMN "DEVICE_REPORTS"."DEVICE_PK" IS 'devices.device_pk';
+COMMENT ON COLUMN "DEVICE_REPORTS"."REPORT_TYPE" IS '0: by user, 1: by manager';
+COMMENT ON COLUMN "DEVICE_REPORTS"."REPORT_BY" IS 'users.user_pk or managers.manager_pk';
+COMMENT ON COLUMN "DEVICE_REPORTS"."TARGET_PK" IS 'users.user_pk';
+COMMENT ON COLUMN "DEVICE_REPORTS"."STATUS" IS '0: pending, 1: accepted, 2: denied, 3: canceled';
+COMMENT ON COLUMN "DEVICE_REPORTS"."RESOLVE_BY" IS 'managers.manager_pk';
+
+CREATE OR REPLACE TRIGGER device_report_pk_trigger
+BEFORE INSERT ON device_reports
+FOR EACH ROW
+BEGIN
+  IF :NEW.report_pk IS NULL THEN
+    SELECT "DEVICE_REPORTS_S".NEXTVAL
+    INTO :NEW.report_pk
+    FROM dual;
+  END IF;
+END;
+/
+
+-- smart phones
+CREATE SEQUENCE "SMART_PHONES_S" MINVALUE 1 MAXVALUE 9999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE;
+
+CREATE TABLE smart_phones (
+  phone_pk NUMBER PRIMARY KEY,
+  phone_brand VARCHAR2(100) NOT NULL,
+  phone_model VARCHAR2(100) NOT NULL,
+  phone_name VARCHAR2(128) NOT NULL,
+  COMPANY VARCHAR(128) NOT NULL,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_smart_phone UNIQUE (phone_brand, phone_model)
+);
+
+COMMENT ON COLUMN "SMART_PHONES"."PHONE_BRAND" IS 'phone brand';
+COMMENT ON COLUMN "SMART_PHONES"."PHONE_MODEL" IS 'phone model';
+COMMENT ON COLUMN "SMART_PHONES"."PHONE_NAME" IS 'phone name';
+COMMENT ON COLUMN "SMART_PHONES"."COMPANY" IS 'company name';
+
+CREATE OR REPLACE TRIGGER smart_phone_pk_trigger
+BEFORE INSERT ON smart_phones
+FOR EACH ROW
+BEGIN
+  IF :NEW.phone_pk IS NULL THEN
+    SELECT "SMART_PHONES_S".NEXTVAL
+    INTO :NEW.phone_pk
+    FROM dual;
+  END IF;
+END;
+/
