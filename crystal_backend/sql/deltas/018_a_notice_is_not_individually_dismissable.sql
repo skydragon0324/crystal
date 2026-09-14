@@ -1,0 +1,25 @@
+-- ---------------------------------------------------------------------
+-- Delta 018 - "do not remind me today" is one choice, not one per notice.
+--
+-- `site_notices.dismissible` existed so an editor could mark a notice that
+-- MUST be read - a service interruption, a security notice - and have the
+-- arrival dialog refuse to be silenced while it was live.
+--
+-- It never worked the way it read. The dialog shows every live notice at once,
+-- so one undismissable notice locked the whole dialog for all of them: no
+-- overlay click, no escape, and no checkbox, for the six ordinary greetings
+-- sitting beside it. A visitor who could not put the dialog down did not read
+-- the urgent one more carefully; they learned to click Got it faster.
+--
+-- The checkbox is now a property of the DIALOG - one choice, for the day, made
+-- once - which leaves this column with nothing to decide. Anything that
+-- genuinely must be read is a page, not a modal somebody has to escape.
+--
+-- Dropping it is safe: nothing reads it after this release, and the recycle
+-- bin has no copy to restore into.
+--
+-- sql/schema.sql is the source of truth and already says this; this file
+-- brings an existing database up to it, and it is safe to run twice.
+-- ---------------------------------------------------------------------
+
+ALTER TABLE site_notices DROP COLUMN IF EXISTS dismissible;

@@ -1,0 +1,881 @@
+/* ---------------------------------------------------------------------
+ * The one rule Chakra cannot express as a component prop.
+ *
+ * Everything else on this site is styled through the theme; what lands here
+ * is a fallback for a browser feature that does not exist on the oldest
+ * version the site supports.
+ * ------------------------------------------------------------------ */
+
+
+/* ---------------------------------------------------------------------
+ * Flexbox gap, for Chrome 72
+ *
+ * `gap` on a flex container did not ship until Chrome 84, and a property a
+ * browser does not know is dropped silently - so on Chrome 72 every
+ * toolbar, badge row and button group loses its spacing and the contents
+ * run together.
+ *
+ * Each <Flex gap="N"> carries data-gap="N" and the rules below rebuild the
+ * spacing out of margins.  WHICH margin depends on the direction the gap
+ * runs, and CSS cannot read flex-direction - so the component says:
+ *
+ *   data-gap="16"                      a row.  The default, and the common case.
+ *   data-gap="16" data-gap-column      a column.
+ *   data-gap="16" data-gap-wrap        a row that wraps onto more lines.
+ *   data-gap="16" data-gap-row-from="md"
+ *                                      a column that becomes a row at md.
+ *   data-gap="8" data-gap-lg="32"      8px, widening to 32px from lg up.
+ *
+ * THREE THINGS THIS GETS RIGHT THAT THE OBVIOUS VERSIONS DO NOT.
+ *
+ * The margin goes on the CHILDREN, never on the container.  This used to
+ * put half the gap on the container as a negative margin and half on each
+ * child, which emulates gap exactly - and is wrong the moment the
+ * container's own box matters.  Two of those were on screen:
+ *
+ *   THE HEADER BAR is `h="100%"` inside a fixed 60px strip, justified
+ *   space-between inside a padded Container.  `margin: -8px` made it 16px
+ *   taller than the strip and pulled it 8px past the gutter on each side,
+ *   so the two groups were no longer justified to the page.
+ *
+ *   A BORDERED CARD - the OS band on the landing page - has a background,
+ *   a border and a 20px radius.  A negative margin does not move a card's
+ *   contents, it moves the card, bleeding it outside the section.
+ *
+ * The margin is TRAILING - `> *:not(:last-child)` - rather than the
+ * leading `> * + *`.  A child hidden with display:none is still a sibling,
+ * so a leading margin draws a gap beside an element that is not there: the
+ * header's hamburger is `display="none"` from lg up, and `* + *` shifted
+ * the wordmark 8px right on every desktop.  A hidden child has no box, so
+ * a margin on it draws nothing, which is what `gap` does.  The residue is
+ * that a container whose LAST child is hidden keeps one gap of trailing
+ * slack, which is why the tagging test checks where those sit.
+ *
+ * And a gap that CHANGES SIZE at a breakpoint carries both sizes.  Tagging
+ * only the base is how the header navigation ended up 8px apart on every
+ * desktop instead of 32px.
+ *
+ * None of this applies to a browser with real gap support: boot.js only
+ * adds .no-flex-gap when the feature test fails, so modern browsers run the
+ * native property and never see these rules.
+ *
+ * Grid gap is untouched - it has worked since Chrome 66, so SimpleGrid and
+ * Grid are deliberately not tagged.
+ * ------------------------------------------------------------------ */
+
+
+/* Rows - the default when no axis attribute is present. */
+html.no-flex-gap [data-gap='1'] > *:not(:last-child) { margin-right: 1px; }
+html.no-flex-gap [data-gap='2'] > *:not(:last-child) { margin-right: 2px; }
+html.no-flex-gap [data-gap='3'] > *:not(:last-child) { margin-right: 3px; }
+html.no-flex-gap [data-gap='4'] > *:not(:last-child) { margin-right: 4px; }
+html.no-flex-gap [data-gap='5'] > *:not(:last-child) { margin-right: 5px; }
+html.no-flex-gap [data-gap='6'] > *:not(:last-child) { margin-right: 6px; }
+html.no-flex-gap [data-gap='8'] > *:not(:last-child) { margin-right: 8px; }
+html.no-flex-gap [data-gap='10'] > *:not(:last-child) { margin-right: 10px; }
+html.no-flex-gap [data-gap='12'] > *:not(:last-child) { margin-right: 12px; }
+html.no-flex-gap [data-gap='14'] > *:not(:last-child) { margin-right: 14px; }
+html.no-flex-gap [data-gap='16'] > *:not(:last-child) { margin-right: 16px; }
+html.no-flex-gap [data-gap='18'] > *:not(:last-child) { margin-right: 18px; }
+html.no-flex-gap [data-gap='20'] > *:not(:last-child) { margin-right: 20px; }
+html.no-flex-gap [data-gap='22'] > *:not(:last-child) { margin-right: 22px; }
+html.no-flex-gap [data-gap='24'] > *:not(:last-child) { margin-right: 24px; }
+html.no-flex-gap [data-gap='32'] > *:not(:last-child) { margin-right: 32px; }
+html.no-flex-gap [data-gap='48'] > *:not(:last-child) { margin-right: 48px; }
+
+/* Columns. */
+html.no-flex-gap [data-gap='1'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 1px;
+}
+html.no-flex-gap [data-gap='2'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 2px;
+}
+html.no-flex-gap [data-gap='3'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 3px;
+}
+html.no-flex-gap [data-gap='4'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 4px;
+}
+html.no-flex-gap [data-gap='5'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 5px;
+}
+html.no-flex-gap [data-gap='6'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 6px;
+}
+html.no-flex-gap [data-gap='8'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 8px;
+}
+html.no-flex-gap [data-gap='10'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 10px;
+}
+html.no-flex-gap [data-gap='12'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 12px;
+}
+html.no-flex-gap [data-gap='14'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+html.no-flex-gap [data-gap='16'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 16px;
+}
+html.no-flex-gap [data-gap='18'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 18px;
+}
+html.no-flex-gap [data-gap='20'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 20px;
+}
+html.no-flex-gap [data-gap='22'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 22px;
+}
+html.no-flex-gap [data-gap='24'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 24px;
+}
+html.no-flex-gap [data-gap='32'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 32px;
+}
+html.no-flex-gap [data-gap='48'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 48px;
+}
+
+/* Wrapping rows - trailing space on every child, both axes. */
+html.no-flex-gap [data-gap='1'][data-gap-wrap] > * {
+  margin-right: 1px;
+  margin-bottom: 1px;
+}
+html.no-flex-gap [data-gap='2'][data-gap-wrap] > * {
+  margin-right: 2px;
+  margin-bottom: 2px;
+}
+html.no-flex-gap [data-gap='3'][data-gap-wrap] > * {
+  margin-right: 3px;
+  margin-bottom: 3px;
+}
+html.no-flex-gap [data-gap='4'][data-gap-wrap] > * {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+html.no-flex-gap [data-gap='5'][data-gap-wrap] > * {
+  margin-right: 5px;
+  margin-bottom: 5px;
+}
+html.no-flex-gap [data-gap='6'][data-gap-wrap] > * {
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+html.no-flex-gap [data-gap='8'][data-gap-wrap] > * {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+html.no-flex-gap [data-gap='10'][data-gap-wrap] > * {
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+html.no-flex-gap [data-gap='12'][data-gap-wrap] > * {
+  margin-right: 12px;
+  margin-bottom: 12px;
+}
+html.no-flex-gap [data-gap='14'][data-gap-wrap] > * {
+  margin-right: 14px;
+  margin-bottom: 14px;
+}
+html.no-flex-gap [data-gap='16'][data-gap-wrap] > * {
+  margin-right: 16px;
+  margin-bottom: 16px;
+}
+html.no-flex-gap [data-gap='18'][data-gap-wrap] > * {
+  margin-right: 18px;
+  margin-bottom: 18px;
+}
+html.no-flex-gap [data-gap='20'][data-gap-wrap] > * {
+  margin-right: 20px;
+  margin-bottom: 20px;
+}
+html.no-flex-gap [data-gap='22'][data-gap-wrap] > * {
+  margin-right: 22px;
+  margin-bottom: 22px;
+}
+html.no-flex-gap [data-gap='24'][data-gap-wrap] > * {
+  margin-right: 24px;
+  margin-bottom: 24px;
+}
+html.no-flex-gap [data-gap='32'][data-gap-wrap] > * {
+  margin-right: 32px;
+  margin-bottom: 32px;
+}
+html.no-flex-gap [data-gap='48'][data-gap-wrap] > * {
+  margin-right: 48px;
+  margin-bottom: 48px;
+}
+
+/* A column below the breakpoint named, a row at and above it. */
+html.no-flex-gap [data-gap='1'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 1px;
+}
+html.no-flex-gap [data-gap='2'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 2px;
+}
+html.no-flex-gap [data-gap='3'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 3px;
+}
+html.no-flex-gap [data-gap='4'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 4px;
+}
+html.no-flex-gap [data-gap='5'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 5px;
+}
+html.no-flex-gap [data-gap='6'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 6px;
+}
+html.no-flex-gap [data-gap='8'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 8px;
+}
+html.no-flex-gap [data-gap='10'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 10px;
+}
+html.no-flex-gap [data-gap='12'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 12px;
+}
+html.no-flex-gap [data-gap='14'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+html.no-flex-gap [data-gap='16'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 16px;
+}
+html.no-flex-gap [data-gap='18'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 18px;
+}
+html.no-flex-gap [data-gap='20'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 20px;
+}
+html.no-flex-gap [data-gap='22'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 22px;
+}
+html.no-flex-gap [data-gap='24'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 24px;
+}
+html.no-flex-gap [data-gap='32'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 32px;
+}
+html.no-flex-gap [data-gap='48'][data-gap-row-from] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 48px;
+}
+
+@media (min-width: 30em) {
+  html.no-flex-gap [data-gap='1'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 1px;
+  }
+  html.no-flex-gap [data-gap='2'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 2px;
+  }
+  html.no-flex-gap [data-gap='3'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 3px;
+  }
+  html.no-flex-gap [data-gap='4'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 4px;
+  }
+  html.no-flex-gap [data-gap='5'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 5px;
+  }
+  html.no-flex-gap [data-gap='6'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 6px;
+  }
+  html.no-flex-gap [data-gap='8'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 8px;
+  }
+  html.no-flex-gap [data-gap='10'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 10px;
+  }
+  html.no-flex-gap [data-gap='12'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 12px;
+  }
+  html.no-flex-gap [data-gap='14'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 14px;
+  }
+  html.no-flex-gap [data-gap='16'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 16px;
+  }
+  html.no-flex-gap [data-gap='18'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 18px;
+  }
+  html.no-flex-gap [data-gap='20'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 20px;
+  }
+  html.no-flex-gap [data-gap='22'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 22px;
+  }
+  html.no-flex-gap [data-gap='24'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 24px;
+  }
+  html.no-flex-gap [data-gap='32'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 32px;
+  }
+  html.no-flex-gap [data-gap='48'][data-gap-row-from='sm'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 48px;
+  }
+}
+
+@media (min-width: 48em) {
+  html.no-flex-gap [data-gap='1'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 1px;
+  }
+  html.no-flex-gap [data-gap='2'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 2px;
+  }
+  html.no-flex-gap [data-gap='3'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 3px;
+  }
+  html.no-flex-gap [data-gap='4'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 4px;
+  }
+  html.no-flex-gap [data-gap='5'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 5px;
+  }
+  html.no-flex-gap [data-gap='6'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 6px;
+  }
+  html.no-flex-gap [data-gap='8'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 8px;
+  }
+  html.no-flex-gap [data-gap='10'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 10px;
+  }
+  html.no-flex-gap [data-gap='12'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 12px;
+  }
+  html.no-flex-gap [data-gap='14'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 14px;
+  }
+  html.no-flex-gap [data-gap='16'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 16px;
+  }
+  html.no-flex-gap [data-gap='18'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 18px;
+  }
+  html.no-flex-gap [data-gap='20'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 20px;
+  }
+  html.no-flex-gap [data-gap='22'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 22px;
+  }
+  html.no-flex-gap [data-gap='24'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 24px;
+  }
+  html.no-flex-gap [data-gap='32'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 32px;
+  }
+  html.no-flex-gap [data-gap='48'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 48px;
+  }
+}
+
+@media (min-width: 62em) {
+  html.no-flex-gap [data-gap='1'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 1px;
+  }
+  html.no-flex-gap [data-gap='2'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 2px;
+  }
+  html.no-flex-gap [data-gap='3'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 3px;
+  }
+  html.no-flex-gap [data-gap='4'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 4px;
+  }
+  html.no-flex-gap [data-gap='5'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 5px;
+  }
+  html.no-flex-gap [data-gap='6'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 6px;
+  }
+  html.no-flex-gap [data-gap='8'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 8px;
+  }
+  html.no-flex-gap [data-gap='10'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 10px;
+  }
+  html.no-flex-gap [data-gap='12'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 12px;
+  }
+  html.no-flex-gap [data-gap='14'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 14px;
+  }
+  html.no-flex-gap [data-gap='16'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 16px;
+  }
+  html.no-flex-gap [data-gap='18'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 18px;
+  }
+  html.no-flex-gap [data-gap='20'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 20px;
+  }
+  html.no-flex-gap [data-gap='22'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 22px;
+  }
+  html.no-flex-gap [data-gap='24'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 24px;
+  }
+  html.no-flex-gap [data-gap='32'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 32px;
+  }
+  html.no-flex-gap [data-gap='48'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 48px;
+  }
+}
+
+@media (min-width: 80em) {
+  html.no-flex-gap [data-gap='1'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 1px;
+  }
+  html.no-flex-gap [data-gap='2'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 2px;
+  }
+  html.no-flex-gap [data-gap='3'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 3px;
+  }
+  html.no-flex-gap [data-gap='4'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 4px;
+  }
+  html.no-flex-gap [data-gap='5'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 5px;
+  }
+  html.no-flex-gap [data-gap='6'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 6px;
+  }
+  html.no-flex-gap [data-gap='8'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 8px;
+  }
+  html.no-flex-gap [data-gap='10'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 10px;
+  }
+  html.no-flex-gap [data-gap='12'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 12px;
+  }
+  html.no-flex-gap [data-gap='14'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 14px;
+  }
+  html.no-flex-gap [data-gap='16'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 16px;
+  }
+  html.no-flex-gap [data-gap='18'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 18px;
+  }
+  html.no-flex-gap [data-gap='20'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 20px;
+  }
+  html.no-flex-gap [data-gap='22'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 22px;
+  }
+  html.no-flex-gap [data-gap='24'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 24px;
+  }
+  html.no-flex-gap [data-gap='32'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 32px;
+  }
+  html.no-flex-gap [data-gap='48'][data-gap-row-from='xl'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 48px;
+  }
+}
+
+/* Sizes that widen at md. */
+@media (min-width: 48em) {
+  html.no-flex-gap [data-gap-md='48'] > *:not(:last-child) { margin-right: 48px; }
+  html.no-flex-gap [data-gap-md='48'][data-gap-column] > *:not(:last-child) {
+    margin-right: 0;
+    margin-bottom: 48px;
+  }
+  html.no-flex-gap [data-gap-md='48'][data-gap-wrap] > * {
+    margin-right: 48px;
+    margin-bottom: 48px;
+  }
+  html.no-flex-gap [data-gap-md='48'][data-gap-row-from='md'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 48px;
+  }
+}
+
+/* Sizes that widen at lg. */
+@media (min-width: 62em) {
+  html.no-flex-gap [data-gap-lg='32'] > *:not(:last-child) { margin-right: 32px; }
+  html.no-flex-gap [data-gap-lg='32'][data-gap-column] > *:not(:last-child) {
+    margin-right: 0;
+    margin-bottom: 32px;
+  }
+  html.no-flex-gap [data-gap-lg='32'][data-gap-wrap] > * {
+    margin-right: 32px;
+    margin-bottom: 32px;
+  }
+  html.no-flex-gap [data-gap-lg='32'][data-gap-row-from='lg'] > *:not(:last-child) {
+    margin-bottom: 0;
+    margin-right: 32px;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * A child that is OUT OF FLOW must opt out with data-gap-skip.
+ *
+ * An absolutely positioned child never participated in the flex layout, so
+ * the real `gap` never touched it - but a margin does, and it moves it.  A
+ * 2px marker pinned to `left: 0` inside a gapped row would sit 6px in on
+ * Chrome 72 and nowhere else, which is the worst kind of bug to be told
+ * about second-hand.
+ *
+ * There is no CSS selector for "positioned absolutely", so the element says
+ * so itself.  If you add an absolutely positioned child to a container that
+ * carries data-gap, mark it.
+ *
+ * Last in the file, and the attribute is written twice on purpose: this has
+ * to beat every rule above it, and repeating it is how a selector buys
+ * specificity without reaching for !important.
+ */
+html.no-flex-gap [data-gap] > [data-gap-skip][data-gap-skip] {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------
+ * THE NOTIFICATION DIALOG OPENS LIKE A TRI-FOLD HANDSET.
+ *
+ * The dialog arrives over a landing page whose hero is a phone, so it
+ * borrows the one gesture a phone has that a dialog does not.
+ *
+ * THE CENTRE PANEL NEVER MOVES. It is the part you are holding; the wings
+ * are what swing. An earlier version put the lift on the whole panel, which
+ * moved the middle along with everything else - so the device appeared to
+ * hop rather than unfold. The wings are their own elements now and carry
+ * their own motion; the panel only widens.
+ *
+ * EACH WING TRAVELS ON A HINGE. It rotates about its inner edge from folded
+ * (flat against the back of the centre panel) to open, and tilts a few
+ * degrees toward the reader through the middle of the swing before settling
+ * square. That tilt is the "rise" - a hinge does not slide, it arcs - and
+ * without it the movement reads as a rectangle widening.
+ *
+ * NOTHING IS READ ACROSS A CREASE. The header, body and footer are held
+ * back until both wings are flat, so the fold happens on a bare panel and
+ * the content arrives on a device that is already open.
+ *
+ * ON A NARROW SCREEN none of this applies - a phone showing a phone
+ * unfolding is a joke that does not land - so it rises like a notification
+ * sheet, with no wings and no frame. And nothing moves at all for somebody
+ * who asked for stillness.
+ * ------------------------------------------------------------------ */
+
+/* The silhouette: centre third, then two thirds, then whole. */
+@keyframes crystal-notice-unfold {
+  0%   { opacity: 0; clip-path: inset(0 33.34% 0 33.34%); }
+  10%  { opacity: 1; clip-path: inset(0 33.34% 0 33.34%); }
+  /* Room for the left wing to swing into, just before it does. */
+  14%  { clip-path: inset(0 33.34% 0 0); }
+  52%  { clip-path: inset(0 33.34% 0 0); }
+  /* And for the right. */
+  56%  { clip-path: inset(0 0 0 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/*
+ * A wing: folded behind the centre, then out and square.
+ *
+ * The rotateX is the arc. It peaks halfway through the swing and is back at
+ * zero by the time the wing locks, which is the difference between a panel
+ * hinging open and one sliding sideways.
+ */
+@keyframes crystal-notice-wing-left {
+  0%, 12% { opacity: 1; transform: perspective(1400px) rotateY(-92deg) rotateX(0deg); }
+  30%     { transform: perspective(1400px) rotateY(-46deg) rotateX(6deg); }
+  50%     { opacity: 1; transform: perspective(1400px) rotateY(0deg) rotateX(0deg); }
+  /*
+   * AND THEN IT GETS OUT OF THE WAY. A wing is an opaque slab in the
+   * panel's own colour; left standing it covers its third of the dialog
+   * for good, which is how the content came to be readable only down the
+   * middle. Once it is flat the panel beneath it is the same surface, so
+   * dropping it changes nothing that can be seen - except that the
+   * content is no longer behind it.
+   */
+  52%, 100% { opacity: 0; transform: perspective(1400px) rotateY(0deg) rotateX(0deg); }
+}
+
+@keyframes crystal-notice-wing-right {
+  0%, 54% { opacity: 1; transform: perspective(1400px) rotateY(92deg) rotateX(0deg); }
+  72%     { transform: perspective(1400px) rotateY(46deg) rotateX(6deg); }
+  90%     { opacity: 1; transform: perspective(1400px) rotateY(0deg) rotateX(0deg); }
+  92%, 100% { opacity: 0; transform: perspective(1400px) rotateY(0deg) rotateX(0deg); }
+}
+
+@keyframes crystal-notice-rise {
+  from { opacity: 0; transform: translateY(1.5rem) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* The left crease goes once its wing is flat; the right outlives it. */
+@keyframes crystal-notice-seam-left {
+  0%, 44%   { opacity: 0.5; }
+  56%, 100% { opacity: 0; }
+}
+
+@keyframes crystal-notice-seam-right {
+  0%, 86% { opacity: 0.5; }
+  100%    { opacity: 0; }
+}
+
+/*
+ * The keys live on the right wing's outer edge, so they cannot be there
+ * before that wing is. They slide out from under the case as it locks.
+ */
+@keyframes crystal-notice-keys-out {
+  0%, 88% { opacity: 0; transform: translateX(-0.36rem); }
+  100%    { opacity: 0.85; transform: translateX(0); }
+}
+
+/*
+ * It settles into place as the panel opens, then hands over to the content
+ * - the two crossfade rather than one waiting for the other, so there is
+ * never a frame with nothing on the device.
+ */
+@keyframes crystal-notice-splash-out {
+  0%   { opacity: 0; transform: scale(0.92); }
+  14%  { opacity: 1; transform: scale(1); }
+  74%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+
+@keyframes crystal-notice-content-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.crystal-notice-panel {
+  animation: crystal-notice-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * A wing is a slab in the panel's own colour - the background does not
+ * change while it folds, only the shape does. Taller than the panel so a
+ * tilt cannot open a gap along the top or bottom edge.
+ */
+.crystal-notice-wing {
+  position: absolute;
+  top: -2rem;
+  bottom: -2rem;
+  width: 33.34%;
+  z-index: 3;
+  pointer-events: none;
+  backface-visibility: hidden;
+}
+
+.crystal-notice-wing-left  { left: 0;  transform-origin: right center; }
+.crystal-notice-wing-right { right: 0; transform-origin: left center; }
+
+/*
+ * THE FRAME HARDWARE, on the right edge where a phone keeps it: volume up,
+ * volume down, and the power key below them.
+ *
+ * THEY STAND OUTSIDE THE CASE. A key that stops at the edge is a stripe
+ * printed on the back; a key that stands proud of it is a button. So they
+ * hang off the panel's right edge against the transparent shell, with the
+ * overlay showing between and around them, and only a hair of each one
+ * tucks back under the case.
+ *
+ * That is also why they are a SIBLING of the panel and not a child: the
+ * panel clips - it has to, the clip-path is what does the unfolding - and
+ * anything inside it is cut off at exactly the edge these have to cross.
+ *
+ * Their colour is the CASE colour rather than the text colour. They are
+ * the same material as the device, and a dark stripe laid on the dim
+ * overlay would simply disappear.
+ */
+.crystal-notice-keys {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -0.3rem;
+  width: 0.36rem;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.crystal-notice-keys span {
+  position: absolute;
+  right: 0;
+  width: 100%;
+  /* Rounded on the outside only - the inside is inside the case. */
+  border-radius: 0 0.12rem 0.12rem 0;
+  background: currentColor;
+}
+
+.crystal-notice-keys span:nth-child(1) { top: 21%; height: 5.5%; }   /* volume up */
+.crystal-notice-keys span:nth-child(2) { top: 28.5%; height: 5.5%; } /* volume down */
+.crystal-notice-keys span:nth-child(3) { top: 41%; height: 8%; }     /* power */
+
+/*
+ * THE MARK ON THE CENTRE LEAF, shown while the device is still folded.
+ *
+ * The unfold runs for most of a second and the content is held back until
+ * both wings are flat - without something on the panel, that time reads as
+ * a dialog being slow rather than as a device opening.
+ *
+ * It sits UNDER the wings (z-index 2 against their 3) so a folded wing
+ * covers its half of the mark, exactly as a closed leaf would, and it is
+ * centred on the panel, which is the centre leaf: it does not drift as the
+ * wings swing out.
+ */
+.crystal-notice-splash {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.crystal-notice-seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background: currentColor;
+}
+
+@media (min-width: 48em) {
+  .crystal-notice-panel {
+    transform-origin: center center;
+    animation: crystal-notice-unfold 860ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+
+  .crystal-notice-wing-left  { animation: crystal-notice-wing-left 860ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+  .crystal-notice-wing-right { animation: crystal-notice-wing-right 860ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+
+  .crystal-notice-seam-left  { animation: crystal-notice-seam-left 860ms linear both; }
+  .crystal-notice-seam-right { animation: crystal-notice-seam-right 860ms linear both; }
+
+  .crystal-notice-keys { animation: crystal-notice-keys-out 860ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+
+  .crystal-notice-splash { animation: crystal-notice-splash-out 1020ms cubic-bezier(0.33, 1, 0.68, 1) both; }
+
+  /* Held back until both wings are flat. */
+  .crystal-notice-panel > :not(.crystal-notice-wing):not(.crystal-notice-seam):not(.crystal-notice-splash) {
+    animation: crystal-notice-content-in 240ms linear 800ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-notice-panel,
+  .crystal-notice-wing-left,
+  .crystal-notice-wing-right,
+  .crystal-notice-seam-left,
+  .crystal-notice-seam-right,
+  .crystal-notice-keys,
+  .crystal-notice-panel > :not(.crystal-notice-wing):not(.crystal-notice-seam):not(.crystal-notice-splash) {
+    animation: none;
+  }
+
+  /* Without their animation the wings would sit over the content - and
+     the placeholder, which fades out on the same cue, would sit over it
+     too. Neither has anything to say once there is no fold to watch. */
+  .crystal-notice-wing,
+  .crystal-notice-splash { display: none; }
+}

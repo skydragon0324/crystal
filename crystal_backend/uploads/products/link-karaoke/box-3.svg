@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" role="img" aria-label="link karaoke">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(9, 62%, 58%)"/>
+      <stop offset="100%" stop-color="hsl(51, 58%, 34%)"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#g)"/>
+  <circle cx="312" cy="96" r="112" fill="rgba(255,255,255,0.12)"/>
+  <circle cx="88" cy="328" r="80" fill="rgba(0,0,0,0.10)"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="600" fill="rgba(255,255,255,0.94)">link karaoke</text>
+  <text x="50%" y="230" text-anchor="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="rgba(255,255,255,0.62)">400 x 400</text>
+</svg>

@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Builds
+build/
+dist/
+
+# Environment - .env.example is committed, .env is not
+.env
+.env.local
+.env.*.local
+
+# Uploaded and generated files. The generator (crystal-backend
+# `npm run mock:images`) recreates every placeholder from the database, so
+# there is nothing here worth committing.
+crystal-backend/uploads/*
+!crystal-backend/uploads/.gitkeep
+
+# Logs and editor noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+/.svn
+
+# The vendor's own backend and client, kept alongside for REFERENCE ONLY.
+# Their mapping code is the specification for what the Eshop and Appstore
+# services return - there is no schema to read - so it is consulted and
+# transcribed, never built or shipped. They are separate svn working copies
+# with their own repository roots, and nothing here should ever enter this
+# one: `git add -A` would otherwise sweep in another company's source.
+vendor_backend/
+vendor_client/

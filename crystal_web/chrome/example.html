@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crystal Chrome — example</title>
+
+  <!--
+    THIS PAGE IS THE TEST.
+
+    Open it in a browser with the backend running and the footer is the real
+    one, out of the console. Stop the backend and it is the fallback, with a
+    warning in the console - which is the degraded path working rather than a
+    fault. Both are worth looking at before shipping this to either store.
+
+    The body styles below are deliberately UNNAMESPACED and ordinary - a
+    stand-in for a host application's own stylesheet. If the widget's rules
+    were not namespaced, this is where the collision would show.
+  -->
+  <link rel="stylesheet" href="crystal-chrome.css">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      color: #101828;
+      background: #fff;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 20px 0;
+    }
+
+    .page h1 { font-size: 28px; margin: 0 0 8px; }
+    .page p { color: #667085; line-height: 1.6; max-width: 62ch; }
+    .page code { background: #f2f4f7; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    .filler { height: 60vh; }
+  </style>
+</head>
+<body>
+
+  <!-- The header goes here. -->
+  <div id="crystal-header"></div>
+
+  <main class="page">
+    <h1>A page in the Eshop</h1>
+    <p>
+      Everything between the two placeholders is the host application's own
+      markup — this block stands in for a CodeIgniter view or a Blade
+      template. The bar above and the block below are built by
+      <code>crystal-chrome.js</code>.
+    </p>
+    <p>
+      Narrow the window past <code>62em</code> and the bar collapses to the
+      brand and the hamburger, and every row in the sheet carries the same
+      chevron — the two stores included, because to a member they are not
+      somewhere else.
+    </p>
+    <div class="filler"></div>
+  </main>
+
+  <!-- And the footer here. -->
+  <div id="crystal-footer"></div>
+
+  <script src="crystal-chrome.js"
+          data-api="http://localhost:5400/api"
+          data-site="http://localhost:3400"
+          data-active="eshop"
+          data-lang="en"></script>
+</body>
+</html>

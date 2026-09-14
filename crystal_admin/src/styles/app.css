@@ -1,0 +1,188 @@
+/* ---------------------------------------------------------------------
+ * The handful of rules Chakra cannot express as component props.
+ *
+ * Everything else in this console is styled through the theme; what lands
+ * here is limited to the things that need a real selector: a library's own
+ * class, and a fallback for a browser feature that does not exist on the
+ * oldest version this app supports.
+ * ------------------------------------------------------------------ */
+
+
+/* ---------------------------------------------------------------------
+ * 1. A popover has to open ABOVE a dialog
+ *
+ * Chakra puts its popover panel inside `.chakra-popover__popper` and gives
+ * that wrapper `z-index: 10`, while a modal's container carries 1400 - so a
+ * select or a date picker opened inside a form dialog was painted
+ * underneath it: positioned correctly, fully rendered, and invisible.
+ *
+ * It cannot be fixed from the component.  The panel itself is set to
+ * `z-index: inherit`, so it takes whatever the popper wrapper computes to,
+ * and that wrapper is created by the library with no way to pass props to
+ * it.  A wrapper of our own around the panel does not help either: it would
+ * be inside the popper, not above it.
+ *
+ * 1500 is Chakra's own `popover` step, which is where this was always meant
+ * to sit - the library simply never applied it to the wrapper.
+ * ------------------------------------------------------------------ */
+.chakra-popover__popper {
+  z-index: 1500;
+}
+
+
+/* ---------------------------------------------------------------------
+ * 2. Flexbox gap, for Chrome 72
+ *
+ * `gap` on a flex container did not ship until Chrome 84, and a property a
+ * browser does not know is dropped silently - so on Chrome 72 every
+ * toolbar, badge row and button group loses its spacing and the contents
+ * run together.
+ *
+ * Each <Flex gap="N"> carries data-gap="N" and the rules below rebuild the
+ * spacing out of margins.  WHICH margin depends on the direction the gap
+ * runs, and CSS cannot read flex-direction - so the component says:
+ *
+ *   data-gap="16"                      a row.  The default, and the common case.
+ *   data-gap="16" data-gap-column      a column.
+ *   data-gap="16" data-gap-wrap        a row that wraps onto more lines.
+ *   data-gap="16" data-gap-row-from="md"
+ *                                      a column that becomes a row at md.
+ *
+ * TWO THINGS THIS GETS RIGHT THAT THE OBVIOUS VERSIONS DO NOT.
+ *
+ * The margin goes on the CHILDREN, never on the container.  This used to
+ * put half the gap on the container as a negative margin and half on each
+ * child, which emulates gap exactly - and is wrong the moment the
+ * container's own box matters: a container with a fixed height grows past
+ * it, one inside a padded gutter pulls out of it, and a bordered card
+ * bleeds outside its section.  The storefront had both on screen.
+ *
+ * And the margin is TRAILING - `>*:not(:last-child)` - rather than the
+ * leading `> * + *`.  A child hidden with display:none is still a sibling,
+ * so a leading margin draws a gap beside an element that is not there.  A
+ * hidden child has no box, so a margin on it draws nothing, which is what
+ * `gap` does.  The residue is that a container whose LAST child is hidden
+ * keeps one trailing gap of slack.
+ *
+ * None of this applies to a browser with real gap support: boot.js only
+ * adds .no-flex-gap when the feature test fails, so modern browsers run the
+ * native property and never see these rules.
+ *
+ * Grid gap is untouched - it has worked since Chrome 66, so SimpleGrid and
+ * Grid are deliberately not tagged.
+ * ------------------------------------------------------------------ */
+
+
+/* Rows - the default when no axis attribute is present. */
+html.no-flex-gap [data-gap='1'] > *:not(:last-child) { margin-right: 1px; }
+html.no-flex-gap [data-gap='2'] > *:not(:last-child) { margin-right: 2px; }
+html.no-flex-gap [data-gap='4'] > *:not(:last-child) { margin-right: 0.25rem; }
+html.no-flex-gap [data-gap='6'] > *:not(:last-child) { margin-right: 0.375rem; }
+html.no-flex-gap [data-gap='8'] > *:not(:last-child) { margin-right: 0.5rem; }
+html.no-flex-gap [data-gap='10'] > *:not(:last-child) { margin-right: 0.625rem; }
+html.no-flex-gap [data-gap='12'] > *:not(:last-child) { margin-right: 0.75rem; }
+html.no-flex-gap [data-gap='14'] > *:not(:last-child) { margin-right: 0.875rem; }
+html.no-flex-gap [data-gap='16'] > *:not(:last-child) { margin-right: 1rem; }
+html.no-flex-gap [data-gap='22'] > *:not(:last-child) { margin-right: 1.375rem; }
+
+/* Columns. */
+html.no-flex-gap [data-gap='1'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 1px;
+}
+html.no-flex-gap [data-gap='2'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 2px;
+}
+html.no-flex-gap [data-gap='4'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.25rem;
+}
+html.no-flex-gap [data-gap='6'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.375rem;
+}
+html.no-flex-gap [data-gap='8'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.5rem;
+}
+html.no-flex-gap [data-gap='10'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.625rem;
+}
+html.no-flex-gap [data-gap='12'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.75rem;
+}
+html.no-flex-gap [data-gap='14'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 0.875rem;
+}
+html.no-flex-gap [data-gap='16'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 1rem;
+}
+html.no-flex-gap [data-gap='22'][data-gap-column] > *:not(:last-child) {
+  margin-right: 0;
+  margin-bottom: 1.375rem;
+}
+
+/* Wrapping rows - trailing space on every child, both axes. */
+html.no-flex-gap [data-gap='1'][data-gap-wrap] > * {
+  margin-right: 1px;
+  margin-bottom: 1px;
+}
+html.no-flex-gap [data-gap='2'][data-gap-wrap] > * {
+  margin-right: 2px;
+  margin-bottom: 2px;
+}
+html.no-flex-gap [data-gap='4'][data-gap-wrap] > * {
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+html.no-flex-gap [data-gap='6'][data-gap-wrap] > * {
+  margin-right: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+html.no-flex-gap [data-gap='8'][data-gap-wrap] > * {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+html.no-flex-gap [data-gap='10'][data-gap-wrap] > * {
+  margin-right: 0.625rem;
+  margin-bottom: 0.625rem;
+}
+html.no-flex-gap [data-gap='12'][data-gap-wrap] > * {
+  margin-right: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+html.no-flex-gap [data-gap='14'][data-gap-wrap] > * {
+  margin-right: 0.875rem;
+  margin-bottom: 0.875rem;
+}
+html.no-flex-gap [data-gap='16'][data-gap-wrap] > * {
+  margin-right: 1rem;
+  margin-bottom: 1rem;
+}
+html.no-flex-gap [data-gap='22'][data-gap-wrap] > * {
+  margin-right: 1.375rem;
+  margin-bottom: 1.375rem;
+}
+
+/* ---------------------------------------------------------------------
+ * A child that is OUT OF FLOW must opt out with data-gap-skip.
+ *
+ * An absolutely positioned child never participated in the flex layout, so
+ * the real `gap` never touched it - but a margin does, and it moves it.
+ *
+ * There is no CSS selector for "positioned absolutely", so the element says
+ * so itself.  If you add an absolutely positioned child to a container that
+ * carries data-gap, mark it.
+ *
+ * Last in the file, and the attribute is written twice on purpose: this has
+ * to beat every rule above it, and repeating it is how a selector buys
+ * specificity without reaching for !important.
+ */
+html.no-flex-gap [data-gap] > [data-gap-skip][data-gap-skip] {
+  margin: 0;
+}

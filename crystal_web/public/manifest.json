@@ -1,0 +1,9 @@
+{
+  "short_name": "Crystal",
+  "name": "Crystal",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#FF6900",
+  "background_color": "#FFFFFF"
+}

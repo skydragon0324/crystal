@@ -1,0 +1,400 @@
+/* =====================================================================
+ * CRYSTAL CHROME — the header and footer, for the Eshop and the Appstore.
+ *
+ * These two are separate deployments in other languages entirely: the Eshop
+ * is CodeIgniter and the Appstore is Laravel. Neither can import a React
+ * component, and to a member both of them are Crystal - so the bar across
+ * the top and the block along the bottom have to match crystal-web without
+ * being crystal-web.
+ *
+ * EVERY CLASS IS NAMESPACED `crystal-chrome-`. This stylesheet is loaded into
+ * somebody else's page, next to their reset, their framework and their own
+ * rules. A bare `.header` or `.container` here would silently restyle half
+ * of the host application, and the bug would look like theirs.
+ *
+ * NOTHING HERE STYLES AN ELEMENT BY TAG for the same reason - no `a {}`, no
+ * `ul {}`. Only classes this file owns.
+ *
+ * CHROME 72 IS THE FLOOR, the same as crystal-web: custom properties, flex
+ * and grid are fine; `gap` on a flex container is NOT (Chrome 84), so the
+ * spacing is done with margins on children.
+ * ===================================================================== */
+
+.crystal-chrome,
+.crystal-chrome *,
+.crystal-chrome *::before,
+.crystal-chrome *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * THE PALETTE IS SCOPED TO THE WIDGET, not to :root.
+ *
+ * Declaring these on :root would put Crystal's brand colour into variables
+ * the host application may already define, and the collision would show up
+ * as their buttons changing colour.
+ */
+.crystal-chrome {
+  --cc-brand: #2f6df6;
+  --cc-brand-dark: #1b4fd0;
+  --cc-text: #101828;
+  --cc-strong: #1d2939;
+  --cc-muted: #667085;
+  --cc-page: #ffffff;
+  --cc-raised: #f7f8fa;
+  --cc-border: #e4e7ec;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cc-text);
+}
+
+/*
+ * DARK IS OPT-IN, by putting `crystal-chrome-dark` on the element.
+ *
+ * Not `prefers-color-scheme`: the host page has its own idea of light and
+ * dark and will not have consulted the media query, so following it here
+ * produces a dark bar above a white site.
+ */
+.crystal-chrome-dark {
+  --cc-text: #e7ecf3;
+  --cc-strong: #f2f5f9;
+  --cc-muted: #98a2b3;
+  --cc-page: #0e121c;
+  --cc-raised: #151a26;
+  --cc-border: #232a3a;
+}
+
+.crystal-chrome-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  the bar                                                            */
+/* ------------------------------------------------------------------ */
+
+.crystal-chrome-header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  background: var(--cc-page);
+  border-bottom: 1px solid var(--cc-border);
+}
+
+.crystal-chrome-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+.crystal-chrome-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Flex `gap` is Chrome 84, so the spacing is a margin on the children. */
+.crystal-chrome-left > *:not(:last-child) {
+  margin-right: 32px;
+}
+
+.crystal-chrome-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.crystal-chrome-brand:hover {
+  text-decoration: none;
+}
+
+.crystal-chrome-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--cc-brand), var(--cc-brand-dark));
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.crystal-chrome-wordmark {
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--cc-text);
+}
+
+.crystal-chrome-nav {
+  display: flex;
+  align-items: center;
+}
+
+.crystal-chrome-nav > *:not(:last-child) {
+  margin-right: 24px;
+}
+
+.crystal-chrome-nav-link {
+  display: inline-block;
+  padding: 19px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cc-strong);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.crystal-chrome-nav-link:hover,
+.crystal-chrome-nav-link.is-active {
+  color: var(--cc-brand);
+  text-decoration: none;
+}
+
+.crystal-chrome-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.crystal-chrome-right > *:not(:last-child) {
+  margin-right: 8px;
+}
+
+.crystal-chrome-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border: 1px solid var(--cc-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cc-strong);
+  text-decoration: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.crystal-chrome-action:hover {
+  color: var(--cc-brand);
+  border-color: var(--cc-brand);
+  text-decoration: none;
+}
+
+.crystal-chrome-action-primary {
+  background: var(--cc-brand);
+  border-color: var(--cc-brand);
+  color: #fff;
+}
+
+.crystal-chrome-action-primary:hover {
+  background: var(--cc-brand-dark);
+  border-color: var(--cc-brand-dark);
+  color: #fff;
+}
+
+/* The hamburger, which only exists below the breakpoint. */
+.crystal-chrome-burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cc-strong);
+  cursor: pointer;
+}
+
+.crystal-chrome-burger:hover {
+  background: var(--cc-raised);
+}
+
+/* ------------------------------------------------------------------ */
+/*  the phone sheet                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * It unrolls DOWNWARD from under the bar rather than sliding in from the
+ * side, which is what crystal-web does - the two have to feel like one site.
+ */
+.crystal-chrome-sheet {
+  display: none;
+  border-top: 1px solid var(--cc-border);
+  background: var(--cc-page);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.crystal-chrome-sheet.is-open {
+  display: block;
+}
+
+.crystal-chrome-sheet-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--cc-border);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--cc-text);
+  text-decoration: none;
+}
+
+.crystal-chrome-sheet-link:hover {
+  background: var(--cc-raised);
+  text-decoration: none;
+}
+
+.crystal-chrome-chevron {
+  flex-shrink: 0;
+  color: var(--cc-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/*  the footer                                                         */
+/* ------------------------------------------------------------------ */
+
+.crystal-chrome-footer {
+  background: var(--cc-raised);
+  border-top: 1px solid var(--cc-border);
+  margin-top: 80px;
+}
+
+.crystal-chrome-footer-top {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-column-gap: 40px;
+  grid-row-gap: 32px;
+  padding: 48px 0;
+}
+
+/* Grid gap IS supported in Chrome 72 - it is the FLEX one that is not. */
+@media (max-width: 62em) {
+  .crystal-chrome-footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 30em) {
+  .crystal-chrome-footer-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.crystal-chrome-col-title {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cc-muted);
+}
+
+.crystal-chrome-col-link {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--cc-strong);
+  text-decoration: none;
+}
+
+.crystal-chrome-col-link:hover {
+  color: var(--cc-brand);
+  text-decoration: none;
+}
+
+.crystal-chrome-col-link svg {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.crystal-chrome-col-text {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--cc-muted);
+}
+
+/* Six or seven numbers in one column is a stripe of digits nobody scans. */
+.crystal-chrome-phones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-column-gap: 16px;
+}
+
+@media (min-width: 62em) {
+  .crystal-chrome-phones {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.crystal-chrome-footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 32px;
+  border-top: 1px solid var(--cc-border);
+}
+
+.crystal-chrome-copyright {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--cc-muted);
+}
+
+.crystal-chrome-copyright .crystal-chrome-mark {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  margin-right: 12px;
+}
+
+.crystal-chrome-sites {
+  display: flex;
+  align-items: center;
+}
+
+.crystal-chrome-sites > *:not(:last-child) {
+  margin-right: 12px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  the breakpoint                                                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * 62em, matching crystal-web's `lg`. Below it the bar collapses to the
+ * brand and the hamburger, and the links move into the sheet.
+ */
+@media (max-width: 62em) {
+  .crystal-chrome-nav {
+    display: none;
+  }
+
+  .crystal-chrome-burger {
+    display: inline-flex;
+  }
+
+  .crystal-chrome-footer-bottom {
+    display: block;
+  }
+
+  .crystal-chrome-sites {
+    margin-top: 16px;
+  }
+}

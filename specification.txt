@@ -1,0 +1,4840 @@
+CRYSTAL PLATFORM SPECIFICATION
+
+Version: 1.0
+Target:
+- Claude Code
+- Node.js 12.22 environment
+- React 16.14 environment
+- Chrome >=72
+
+Projects:
+1. crystal-backend
+2. crystal-admin
+3. crystal-web
+```
+
+---
+
+# 1. Project Overview
+
+## 1.1 Business Description
+
+Crystal is an East-Asia electronics company providing:
+
+```
+Smartphones
+Eproducts:
+    - TV
+    - STB
+    - Computer
+    - Camera
+
+Eshop (external)
+Appstore (external)
+
+Blog
+Company Introduction
+Customer Support
+Member Services
+```
+
+The platform consists of:
+
+```
+Customer Website
+        |
+        |
+Crystal Backend API
+        |
+        |
+Admin Management Portal
+```
+
+---
+
+# 2. Technology Constraints
+
+## Mandatory Environment
+
+
+## Backend
+
+```
+Runtime:
+Node.js 12.22.x
+
+Language:
+JavaScript
+
+Framework:
+Express.js
+
+Database:
+PostgreSQL
+
+DB Middleware:
+Knex.js
+
+External DB:
+Oracle Database
+
+Storage:
+Local filesystem only
+```
+
+No:
+
+```
+Nest.js
+MongoDB
+Cloud Storage
+Docker dependency
+```
+
+---
+
+## Frontend
+
+```
+Framework:
+React 16.14
+
+UI:
+Chakra UI 1.x
+
+State:
+Redux Toolkit
+
+HTTP:
+Axios
+
+Router:
+React Router 5
+
+Animation:
+Framer Motion
+
+Browser Support:
+
+Chrome >=72
+```
+
+---
+
+# 3. Repository Structure
+
+
+The final source tree:
+
+```
+crystal-platform/
+
+├── crystal-backend
+│
+├── crystal-admin
+│
+└── crystal-web
+```
+
+---
+
+# 4. Backend Specification
+
+# 4.1 Backend Architecture
+
+
+Use layered architecture:
+
+```
+Request
+
+ ↓
+
+Route
+
+ ↓
+
+Controller
+
+ ↓
+
+Service
+
+ ↓
+
+Repository
+
+ ↓
+
+Knex
+
+ ↓
+
+Database
+```
+
+Example:
+
+```
+GET /api/products/c9-pro
+
+
+product.route.js
+
+        ↓
+
+product.controller.js
+
+        ↓
+
+product.service.js
+
+        ↓
+
+product.repository.js
+
+        ↓
+
+PostgreSQL
+```
+
+---
+
+# 4.2 Backend Directory
+
+
+```
+src/
+
+├── app.js
+
+├── config
+│   ├── database.js
+│   ├── oracle.js
+│   └── storage.js
+
+
+├── routes
+
+
+├── controllers
+
+
+├── services
+
+
+├── repositories
+
+
+├── models
+
+
+├── middleware
+│   ├── auth.js
+│   ├── permission.js
+│   └── error.js
+
+
+├── utils
+
+
+└── migrations
+```
+
+
+**`uploads/` is NOT under `src/`.** It sits at the root of crystal-backend,
+beside `src`, `sql` and `scripts`:
+
+```
+crystal-backend/
+├── src/          the application
+├── sql/          schema.sql and its numbered deltas
+├── scripts/      check.js, the seed helpers, the mock image generator
+└── uploads/      what people upload, and the generated placeholders
+```
+
+`src` is source that is written and committed; uploads are DATA that arrives
+at runtime and is deliberately not committed (see .gitignore). Keeping them
+inside `src` also meant nodemon watched a thousand image files and restarted
+the server on every upload, and it put user-supplied files inside the tree a
+build copies.
+
+The location is `UPLOAD_DIR` in .env, resolved against the crystal-backend
+root when it is relative.
+
+---
+
+# 5. Authentication Specification
+
+
+Crystal has different authentication depending on device.
+
+
+## Device Detection
+
+Backend detects:
+
+```
+Desktop
+Mobile
+Tablet
+```
+
+from:
+
+```
+User-Agent
+```
+
+---
+
+# Desktop Login
+
+
+Authentication:
+
+```
+Email
++
+Password
+```
+
+Token:
+
+JWT
+
+Example:
+
+```json
+{
+"userId":1001,
+"device":"desktop",
+"authType":"password"
+}
+```
+
+---
+
+# Mobile Login
+
+
+Authentication:
+
+```
+Phone number
++
+OTP
+```
+
+Token:
+
+```json
+{
+"userId":1001,
+"device":"mobile",
+"authType":"otp",
+"deviceId":"xxxx"
+}
+```
+
+---
+
+# 6. Database Specification
+
+
+## Users
+
+
+Table:
+
+```
+users
+
+id
+
+email
+
+phone
+
+password_hash
+
+nickname
+
+avatar
+
+status
+
+created_at
+updated_at
+```
+
+---
+
+# Products
+
+
+## product_categories
+
+
+```
+id
+
+name
+
+type
+```
+
+
+Example:
+
+```
+Smartphone
+TV
+STB
+Computer
+Camera
+```
+
+---
+
+## product_series
+
+
+```
+id
+
+category_id
+
+name
+
+description
+
+banner_image
+
+sort_order
+```
+
+Data:
+
+```
+C9
+C7
+C5
+C3
+```
+
+---
+
+## products
+
+
+```
+id
+
+category_id
+
+series_id
+
+name
+
+slug
+
+description
+
+main_image
+
+price
+
+currency
+
+release_date
+
+status
+```
+
+---
+
+# Product Specification Engine
+
+
+## specification_groups
+
+
+```
+id
+
+name
+
+sort_order
+```
+
+
+Example:
+
+```
+Display
+Camera
+Performance
+Battery
+Connectivity
+Build
+In the box
+```
+
+
+**In the box is a specification group, not a section of its own.**
+
+The product page used to carry a separate "In the box" band: one square
+tile per boxed item, each showing a photograph. There is no photography
+for boxed items and there is not going to be, so what it actually drew was
+a row of empty grey squares with captions under them.
+
+What is in the box is a list of words, so it belongs where the rest of the
+words are:
+
+```
+group:        IN_THE_BOX
+definition:   Box contents
+value:        Crystal C9 Pro, USB-C cable, 120W fast charger,
+              SIM ejector, Quick start guide, Protective case
+compare:      never
+```
+
+It is never `compare_enabled`: a compare column lines two values up
+against each other, and two different lists of box contents do not line up.
+
+`product_accessories` is unchanged and remains the STRUCTURED copy of the
+same thing - one row per item, with an image column for whenever artwork
+does exist. The console edits that table; the sheet row is what the
+storefront reads.
+
+---
+
+## specification_definitions
+
+
+```
+id
+
+group_id
+
+name
+
+unit
+
+compare_enabled
+
+sort_order
+```
+
+
+Example:
+
+```
+Display
+
+Size
+Resolution
+Refresh Rate
+```
+
+---
+
+## product_specifications
+
+
+```
+id
+
+product_id
+
+specification_id
+
+value
+```
+
+---
+
+# Product Media
+
+
+## media_assets
+
+
+```
+id
+
+owner_type
+
+owner_id
+
+purpose
+
+device_type
+
+file_path
+
+sort_order
+```
+
+
+Example:
+
+
+```
+owner:
+C9 Pro
+
+purpose:
+HERO
+
+device:
+desktop
+
+file:
+
+/products/c9/hero-pc.webp
+```
+
+
+Allowed:
+
+```
+desktop
+mobile
+all
+```
+
+
+`owner_type`:
+
+```
+PRODUCT      hero and thumbnail slots only - see product_images below
+SERIES
+CATEGORY
+ARTICLE
+OS_VERSION
+```
+
+
+## product_images - a product OWN pictures, out of media_assets
+
+media_assets is polymorphic: `(owner_type, owner_id)` with no foreign key,
+because one column cannot point at five tables. That is the right shape for
+artwork hanging off four different kinds of owner, and the WRONG shape for
+the two runs that every single product has - there is no owner_type to
+resolve, no chance of an id pointing into the wrong table, and no reason a
+product own pictures should be unreachable by a join.
+
+```
+product_images
+
+product_id    FK to products, ON DELETE CASCADE
+kind          MAIN | ADVERT
+device_type   desktop | mobile | all
+file_path
+alt_text
+width / height
+sort_order
+is_deleted / created_at / updated_at
+```
+
+```
+MAIN     the studio set - front, back, three quarter. The row of 1 to 3
+         square images at the TOP of the product page.
+
+ADVERT   the advertising run - full width marketing panels, each one a
+         whole picture with its copy burnt into the artwork. Shown down
+         the GALLERY TAB, 1 x n, butted together.
+```
+
+media_assets keeps what is genuinely polymorphic: section and series
+banners, article figures, Crystal OS screens, and a product HERO and
+THUMBNAIL slots.
+
+
+**`purpose` decides where an asset appears, and the distinctions are load
+bearing** - two of them were being confused, and the product page showed
+the same photographs twice as a result:
+
+```
+HERO       the wide landing-page banner. Per device width.
+
+THUMBNAIL  the listing tile.
+
+GALLERY    an article figure, or a screen published with an OS release.
+           A PRODUCT studio set is NOT here - see product_images.
+
+BANNER     section and series artwork. Per device width.
+```
+
+The gallery tab shows DETAIL and falls back to GALLERY only when a product
+has no advertising run at all, so a tab that would otherwise be empty still
+shows something.
+
+---
+
+# 7. Smartphone Module
+
+
+## Smartphone Landing Page API
+
+
+```
+GET
+
+/api/smartphones/home
+```
+
+
+Returns:
+
+```
+hero product
+
+series:
+
+C9
+C7
+C5
+C3
+
+
+featured products
+
+
+Crystal OS information
+
+
+support links
+```
+
+---
+
+# Product Detail API
+
+
+```
+GET
+
+/api/products/:slug
+```
+
+
+Returns:
+
+
+```
+Overview
+
+Specifications
+
+Gallery
+
+Service Pricing
+
+OS History
+```
+
+---
+
+# Compare API
+
+
+```
+GET
+
+/api/products/compare
+
+?id=101,102,103
+```
+
+
+Returns:
+
+
+```
+product comparison matrix
+```
+
+---
+
+# 8. Crystal OS Module
+
+
+Tables:
+
+
+## os_versions
+
+
+```
+id
+
+version
+
+title
+
+description
+
+highlights
+
+cover_image
+
+release_date
+```
+
+
+Example:
+
+```
+Crystal OS 5.2
+```
+
+
+`highlights` is free text, one bullet per line - which is what the
+console writes into it. Structuring it would mean an editor could no
+longer paste release notes straight in.
+
+**A release also owns MEDIA**, as `media_assets` rows with
+`owner_type = OS_VERSION`. Support / Crystal OS is a marketing page rather
+than a changelog, and a wall of release notes is what a changelog looks
+like - so every release leads with its cover image and is shown alongside
+the screens published with it. `GET /api/support/os` returns them attached
+to their release, in one query for the whole list.
+
+
+---
+
+## product_os_history
+
+
+```
+product_id
+
+os_version           varchar - the DEVICE own version string
+
+release_date         when THIS model received it
+
+content              the notice, as prose
+
+pub_approve_number   varchar
+
+sort_order
+
+is_deleted / created_at / updated_at
+```
+
+
+**THIS DOES NOT JOIN TO `os_versions`, and that is the point.**
+
+It used to: a row said "release 5.2 reached the C9 Pro on this date", and
+the name, the notes and the artwork all came from the release. The premise
+was wrong. The firmware a television or a set-top box ships is not a Crystal
+OS build at all, and even on the handsets the version a device reports is
+its own - so a version could only be recorded against a device if somebody
+first invented a matching `os_versions` row to point at.
+
+`os_versions` is still the Crystal OS product page (Support / Crystal OS).
+The two are simply not the same list, and nothing joins them.
+
+The DATE is the date this model received the version, not the date the
+version was released: a build reaches the flagship in March and the budget
+line in June, and one date for both is what makes people think their device
+has been forgotten.
+
+---
+
+# 9. Support Module
+
+
+## Agencies
+
+
+```
+agencies
+
+id
+
+name
+
+province
+
+city
+
+address
+
+phone
+
+latitude
+
+longitude
+```
+
+
+Services:
+
+
+```
+agency_services
+
+agency_id
+
+service_type
+```
+
+
+Examples:
+
+
+```
+Repair
+OS
+Insurance
+Replacement
+Installation
+Media Service
+```
+
+---
+
+# FAQ
+
+
+```
+faqs
+
+id
+
+category
+
+product_category
+
+question
+
+answer
+
+status
+```
+
+---
+
+# Repair Pricing
+
+
+```
+service_prices
+
+
+product_id
+
+name
+
+part_id
+
+part_price
+
+sale_price
+
+service_price
+
+approval_no
+
+limit_quantity
+
+labour_minutes
+```
+
+Example:
+
+
+```
+Battery
+
+35        part_price      internal costing
+
+40        sale_price      published counter price
+
+15        service_price   published labour
+
+CR-020-40 approval_no
+
+1         limit_quantity
+```
+
+
+**THE PUBLISHED PRICE LIST, AND ONLY THAT.**
+
+It used to carry the ticket side of a repair as well - the shelf item a line
+consumed (`part_id`), its bench minutes, how many were covered per repair, an
+internal costing price beside the counter one (`sale_price`), and a child
+table of attached documents. All of that is the REPAIR's business rather than
+the price list's, and `repair_ticket_items` already keeps its own copy of
+every figure it charged - so an old ticket still shows the price it quoted.
+
+What is left is the four things a customer reads:
+
+```
+part_name      which part, AS PUBLISHED. A plain string, deliberately not a
+               link to `parts`: the price list names things the way a
+               customer would recognise them, and the shelf names them the
+               way a technician orders them.
+
+part_price     what the part costs
+service_price  what the labour costs
+approval_no    the reference the figure was approved under. A free STRING,
+               never arithmetic: the format differs by market.
+```
+
+`service_price_attachments` is REMOVED.
+
+
+## The storefront price list is PAGED
+
+```
+GET /api/products/:slug/service-pricing?page=1&limit=10
+
+returns { rows, total, page, limit }
+```
+
+A published price list is a document rather than a summary, and paging it
+server-side is what stops the API sending sixty rows to draw ten.
+
+---
+
+# 10. Blog CMS
+
+
+Articles:
+
+```
+articles
+
+id
+
+title
+
+slug
+
+cover_image
+
+summary
+
+content
+
+author
+
+category
+
+status
+
+published_at
+```
+
+Status:
+
+```
+DRAFT
+REVIEW
+PUBLISHED
+```
+
+---
+
+# 11. Member Center
+
+
+## Product Registration
+
+
+User registers device using SN.
+
+Flow:
+
+
+```
+Input SN
+
+ ↓
+
+Backend checks Oracle
+
+ ↓
+
+Get product information
+
+ ↓
+
+Register product
+
+ ↓
+
+Give points
+```
+
+
+Table:
+
+```
+registered_products
+
+
+id
+
+user_id
+
+product_id
+
+serial_number
+
+register_time
+
+points
+```
+
+---
+
+# Device License
+
+
+For:
+
+```
+TV
+STB
+Karaoke
+Media
+```
+
+Table:
+
+
+```
+licenses
+
+id
+
+user_id
+
+device_sn
+
+device_no
+
+license_key
+
+points_used
+
+created_at
+```
+
+---
+
+# Wallet
+
+
+```
+wallets
+
+user_id
+
+balance
+```
+
+
+Transactions:
+
+
+```
+wallet_transactions
+
+type
+
+amount
+
+reference
+
+created_at
+```
+
+---
+
+# Point System
+
+
+```
+point_logs
+
+user_id
+
+type
+
+amount
+
+description
+
+created_at
+```
+
+Types:
+
+
+```
+LOGIN
+
+PRODUCT_REGISTER
+
+PURCHASE
+
+LICENSE
+
+ACTIVITY
+```
+
+---
+
+# Feedback
+
+
+```
+feedback
+
+id
+
+user_id
+
+title
+
+content
+
+status
+
+created_at
+```
+
+
+Status:
+
+```
+OPEN
+
+PROCESSING
+
+ANSWERED
+
+CLOSED
+```
+
+---
+
+# 12. Admin Frontend Specification
+
+
+Technology:
+
+
+```
+React 16.14
+
+Chakra UI
+
+Apex / shadcn style
+```
+
+
+## Primary colour: SKY BLUE. The app icons too.
+
+```
+brand.400   #38BDF8   the same hue lifted, for dark mode
+brand.500   #0EA5E9   buttons, active menu items, focus rings
+brand.600   #0284C7   hover
+```
+
+Deliberately NOT the storefront's orange. These are two tools for two
+different people, and an operator with both open should be able to tell at
+a glance which window they are typing into - which a shared layout and a
+shared component library otherwise make surprisingly hard.
+
+The favicon, the manifest and the `theme-color` meta carry the same ramp.
+
+
+## A popover opened inside a dialog must render ABOVE it.
+
+Chakra puts a popover panel inside a `.chakra-popover__popper` wrapper
+whose theme style is `z-index: inherit`. Portalled to `<body>` that
+inherits `auto`, while a modal's own container carries 1400 - so a select
+or a date picker opened inside a form dialog renders UNDERNEATH it.
+
+Fixed in two places, and both are needed:
+
+```
+rootProps={{ zIndex: 1500 }}   on the PopoverContent of SelectField
+                               and DatePicker. A style PROP always beats
+                               the component's __css, so this one cannot
+                               lose.
+
+.chakra-popover__popper        raised in styles/app.css, for any popover
+  { z-index: 1500 }            those two files do not own. Cannot be
+                               relied on ALONE: emotion injects Chakra's
+                               `inherit` at render time, so which <style>
+                               lands last is a race.
+```
+
+Both are asserted in `src/chrome72.test.js`.
+
+
+## Row actions are ICON BUTTONS with a tooltip.
+
+Edit and delete are the same two glyphs on every screen in the console,
+and spelling them out on every row costs a column of width to say what the
+icon already said. The label moves to a tooltip on hover.
+
+```
+default:      icon only, 36x36 hit area, label in the tooltip
+opt out:      actionsIconOnly={false} - for a screen whose actions are
+              not conventional enough to be recognised as a glyph
+              ("Issue licence", "Reopen"), where the word IS the
+              affordance
+no icon:      keeps its label whatever the flag says
+inline up to: 3 icon actions, or 2 if any of them is labelled or is a
+              control the screen drew itself. Past that, the ... menu.
+```
+
+
+Layout:
+
+```
+Sidebar
+
+Header
+
+Content
+```
+
+
+---
+
+# Admin Modules
+
+
+## Dashboard
+
+Display:
+
+```
+Users
+
+Products
+
+Orders
+
+Points
+
+Feedback
+
+Recent Activities
+```
+
+---
+
+# Product Management
+
+
+Functions:
+
+```
+Create Product
+
+Edit Product
+
+Delete Product
+
+
+Manage:
+
+- images
+- specifications
+- gallery
+- OS history
+- service pricing
+```
+
+---
+
+# Support Management
+
+
+Manage:
+
+```
+Service Centers
+
+FAQ
+
+Repair Pricing
+```
+
+---
+
+# Blog Management
+
+
+Functions:
+
+
+```
+Create
+
+Edit
+
+Review
+
+Publish
+
+Delete
+```
+
+---
+
+# Customer Website Specification
+
+
+# Public Pages
+
+
+```
+/
+
+├── Smartphones
+
+│
+├── Eproducts
+
+│
+├── Blog
+
+│
+├── Intro
+
+│
+├── Support
+
+│
+├── Login
+
+│
+└── Account
+```
+
+
+---
+
+# Smartphone Landing
+
+
+Sections:
+
+```
+Hero              carousel, see below
+
+Series:
+
+C9
+C7
+C5
+C3
+
+
+Featured Phones
+
+
+Crystal OS
+
+
+Compare Phones
+
+
+Support
+```
+
+
+## The hero carousel
+
+Modelled on mi.com/global. It carries a PLAY / PAUSE BUTTON for autoplay,
+sitting at the end of the indicator row rather than parked beside it - so
+it reads as the last item of the same instrument.
+
+```
+slides move as a TRACK, not a cross-fade
+one indicator per slide; the ACTIVE one is a progress bar
+play / pause at the end of the indicator row
+arrows on hover, keyboard arrows when focused, swipe on touch
+pauses on hover and while the tab is in the background
+does not autoplay at all under prefers-reduced-motion
+a single slide is a picture: no timer, no indicators, no arrows
+```
+
+**ONE CLOCK, NOT TWO.** The indicator fill IS the timer: it animates from
+0 to 100% over the slide interval and the advance fires from its
+`animationend`. A CSS animation for the bar plus a `setInterval` for the
+advance is two clocks that drift apart, and every pause widens the gap
+until the bar visibly finishes early or hangs full.
+
+Pausing is therefore `animation-play-state: paused`, which stops the bar
+and the advance together because the event simply never fires.
+
+The visitor's own play/pause decision outranks the automatic pauses: a
+deck paused by the button must not start running again when the pointer
+moves away.
+
+
+---
+
+# Product Detail
+
+
+Tabs, which are ROUTED sub-pages (`/products/:slug/:tab?`) rather than
+in-place state - a specification sheet and a repair price list are things
+people send each other links to:
+
+
+```
+Overview          the bare product url
+
+Specification     including the In the box group
+
+Gallery           the advertising run, 1 x n
+
+Service Pricing   paged, with approval numbers and documents
+
+OS History        this handset, not the release
+```
+
+
+## The top of the page: 1 to 3 main images. NO CAROUSEL.
+
+A carousel is for a deck of unrelated offers competing for one slot on a
+landing page. A product page has ONE subject, and hiding two of its three
+photographs behind a timer means a visitor is shown the back of the phone
+only if they wait.
+
+So the main images are laid out side by side - the same GALLERY shots, and
+the same treatment, as the tile the visitor arrived from, which is also
+what makes the two pages read as one journey.
+
+```
+1 image    one wide picture
+2 images   two columns
+3 images   three columns
+below md   always stacked - three squares across a phone are thumbnails
+object-fit contain, never cover: cropping a phone to fill a square is
+           how the corners of it disappear
+```
+
+
+## NO BUY BUTTON.
+
+Selling happens on the Crystal Eshop, which is a separate system this site
+cannot complete a purchase in. A button that cannot buy anything is worse
+than no button, because it is only discovered to be a link after it has
+been trusted.
+
+The price still travels with the sticky tab bar, so it stays readable half
+way down the specification sheet. Comparison is the only action this page
+can actually carry out, so it is the only one offered.
+
+
+## Gallery tab: the ADVERTISING images, 1 x n, concatenated.
+
+Not the phone's gallery photographs - those are the main images at the top
+of the page, and showing them again behind a tab is the same four pictures
+twice. These are the `DETAIL` assets: full width marketing panels, each
+one a whole picture with its copy burnt into the artwork.
+
+```
+one column, full page width
+each panel butted against the one above it - no gutter, no card
+each panel keeps its OWN proportions - no fixed ratio, or the copy
+  inside half of them is cropped off
+no lightbox - at full width they are already at their intended size
+```
+
+A grid of two or three columns is what turned this into a wall of
+thumbnails and made the copy inside each panel too small to read.
+
+
+## Service pricing tab
+
+```
+columns:  part or service | sale price | service price | total
+          | approval number | documents | covered per repair
+
+paged:    10 a page, server side
+```
+
+See section 9, Repair Pricing, for why the sale price and the internal
+part price are two different numbers.
+
+
+## OS history tab
+
+THIS HANDSET's history, which is a different question from what is in a
+release - that is Support / Crystal OS. The one asked here is the one an
+owner actually asks: "has my phone had it, and when?"
+
+So the date shown is **the date this model received the version**, not the
+version's own release date. A release reaches the flagship in March and
+the budget line in June, and showing one date for both is what makes
+people think their phone has been forgotten.
+
+Each entry carries the release's cover image beside its notes - a
+thumbnail rather than a band, because the subject of this page is the
+phone and not the release.
+
+---
+
+# Compare
+
+
+Features:
+
+
+```
+Select 2-4 phones
+
+Highlight differences
+
+Specification comparison
+
+Mobile:
+two-phone comparison
+```
+
+
+---
+
+# Support Page
+
+
+Sections:
+
+
+```
+Search
+
+Quick Actions
+
+My Device
+
+Popular Problems
+
+Service Centers
+
+Repair Pricing
+
+OS Support
+
+Warranty
+
+FAQ
+
+Contact
+```
+
+---
+
+# Member Center
+
+
+Navigation:
+
+```
+Dashboard
+
+
+Eshop
+
+ ├ Card
+ ├ Orders
+ ├ Transactions
+ └ Point Log
+
+
+Appstore
+
+ ├ Purchases
+ ├ Comments
+ └ Favorites
+
+
+Products
+
+ ├ Registered Products
+ └ Licenses
+
+
+Wallet
+
+ ├ Balance
+ ├ Charge
+ ├ Transfer
+ └ Security
+
+
+Software Points
+
+
+Activity
+
+
+Blog
+
+
+Feedback
+
+
+Settings
+```
+
+---
+
+# UI Requirements
+
+
+## Desktop
+
+Minimum:
+
+```
+1280px
+```
+
+Layout:
+
+```
+Header
+
+Content
+
+Footer
+```
+
+---
+
+## Mobile
+
+Breakpoint:
+
+```
+768px
+```
+
+Requirements:
+
+```
+Mobile header
+
+Hamburger menu
+
+Single column
+
+Touch-friendly buttons
+
+Separate mobile images
+```
+
+---
+
+# Image Management Rules
+
+
+Every marketing image supports:
+
+```
+Desktop Image
+
+Mobile Image
+```
+
+
+Example:
+
+```
+C9 Hero
+
+Desktop:
+1920x900
+
+
+Mobile:
+1080x1350
+```
+
+---
+
+# Development Rules for Claude Code
+
+
+Claude should:
+
+1. Never hardcode product data.
+2. All content comes from API.
+3. Use reusable components.
+4. Follow existing package versions.
+5. Do not upgrade dependencies.
+6. Use JavaScript, not TypeScript.
+7. Keep Chrome 72 compatibility.
+8. Use Chakra UI components.
+9. Keep backend separated from frontend.
+10. Generate database migration files.
+
+---
+
+# Recommended Claude Code Generation Order
+
+
+Do not ask Claude to generate everything at once.
+
+Use this order:
+
+## Step 1
+
+Generate backend foundation:
+
+```
+Express
+Knex
+PostgreSQL
+Authentication
+File upload
+```
+
+---
+
+## Step 2
+
+Generate database:
+
+```
+Migration
+Models
+Repositories
+Services
+API
+```
+
+---
+
+## Step 3
+
+Generate Admin:
+
+```
+Layout
+Login
+Product CMS
+Support CMS
+Blog CMS
+```
+
+---
+
+## Step 4
+
+Generate Customer Web:
+
+```
+Header/Footer
+
+Homepage
+
+Smartphone landing
+
+Product detail
+
+Compare
+
+Support
+
+Member center
+```
+
+---
+
+This specification is the correct level of detail for Claude Code: it defines **architecture, constraints, database, API behavior, UI responsibilities, and development rules** without forcing Claude into unnecessary implementation details.
+
+
+--------------------------------------
+
+- The primary color of the frontend project should be sky blue.
+- For crystal_admin, the night theme should be more blank than now so really same as demo project.
+The sidebar back color should be changed according to the light mode, while its always black color even though its on light mode.
+The hamburger icon located on the top left should be exactly same with the demo site, it should locate on the divider line between sidebar and content, and the icon also should be chevron-right or chevron-left
+- On admin page, select or date picker is showing behind the modal, so please fix it.
+
+------------------------------------------
+
+- The whole frontend project should be working well on Chrome 72. The minimum chrome version is 72, and on that version, spacing and gap is not working well, so please care about it.
+
+
+-----------------------------------------
+
+- Hero carousel should have paly/pause button to control autoplay. You can reference HeroCarousel, but my goal is to make similar carousel of https://www.mi.com/global/
+- For crystal-web the smartphone detail page, there's no need to show hero carousel. Its containing 1~3 main images smiliar with the one shown on smartphones list. You cant buy buy clicking buy button so that button is not necessary. Currently because of leak of data, In the box section should be removed, and that can be described at the specification as one category option.
+In the gallery tab, the images are the advertise images, not the gallery image of the phone, and it should shown in 1xn concated.
+For the service pricing tab, it can list the attachments and the field also can be sale price, service price, approval number (string). The pagination is needed for service pricing.
+- For crystal-admin, the primary color should be sky blue, and so do the app icons.
+For crystal-admin, SelectField on the modal is behind the modal, Datepicker on the modal is also behind the modal.
+For the edit and delete, etc, action buttons on the table can be only icon button without the text, but showing tooltip on mousel over.
+Beside the crystal os, we also need the phone os history and the phone os history should be belong to the phone detail page of crystal-web.
+- Ths Crystal OS are showing on Support/Crystal OS and its completely correct.
+But I'd like to show some images as well with the text. Please redesign it.
+
+----------------------------------------
+
+- on product_categories table, the status field maybe not used, I think, and if so, please remove it.
+- For the TV, STB, Computer, there's no series, and products are directly joined to the product_category, except smartphone and camera. What is the best way to do it? Only one series linked to TV, STB and if theres only one series on category, hide the series section?
+- Could you describe the product status 'achieved'? When can I use that status?
+- The specification groups and defintions are fixed for products, but it can completely different to product category. e.g. for smartphones, display, performance, camera, battery, ... maybe ok, but for TV, backlight, display ratio, lightness, color system. What is the best way to do this?
+- On crystal-admin, there's no page to control the product colors.
+- All medias are saved to media assets, but I'd like to split some from that. Esp, product main images and product advertise images should split from media_assets and should make separate table (please name it suitably and join to products)
+- For service_prices, the only product_id, part_name (string), part_price, service_price, sort_order, is_deleted, approval_no, created_at, updated_at fields should be remained, and the others should be removed from the db. And please remove service_price_attachments.
+- For each product, the os version and release date are different and that os version is not same with crystal os completely. So for product_os_history, the product_id and os version (string, not joined to os_versions), release date, content (long string, it can be sentences), pub_approve_number(string), sort_order should be shown. Maybe is_deleted, created_at, updated_at are the default fields of every table, so these also should be added.
+
+-------------------------------------
+
+- For agencies, name, province, address, phone, tier, status fields are necessary and the others should be removed.
+- I can't find the admin page to manage agency_services.
+- Actually for smartphones and eproducts, the agencies should be separated, even one same agency is offering service for both smartphone and eproduct, it should be managed separately in different pages. I'm not sure the agency table should be splitted to two, so please advise the best one to do this.
+- Let me limit the service name for smartphone agency and eproduct agency, for smartphone agency, service names are os, repair, insurance, replacement, while for eproduct agency, media service, repair, streaming devices, computer, codeless phone, camera device
+
+--------------------------------------
+
+- crystal-admin page, when try to delete a row, you must display confirm modal to confirm delete.
+- For confirm modal, the enter key is set to default so when you press enter, OK is pressed.
+- for product colors, I'm not sure why the image is required, cause the color is shown by the hex color. I'd like to remove it from db.
+- for product images, I'd like to set the display order, so please make the admin UI to manage it.
+- for product images, when one image (both main or advert) is deleted (but it is still remains on the db), how to restore it? There's no UI for it.
+- When I made changes on product detail, I mean I made a change on a specific tab, and click save to store it, the tab index reset to show Overview. Its really poor UX.
+- For admin products page, when I click a row of product, its showing product detail page, and I usually misclick it to view the detail undesirely. Please make double-click to view details, and it should be shown kindly as a tooltip when I mouse over on a row of products.
+- For crystal-web, for product detail page, the main images of the product maybe shown on hero-carousel, isn't it? At least for mobile view, I think the main images should shown as carousel.
+- For crystal-web, the hero images are completely different for smartphones and eproducts, and it is also different with the phone main image for smartphones. I'd like to manage it for each pages on crystal-admin and show hero images according to it on crystal-web.
+- Well, the manager for each smartphone and eproducts are different, so is there any way to apply permission for it?
+
+-----------------------------------------
+
+- For agencies, please remove 4 fields and also remove latitude/longitude, city. currently remain the code, sla_hours and daily_capacity.
+- section-scoped pages, not row-level permissions: /admin/catalog/products/smartphone and /admin/catalog/products/eproduct as separate pages, each granted independently, with the API filtering by category type from the page it's guarding.
+
+-----------------------------------------
+
+- I already asked about the product specifications, well the specification groups and definitions can be completely different for smartphone and eproduct and also for eproduct, each product or category can have different spec definitions, so it should completely variant and adjustable by admin. Is there any way to do it?
+- service prices are also different for smartphones and eproducts and it should be managed by the different managers. So like products, service prices should be managed on section-scoped pages.
+- Please set more mock data for service prices and show pagination on service-princing of crystal-web.
+- On crystal-web, the product detail page's gallery tab is not working, and it was showing 404 error page to browse smartphones page even though it belong to eproduct pages. So according to the path url, please distinguish the product type is smartphone or eproduct and show suitable goto button.
+- On crystal-web, the software updates tab should be hidden at the moment.
+- On crystal-web, I'd like to set service-pricing for specific product can be shown or hidden, because some of them have nothing to show on service-pricing.
+- Currently, product comparasion is only necessary for smartphones, not eproducts.
+- Currently, except camera devices (I already mentioned that camera category and its meaning is the ip-cameras and camera-recorders), other eproducts (TV, STB, Computer) have no series (or default 1 series, with no meaning), and the series section with only 1 series is not neccessary to show on eproduct category page for crystal-web.
+- For smartphone homepage, hero section should show integrated advertise images, I think theres images can be C9 total advertise images, C7 Pro fastcharge image, etc. It should not belong to a specific product, its completely different image.
+- On crystal-web, both smartphones and eproducts have support differently. Agencies are managed by each manager, so on web project, agencies should included to Smartphones and Eproducts pages. So do for repair prices (service_prices).
+Warranty should also belong to both pages.
+- Crystal OS is only belong to smartphones.
+- Remain contact us on support page and I'll consider later.
+
+-----------------------------------------
+
+- How to set product_category_id for specification groups? I cant find it on admin page.
+- All rows only have is_deleted field to set soft delete function, but sometimes I need to permanent delete on the row, and of course only when that row have no dependency joined to other table.
+- Please make fully internationalization for 3 projects and supportted language is English, Chinese, German, Spanish.
+- Maybe for smartphones, software updates should always shown, now I can't find software updates.
+- On crystal-web, service pricing also should have search function.
+- Service prices on section-scoped console pages (the requireSection machinery is built, so this is mostly wiring)
+- Smartphone homepage hero as section-level advertising images — not product artwork
+- Repair prices + warranty + faqs on the section pages (agencies is already done)
+- Crystal OS restricted to smartphones
+- Please set suitable icons for admin page sidebar menus.
+
+-----------------------------------------
+
+- Hero as section-level advertising images
+- Repair prices + warranty + FAQs on the section pages
+- Permanent delete like you described above.
+- Sorry, make internationalization for only English and Chinese, but a complete implementation including crystal-web.
+
+-----------------------------------------
+Here's my feedback logic that was originally designed on oracle.
+CREATE TABLE feedback_threads (
+  thread_pk NUMBER PRIMARY KEY,
+  user_pk NUMBER NOT NULL,
+  title VARCHAR2(512) NOT NULL,
+  category NUMBER(2) DEFAULT 0 NOT NULL,
+  thread_source NUMBER(1) DEFAULT 0,
+  last_message VARCHAR2(4000),
+  last_type NUMBER(1) DEFAULT 0,
+  status NUMBER(1) DEFAULT 0,
+  is_read NUMBER(1) DEFAULT 0,
+  is_deleted NUMBER(1) DEFAULT 0,
+  session_by NUMBER,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_feedback_thread_user_pk FOREIGN KEY (user_pk) REFERENCES users(user_pk),
+  CONSTRAINT fk_feedback_thread_manager_pk FOREIGN KEY (session_by) REFERENCES managers(manager_pk)
+);
+CREATE TABLE feedback_messages (
+  message_pk NUMBER PRIMARY KEY,
+  thread_pk NUMBER NOT NULL,
+  message VARCHAR2(4000) NOT NULL,
+  action_type NUMBER(1) DEFAULT 0 NOT NULL,
+  action_by NUMBER NOT NULL,
+  action_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_feedback_msg_thread_pk FOREIGN KEY (thread_pk) REFERENCES feedback_threads(thread_pk)
+);
+
+As you can see, every feedback have thread and on one thread have several messages, so user can chat with manager like chatting apps. The thread_source can be Smartphones, Eproducts, Eshop, Appstore, Eproduct register, Smartphone register, Crystal App, etc.
+The thread status can be pending, replied (when manager answered), resolved(the problem is fixed by the answer so user or manager set to resolved), finished(thread is auto-finished after 7-days if user or manager doesn't resolve it).
+According to this db schema, the backend, admin, web pages should be updated.
+
+-----------------------------------------
+
+- The confirm modal for permanent delete have 2 close buttons when the record still refer that one.
+- please keep going 4 tasks in that order, but do them at once.
+
+-----------------------------------------
+
+- Please update crystal-admin login page with modern creative design.
+- Please make 100+ mock data for service centers, and maybe there should have search, pagination for both web and admin.
+- Please make 100+ mock data for FAQs, and maybe it should have filter, search, pagination. (both admin and web)
+- I cant select feedback source on web page, and also please remove category on feedback_thread table.
+- /account/feedback/new is completely unnecesary for web page, because on /account/feedback page, the 'Start a conversation' modal works for that.
+- I need to make popup-notification modal and that should shown on startup of web. The popup-notification have checkbox that showing 'dont remind today' so once check it, the notification modal doesn't shown today anymore. Please make it properly? Maybe the notification title and content should be managed on admin page.
+
+-----------------------------------------
+
+- The FAQ category can be Smartphone, Eproduct, Eshop, Appstore, Crystal App.
+- Please make submenu of service center to Smartphones and Eproduct, because it was managed by different manager, and also user regard thoese are splitted.
+Also on submenu page, only service centers belong to smartphone or eproduct should be shown. Please dont remove service center on support main menu, but when I visit that page, I should find each service centers, not both at the moment. Also the services (I mean business of the service center) should be shown by smartphone or eproduct.
+- For the site_notices, several, I mean over 1 notices can be shown at the moment, so please make mock data for this and remake UI for web. Als I'd like to add origin field to site_notices so that we can distinguish which notice is from. Maybe the origins should be managed separately and it can be selected for admin page when adding notice.
+- Please make RichTextEditor style suitable to night mode.
+- For crystal-web, the notice dialog is shown only when the site loads first.
+I'd like to locate a notify icon on the top-right left to night mode icon, and when I click that icon, please show the notification page (that should be newly made). I dont need to show the notification modal by that icon. Please make a new page to display all notifications available today. Make more notification mock-data, at least 7 notifications today, so I can check one by one.
+- Compare smartphones should only belong to smartphones page, because its not dealing with eproducts or intro page, and the compare button located on the header is not correct logic. At least it should shown only on smartphone pages. Please make a best UX for it.
+- For internationalization for 3 projects (backend, admin, web) I think english also should be added to disctionaries.js while currently only Chinese is on there. So once I try to change English, only dictionaries are changed, without changing anything on code.
+- Currently my required node version is 12.22, and is there anything not working on current project? last time, you've upgraded the node version.
+
+-----------------------------------------
+
+- For db tables, some fields like category are mostly strict, rarely need renaming, and I absolutely want to avoid an extra table or JOINs, so I want to remake tables using the native PostgreSQL ENUM. Could you do this?
+- Service centers should included to smartphones or eproduct main menu, not as submenu of support/service centers.
+- On service centers page, its not able to change smartphones/eproduct service centers in one page, only specified service centers should be shown.
+- I'd like to show all notifications in one notification modal, so maybe these can be shown as accordion, not next/back button to navigate. And please decorate the modal theme for notifications. Our company's main business is the smartphones so please make the notification background as Tri-Fold Phones expanded, while on mobile view, it can be collapsed status.
+- Notice origin edit modal have to implement color picker.
+
+-----------------------------------------
+
+- Set suitable color picker background for night mode
+- 'Do not remind me today' on notification modal should be set for overall notification modal, not set for each notifications.
+- I'm not sure the background of the notification modal is the tri-fold phone. please make it clear like Huawei, so to know its the phone background.
+- The first notification item should be expanded as default.
+- Scroll To Top button should be shown on the bottom right corner, when the page scrolled down.
+- For RichTextEditor, 00 words or 00 charactors on the bottom is not needed, also the P (I think it should for tag) is also unnecessary.
+- For feedbacks, please remake the UI for best UX for both admin and web. For admin, I want to bird-eye view for all feedbacks, where it come from, and some content of it. Sometimes, the content can be too long, so please show scrollbar on each row.
+Also when I try to view one row, the order changed, that is poor UX.
+For web, I'd like to view all feedbacks, enable to delete thread, and also when I try to view a row, the detail view can be shown, I think drawer from the right is also a good choice.
+Anyway please make wonderful UX.
+
+------------------------------------------
+
+- For notification modal, on desktop view, the modal width should be more wide, and I think on the left section, it can show the title, origin, time and on the right section, it can show the selected notification's content.
+But on the mobile view, its okay to show like current.
+Anyway, I dont like the notification modal background you provided.
+- For admins, agency_id is not necessary. Also you can login using user_id, not email, so please update the login logic.
+- All select component should use cutomized SelectField, not use original Chakra-UI's Select.
+- I mean 'pick another color...' UI is not suitable for night mode
+- RichTextEditor status bar is removed completely but it should be resizable by dragging right-bottom corner, as original.
+- For feedback on web page, what about to use drawer like the admin page?
+
+------------------------------------------
+
+- SelectField on crystal-web does not have animation like the one on the admin page.
+- SelectField on both admin and web page is not suitable colors for dark mode.
+- RichTextEditor resize is not working well, when I drag it, even I dropped but it still resizing.
+- I'd like to show drawer for feedback details for both admin and web project.
+
+------------------------------------------
+
+Below is a Claude-ready specification for the **Crystal Web – About / Company Introduction page**. It is written so you can give it directly to Claude Code as the implementation requirement.
+
+# Crystal Web — About / Company Introduction Page Specification
+
+## 1. Purpose
+
+Implement the **About / Company Introduction page** for the Crystal customer-facing website.
+
+The page is a long-form corporate storytelling page introducing:
+
+1. Company Overview
+2. Vision and Main Businesses
+3. Corporate Recognition and Certificates
+4. 11-Year Company History
+5. Crystal IT Institute
+6. Eproduct Factory
+7. Manufacturing Excellence
+8. Crystal 3-Floor Shop
+9. After-Service
+10. Company Presence Map
+
+The page must work on:
+
+- Desktop
+- Tablet
+- Mobile
+- Light mode
+- Dark mode
+
+The page must follow the existing Crystal website design language.
+
+---
+
+# 2. Mandatory Technical Constraints
+
+Do not change or upgrade the existing project environment.
+
+## Frontend
+
+- React: 16.14
+- React DOM: 16.14
+- Chakra UI: 1.8.8
+- React Router DOM: 5.3.4
+- Redux Toolkit: existing project version
+- Axios: existing project version
+- Framer Motion: existing project version
+- JavaScript only
+- No TypeScript
+- Chrome minimum version: 72
+- Build system: existing CRA + CRACO configuration
+
+Do not introduce:
+
+- React 18
+- React Router 6
+- Next.js
+- Vite
+- Chakra UI 2/3
+- TypeScript
+- browser APIs unsupported by Chrome 72
+
+Use Babel/transpilation compatible with Chrome >=72.
+
+---
+
+# 3. General Design Requirements
+
+The About page must use the same Crystal public-site layout as other customer-facing pages.
+
+## Header
+
+Use the existing public Crystal header.
+
+Primary brand color:
+
+- Sky blue
+
+Header should support:
+
+- Light mode
+- Dark mode
+- Desktop navigation
+- Mobile hamburger navigation
+
+Do not create a separate visual identity for the About page.
+
+## Footer
+
+Use the same Crystal footer already used throughout the customer website.
+
+Primary footer color:
+
+- Sky blue in light mode
+- Dark navy / dark blue surface in dark mode
+
+Footer content remains consistent with other public pages.
+
+---
+
+# 4. About Page Design Philosophy
+
+This page is a long corporate story.
+
+It must not look like:
+
+- an admin dashboard
+- a simple collection of cards
+- one extremely long text document
+- ten identical full-width sections
+
+Each section should have a different but consistent visual composition.
+
+Recommended story progression:
+
+```text
+Who We Are
+    ↓
+What We Do
+    ↓
+Why Trust Us
+    ↓
+Where We Came From
+    ↓
+How We Innovate
+    ↓
+Where We Manufacture
+    ↓
+How We Manufacture
+    ↓
+Where Customers Experience Crystal
+    ↓
+How We Support Customers
+    ↓
+Where Crystal Is Located
+```
+
+---
+
+# 5. Page Route
+
+Primary route:
+
+```text
+/about
+```
+
+The existing project may currently call this page `Intro`.
+
+If the public header still uses the label:
+
+```text
+Intro
+```
+
+it can route to:
+
+```text
+/about
+```
+
+Do not maintain duplicate `/intro` and `/about` pages unless compatibility with an existing route requires it.
+
+If compatibility is required, `/intro` may redirect internally to `/about`.
+
+---
+
+# 6. Section Anchors
+
+Every About section must have a stable anchor.
+
+Use exactly:
+
+```text
+/about#overview
+/about#businesses
+/about#recognition
+/about#history
+/about#institute
+/about#factory
+/about#manufacturing
+/about#shop
+/about#service
+/about#presence
+```
+
+Required section IDs:
+
+```javascript
+[
+  "overview",
+  "businesses",
+  "recognition",
+  "history",
+  "institute",
+  "factory",
+  "manufacturing",
+  "shop",
+  "service",
+  "presence"
+]
+```
+
+The section navigation must use these IDs.
+
+---
+
+# 7. About Page Navigation
+
+Because the About page contains ten major sections, implement an internal section navigator.
+
+The global Crystal navigation must remain unchanged.
+
+Do not add all ten About sections to the global header.
+
+---
+
+# 8. Desktop About Navigation
+
+Desktop should use a secondary horizontal navigation below the main Crystal header.
+
+Example:
+
+```text
+CRYSTAL MAIN HEADER
+────────────────────────────────────────────────────────────────
+
+About Crystal
+
+Overview  Businesses  Recognition  History  Institute
+Factory  Manufacturing  Shop  Service  Presence
+────────────────────────────────────────────────────────────────
+```
+
+## Behavior
+
+The About navigator should initially appear in the normal page flow.
+
+After the user scrolls beyond the top hero area, it becomes sticky.
+
+The navigator should remain available while scrolling through the About page.
+
+Do not let the sticky navigator occupy excessive vertical space.
+
+Recommended height:
+
+```text
+48–56 px
+```
+
+---
+
+# 9. Desktop Navigation Labels
+
+Use short labels.
+
+```javascript
+const aboutSections = [
+  { id: "overview", label: "Overview", number: "01" },
+  { id: "businesses", label: "Businesses", number: "02" },
+  { id: "recognition", label: "Recognition", number: "03" },
+  { id: "history", label: "History", number: "04" },
+  { id: "institute", label: "Institute", number: "05" },
+  { id: "factory", label: "Factory", number: "06" },
+  { id: "manufacturing", label: "Manufacturing", number: "07" },
+  { id: "shop", label: "Shop", number: "08" },
+  { id: "service", label: "Service", number: "09" },
+  { id: "presence", label: "Presence", number: "10" }
+];
+```
+
+Do not use the full section headings in the navigation bar.
+
+---
+
+# 10. Desktop Active Section
+
+The currently visible section must automatically highlight in the sticky navigator.
+
+Example:
+
+```text
+Overview   Businesses   Recognition   HISTORY   Institute   ...
+                                   ━━━━━━━━━
+```
+
+Preferred active treatment:
+
+- sky-blue text
+- bottom border / underline
+- slightly stronger font weight
+
+Do not use large background pills for every navigation item.
+
+---
+
+# 11. Section Detection
+
+Use:
+
+```text
+IntersectionObserver
+```
+
+for determining the currently active section.
+
+Chrome 72 supports IntersectionObserver.
+
+Do not implement constant expensive `scroll` calculations unless a fallback becomes necessary.
+
+Recommended strategy:
+
+```javascript
+const observer = new IntersectionObserver(callback, {
+  root: null,
+  rootMargin: "-25% 0px -60% 0px",
+  threshold: 0
+});
+```
+
+Exact values may be adjusted during implementation.
+
+---
+
+# 12. Navigation Click Behavior
+
+Clicking a navigation item must:
+
+1. Smoothly scroll to the target section.
+2. Account for sticky-header offset.
+3. Update the URL hash.
+4. Not perform a complete page reload.
+
+Example:
+
+```text
+History
+    ↓
+/about#history
+```
+
+Because Chrome 72 is supported, use compatible scrolling code.
+
+If native smooth scrolling has compatibility concerns in the current environment, implement a small compatible helper rather than introducing a large dependency.
+
+---
+
+# 13. Direct Anchor Loading
+
+The following must work:
+
+```text
+https://site/about#factory
+```
+
+When loaded directly:
+
+1. About page renders.
+2. Data loads.
+3. Page scrolls to Factory.
+4. Factory becomes the active section.
+
+Take sticky-header offset into account.
+
+---
+
+# 14. Mobile Section Navigation
+
+Do not show all ten section names horizontally on mobile.
+
+Use a compact sticky chapter selector.
+
+Example:
+
+```text
+┌────────────────────────────────┐
+│ 06 / 10    Factory          ▼ │
+└────────────────────────────────┘
+```
+
+As the user scrolls:
+
+```text
+01 / 10 Overview
+02 / 10 Businesses
+03 / 10 Recognition
+...
+```
+
+The value updates automatically.
+
+---
+
+# 15. Mobile Section Selector
+
+When the user taps the mobile section selector, open a Chakra UI Drawer.
+
+Preferred placement:
+
+```text
+bottom
+```
+
+If Chakra UI 1.8.8 behavior makes bottom Drawer inconvenient, a full-width mobile Drawer from the right is acceptable.
+
+Display:
+
+```text
+About Crystal
+
+01  Overview
+02  Businesses
+03  Recognition
+04  History
+05  IT Institute
+06  Factory
+07  Manufacturing
+08  Crystal Shop
+09  After-Service
+10  Presence
+```
+
+Current section:
+
+```text
+06 Factory   ✓
+```
+
+Selecting an item:
+
+- closes the Drawer
+- scrolls to that section
+- updates URL hash
+
+---
+
+# 16. Mobile Sticky Layout
+
+Recommended:
+
+```text
+CRYSTAL MOBILE HEADER
+─────────────────────────────
+
+06 / 10  Factory          ▼
+─────────────────────────────
+
+Page content...
+```
+
+Avoid keeping two oversized sticky navigation bars.
+
+The About chapter navigation must be compact.
+
+---
+
+# 17. Section Numbering
+
+Each content section must visibly display its chapter number.
+
+Example:
+
+```text
+06
+
+EPRODUCT FACTORY
+
+Quality built into every product.
+```
+
+Use:
+
+```text
+01 – 10
+```
+
+This reinforces the corporate storytelling structure.
+
+Section numbers may use:
+
+- sky-blue
+- low-opacity large typography
+- small eyebrow typography
+
+Do not overpower the main section heading.
+
+---
+
+# 18. Section 01 — Company Overview
+
+## Purpose
+
+Introduce Crystal immediately.
+
+## Content
+
+Required:
+
+- small eyebrow: `ABOUT CRYSTAL`
+- major headline
+- company overview text
+- primary company image
+- corporate facts
+
+Suggested headline:
+
+```text
+Technology. Manufacturing. Commerce.
+```
+
+Content itself must come from API/Admin.
+
+Do not hardcode final business text.
+
+---
+
+# 19. Company Overview Desktop Layout
+
+Recommended:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  ABOUT CRYSTAL                                              │
+│                                                             │
+│  Technology.                           [ COMPANY IMAGE ]     │
+│  Manufacturing.                        [               ]     │
+│  Commerce.                             [               ]     │
+│                                                             │
+│  Company description...                                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+11 Years       7 Businesses      Top-10 IT       R&D / Factory
+```
+
+Image and text should be approximately:
+
+```text
+45% / 55%
+```
+
+or:
+
+```text
+50% / 50%
+```
+
+depending on image composition.
+
+---
+
+# 20. Company Overview Mobile
+
+Order:
+
+```text
+01
+ABOUT CRYSTAL
+
+Headline
+
+Description
+
+[COMPANY IMAGE]
+
+Corporate Facts
+```
+
+Corporate facts can use a 2x2 grid.
+
+---
+
+# 21. Company Overview Images
+
+Support:
+
+```text
+desktopImage
+mobileImage
+```
+
+Optional:
+
+```text
+desktopDarkImage
+mobileDarkImage
+```
+
+If dark images are absent, use the standard images.
+
+Do not generate mobile layout by blindly cropping a large desktop marketing image.
+
+---
+
+# 22. Section 02 — Vision and Main Businesses
+
+## Vision
+
+Show:
+
+- company vision heading
+- short vision statement
+- optional abstract/ecosystem visual
+
+Recommended headline area:
+
+```text
+OUR VISION
+
+Technology that improves everyday life.
+```
+
+All text managed by Admin.
+
+---
+
+# 23. Main Businesses
+
+Crystal currently has seven main businesses:
+
+1. Smartphones
+2. Software Development
+3. Eproduct Business
+4. Commerce Trading
+5. Print Business
+6. E-Commerce
+7. Commerce
+
+These seven entries must be data-driven.
+
+Do not hardcode them in individual React components.
+
+---
+
+# 24. Business Visual Hierarchy
+
+The first three should receive stronger visual prominence:
+
+```text
+Smartphones
+Software Development
+Eproduct Business
+```
+
+Recommended desktop:
+
+```text
+┌─────────────────────────┬─────────────────────────┐
+│ Smartphones             │ Software Development    │
+│ [large visual]          │ [large visual]          │
+└─────────────────────────┴─────────────────────────┘
+
+┌───────────────────────────────────────────────────┐
+│ Eproduct Business                                 │
+│ TV • STB • Computer • Camera                     │
+│ [wide visual]                                     │
+└───────────────────────────────────────────────────┘
+
+Commerce Trading   Print Business   E-Commerce   Commerce
+```
+
+The final four can use smaller cards.
+
+---
+
+# 25. Business Item Data Contract
+
+Each business item should support:
+
+```javascript
+{
+  id,
+  name,
+  shortDescription,
+  imageDesktop,
+  imageMobile,
+  linkType,
+  linkUrl,
+  sortOrder,
+  featured,
+  active
+}
+```
+
+`linkUrl` can be null.
+
+Do not require every business to have a customer-facing destination.
+
+---
+
+# 26. Section 03 — Recognition and Corporate Certificates
+
+Crystal has:
+
+- Top-10 IT Company recognition
+- 7 corporate certificates
+
+These are distinct from factory QA certificates.
+
+---
+
+# 27. Recognition Layout
+
+Top-10 recognition should be the focal item.
+
+Recommended:
+
+```text
+RECOGNITION & CERTIFICATIONS
+
+Recognized among the Top 10 IT Companies.
+
+[ LARGE TOP-10 CERTIFICATE / RECOGNITION ]
+
+Title
+Issuer
+Year
+Description
+```
+
+Below:
+
+```text
+OUR CERTIFICATES
+
+[1] [2] [3] [4]
+   [5] [6] [7]
+```
+
+Exact card distribution should adapt responsively.
+
+---
+
+# 28. Certificate Card
+
+Show:
+
+- thumbnail
+- certificate title
+- issuing organization
+- year
+
+Click/tap opens modal.
+
+Modal:
+
+```text
+[Large certificate image]
+
+Certificate Name
+Issuer
+Issue Date / Year
+Description
+```
+
+Do not use generic award icons when a real certificate image exists.
+
+---
+
+# 29. Corporate Certificate Data
+
+```javascript
+{
+  id,
+  type, // TOP10 or CORPORATE
+  name,
+  issuer,
+  issueDate,
+  year,
+  description,
+  image,
+  sortOrder,
+  featured,
+  active
+}
+```
+
+Exactly seven CORPORATE certificates currently exist, but frontend must not assume that seven will always exist.
+
+---
+
+# 30. Section 04 — Company History
+
+Crystal has an 11-year company history.
+
+Every year should be supported.
+
+The timeline must be data-driven.
+
+---
+
+# 31. Desktop History UI
+
+Preferred approach:
+
+Year selector + detail view.
+
+Example:
+
+```text
+11 YEARS OF CRYSTAL
+
+2016  2017  2018  2019  2020  2021
+ ●     ●     ●     ●     ●     ●
+
+2022  2023  2024  2025  2026
+ ●     ●     ●     ●     ●
+
+                    2022
+
+             [optional image]
+
+Headline
+
+Description
+```
+
+Do not require each year to contain an image.
+
+---
+
+# 32. Mobile History UI
+
+Use a vertical timeline.
+
+```text
+2016 ●
+     │
+     ├ Company milestone
+     │ description
+     │ [optional image]
+     │
+2017 ●
+     │
+     ├ ...
+```
+
+Avoid horizontal year scrolling as the only way to understand the timeline.
+
+---
+
+# 33. History Data Contract
+
+```javascript
+{
+  id,
+  year,
+  title,
+  description,
+  imageDesktop,
+  imageMobile,
+  sortOrder,
+  active
+}
+```
+
+One year can contain more than one event if required later.
+
+If multiple events per year are supported by backend, frontend should render them under the same year.
+
+---
+
+# 34. Section 05 — Crystal IT Institute
+
+## Purpose
+
+Present Crystal's research and software/technology capabilities.
+
+Recommended darker technical visual treatment.
+
+Use:
+
+- dark/navy background
+- sky-blue accents
+- strong R&D photography
+- technology visual elements
+
+Must remain readable in both site modes.
+
+---
+
+# 35. IT Institute Layout
+
+Desktop:
+
+```text
+[ R&D / INSTITUTE IMAGE ]      CRYSTAL IT INSTITUTE
+
+                               Research. Create. Transform.
+
+                               Description
+
+                               Research Areas
+                               • Software Development
+                               • Mobile Technology
+                               • Crystal OS
+                               • AI
+                               • IoT / Connected Devices
+                               ...
+```
+
+Research areas must come from Admin.
+
+Do not invent research areas in frontend.
+
+---
+
+# 36. IT Institute Data
+
+Main section:
+
+```javascript
+{
+  title,
+  subtitle,
+  description,
+  imageDesktop,
+  imageMobile
+}
+```
+
+Research area:
+
+```javascript
+{
+  id,
+  name,
+  shortDescription,
+  icon,
+  sortOrder,
+  active
+}
+```
+
+---
+
+# 37. Section 06 — Eproduct Factory
+
+## Purpose
+
+Present manufacturing facility and quality capability.
+
+Use a major factory hero image.
+
+Example:
+
+```text
+EPRODUCT FACTORY
+
+Quality built into every product.
+
+[ LARGE FACTORY IMAGE ]
+
+Production    Assembly    Testing    Quality
+```
+
+Values/facts must be configurable.
+
+---
+
+# 38. Factory Capability Blocks
+
+Optional content blocks:
+
+```text
+Assembly Line
+Testing Facility
+Quality Control
+Production Capacity
+```
+
+Only render items returned by the API.
+
+---
+
+# 39. Factory QA Certificates
+
+Crystal currently has 6+ manufacturing / QA certificates.
+
+These certificates are separate from corporate certificates.
+
+Display:
+
+```text
+QUALITY CERTIFICATIONS
+
+[QA 1] [QA 2] [QA 3]
+[QA 4] [QA 5] [QA 6] [...]
+```
+
+Do not hardcode six.
+
+Support arbitrary count.
+
+---
+
+# 40. Factory QA Certificate Data
+
+Use the same reusable Certificate component where possible.
+
+Data:
+
+```javascript
+{
+  id,
+  type: "FACTORY_QA",
+  name,
+  issuer,
+  year,
+  description,
+  image,
+  sortOrder,
+  active
+}
+```
+
+---
+
+# 41. Section 07 — Manufacturing Excellence
+
+Do not title this only `Manufacturing Flow`.
+
+Preferred public heading:
+
+```text
+MANUFACTURING EXCELLENCE
+```
+
+Subheading:
+
+```text
+From components to finished products.
+```
+
+This section must advertise manufacturing capabilities first and then explain the flow.
+
+---
+
+# 42. Main Manufacturing Capabilities
+
+Must support items such as:
+
+- Smartphone Manufacturing
+- SMT
+- QA / Testing
+- Packaging
+
+Do not limit the database/UI to these four forever.
+
+Recommended desktop:
+
+```text
+┌────────────────────────────┬────────────────────────────┐
+│ Smartphone Manufacturing  │ SMT                        │
+│ [image]                    │ [image]                    │
+└────────────────────────────┴────────────────────────────┘
+
+┌────────────────────────────┬────────────────────────────┐
+│ Quality Assurance          │ Packaging                  │
+│ [image]                    │ [image]                    │
+└────────────────────────────┴────────────────────────────┘
+```
+
+---
+
+# 43. Manufacturing Flow
+
+Below capabilities, show process.
+
+Initial recommended flow:
+
+```text
+Components
+    ↓
+SMT
+    ↓
+Assembly
+    ↓
+Software / Configuration
+    ↓
+Functional Testing
+    ↓
+QA Inspection
+    ↓
+Packaging
+    ↓
+Finished Product
+```
+
+Desktop can use a horizontal process when enough width exists.
+
+Mobile must use vertical flow.
+
+---
+
+# 44. Manufacturing Flow Data
+
+```javascript
+{
+  id,
+  title,
+  shortDescription,
+  imageDesktop,
+  imageMobile,
+  sortOrder,
+  active
+}
+```
+
+Do not hardcode stage order into CSS.
+
+Use `sortOrder`.
+
+---
+
+# 45. Section 08 — Crystal 3-Floor Shop
+
+This is a key storytelling section.
+
+Do not implement it as only one generic shop image.
+
+Crystal has a three-floor shop.
+
+The UI must make the three floors understandable.
+
+---
+
+# 46. Shop Desktop Concept
+
+Preferred concept:
+
+```text
+CRYSTAL SHOP
+
+Experience Crystal in person.
+
+[SHOP EXTERIOR / BUILDING IMAGE]
+
+
+3F  ┌────────────────────────────────────────┐
+    │ Third Floor                            │
+    │ [image / description]                  │
+    ├────────────────────────────────────────┤
+2F  │ Second Floor                           │
+    │ [image / description]                  │
+    ├────────────────────────────────────────┤
+1F  │ First Floor                            │
+    │ [image / description]                  │
+    └────────────────────────────────────────┘
+```
+
+Floor purposes must come from Admin.
+
+Do not assume:
+
+- 1F smartphones
+- 2F eproducts
+- 3F service
+
+unless those values are actually configured.
+
+---
+
+# 47. Shop Desktop Interaction
+
+Preferred interaction:
+
+- exterior image initially visible
+- 1F / 2F / 3F floor selector
+- click floor
+- selected floor becomes active
+- content panel changes
+- corresponding image/description displayed
+
+Example:
+
+```text
+1F   2F   3F
+      ↑
+
+Second Floor
+
+[interior image]
+
+Floor description...
+Businesses/products...
+```
+
+Do not require hover.
+
+All interaction must work by click/tap.
+
+---
+
+# 48. Shop Mobile Design
+
+Do not implement complex interactive building cutaway on mobile.
+
+Render floors sequentially:
+
+```text
+CRYSTAL SHOP
+
+[Exterior image]
+
+
+01
+FIRST FLOOR
+
+[Interior image]
+
+Title
+Description
+
+
+02
+SECOND FLOOR
+
+[Interior image]
+
+Title
+Description
+
+
+03
+THIRD FLOOR
+
+[Interior image]
+
+Title
+Description
+```
+
+This is intentionally different from desktop.
+
+---
+
+# 49. Shop Data Model
+
+Shop overview:
+
+```javascript
+{
+  title,
+  description,
+  exteriorDesktopImage,
+  exteriorMobileImage
+}
+```
+
+Floor:
+
+```javascript
+{
+  id,
+  floorNumber,
+  floorLabel,
+  title,
+  description,
+  imageDesktop,
+  imageMobile,
+  sortOrder,
+  active
+}
+```
+
+Current implementation expects three floors but data model should not break if a fourth is added later.
+
+---
+
+# 50. Section 09 — After-Service
+
+## Purpose
+
+Show that Crystal supports customers after purchase.
+
+Recommended narrative:
+
+```text
+We Design
+    ↓
+We Manufacture
+    ↓
+We Sell
+    ↓
+We Support
+```
+
+Then:
+
+```text
+AFTER-SERVICE
+
+Support beyond the purchase.
+
+[SERVICE IMAGE]            Authorized Service
+
+                           Smartphone Repair
+                           Eproduct Repair
+                           Software Service
+                           Warranty
+                           Insurance
+
+                           [Find Service Center]
+```
+
+Only services returned by API should appear.
+
+---
+
+# 51. After-Service CTA
+
+Primary CTA:
+
+```text
+Find Service Center
+```
+
+Route to the existing Service Center page.
+
+Use the correct existing project route.
+
+Do not introduce duplicate service-center functionality into About page.
+
+---
+
+# 52. Section 10 — Company Presence
+
+Use a static custom image.
+
+Do not use:
+
+- Google Maps
+- map SDK
+- embedded interactive maps
+- geolocation APIs
+
+The map is a corporate visual.
+
+---
+
+# 53. Presence Layout
+
+```text
+CRYSTAL PRESENCE
+
+Connecting people through technology.
+
+[STATIC MAP IMAGE]
+
+Headquarters
+IT Institute
+Factory
+Crystal Shop
+Service Network
+Regional Offices
+```
+
+Locations shown must be data-managed.
+
+---
+
+# 54. Presence Images
+
+Require:
+
+```text
+Desktop map image
+Mobile map image
+```
+
+Mobile must not simply crop the desktop map.
+
+Optional dark-mode map versions:
+
+```text
+Desktop dark
+Mobile dark
+```
+
+Fallback to normal image when missing.
+
+---
+
+# 55. Previous / Next Chapter Navigation
+
+At the bottom of each major section, optionally display compact sequential navigation.
+
+Example:
+
+```text
+← IT Institute                    Manufacturing →
+```
+
+For first section:
+
+```text
+Businesses →
+```
+
+For final section:
+
+```text
+← After-Service
+```
+
+This is secondary navigation.
+
+It must not overpower the content.
+
+---
+
+# 56. Responsive Breakpoints
+
+Follow existing Chakra responsive conventions.
+
+Recommended:
+
+```javascript
+base: 0
+sm: 480
+md: 768
+lg: 992
+xl: 1280
+2xl: 1536
+```
+
+Exact theme breakpoints should reuse existing Crystal theme values if they already exist.
+
+Do not create conflicting breakpoint systems.
+
+---
+
+# 57. Responsive Rules
+
+## Desktop
+
+At `lg` and above:
+
+- horizontal About section navigation
+- side-by-side layouts where appropriate
+- interactive 3-floor shop
+- horizontal/interactive history
+- horizontal manufacturing process where appropriate
+
+## Tablet
+
+At `md`:
+
+- preserve two-column layouts only if readable
+- About navigation may horizontally scroll
+- do not force 10 labels into wrapped multi-line navigation
+
+## Mobile
+
+Below `md`:
+
+- compact `XX / 10 Section ▼` navigator
+- single-column storytelling
+- vertical timeline
+- vertical manufacturing flow
+- sequential shop floors
+- mobile-specific marketing images
+
+---
+
+# 58. Horizontal Overflow
+
+The full page must not create page-level horizontal scrolling on:
+
+```text
+320 px
+360 px
+375 px
+390 px
+414 px
+```
+
+Any intentional internal horizontal content must be contained inside its own scroller.
+
+---
+
+# 59. Image Rules
+
+Marketing/corporate sections should support separate desktop and mobile images.
+
+Relevant sections:
+
+```text
+Overview
+Businesses
+History
+Institute
+Factory
+Manufacturing
+Shop
+After-Service
+Presence
+```
+
+Certificates may use one original image for both desktop and mobile.
+
+---
+
+# 60. Image Component
+
+Create a reusable component such as:
+
+```text
+ResponsiveMedia
+```
+
+Responsibilities:
+
+- desktop/mobile image selection
+- dark image fallback
+- alt text
+- lazy loading where appropriate
+- aspect-ratio wrapper
+- object-fit behavior
+
+Do not duplicate responsive `<picture>` logic in every section.
+
+Chrome >=72 compatibility must be preserved.
+
+---
+
+# 61. Image Loading
+
+Hero / above-the-fold company image:
+
+- load immediately
+
+Below-the-fold images:
+
+- lazy-load where safely supported
+
+Do not lazy-load in a way that causes unstable section heights or breaks anchor navigation.
+
+Use placeholders/skeletons or known aspect ratios.
+
+---
+
+# 62. Light Mode
+
+Recommended surfaces:
+
+```text
+Page background: white / very light gray
+Section alternate background: very light sky blue
+Primary accent: Crystal sky blue
+Primary text: dark navy / near black
+Secondary text: gray
+```
+
+---
+
+# 63. Dark Mode
+
+Recommended surfaces:
+
+```text
+Page background: near-black navy
+Alternate sections: slightly lighter navy
+Primary accent: sky blue
+Primary text: white / near white
+Secondary text: blue-gray
+Borders: low-contrast dark borders
+```
+
+Do not invert photographs.
+
+Only switch to dark-specific photography if Admin provides it.
+
+---
+
+# 64. Accessibility
+
+Requirements:
+
+- semantic section headings
+- meaningful image alt text
+- buttons must be actual `<button>`
+- navigation links must be accessible by keyboard
+- focus states visible
+- certificate modal keyboard accessible
+- Drawer keyboard accessible
+- sufficient contrast
+- do not rely only on color to identify active section
+- clickable targets at least approximately 44px on mobile
+
+---
+
+# 65. SEO
+
+Page title:
+
+```text
+About Crystal | Crystal
+```
+
+Meta description should come from CMS/configuration if available.
+
+Use:
+
+```text
+h1
+```
+
+only once.
+
+Recommended:
+
+```text
+H1 = About Crystal / primary company headline
+H2 = section titles
+H3 = subsection/card titles
+```
+
+Anchor section headings should remain crawlable text, not image-only text.
+
+---
+
+# 66. About API
+
+Recommended public endpoint:
+
+```text
+GET /api/public/about
+```
+
+Return all About-page data in one response if practical.
+
+Reason:
+
+The page is one long storytelling experience and should not require 10 sequential API requests.
+
+Suggested response:
+
+```javascript
+{
+  overview: {},
+  vision: {},
+  businesses: [],
+  recognition: {
+    featured: {},
+    certificates: []
+  },
+  history: [],
+  institute: {
+    overview: {},
+    researchAreas: []
+  },
+  factory: {
+    overview: {},
+    capabilities: [],
+    certificates: []
+  },
+  manufacturing: {
+    overview: {},
+    capabilities: [],
+    flow: []
+  },
+  shop: {
+    overview: {},
+    floors: []
+  },
+  service: {
+    overview: {},
+    services: []
+  },
+  presence: {
+    overview: {},
+    locations: []
+  }
+}
+```
+
+---
+
+# 67. Loading Behavior
+
+On initial load:
+
+- render common header immediately
+- display page loading skeleton
+- avoid displaying partially broken sections
+
+Each section should tolerate missing optional data.
+
+Example:
+
+If there is no History image for 2018:
+
+- render title and description
+- do not render broken image container
+
+---
+
+# 68. Error Behavior
+
+If About API fails:
+
+Display a user-friendly page error:
+
+```text
+We couldn't load the company information.
+
+[Try Again]
+```
+
+Keep:
+
+- header
+- footer
+- navigation shell where sensible
+
+Do not expose API error stacks.
+
+---
+
+# 69. Admin Management Requirement
+
+About-page content must be managed from the Crystal Admin project.
+
+Recommended Admin navigation:
+
+```text
+Company
+ └── About Page
+      ├── Overview
+      ├── Vision & Businesses
+      ├── Recognition
+      ├── History
+      ├── IT Institute
+      ├── Factory
+      ├── Manufacturing
+      ├── Crystal Shop
+      ├── After-Service
+      └── Presence
+```
+
+---
+
+# 70. Admin — Overview
+
+Allow manager to edit:
+
+```text
+Eyebrow
+Title
+Description
+Desktop Image
+Mobile Image
+Optional Dark Desktop Image
+Optional Dark Mobile Image
+
+Corporate Facts
+```
+
+Corporate fact:
+
+```javascript
+{
+  label,
+  value,
+  sortOrder
+}
+```
+
+---
+
+# 71. Admin — Businesses
+
+CRUD for businesses.
+
+Fields:
+
+```text
+Name
+Description
+Desktop Image
+Mobile Image
+Link
+Featured
+Display Order
+Active
+```
+
+Allow drag/sort if an existing sortable library already exists.
+
+Otherwise use numeric sort order.
+
+Do not introduce a new heavy dependency only for drag/drop.
+
+---
+
+# 72. Admin — Recognition
+
+Manage:
+
+```text
+Top-10 recognition
+7 current corporate certificates
+future certificates
+```
+
+Fields:
+
+```text
+Name
+Type
+Issuer
+Year
+Description
+Certificate Image
+Featured
+Sort Order
+Active
+```
+
+---
+
+# 73. Admin — History
+
+CRUD for annual history events.
+
+Fields:
+
+```text
+Year
+Title
+Description
+Desktop Image
+Mobile Image
+Sort Order
+Active
+```
+
+Validate year reasonably.
+
+Do not require image.
+
+---
+
+# 74. Admin — IT Institute
+
+Manage:
+
+```text
+Title
+Subtitle
+Description
+Desktop Image
+Mobile Image
+Research Areas
+```
+
+Research areas support CRUD.
+
+---
+
+# 75. Admin — Factory
+
+Manage:
+
+```text
+Factory title
+Description
+Desktop Hero Image
+Mobile Hero Image
+Factory Facts
+Capabilities
+QA Certificates
+```
+
+QA certificate editor may reuse corporate Certificate editor with `FACTORY_QA` type.
+
+---
+
+# 76. Admin — Manufacturing
+
+Manage:
+
+```text
+Section heading
+Description
+Hero image
+Manufacturing capabilities
+Manufacturing flow stages
+```
+
+Capability:
+
+```text
+Title
+Description
+Desktop Image
+Mobile Image
+Order
+Active
+```
+
+Flow stage:
+
+```text
+Title
+Description
+Desktop Image
+Mobile Image
+Order
+Active
+```
+
+---
+
+# 77. Admin — Crystal Shop
+
+Manage:
+
+```text
+Shop Title
+Description
+Exterior Desktop Image
+Exterior Mobile Image
+Floor List
+```
+
+Floor:
+
+```text
+Floor Number
+Floor Label
+Title
+Description
+Desktop Interior Image
+Mobile Interior Image
+Display Order
+Active
+```
+
+---
+
+# 78. Admin — After-Service
+
+Manage:
+
+```text
+Title
+Description
+Desktop Image
+Mobile Image
+Service items
+CTA text
+CTA route
+```
+
+---
+
+# 79. Admin — Presence
+
+Manage:
+
+```text
+Title
+Description
+Desktop Map Image
+Mobile Map Image
+Optional Dark Map Images
+Location Legend
+```
+
+Location item:
+
+```text
+Name
+Type
+Description
+Sort Order
+Active
+```
+
+No latitude/longitude is required unless another Crystal subsystem needs it.
+
+The About page itself does not use geographic positioning.
+
+---
+
+# 80. Recommended Frontend Directory
+
+Use existing project conventions if already established.
+
+If no convention exists:
+
+```text
+src/
+├── pages/
+│   └── about/
+│       ├── AboutPage.js
+│       ├── components/
+│       │   ├── AboutSectionNav.js
+│       │   ├── AboutMobileNav.js
+│       │   ├── SectionHeading.js
+│       │   ├── OverviewSection.js
+│       │   ├── BusinessesSection.js
+│       │   ├── RecognitionSection.js
+│       │   ├── HistorySection.js
+│       │   ├── InstituteSection.js
+│       │   ├── FactorySection.js
+│       │   ├── ManufacturingSection.js
+│       │   ├── ShopSection.js
+│       │   ├── ServiceSection.js
+│       │   ├── PresenceSection.js
+│       │   ├── CertificateModal.js
+│       │   ├── ResponsiveMedia.js
+│       │   └── ChapterNavigation.js
+│       │
+│       ├── hooks/
+│       │   └── useActiveAboutSection.js
+│       │
+│       ├── constants.js
+│       └── utils.js
+```
+
+Do not fragment components excessively if the existing project convention is simpler.
+
+---
+
+# 81. AboutPage Responsibility
+
+`AboutPage.js` should:
+
+1. load About data
+2. render public header/layout
+3. render About navigation
+4. render all ten sections
+5. coordinate active section
+6. handle URL hash
+7. render footer
+
+It should not contain detailed UI markup for every section.
+
+---
+
+# 82. Shared Section Heading
+
+Create reusable:
+
+```text
+SectionHeading
+```
+
+Props:
+
+```javascript
+{
+  number,
+  eyebrow,
+  title,
+  description,
+  align
+}
+```
+
+Example:
+
+```text
+07
+
+MANUFACTURING EXCELLENCE
+
+From components to finished products.
+```
+
+---
+
+# 83. State Management
+
+About page data can be:
+
+- stored locally in the page if only used by About
+- or integrated into existing Redux data conventions
+
+Do not introduce Redux state only because Redux exists.
+
+Use the project's established data-fetching pattern.
+
+---
+
+# 84. Animation
+
+Use Framer Motion sparingly.
+
+Allowed:
+
+- subtle fade/slide when sections enter
+- timeline transitions
+- shop floor content transition
+- certificate modal transition
+
+Avoid:
+
+- continuous animation
+- excessive parallax
+- scroll-jacking
+- animations that delay interaction
+
+Respect reduced-motion preferences where possible.
+
+Chrome 72 compatibility must remain intact.
+
+---
+
+# 85. Performance
+
+The page can contain many images.
+
+Requirements:
+
+- use appropriately sized desktop/mobile images
+- avoid loading full-resolution images for small cards
+- known aspect ratios
+- lazy-load below fold
+- avoid rendering all certificate full-size images initially
+- use thumbnail for certificate grid
+- use full image only after modal opens where practical
+
+---
+
+# 86. No Hardcoded Content Rule
+
+Claude must not hardcode:
+
+- company history
+- business list
+- certificates
+- institute areas
+- factory capabilities
+- manufacturing stages
+- shop floor content
+- after-service items
+- presence information
+
+Static structural labels may be hardcoded where appropriate.
+
+Business content must come from API.
+
+---
+
+# 87. Empty-State Rules
+
+If a subsection has no content:
+
+- do not display an empty card/grid
+- hide optional subsection gracefully
+
+Examples:
+
+No QA certificates:
+
+```text
+Hide QA certificate grid
+```
+
+No History image:
+
+```text
+Render text-only history event
+```
+
+No dark-mode image:
+
+```text
+Use standard image
+```
+
+---
+
+# 88. Security
+
+All About public endpoints are read-only.
+
+Admin endpoints require admin authentication and appropriate permissions.
+
+Uploaded file paths must be validated by backend.
+
+Do not allow arbitrary filesystem paths from frontend.
+
+All image/file handling must follow the Crystal local-storage mechanism.
+
+---
+
+# 89. Local Storage Requirement
+
+All uploaded About images are stored on the server's local filesystem.
+
+Do not use:
+
+- S3
+- Cloudinary
+- Firebase Storage
+- external image storage
+
+Backend returns public/static image URLs mapped to local files.
+
+---
+
+# 90. Browser Compatibility
+
+Must test on:
+
+```text
+Chrome 72
+Current Chrome
+```
+
+Do not use unsupported features without transpilation/polyfill.
+
+Pay special attention to:
+
+- optional chaining
+- nullish coalescing
+- newer Array methods
+- modern CSS features
+- dynamic imports
+- IntersectionObserver handling
+
+The existing Babel/CRA toolchain must remain responsible for supported JavaScript transpilation.
+
+---
+
+# 91. Acceptance Criteria — Navigation
+
+Implementation is accepted when:
+
+- desktop section navigator displays correctly
+- navigator becomes sticky
+- active section updates while scrolling
+- clicking section jumps correctly
+- URL hash updates
+- direct hash navigation works
+- mobile displays compact `XX / 10` navigator
+- mobile Drawer lists all sections
+- selecting section closes Drawer and scrolls
+- no horizontal page overflow
+
+---
+
+# 92. Acceptance Criteria — Content
+
+Implementation is accepted when all ten sections exist:
+
+```text
+01 Overview
+02 Businesses
+03 Recognition
+04 History
+05 IT Institute
+06 Factory
+07 Manufacturing
+08 Crystal Shop
+09 After-Service
+10 Presence
+```
+
+Each must render API-managed content.
+
+---
+
+# 93. Acceptance Criteria — Responsive
+
+Desktop:
+
+- About local navigation horizontal
+- visual compositions use available width
+- shop has floor-switching experience
+- history is desktop-optimized
+
+Mobile:
+
+- chapter selector replaces desktop navigator
+- sections become single column
+- history becomes vertical
+- manufacturing flow becomes vertical
+- shop floors are shown sequentially
+- mobile images used when available
+
+---
+
+# 94. Acceptance Criteria — Theme
+
+Light mode and dark mode must both support:
+
+- readable headings
+- readable navigation
+- visible active section
+- correct cards/surfaces
+- certificate modal
+- timeline
+- shop floor UI
+- map image
+
+No component may have hardcoded white/black values that make one mode unreadable.
+
+Use the existing Crystal Chakra theme tokens wherever possible.
+
+---
+
+# 95. Acceptance Criteria — Images
+
+- desktop/mobile image selection works
+- missing mobile image falls back safely
+- missing dark image falls back safely
+- no broken image placeholders
+- images preserve intended aspect ratio
+- map is a static image only
+- no Google Maps integration exists
+
+---
+
+# 96. Claude Code Implementation Rules
+
+Claude must:
+
+1. Inspect existing Crystal project structure before creating files.
+2. Reuse existing layouts, theme, Header and Footer.
+3. Reuse existing Axios/API helpers.
+4. Reuse existing auth/environment utilities.
+5. Follow existing naming conventions.
+6. Use React 16.14 compatible syntax.
+7. Use Chakra UI 1.8.8 APIs only.
+8. Use JavaScript only.
+9. Preserve Chrome >=72 support.
+10. Never upgrade package dependencies automatically.
+11. Do not replace existing routing architecture.
+12. Do not introduce a new styling framework.
+13. Do not introduce cloud storage.
+14. Do not hardcode CMS-managed corporate content.
+15. Implement reusable section components.
+16. Keep desktop and mobile navigation behavior intentionally different.
+17. Keep public Header/Footer identical to the rest of Crystal Web.
+18. Preserve Crystal sky-blue primary brand color.
+19. Support light/dark mode.
+20. Add comments only where implementation logic is genuinely non-obvious.
+
+---
+
+# 97. Recommended Implementation Order for Claude Code
+
+## Step 1
+
+Inspect existing:
+
+```text
+routing
+public layout
+header
+footer
+theme
+API utilities
+responsive conventions
+dark mode
+```
+
+Do not modify these unnecessarily.
+
+## Step 2
+
+Create About route and basic page shell.
+
+## Step 3
+
+Implement About section configuration.
+
+## Step 4
+
+Implement desktop section navigator.
+
+## Step 5
+
+Implement mobile chapter navigator.
+
+## Step 6
+
+Implement active section observer and anchors.
+
+## Step 7
+
+Implement Overview + Businesses.
+
+## Step 8
+
+Implement Recognition + Certificate Modal.
+
+## Step 9
+
+Implement History.
+
+## Step 10
+
+Implement IT Institute.
+
+## Step 11
+
+Implement Factory + QA certificates.
+
+## Step 12
+
+Implement Manufacturing capabilities + flow.
+
+## Step 13
+
+Implement 3-floor Crystal Shop.
+
+## Step 14
+
+Implement After-Service.
+
+## Step 15
+
+Implement static Presence map.
+
+## Step 16
+
+Connect About API.
+
+## Step 17
+
+Implement loading/error/empty states.
+
+## Step 18
+
+Validate desktop/mobile.
+
+## Step 19
+
+Validate light/dark mode.
+
+## Step 20
+
+Validate Chrome 72 compatibility.
+
+---
+
+# 98. Final Page Outline
+
+```text
+CRYSTAL PUBLIC HEADER
+
+ABOUT LOCAL NAVIGATION
+Overview
+Businesses
+Recognition
+History
+Institute
+Factory
+Manufacturing
+Shop
+Service
+Presence
+
+
+01
+COMPANY OVERVIEW
+Company image
+Introduction
+Corporate facts
+
+
+02
+VISION & MAIN BUSINESSES
+Vision statement
+7 business areas
+
+
+03
+RECOGNITION & CERTIFICATES
+Top-10 IT recognition
+7 corporate certificates
+
+
+04
+11-YEAR COMPANY HISTORY
+Year-by-year timeline
+
+
+05
+CRYSTAL IT INSTITUTE
+Research overview
+Research areas
+
+
+06
+EPRODUCT FACTORY
+Factory introduction
+Manufacturing capabilities
+6+ QA certificates
+
+
+07
+MANUFACTURING EXCELLENCE
+Smartphone manufacturing
+SMT
+QA
+Packaging
+Manufacturing flow
+
+
+08
+CRYSTAL 3-FLOOR SHOP
+Exterior
+1F
+2F
+3F
+
+
+09
+AFTER-SERVICE
+Support capability
+Service types
+Link to Service Centers
+
+
+10
+CRYSTAL PRESENCE
+Static desktop/mobile map image
+Corporate locations
+
+
+CRYSTAL PUBLIC FOOTER
+```
+
+# 99. Core UX Principle
+
+The About page must feel like a guided corporate story rather than a long database dump.
+
+Desktop navigation should make all chapters directly accessible.
+
+Mobile navigation should conserve screen space by showing:
+
+```text
+Current Chapter / Total Chapters
+```
+
+and exposing the complete chapter list only when requested.
+
+The 10 sections should tell one connected story:
+
+```text
+Identity
+→ Business
+→ Credibility
+→ History
+→ Innovation
+→ Factory
+→ Manufacturing
+→ Retail
+→ Service
+→ Presence
+```
+
+Implement all sections as CMS/API-driven content so future Crystal company changes do not require changes to the React source code.
+
+-----------------------------------------------------
+
+- please set suitable icons for admin menus
+- Please review overall project and test it completely
+
+-----------------------------------------------------
+
+- For mobile view, I'd like to make the menu like https://www.mi.com/global.
+The exact order is Login/SignUp, Smartphones, Eproducts, Crystal Eshop, Crystal Appstore, Support, Blog, About.
+When I click the Smartphones, the smartphones submenu should shown and the back button at the top to the main menu list.
+I dont want to fetch smartphones or phone series to display on the menu, only static submenus to be shown.
+When I logged in, the only account menus should be shown, with the back button to the main menu.
+
+-----------------------------------------------------
+
+- We are using PostgreSQL and Oracle I mentioned before, so I need to fetch feedbacks and add or reply on it using Oracle at the moment, because I have not enough condition to migrate it now. The db schema is like this.
+CREATE TABLE feedback_threads (
+  thread_pk NUMBER PRIMARY KEY,
+  user_pk NUMBER NOT NULL,
+  title VARCHAR2(512) NOT NULL,
+  category NUMBER(2) DEFAULT 0 NOT NULL,
+  thread_source NUMBER(1) DEFAULT 0,
+  last_message VARCHAR2(4000),
+  last_type NUMBER(1) DEFAULT 0,
+  status NUMBER(1) DEFAULT 0,
+  is_read NUMBER(1) DEFAULT 0,
+  is_deleted NUMBER(1) DEFAULT 0,
+  session_by NUMBER,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_feedback_thread_user_pk FOREIGN KEY (user_pk) REFERENCES users(user_pk),
+  CONSTRAINT fk_feedback_thread_manager_pk FOREIGN KEY (session_by) REFERENCES managers(manager_pk)
+);
+
+CREATE TABLE feedback_messages (
+  message_pk NUMBER PRIMARY KEY,
+  thread_pk NUMBER NOT NULL,
+  message VARCHAR2(4000) NOT NULL,
+  action_type NUMBER(1) DEFAULT 0 NOT NULL,
+  action_by NUMBER NOT NULL,
+  action_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_feedback_msg_thread_pk FOREIGN KEY (thread_pk) REFERENCES feedback_threads(thread_pk)
+);
+
+Please dont change anything on the oracle db schema and only read and write to it.
+Currently I have no environment to simulate the oracle, so please make oracle connection on the deploy, but on development env, please use ora_pid.feedback_threads and ora_pid.feedback_messages. (the db credential is the same)
+
+- For blog, I also need to connect to oracle db, but currently use ora_blog.blog_article, blog_article_info, blog_article_lob.
+In order to understand easily, please reference vendor_client and vendor_backend. Please only reference deal with feedback and blog.
+
+- Please dont remove original db schema you provided for blogs and feedbacks, because it should be reused when migration.
+
+-----------------------------------------------------
+
+- For the account pages, the menus are like the vendor-client and also the schema is the same.
+But I'm really facinated to current account page you provided, so please make a brainstorm to combine it, data (from db, or from api) is from vendor project, UX is from crystal-web account pages.
+
+-----------------------------------------------------
+
+- The user should be from the ora_pid.users. Please remake the login logic for it.
+- Some account pages are not working well, please review them.
+- Once user logged in, the menu should show account menu as default, while if you are in other pages not account page, the main menus (not account menu) should shown as default.
+- please make the account menus hierarchy like the main menus.
+- The header international icon should be located, and on mobile view, the header is shown collapsed.
+- For signIn, ora_pid.users are using user_id and password, not email.
+
+-----------------------------------------------------
+
+- on desktop view, international icon button should be context menu.
+- 'Do not remind me today' on notification modal is a checkbox of the modal, not belong to individual row, and maybe located on bottom-left corner, and once you checked it, notification modal doesn not shown again.
+- dismissable of site_notices is not neccesary.
+- For notification row, title should shown first (top), and the notice_origin is under it (left) and the time is shown to right.
+- Crystal OS is belong to the smartphones, so please remove the main menu from Support, because it is already included to smartphones.
+
+-----------------------------------------------------
+
+- For about (intro) page, I dont like to manage content on admin page, because almost all of them on about page are the static and rearly updated. But only the images should be stored on the backend, so please remake it suitably.
+After to the business section, we need one more section to show the company growth linechart, that representing growth of employee count, engineer count, income amount, etc for 11 years.
+- Well the project of crystal-admin and crystal-web are not fully compatible with Chrome 72, so please review them.
+- on crystal-admin, the series correspondend to smartphone or eproduct should be selectable for smartphones or eproduct pages.
+- on crystal-admin, when double-click on a smartphone or eproduct, and view specification tab, and click on back on the header, it doesn't go back to original url of that products, its going to dashboard.
+- When trying to edit value on ProductEditor, its showing error.
+- Currently the internationalization is made by full english text, but I need some predefined strings like 'table.empty' and translate for each languages.
+Also for table, excel import, pagination, date picker, like commonly used strings should make each section on dictionaries, and the strings on one page are shown in the same section, so I can easily find and fix strings.
+- I'm deploying the backend and frontend both using nginx, and the frontend should have url prefix (e.g. /crystal_admin/ or /crystal_web on the same machine), so to set the nginx conf. How to fix it?
+- I'd like to rename admin_ tables to manager_ on db schema, I mean admins -> managers, admin_permissions -> manager_permissions, etc. Also please update the fields correspondently, e.g. admin_pk -> manager_pk.
+- how to check the user is trying to visit the site using mobile phone or desktop? I'm not meaning the screensize, I'm mentioning about the machine for crystal-web.
+
+
+-----------------------------------------------------
+
+- Drop unused dictionary keys for convenience.
+- After to the business section, we need one more section to show the company growth linechart, that representing growth of employee count, engineer count, income amount, etc for 11 years. I need one chart to show all in one.
+- When I trying to edit product specification on admin console, ProductEditor.jsx +234 Cannot read properties of null (reading 'value').
+- I need both en and zh internationalized for backend as well, and it should use simple string 'table.empty' like frontend as describing the translate text.
+
+-----------------------------------------------------
+
+- Make suitable filter options for admin pages
+- All the date format should be YYYY-MM-DD and it can be managed later, so I'd like to create a new function for that.
+- When I already select on SelectField and didn't close it but I try to select another, the first SelectField does not closed. So do DatePicker.
+- I need the project fully internationalized, but crystal-admin is not well-formed. Please review overall project.
+
+-----------------------------------------------------
+
+- Some db tables are not managed on admin pages, please check db schema and make suitable pages on crystal-admin.
+- Please describe how to set default locale for backend, web, and admin.
+- Postgres Error are also internationalized on the other project I attached, please reference and implement full internationalization.
+
+-----------------------------------------------------
+
+- The crystal-web and crystal-admin is not fully internationalized, for example, for the about page of crystal-web does not translated well on Chinese.
+- When upload the file, please set the filename as random + timestamp to be stored on backend server.
+
+-----------------------------------------------------
+
+- PresenceSection.jsx +60 Each child in a list should have a unique "key" prop.
+
+-----------------------------------------------------
+
+- crystal-web/account/feedback page
+Once I add an conversation and open it with right drawer, the right drawer width should be more wide.
+On the text area Ctrl+Enter to send message.
+- crystal-admin/members/feedback page
+Also extend right drawer width
+The message section on the right drawer should be fit height above the textarea.
+
+-----------------------------------------------------
+
+- Please dont git commit automatically. Only when I give you command to commit, then commit.
+- The drawer width is too wide, I want only extend more, not to fit to full.
+- When I Ctrl+Enter to send message, the last message should be shown, I mean scroll to bottom to show last sent message.
+- When Open the right drawer by clicking one of feedback on web page, the last message should be should, I mean it should scroll-to-bottom by default.
+
+-----------------------------------------------------
+
+- I want to make a setting drawer on header of crystal-admin, and the internationalization icon button and night mode button should be included to that setting drawer.
+Also I want to change project's primary color and the color candidates can be 3.
+In the setting drawer, I want to set the screen scale, and the scale can be 80%, 90%, 100%, 110%, 120%. When I changed the scale, overall pages should be matched for that. The screen scale can be controlled by +/- button.
+Please be careful to the 80%, 90% scale because 100vh, 100vw is also smaller on that scale, and please make fully correspondent with 80%, 90%.
+Also I wanna to set the content width as 'static' or 'full width' and implement its full function. When static, the viewport should be suitable width for every breakpoint. (it can be commonly used ones.)
+
+
+-----------------------------------------------------
+
+- On notification modal left-bottom conrner, there's '2 more today', and I'm not sure what it does meaning?
+- Please make more mock notifications including today, and further.
+- The notification modal title, can be updated to 'Notifications'.
+- Is it possible to make an animation for notification modal?
+I think for desktop view, the tripple fold can be opened, and for the mobile view, the content can be shown smoothly. I have no idea for the animation, so please make good animation. The notification modal background is the smartphone, so please make the animation relation with the smartphone.
+
+-----------------------------------------------------
+
+- please make notification modal animation that fold from the center part and sequantely, left and right part, and it is the actual feeling of the tri-fold phones, but now it opening from left to right.
+- please reseed notifications for new notices.
+
+-----------------------------------------------------
+
+- Please show all notifications on the modal, with the scroll if too many notices and remove 'See all 14 notifications'.
+
+-----------------------------------------------------
+
+- eshopApi.js and webEshopController.js is original eshop controller on backend, while it fetches eshop info from eshop_url.
+AccountEshop*.js are the pages for web which is representing the crystal-web's account eshop pages.
+Please make mock data like this and make same logic with current UI.
+
+-----------------------------------------------------
+
+- similiar with the eshop, I'd like to attach the vendor's account appstore functions and please follow its logic to crystal project.
+- same excercise for Eproducts
+
+-----------------------------------------------------
+
+- please make mock data for account pages, while account eproduct page is empty for 'iron' user.
+- For account page menu (header menu), only parent menus (Eshop, Appstore, Eproduct, ...) are shown, and there's no need to display sub menus.
+- For crystal-web footer, the first section can be the files to download (including crystal-app, eshop-app, appstore-app). second section can be the phone numbers to contact the administrator (6~7 phone numbers). 
+The third section can be the Support section which include FAQ and Contact us.
+The fourth section can be administrator email and the crystal company address.
+Bottom of the footer is the same with the current page, while the right bottom edge can contain 2 link buttons (assume that the button name can be 'Site A' and 'Site B') to link specific site urls.
+All of footer items can be managed by admin page.
+- Please leave the support page (/support) but remove the support header button, while the support page can be used later, not now.
+
+-----------------------------------------------------
+
+- For crystal-web, drop-down the main menus for desktop even mouse hover each menus including eshop, appstore, blog, about. Currently only smartphones and eproducts menu have hover event.
+- Please make the company address on the footer as Chinese address for mock data.
+- On the header, 'The latest Crystal OS is rolling out now — your product page has the date for your model' and 'Register a product' is not necessary, so please remove it.
+- I already mentioned that the eshop and the appstore the external project, but it should have the same header and footer. Unfortunately, eshop is made by CI and appstore is made by Laravel. So I'd like to make a new reference code for header and footer so it can easily be used to make consistent header and footer for eshop and appstore. Is it possible to make pure html and use jquery and ajax for footer api fetch? Or is there any better solution, please provide it. These code are only for eshop and appstore, so please make separate codebase in crystal-web directory.
+- For crystal-web, the main menus for mobile view, eshop and appstore menu item have external icon, while the others have chevron-right icon. The goal is to make the eshop and appstore site regarded as the same site for crystal, so please use same chevron-right icon for that menu item icon.
+- Please review overall project and make full-internationalization.
+- When mouse hover main menu, all main menus as you provided before is the best, I was meaning that that menu detail section should be shown when mouse hover each menus. Eshop and Appstore have no specific menu sections, only it should show original menu section.
+- footer phone numbers should be Chinese phone numbers as mock data
+- Dont show account menu items as the eshop and appstore menus
+
+-----------------------------------------------------
+
+- for crystal-admin, when the site notice content is too long, wrap it so to easy to check the notice content on bird-eye view, I think its better to show scrollbar once it has too long content.
+- for crystal-admin, on the site notices page, on the modal, I'd like to search notice origins on the SelectField.
+- When RichTextEditor is shown on the modal, the paragraph or font, etc drop-down is not showing well. Is there any problem on z-index?
+- Please review all dictionaries and remove unused at all.
+- Except Confirm, Ok, like commonly used dictionaries especially on modal, table, I'd like to separate all dictionaries for each page, because its difficult to find suitable translation which is commonly used but sometimes should be shown differently in each pages.
+Also I can find some sentences with certain values are splitted with several phrases, while some of them are showing like this, 'Unread {count}, total {total}'. I'd like to make full sentence like 'Unread {count}, total {total}', because for each language, the grammar is different.
+- For crystal-web, on notifications (modal and page), please show exact start date, not show as today, yesterday, like this.
+- Please set the date format as YYYY.MM.DD and the time format as YYYY.MM.DD hh:mm:ss.
+- For crystal-admin product detail, the tab names are not internationalized. Also the main menu (side menu) strings are not internationalized.
+- For crystal-admin site notices, please set the crystal as default when adding new site notice's origin.
+- Please set the price USD as red, while the native point color as blue.
+- On crystal-web account page, all side menus are opened, and I'd like to collapse all menus except the menu category current page contains. Its better for UX, especially too many account menus with scorllbar.
+- When I click the one feedback thread to open right drawer on the account page of crystal-web, the feedback thread table looks like re-render, while its completely no need to rerender the table.
+- On crystal-web account feedback page, each feedback message of thread should have YYYY.MM.DD HH:mm time format (currently its only showing date, and I need the exact time because feedback messages can be send and receive replies serveral times one day).
+- On crystal-web and crystal-admin, I found title="" and arial-label="" and I'd like to use Tooltip instead of title because I can't customize the font to the title, while I can set AppFont to Tooltip.
+- You cannot send more feedback message for resolved feedback threads.
+- Some of strings are not internationalized, including resolved (feedback), blog states. Please make full-internationalization as I mentioned before.

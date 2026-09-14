@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-label="vision 77 oled">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(84, 62%, 58%)"/>
+      <stop offset="100%" stop-color="hsl(126, 58%, 34%)"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="1400" fill="url(#g)"/>
+  <circle cx="1092" cy="336" r="392" fill="rgba(255,255,255,0.12)"/>
+  <circle cx="308" cy="1148" r="280" fill="rgba(0,0,0,0.10)"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="105" font-weight="600" fill="rgba(255,255,255,0.94)">vision 77 oled</text>
+  <text x="50%" y="805" text-anchor="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="53" fill="rgba(255,255,255,0.62)">1400 x 1400</text>
+</svg>
