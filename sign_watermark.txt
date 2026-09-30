@@ -1,0 +1,1451 @@
+Yes. For your requirements, you should store the digital signature and image metadata in the database.
+
+You prefer:
+
+* X.509 + ECC (ECDSA) for signing.
+
+* No visible watermark on images.
+
+* Detect image modifications, just like notifications.
+
+* Express + React, running on the same server.
+
+This is a good approach. You don't need Sharp if you're removing the watermarking requirement.
+
+## 1. Should the signature be stored in the database?
+
+Yes, generally. Store the signature together with the signed content's metadata.
+
+The private key stays securely on the backend. The public key, or a trusted certificate containing it, is used for verification.
+
+|
+Item
+
+|
+
+Storage
+
+|
+| --- | --- |
+|
+
+Private key
+
+|
+
+Secure backend key storage
+
+|
+|
+
+X.509 certificate
+
+|
+
+Backend and trusted frontend distribution
+
+|
+|
+
+Notification text
+
+|
+
+Database
+
+|
+|
+
+Notification signature
+
+|
+
+Database
+
+|
+|
+
+Image file
+
+|
+
+Local server
+
+|
+|
+
+Image SHA-256
+
+|
+
+Database
+
+|
+|
+
+Image signature
+
+|
+
+Database
+
+|
+
+The signature doesn't need to be stored inside the image file itself. For your use case, detached signatures in the database are simpler.
+
+
+## 2. Recommended signing algorithm
+
+Use:
+
+```
+Certificate format: X.509
+Key algorithm:      ECDSA
+Curve:              P-256
+Hash algorithm:     SHA-256
+Signature:          ECDSA with SHA-256
+```
+
+In Node.js, use `crypto.createSign()` / `crypto.sign()` with the EC private key.
+
+Important: X.509 is not itself the signing algorithm. It carries the public key and certificate information. ECDSA performs the actual signing.
+
+# 3. What should be signed?
+
+### Notifications
+
+Sign:
+
+JSON
+
+```
+{
+  "id": "notification-123",
+  "text": "Welcome!",
+  "createdAt": "2026-09-16T10:00:00.000Z"
+}
+```
+
+### Images
+
+Sign:
+
+JSON
+
+```
+{
+  "id": "image-123",
+  "filename": "image-123.png",
+  "mimeType": "image/png",
+  "size": 245678,
+  "sha256": "a1b2c3..."
+}
+```
+
+The image signature authenticates the hash and metadata. The SHA-256 hash detects whether the downloaded image bytes differ from the signed version.
+
+
+# 4. Generate an ECC private key and X.509 certificate
+
+For local development, you can use OpenSSL.
+
+### Generate ECC private key
+
+Bash
+
+```
+openssl ecparam \
+  -name prime256v1 \
+  -genkey \
+  -noout \
+  -out private-key.pem
+```
+
+### Generate self-signed X.509 certificate
+
+Bash
+
+```
+openssl req \
+  -new \
+  -x509 \
+  -key private-key.pem \
+  -out certificate.pem \
+  -days 365 \
+  -sha256 \
+  -subj "/CN=MyApp Content Signing"
+```
+
+You'll have:
+
+```
+keys/
+├── private-key.pem
+└── certificate.pem
+```
+
+Production: Use a trusted certificate management process and protect the private key. A self-signed certificate is suitable for a controlled trust model where your frontend pins the expected public key or certificate.
+
+# 5. Sign images with ECDSA
+
+You can replace the previous Ed25519 signing implementation with this:
+
+JavaScript
+
+```
+// security.js
+import {
+  createPrivateKey,
+  createSign,
+  createHash,
+} from "node:crypto";
+
+import {
+  readFileSync,
+} from "node:fs";
+
+const privateKey = createPrivateKey(
+  readFileSync(
+    new URL(
+      "./keys/private-key.pem",
+      import.meta.url
+    )
+  )
+);
+
+export function sha256(buffer) {
+  return createHash("sha256")
+    .update(buffer)
+    .digest("hex");
+}
+
+export function signPayload(payload) {
+  const signer = createSign("SHA256");
+
+  signer.update(payload);
+  signer.end();
+
+  return signer.sign({
+    key: privateKey,
+    dsaEncoding: "ieee-p1363",
+  }).toString("base64");
+}
+```
+
+`ieee-p1363` is used to make the ECDSA signature format compatible with browser Web Crypto verification.
+
+# 6. Image upload without watermarking
+
+Your upload process becomes:
+
+```
+Upload image
+    │
+    ▼
+Validate image
+    │
+    ▼
+Save original image
+    │
+    ▼
+Calculate SHA-256
+    │
+    ▼
+Sign metadata
+    │
+    ▼
+Store metadata + signature in DB
+```
+
+Example:
+
+JavaScript
+
+```
+const imageHash = sha256(
+  req.file.buffer
+);
+
+const metadata = {
+  id,
+  filename,
+  mimeType: req.file.mimetype,
+  size: req.file.size,
+  sha256: imageHash,
+};
+
+const payload = JSON.stringify(metadata);
+
+const signature = signPayload(payload);
+
+const record = {
+  ...metadata,
+  signature,
+  algorithm: "ECDSA-SHA256",
+  keyId: "content-key-v1",
+};
+```
+
+There is no watermarking in this flow.
+
+# 7. Verification on React
+
+React should:
+
+1. Verify the image metadata signature using the trusted public key from the X.509 certificate.
+
+2. Download the image bytes.
+
+3. Calculate SHA-256.
+
+4. Compare the actual hash with the signed hash.
+
+5. Render the image only if both checks pass.
+
+The X.509 certificate can be used to establish the trusted public key, but you must decide how your frontend obtains and trusts that certificate. For a same-server application, pinning the expected public key or certificate fingerprint in the frontend build is a practical option.
+
+### Final recommendation
+
+Use X.509 + ECDSA P-256 + SHA-256, with detached signatures stored in the database. Skip Sharp and visible watermarking entirely.
+
+This gives you the same verification pattern for both notifications and images.
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------
+
+# Security Signing System Specification
+
+### Express.js + React + X.509 + RSA / ECDSA
+
+Below is a copy-ready specification for Claude. You can paste it into Claude Code or Claude to implement the security system across your project.
+
+The specification covers all content types:
+
+* Hero images
+
+* Product images
+
+* Other uploaded images
+
+* Notifications
+
+* FAQs
+
+* Feedback
+
+It also supports switching between RSA and ECDSA signing algorithms through configuration.
+
+#### Implementation specification
+
+Copy-ready
+
+Backend signing, frontend verification, key management, image integrity, and testing.
+
+Full-Stack Content Integrity & Authenticity System
+
+# Full-Stack Content Integrity & Authenticity System
+
+## 1. Project Context
+
+I have a full-stack web application with:
+
+* Backend: Node.js + Express.js
+
+* Frontend: React
+
+* Backend and frontend deployed on the same server
+
+* Local filesystem storage for images
+
+* Database for application data
+
+* Admin-created notifications, FAQs, and feedback
+
+* Hero images and product images
+
+I need to implement a cryptographic content signing and verification system.
+
+The objective is to ensure that content delivered by the backend can be verified by the frontend before it is rendered.
+
+## 2. Main Requirements
+
+Implement a reusable, production-oriented content signing system that supports:
+
+1. Signing content on the backend.
+
+2. Verifying signed content on the frontend.
+
+3. Detecting image file modifications.
+
+4. Supporting RSA and ECDSA signing algorithms.
+
+5. Switching the signing algorithm through configuration.
+
+6. Supporting key identifiers and key rotation.
+
+7. Preventing unsigned or invalid content from being rendered by the normal React application.
+
+8. Keeping private keys exclusively on the backend.
+
+Do not use visible watermarks on images.
+
+Do not use Sharp for watermarking. Sharp may be used for image validation or processing if required, but image integrity must be based on cryptographic hashing.
+
+---
+
+# 3. Content Types That Must Be Signed
+
+The system must support the following content categories:
+
+## 3.1 Hero Images
+
+Sign all hero image assets.
+
+Required metadata:
+
+* ID
+
+* Filename or asset identifier
+
+* MIME type
+
+* File size
+
+* SHA-256 hash
+
+* Signature
+
+* Algorithm
+
+* Key ID
+
+* Schema version
+
+## 3.2 Product Images
+
+Sign every product image uploaded or registered in the system.
+
+The same signing workflow must apply to:
+
+* Main product images
+
+* Additional product images
+
+* Product gallery images
+
+* Product thumbnails, if stored as independent files
+
+If resized or converted image variants are served, clearly define whether each variant is independently signed or whether the system signs a source asset plus trusted transformation metadata.
+
+Do not compare the hash of a source image against a transformed image file.
+
+## 3.3 Notifications
+
+Sign all admin-created notifications.
+
+Required fields:
+
+* ID
+
+* Text
+
+* Created timestamp
+
+* Updated timestamp, if applicable
+
+* Status or publication fields that are part of the signed content
+
+* Signature metadata
+
+If a notification is edited, it must be signed again. Old signatures must not remain valid for modified content.
+
+## 3.4 FAQs
+
+Sign all FAQ content.
+
+Required fields:
+
+* ID
+
+* Question
+
+* Answer
+
+* Ordering or display metadata, if integrity-sensitive
+
+* Created timestamp
+
+* Updated timestamp, if applicable
+
+* Signature metadata
+
+Any modification to a signed FAQ must invalidate the previous signature.
+
+## 3.5 Feedback
+
+Clarify and implement the appropriate model for feedback:
+
+* If feedback is created by users and displayed publicly, sign the backend-approved representation before delivery.
+
+* If feedback is moderated or edited by admins, re-sign the final approved representation.
+
+* Do not assume that a user-submitted signature proves administrative approval.
+
+* Define whether feedback must be signed when created, when approved, or both.
+
+The backend must not accept a user-supplied signature as proof of authenticity.
+
+---
+
+# 4. Cryptographic Algorithm Requirements
+
+Support two configurable signing algorithms.
+
+## Option A: RSA
+
+* Key type: RSA
+
+* Minimum key size: 3072 bits
+
+* Signature algorithm: RSA-PSS with SHA-256
+
+* Salt length: RSA-PSS standard salt length matching SHA-256 digest length (32 bytes)
+
+* Hash: SHA-256
+
+## Option B: ECDSA
+
+* Key type: EC
+
+* Curve: prime256v1 (P-256)
+
+* Signature algorithm: ECDSA with SHA-256
+
+* Signature encoding: IEEE P1363 for browser Web Crypto interoperability
+
+Use Node.js built-in crypto APIs.
+
+Do not implement cryptographic primitives manually.
+
+The system must have a clear algorithm configuration, for example:
+
+```
+CONTENT_SIGNING_ALGORITHM=ECDSA
+CONTENT_SIGNING_KEY_ID=content-key-v1
+```
+
+Supported values:
+
+```
+RSA
+ECDSA
+```
+
+Use an explicit mapping between configuration values and cryptographic implementations.
+
+Do not silently fall back to another algorithm if configuration is invalid.
+
+Fail securely with a clear startup error.
+
+---
+
+# 5. X.509 Certificate Requirements
+
+Use X.509 certificates to represent signing public keys.
+
+The private key must remain on the backend.
+
+The frontend must trust only explicitly configured public signing identities.
+
+Requirements:
+
+* Load private keys securely on the backend.
+
+* Load the corresponding X.509 certificate.
+
+* Extract and use the public key for verification.
+
+* Validate that the configured certificate matches the expected signing identity.
+
+* Support a key ID, such as `content-key-v1`.
+
+* Support key rotation.
+
+* Do not send private keys to the frontend.
+
+* Do not accept arbitrary certificates supplied by API responses as trusted roots.
+
+Important:
+
+An X.509 certificate does not independently guarantee authenticity. The application must establish trust in the certificate or its public key.
+
+For the initial deployment, implement a pinned public-key or certificate-based trust configuration suitable for the same-server React application.
+
+Clearly document how trust is established and how the frontend bundle is updated during key rotation.
+
+---
+
+# 6. Canonical Payload Specification
+
+The backend and frontend must sign and verify exactly the same bytes.
+
+Do not independently serialize JavaScript objects using arbitrary formats without documenting the canonicalization behavior.
+
+Implement a shared, deterministic payload serialization strategy.
+
+Preferred approach:
+
+* Define a versioned payload schema.
+
+* Define required fields and field types.
+
+* Define field ordering.
+
+* Define how strings, Unicode, numbers, null, and timestamps are represented.
+
+* Encode the canonical payload as UTF-8.
+
+* Sign the UTF-8 bytes.
+
+Example notification payload:
+
+```
+{
+  "schemaVersion": 1,
+  "type": "notification",
+  "id": "notification-123",
+  "text": "Welcome!",
+  "createdAt": "2026-09-16T10:00:00.000Z"
+}
+```
+
+The signature must cover the complete canonical payload.
+
+Do not sign only a subset of security-sensitive fields.
+
+Do not sign rendered HTML instead of the structured data.
+
+Prevent signature confusion by including a content type and schema version in the signed representation.
+
+---
+
+# 7. Signature Envelope
+
+Use a consistent signature envelope for all signed content.
+
+Example:
+
+```
+{
+  "content": {
+    "id": "image-123",
+    "filename": "image-123.png",
+    "mimeType": "image/png",
+    "size": 245678,
+    "sha256": "hex-encoded-sha256"
+  },
+  "signature": {
+    "algorithm": "ECDSA-SHA256",
+    "keyId": "content-key-v1",
+    "value": "base64-signature",
+    "encoding": "ieee-p1363",
+    "schemaVersion": 1
+  }
+}
+```
+
+For RSA-PSS, document the signature encoding and parameters explicitly.
+
+The envelope must be validated before verification.
+
+Reject:
+
+* Missing signature
+
+* Unsupported algorithm
+
+* Unknown key ID
+
+* Invalid schema version
+
+* Invalid field types
+
+* Invalid signature encoding
+
+* Unexpected payload structure
+
+Do not trust the algorithm name supplied by the client to select a different verification implementation.
+
+The backend must use a trusted algorithm policy and the corresponding configured key.
+
+---
+
+# 8. Image Signing Workflow
+
+When an image is uploaded:
+
+1. Authenticate and authorize the uploader.
+
+2. Validate the uploaded file.
+
+3. Validate the actual file format rather than relying only on the client MIME type.
+
+4. Decide the final stored representation.
+
+5. Store the image on the local filesystem using a generated safe identifier.
+
+6. Calculate SHA-256 from the exact final stored file bytes.
+
+7. Create canonical signed image metadata.
+
+8. Generate a digital signature with the configured signing key.
+
+9. Store the image metadata and signature in the database.
+
+10. Return signed metadata to the frontend.
+
+No visible watermark is required.
+
+Example image record:
+
+```
+{
+  "id": "image-123",
+  "filename": "image-123.png",
+  "mimeType": "image/png",
+  "size": 245678,
+  "sha256": "a1b2c3...",
+  "signature": {
+    "algorithm": "ECDSA-SHA256",
+    "keyId": "content-key-v1",
+    "value": "base64-signature",
+    "encoding": "ieee-p1363",
+    "schemaVersion": 1
+  }
+}
+```
+
+If an image is modified, replaced, or re-encoded, the hash should change when the file bytes change.
+
+If the application intentionally transforms an image, it must generate and sign the final representation that the frontend will verify.
+
+---
+
+# 9. Image Storage Security
+
+Images are stored locally on the server.
+
+Requirements:
+
+* Never trust a user-provided filename as a filesystem path.
+
+* Prevent path traversal.
+
+* Generate unique server-side filenames.
+
+* Keep uploads outside sensitive application source directories where practical.
+
+* Avoid exposing the upload directory through an uncontrolled static route.
+
+* Use controlled image-serving routes.
+
+* Restrict access where content is private.
+
+* Validate file type and file size.
+
+* Prevent unauthorized replacement of image files.
+
+* Ensure metadata and file paths cannot be manipulated through user input.
+
+Use a database record to map an image ID to its safe storage path.
+
+Do not store arbitrary filesystem paths supplied by clients.
+
+---
+
+# 10. Backend Verification
+
+The backend must also verify stored content integrity where appropriate.
+
+Frontend verification is not a security boundary because users can modify browser JavaScript or bypass frontend rendering logic.
+
+Implement backend verification for security-sensitive operations, such as:
+
+* Serving protected assets
+
+* Publishing content
+
+* Administrative content updates
+
+* Integrity audits
+
+* Detecting unauthorized filesystem modifications
+
+Do not assume that frontend verification prevents an attacker from accessing or displaying modified files through custom code.
+
+---
+
+# 11. Frontend Verification
+
+Create reusable React verification utilities.
+
+The frontend must:
+
+1. Validate the signature envelope.
+
+2. Check the algorithm against an allowed algorithm policy.
+
+3. Resolve the key ID to a trusted public key or certificate.
+
+4. Recreate the exact canonical payload.
+
+5. Verify the digital signature.
+
+6. For images, download the exact file bytes.
+
+7. Calculate SHA-256 locally.
+
+8. Compare the calculated hash with the signed hash.
+
+9. Render the content only after verification succeeds.
+
+Do not directly render unverified signed content through the normal secure components.
+
+Do not create an image object URL until image integrity verification succeeds.
+
+Do not use an API-provided public key as an automatically trusted key without an established trust mechanism.
+
+---
+
+# 12. React Components
+
+Implement reusable components and utilities:
+
+```
+src/security/
+├── canonicalPayload.js
+├── verifySignature.js
+├── verifyImage.js
+├── verifyContent.js
+├── trustedKeys.js
+└── types.js
+
+src/components/security/
+├── VerifiedNotification.jsx
+├── VerifiedHeroImage.jsx
+├── VerifiedProductImage.jsx
+├── VerifiedFAQ.jsx
+└── VerifiedFeedback.jsx
+```
+
+Components should support these states:
+
+* `checking`
+
+* `verified`
+
+* `invalid`
+
+* `error`
+
+Do not silently display invalid content.
+
+For invalid images:
+
+* Do not render the image bytes.
+
+* Show a generic integrity verification error or fallback placeholder.
+
+* Do not expose sensitive internal details to ordinary users.
+
+For invalid text:
+
+* Do not render the unverified text.
+
+* Show a safe fallback or verification error.
+
+The verification process must not introduce XSS vulnerabilities.
+
+Even verified notification, FAQ, and feedback text must be rendered as text or safely sanitized according to the application's content policy.
+
+---
+
+# 13. API Design
+
+Implement consistent API responses.
+
+Example:
+
+```
+GET /api/notifications
+GET /api/faqs
+GET /api/feedback
+GET /api/images/:id
+GET /api/images/:id/file
+```
+
+Admin operations:
+
+```
+POST /api/admin/notifications
+PUT /api/admin/notifications/:id
+
+POST /api/admin/faqs
+PUT /api/admin/faqs/:id
+
+POST /api/admin/images
+
+POST /api/admin/feedback/:id/approve
+PUT /api/admin/feedback/:id
+```
+
+Ensure that all relevant content creation and update operations go through the signing service.
+
+Do not allow an API route to modify signed content without re-signing it.
+
+Do not trust client-provided signature fields during creation or updates.
+
+The backend must generate the signature after validating and finalizing the content.
+
+---
+
+# 14. Signing Service Architecture
+
+Implement a reusable backend signing service rather than duplicating signing logic across controllers.
+
+Suggested structure:
+
+```
+backend/
+├── security/
+│   ├── signingConfig.js
+│   ├── keyProvider.js
+│   ├── signingService.js
+│   ├── canonicalPayload.js
+│   ├── algorithms/
+│   │   ├── rsa.js
+│   │   └── ecdsa.js
+│   └── signatureValidation.js
+│
+├── modules/
+│   ├── notifications/
+│   ├── images/
+│   ├── faqs/
+│   └── feedback/
+```
+
+The signing service should expose functions similar to:
+
+```
+signContent({
+  type,
+  content,
+  keyId,
+});
+
+verifyContent({
+  type,
+  content,
+  signature,
+  trustedKey,
+});
+```
+
+Separate the signing implementation from business logic.
+
+Use dependency injection or an explicit algorithm registry to make switching algorithms testable.
+
+Do not dynamically load arbitrary crypto modules based on untrusted request data.
+
+---
+
+# 15. Key Rotation
+
+Implement key identifiers from the beginning.
+
+Example:
+
+```
+content-key-v1
+content-key-v2
+```
+
+Requirements:
+
+* New content uses the active signing key.
+
+* Existing content remains verifiable using an authorized previous key.
+
+* The frontend can trust multiple active/previous public keys during rotation.
+
+* The backend rejects unknown or revoked key IDs.
+
+* Document how old signatures are handled after key revocation.
+
+* Do not delete old keys until all content signed with them has been migrated, expired, or otherwise handled according to a defined policy.
+
+Do not silently replace a key while retaining the same key ID.
+
+---
+
+# 16. Database Schema
+
+Design a reusable signature metadata model.
+
+Example fields:
+
+```
+signature_algorithm
+signature_key_id
+signature_value
+signature_encoding
+signature_schema_version
+signed_at
+```
+
+For images:
+
+```
+sha256
+file_size
+mime_type
+storage_key
+```
+
+Consider a separate `content_signatures` table if multiple content types share the signing system.
+
+The schema must support:
+
+* Content type
+
+* Content ID
+
+* Signature
+
+* Algorithm
+
+* Key ID
+
+* Schema version
+
+* Signing timestamp
+
+* Revocation or invalidation status if needed
+
+Avoid storing duplicate signature records without a clear versioning policy.
+
+Ensure that updates to signed content and signature metadata are handled atomically where supported by the database.
+
+---
+
+# 17. Security Requirements
+
+Implement the following:
+
+* Private key never exposed to React.
+
+* Private key never returned by an API.
+
+* Private key not committed to Git.
+
+* Private key file permissions restricted.
+
+* Secure configuration management.
+
+* HTTPS in production.
+
+* Admin authentication and authorization.
+
+* Input validation.
+
+* File upload validation.
+
+* Protection against path traversal.
+
+* Protection against XSS.
+
+* Protection against signature algorithm confusion.
+
+* Protection against replay or stale content where relevant.
+
+* Clear logging of signature verification failures.
+
+* Do not log private keys or sensitive content.
+
+* Do not treat a valid signature as authorization to perform an action.
+
+Explain which protections are provided by cryptographic signatures and which require ordinary application security controls.
+
+---
+
+# 18. Algorithm Switching
+
+I want to switch between RSA and ECDSA without rewriting the business logic.
+
+Example configuration:
+
+```
+CONTENT_SIGNING_ALGORITHM=ECDSA
+CONTENT_SIGNING_KEY_ID=content-key-v1
+```
+
+The implementation must support:
+
+```
+CONTENT_SIGNING_ALGORITHM=RSA
+```
+
+The signing service must select the configured algorithm from a fixed, validated configuration.
+
+Provide:
+
+1. RSA key generation commands.
+
+2. ECDSA key generation commands.
+
+3. X.509 certificate generation commands.
+
+4. Node.js signing code for both algorithms.
+
+5. Browser verification code for both algorithms.
+
+6. Configuration validation.
+
+7. Tests for switching algorithms.
+
+8. Documentation for key rotation when changing algorithms.
+
+Do not assume that existing signatures can be verified with a newly selected algorithm. The signature envelope must preserve the algorithm and key ID used at signing time.
+
+---
+
+# 19. Testing Requirements
+
+Write automated tests for:
+
+## Notifications
+
+* Valid notification verifies successfully.
+
+* Modified text fails verification.
+
+* Modified ID fails verification.
+
+* Modified timestamp fails verification.
+
+* Missing signature fails.
+
+* Unknown key ID fails.
+
+* Unsupported algorithm fails.
+
+* Re-signed updated content verifies successfully.
+
+## Images
+
+* Original image verifies successfully.
+
+* One-byte modification fails.
+
+* Image replacement fails.
+
+* Recomputed unsigned hash fails signature verification.
+
+* Modified image metadata fails.
+
+* Modified file size fails.
+
+* Wrong MIME type fails according to the defined policy.
+
+* Missing file fails.
+
+* Missing signature fails.
+
+* Object URL is not created before successful verification.
+
+* Object URL is revoked when the component unmounts or content changes.
+
+## Algorithms
+
+* RSA signing and verification.
+
+* ECDSA signing and verification.
+
+* RSA-PSS parameter compatibility.
+
+* ECDSA IEEE P1363 signature compatibility.
+
+* Invalid algorithm configuration.
+
+* Key rotation.
+
+* Unknown key ID.
+
+* Tampered signature.
+
+* Tampered canonical payload.
+
+Use test fixtures and avoid hardcoding production secrets.
+
+---
+
+# 20. Deliverables
+
+Provide the implementation in logical stages:
+
+## Stage 1: Security foundation
+
+* Configuration
+
+* Key loading
+
+* X.509 certificate handling
+
+* RSA implementation
+
+* ECDSA implementation
+
+* Canonical payload serialization
+
+* Signature envelope
+
+* Key ID handling
+
+## Stage 2: Backend content signing
+
+* Generic signing service
+
+* Notification signing
+
+* FAQ signing
+
+* Feedback signing
+
+* Image hash and signing
+
+* Database schema
+
+* API integration
+
+## Stage 3: Frontend verification
+
+* Trusted key configuration
+
+* RSA verification
+
+* ECDSA verification
+
+* Generic verification utilities
+
+* Verified React components
+
+* Image download and hash verification
+
+* Safe failure states
+
+## Stage 4: Security hardening
+
+* Authentication and authorization review
+
+* File upload security
+
+* Key protection
+
+* Key rotation
+
+* Logging
+
+* Rate limiting where appropriate
+
+* Error handling
+
+* HTTPS deployment guidance
+
+## Stage 5: Tests and documentation
+
+* Unit tests
+
+* Integration tests
+
+* Tampering tests
+
+* Algorithm switching tests
+
+* Deployment instructions
+
+* Key rotation documentation
+
+* Security limitations
+
+---
+
+# 21. Implementation Rules
+
+Before modifying the project:
+
+1. Inspect the existing project structure.
+
+2. Identify the Express entry point.
+
+3. Identify the database technology and ORM, if any.
+
+4. Identify existing image upload routes.
+
+5. Identify existing notification, FAQ, feedback, and product image models.
+
+6. Identify the frontend build system (Vite, CRA, Next.js, etc.).
+
+7. Reuse existing authentication and authorization mechanisms where appropriate.
+
+8. Do not overwrite existing business logic unnecessarily.
+
+9. Present a plan of files to create or modify.
+
+10. Ask for clarification only when required to avoid destructive or incorrect changes.
+
+After implementation:
+
+* Explain all modified files.
+
+* Explain how to generate keys and certificates.
+
+* Explain how to configure RSA or ECDSA.
+
+* Explain how to run tests.
+
+* Explain how to verify a modified image and notification.
+
+* Explain limitations of frontend-only verification.
+
+* Do not claim that security is complete without identifying untested assumptions.
+
+Start by inspecting the existing codebase, then implement the signing system incrementally.
+
+## Important design decisions
+
+### 1. RSA or ECDSA?
+
+You can support both, but I recommend using ECDSA P-256 as the default for a new implementation if your browser and backend compatibility requirements are satisfied.
+
+|
+Feature
+
+|
+
+RSA-PSS
+
+|
+
+ECDSA P-256
+
+|
+| --- | --- | --- |
+|
+
+Signature size
+
+|
+
+Larger
+
+|
+
+Smaller
+
+|
+|
+
+Browser support
+
+|
+
+Broad
+
+|
+
+Broad
+
+|
+|
+
+Key size
+
+|
+
+Larger
+
+|
+
+Smaller
+
+|
+|
+
+Implementation
+
+|
+
+Well-established
+
+|
+
+Well-established
+
+|
+|
+
+Switching support
+
+|
+
+Yes
+
+|
+
+Yes
+
+|
+
+The choice should be based on compatibility, key management, and operational requirements rather than simply assuming one algorithm is universally more secure.
+
+### 2. One signing system for everything
+
+Use a single reusable service:
+
+JavaScript
+
+```
+await signingService.sign({
+  type: "product_image",
+  content: imageMetadata,
+});
+```
+
+JavaScript
+
+```
+await signingService.sign({
+  type: "notification",
+  content: notification,
+});
+```
+
+This avoids having separate cryptographic implementations for each content type.
+
+### 3. Important limitation: frontend verification
+
+React verification protects your normal application's rendering logic. It does not prevent a user from modifying the frontend JavaScript, calling image URLs directly, or displaying altered content using their own tools.
+
+If you need to guarantee integrity for other clients or security-sensitive operations, the backend must also enforce the relevant checks.
+
+Recommended next step: Give Claude this specification, then ask it to inspect your existing project before writing code. That way it can integrate signing into your actual product image, hero image, notification, FAQ, and feedback models instead of creating disconnected example routes.

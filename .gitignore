@@ -16,6 +16,15 @@ dist/
 crystal-backend/uploads/*
 !crystal-backend/uploads/.gitkeep
 
+# The throwaway certificate authority scripts/x509-dev-pki.js writes. It
+# holds private keys, however worthless, and a key in a repository is a habit.
+crystal-backend/.x509-dev/
+
+# The content-signing keys `npm run content-keys` writes for development: a
+# private key that signs what the storefront trusts. Never committed - a
+# production key lives outside the checkout entirely (CONTENT_SIGNING_KEY_DIR).
+crystal-backend/.content-keys/
+
 # Logs and editor noise
 *.log
 npm-debug.log*
@@ -31,3 +40,5 @@ Thumbs.db
 # transcribed, never built or shipped. They are separate svn working copies
 # with their own repository roots, and nothing here should ever enter this
 # one: `git add -A` would otherwise sweep in another company's source.
+vendor_backend/
+vendor_client/

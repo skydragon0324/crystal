@@ -1510,7 +1510,7 @@ OS History        this handset, not the release
 ```
 
 
-## The top of the page: 1 to 3 main images. NO CAROUSEL.
+## The top of the page: 1 to 3 main images. ALL CAROUSEL.
 
 A carousel is for a deck of unrelated offers competing for one slot on a
 landing page. A product page has ONE subject, and hiding two of its three
@@ -4838,3 +4838,1028 @@ Also I can find some sentences with certain values are splitted with several phr
 - On crystal-web and crystal-admin, I found title="" and arial-label="" and I'd like to use Tooltip instead of title because I can't customize the font to the title, while I can set AppFont to Tooltip.
 - You cannot send more feedback message for resolved feedback threads.
 - Some of strings are not internationalized, including resolved (feedback), blog states. Please make full-internationalization as I mentioned before.
+
+-----------------------------------------------------
+
+- On crystal-admin and crystal-web, when user try to resolve the feedback thread, I'd like to open a confirm dialog to confirm to resolve.
+- Upload file on crystal-admin failed, especially for about page.
+- Please remove unused dictionaries, and please review about table, because hero on about is not necessary.
+- For crystal-web, CERTIFICATES/TOP10 is unnecessary.
+I cant change the about page images on console.
+For businesses, I'd like to show only the title 'smartphone', 'eproduct', 'print'... 5 businesses and it should be shown in one row. I think the title can be shown with hexagon.
+For growth, the table is not necessary, and where can I find the digits for them?
+For institute, the background of that section is completely different with others, and also description can have html tag while I need to set strong (bold) for some highlights.
+for history, the description is enable to show several lines with enter because I have to show several sentences. For history, title and image is unnecesary.
+<Text> research areas</Text> is not necessary.
+For institute section, each RESEARCH_AREA can have image.
+For institute section, I think I need to add one more section, representing crystal's own techniques including crystal OS, SmartTV OS, computer BIOS tech, camera security, print authentication, exFAT firmware, cordless phone encryption, etc with some certificate images. The cert images can be shown as carousel auto-played right to the each techniques.
+factory_capability is unnecessary.
+I can't set the qa certificate images.
+Well the manufacture section should be included to factory section, there's no need to make individual section number for manufacture.
+For manufactures there are 6 flows, and the manufacturing_stage is not necessary.
+For shop, I cant set the images, and for each floor it can contain several images (the images can be shown as carousel)
+For sale and after service section, the description is not necessary. Also for each services, I need to show enter because it contains serveral sentences.
+For sale and after service, narrow is not necessary.
+For presence section, I have to 2 location images, including crystal headquarters and crystal shop. The others are not necessary.
+- Well, I already have project already running and I want to replace the crystal-web with old one, but currently for only mobile view, crystal should be shown, and the original site should be shown on desktop. (A few days later, the desktop also use crystal-web, but currently crystal-web is for mobile). So is there any way to set nginx by distinguish mobile and route to crystal-web? Otherwise on original site homepage must check the mobile and redirect to crystal-web. I'm not sure how to to this. please advise..
+- You provided the login page but the login page should be for different route, I think auth/reganam route.
+That reganam route is the migration of the /login page.
+Because the /login page should be changed, for mobile view, it should have one more form input called 'cid' (represent mobile communication id for sim) and the others are completely same with desktop login page (current login page)
+For desktop, once user click the login button, it logged-in with the imported x509 certificate. In this case, I'm not sure how to implement crystal-chrome.html for external sites (eshop, appstore).
+- For admin console, how to distinguish about images for each section?
+
+
+-----------------------------------------------------
+
+- So how to distinguish about image slot on admin page? Is the slot is fixed?
+- About the crystal section, only 3 items (11 years, 5 businesss, top 10 It ranking) should be shown. Instead of years, business, IT ranking, I'd like to show 3 years with crystal names. e.g. 2015 Crystal company, 2018 Crystal Corp, 2024 Crystal Group.
+- Our own technology section have several titles about the technology and have only one carousel because the carousel images are representing cert images but less than title count.
+- As I mentioned before, on about page descriptions, sometimes "Crystal" should be shown as bold and larger font size.
+- Login page on a desktop is not needed, once user click on Sign In button, it should process login.
+- Well when I try to use ESHOP and APPSTORE API and not using mock (REMOTE_MOCK as false), its not working well. Also for eshop wallet, it should use ESHOP_WALLET_REFERER as I mentioned on vendor project.
+Please check vendor backend project so to check current api is working well.
+- Once select the account menu, the other menu categories should be collapsed except current expanded menu category.
+- e.g. /smartphones/products/c9-pro the tab names like 'Specification', 'Gallery', 'Service pricing', 'Software updates' are not internationalized.
+- For account eshop cards, we have to show 2 cards (wallet card and accum card) like vender.
+
+-----------------------------------------------------
+
+- For crystal web, the homepage hero section images and the smartphone hero section images are completely different and also it should be managed on console page. Currently homepage hero section images are the images of smartphones but actually its not. Please make 2 admin pages to manage them and show advert images fetched from them.
+- Please make separate page from media libray page on admin so make 2 additional pages. Also on media library page, please add filter by purpose and device.
+- The advert images (added by 2 additional page) are not belong to certain smartphone or TV. These are only the advert pages.
+
+-----------------------------------------------------
+
+- for crystal-web account feedback, like 'resolved', 'finished' state could not send messages more.
+- We cannot add images for blog at the moment, so please remove images for blog articles, and make good UX for blog page.
+- On homepage for crystal-web, under the hero section, free delivery, 12-month warrenty like 4 items are not internationalized.
+- For crystal-web footer, phone numbers should shown with labels.
+- admin/agencies are not internationalized.
+- on crystal-web desktop view, account sidemenu header should show userid, username, icon (user icon), so please remove point you provide.
+- Please check overall project, and set the number thousand format as space (' ') instead of comma (',').
+- on account eshop orders the status is not internationalized.
+Please check account pages and check whether status is not internationalized.
+- on account eshop orders, please set 'View' button as icon button.
+- for web and admin project, the DataTable should implement these functions. header resizable, left or right fields pinned (left 2 fields or right 2 fileds pinning is also possible).
+- for account eshop orders, foreign currency should displayed as red, while native currency are the blue color.
+Currently you are showing paid with field like this.
+89.90 Foreign currency · 1
+Crystal Buds Air
+But I'd like to show 1 good (89.90)
+1 good or 3 goods. 89.90 should be distinguished foreign currency or native currency by the color, as I mentioned above.
+- For web and admin console page, pagination should have select for rows per page. Also it should use 'Goto' to direct navigate to specific page.
+When you are nagivating 8 page, then 6,7,8,9,10 page button is shown, and I think its enough to show 7,8,9 page button (only one neighbour button).
+Please make good UX for mobile view.
+- On eshop transactions, the amount color should be distinguished by foreign currency or native currency. (currently its shown by + or -).
+The fill_type should shown by Tag and I'd like to add money_type on the table.
+For fill_type, please update 'BONUS' -> 'CHARGE'
+- For amount or price format, plese show max 3 digits under the point. Also when 0 is showing on the last digit under the point, please remove it 0(zero) because its unnecessary.
+- For eshop transactions, exp log, commerce value log, its not working well, because its not sending api to fetch data.
+- Please try to set the suitable account sidemenu icons. (I think its not necessray to show icon on mobile view in order to maintain consistency with main menu)
+- Well account appstore api is able to set from, to, keyword but the web is not sending these paramenters. Please implement from, to, keyword for account appstore pages.
+According to +spd_state_id is 0 (purchased), 1 (purchasing), it should represent status (or purchase fail or reason text) but you are only checking license_state.
+Please review vendor project for this page and set the state field.
+- account appstore purchases, 'Show key' should be icon button. And when clicking this button, the device license or QR image should be shown. Please reference vendor project.
+- For account appstore comments, the app icon_url should be one of icon_256_256_url, icon_192_192_url, icon_144_144_url, icon_96_96_url, icon_72_72_url, icon_48_48_url. Please set one of them if it is defined. (Please use that order)
+- Please remove /account/products, /account/licenses page.
+- You are checking the api result of eprod_buyer_product_mobile api to check whether 0 but you should check whether 200.
+- account/eproduct/registrations page, Point Held, Point Spent, Device registered cards are not necessary.
+- When keygen log for karaoke, manbang is responding error, please toast error message.
+- eproduct/keygen/karaoke page, download, error report, retry button should be implemented (like vendor project).
+Same request for eproduct/keygen/manbang page.
+- eproduct/keygen/bmedia, pointsBack -> pointsSoft. Also please implement download or detail button like vendor project.
+- account/points?source=CRYSTAL, ACTIVITY page is not fetching api at all.
+- account/history.activity, when point is 0.4, its showing 0 because it round the float. Please fix it.
+- for history/karaoke backend, it should send userId but its sending user_pk.
+refer vendor project.
+- appstore/wallet page should be migrated to account/wallet, and original account/wallet page should be removed.
+- Please dont round the points to make integer. I need exact float value.
+- Like the crystal-admin, I'd like to make setting drawer for crystal-web, while language, dark mode, should be included on drawer. I'd like implement content width. For this function please make best UX for web pages.
+- Please remove product searchbar on the web header.
+- I cant find 'website footer' menu on the admin page when I try to make the project on the other machine. How to add that menu?
+- oldlogs.repository.js +55 CARRY_FORWARD_REASON is not internationalized.
+- For backend, please make npm build, npm build:min like print_business project.
+- For smartphones page of web, how to regard one smartphone is the lastest one? I'd like limit max 4 phones to shown on latest section.
+
+--------------------------------------------------------------------
+
+# Full-Stack Content Integrity & Authenticity System
+
+## 1. Project Context
+
+I have a full-stack web application with:
+
+* Backend: Node.js + Express.js
+* Frontend: React
+* Backend and frontend deployed on the same server
+* Local filesystem storage for images
+* Database for application data
+* Admin-created notifications, FAQs, and feedback
+* Hero images and product images
+
+I need to implement a cryptographic content signing and verification system.
+
+The objective is to ensure that content delivered by the backend can be verified by the frontend before it is rendered.
+
+## 2. Main Requirements
+
+Implement a reusable, production-oriented content signing system that supports:
+
+1. Signing content on the backend.
+2. Verifying signed content on the frontend.
+3. Detecting image file modifications.
+4. Supporting RSA and ECDSA signing algorithms.
+5. Switching the signing algorithm through configuration.
+6. Supporting key identifiers and key rotation.
+7. Preventing unsigned or invalid content from being rendered by the normal React application.
+8. Keeping private keys exclusively on the backend.
+
+Do not use visible watermarks on images.
+
+Do not use Sharp for watermarking. Sharp may be used for image validation or processing if required, but image integrity must be based on cryptographic hashing.
+
+---
+
+# 3. Content Types That Must Be Signed
+
+The system must support the following content categories:
+
+## 3.1 Hero Images
+
+Sign all hero image assets.
+
+Required metadata:
+
+* ID
+* Filename or asset identifier
+* MIME type
+* File size
+* SHA-256 hash
+* Signature
+* Algorithm
+* Key ID
+* Schema version
+
+## 3.2 Product Images
+
+Sign every product image uploaded or registered in the system.
+
+The same signing workflow must apply to:
+
+* Main product images
+* Additional product images
+* Product gallery images
+* Product thumbnails, if stored as independent files
+
+If resized or converted image variants are served, clearly define whether each variant is independently signed or whether the system signs a source asset plus trusted transformation metadata.
+
+Do not compare the hash of a source image against a transformed image file.
+
+## 3.3 Notifications
+
+Sign all admin-created notifications.
+
+Required fields:
+
+* ID
+* Text
+* Created timestamp
+* Updated timestamp, if applicable
+* Status or publication fields that are part of the signed content
+* Signature metadata
+
+If a notification is edited, it must be signed again. Old signatures must not remain valid for modified content.
+
+## 3.4 FAQs
+
+Sign all FAQ content.
+
+Required fields:
+
+* ID
+* Question
+* Answer
+* Ordering or display metadata, if integrity-sensitive
+* Created timestamp
+* Updated timestamp, if applicable
+* Signature metadata
+
+Any modification to a signed FAQ must invalidate the previous signature.
+
+## 3.5 Feedback
+
+Clarify and implement the appropriate model for feedback:
+
+* If feedback is created by users and displayed publicly, sign the backend-approved representation before delivery.
+* If feedback is moderated or edited by admins, re-sign the final approved representation.
+* Do not assume that a user-submitted signature proves administrative approval.
+* Define whether feedback must be signed when created, when approved, or both.
+
+The backend must not accept a user-supplied signature as proof of authenticity.
+
+---
+
+# 4. Cryptographic Algorithm Requirements
+
+Support two configurable signing algorithms.
+
+## Option A: RSA
+
+* Key type: RSA
+* Minimum key size: 3072 bits
+* Signature algorithm: RSA-PSS with SHA-256
+* Salt length: RSA-PSS standard salt length matching SHA-256 digest length (32 bytes)
+* Hash: SHA-256
+
+## Option B: ECDSA
+
+* Key type: EC
+* Curve: prime256v1 (P-256)
+* Signature algorithm: ECDSA with SHA-256
+* Signature encoding: IEEE P1363 for browser Web Crypto interoperability
+
+Use Node.js built-in crypto APIs.
+
+Do not implement cryptographic primitives manually.
+
+The system must have a clear algorithm configuration, for example:
+
+```env
+CONTENT_SIGNING_ALGORITHM=ECDSA
+CONTENT_SIGNING_KEY_ID=content-key-v1
+```
+
+Supported values:
+
+```text
+RSA
+ECDSA
+```
+
+Use an explicit mapping between configuration values and cryptographic implementations.
+
+Do not silently fall back to another algorithm if configuration is invalid.
+
+Fail securely with a clear startup error.
+
+---
+
+# 5. X.509 Certificate Requirements
+
+Use X.509 certificates to represent signing public keys.
+
+The private key must remain on the backend.
+
+The frontend must trust only explicitly configured public signing identities.
+
+Requirements:
+
+* Load private keys securely on the backend.
+* Load the corresponding X.509 certificate.
+* Extract and use the public key for verification.
+* Validate that the configured certificate matches the expected signing identity.
+* Support a key ID, such as `content-key-v1`.
+* Support key rotation.
+* Do not send private keys to the frontend.
+* Do not accept arbitrary certificates supplied by API responses as trusted roots.
+
+Important:
+
+An X.509 certificate does not independently guarantee authenticity. The application must establish trust in the certificate or its public key.
+
+For the initial deployment, implement a pinned public-key or certificate-based trust configuration suitable for the same-server React application.
+
+Clearly document how trust is established and how the frontend bundle is updated during key rotation.
+
+---
+
+# 6. Canonical Payload Specification
+
+The backend and frontend must sign and verify exactly the same bytes.
+
+Do not independently serialize JavaScript objects using arbitrary formats without documenting the canonicalization behavior.
+
+Implement a shared, deterministic payload serialization strategy.
+
+Preferred approach:
+
+* Define a versioned payload schema.
+* Define required fields and field types.
+* Define field ordering.
+* Define how strings, Unicode, numbers, null, and timestamps are represented.
+* Encode the canonical payload as UTF-8.
+* Sign the UTF-8 bytes.
+
+Example notification payload:
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "notification",
+  "id": "notification-123",
+  "text": "Welcome!",
+  "createdAt": "2026-09-16T10:00:00.000Z"
+}
+```
+
+The signature must cover the complete canonical payload.
+
+Do not sign only a subset of security-sensitive fields.
+
+Do not sign rendered HTML instead of the structured data.
+
+Prevent signature confusion by including a content type and schema version in the signed representation.
+
+---
+
+# 7. Signature Envelope
+
+Use a consistent signature envelope for all signed content.
+
+Example:
+
+```json
+{
+  "content": {
+    "id": "image-123",
+    "filename": "image-123.png",
+    "mimeType": "image/png",
+    "size": 245678,
+    "sha256": "hex-encoded-sha256"
+  },
+  "signature": {
+    "algorithm": "ECDSA-SHA256",
+    "keyId": "content-key-v1",
+    "value": "base64-signature",
+    "encoding": "ieee-p1363",
+    "schemaVersion": 1
+  }
+}
+```
+
+For RSA-PSS, document the signature encoding and parameters explicitly.
+
+The envelope must be validated before verification.
+
+Reject:
+
+* Missing signature
+* Unsupported algorithm
+* Unknown key ID
+* Invalid schema version
+* Invalid field types
+* Invalid signature encoding
+* Unexpected payload structure
+
+Do not trust the algorithm name supplied by the client to select a different verification implementation.
+
+The backend must use a trusted algorithm policy and the corresponding configured key.
+
+---
+
+# 8. Image Signing Workflow
+
+When an image is uploaded:
+
+1. Authenticate and authorize the uploader.
+2. Validate the uploaded file.
+3. Validate the actual file format rather than relying only on the client MIME type.
+4. Decide the final stored representation.
+5. Store the image on the local filesystem using a generated safe identifier.
+6. Calculate SHA-256 from the exact final stored file bytes.
+7. Create canonical signed image metadata.
+8. Generate a digital signature with the configured signing key.
+9. Store the image metadata and signature in the database.
+10. Return signed metadata to the frontend.
+
+No visible watermark is required.
+
+Example image record:
+
+```json
+{
+  "id": "image-123",
+  "filename": "image-123.png",
+  "mimeType": "image/png",
+  "size": 245678,
+  "sha256": "a1b2c3...",
+  "signature": {
+    "algorithm": "ECDSA-SHA256",
+    "keyId": "content-key-v1",
+    "value": "base64-signature",
+    "encoding": "ieee-p1363",
+    "schemaVersion": 1
+  }
+}
+```
+
+If an image is modified, replaced, or re-encoded, the hash should change when the file bytes change.
+
+If the application intentionally transforms an image, it must generate and sign the final representation that the frontend will verify.
+
+---
+
+# 9. Image Storage Security
+
+Images are stored locally on the server.
+
+Requirements:
+
+* Never trust a user-provided filename as a filesystem path.
+* Prevent path traversal.
+* Generate unique server-side filenames.
+* Keep uploads outside sensitive application source directories where practical.
+* Avoid exposing the upload directory through an uncontrolled static route.
+* Use controlled image-serving routes.
+* Restrict access where content is private.
+* Validate file type and file size.
+* Prevent unauthorized replacement of image files.
+* Ensure metadata and file paths cannot be manipulated through user input.
+
+Use a database record to map an image ID to its safe storage path.
+
+Do not store arbitrary filesystem paths supplied by clients.
+
+---
+
+# 10. Backend Verification
+
+The backend must also verify stored content integrity where appropriate.
+
+Frontend verification is not a security boundary because users can modify browser JavaScript or bypass frontend rendering logic.
+
+Implement backend verification for security-sensitive operations, such as:
+
+* Serving protected assets
+* Publishing content
+* Administrative content updates
+* Integrity audits
+* Detecting unauthorized filesystem modifications
+
+Do not assume that frontend verification prevents an attacker from accessing or displaying modified files through custom code.
+
+---
+
+# 11. Frontend Verification
+
+Create reusable React verification utilities.
+
+The frontend must:
+
+1. Validate the signature envelope.
+2. Check the algorithm against an allowed algorithm policy.
+3. Resolve the key ID to a trusted public key or certificate.
+4. Recreate the exact canonical payload.
+5. Verify the digital signature.
+6. For images, download the exact file bytes.
+7. Calculate SHA-256 locally.
+8. Compare the calculated hash with the signed hash.
+9. Render the content only after verification succeeds.
+
+Do not directly render unverified signed content through the normal secure components.
+
+Do not create an image object URL until image integrity verification succeeds.
+
+Do not use an API-provided public key as an automatically trusted key without an established trust mechanism.
+
+---
+
+# 12. React Components
+
+Implement reusable components and utilities:
+
+```text
+src/security/
+├── canonicalPayload.js
+├── verifySignature.js
+├── verifyImage.js
+├── verifyContent.js
+├── trustedKeys.js
+└── types.js
+
+src/components/security/
+├── VerifiedNotification.jsx
+├── VerifiedHeroImage.jsx
+├── VerifiedProductImage.jsx
+├── VerifiedFAQ.jsx
+└── VerifiedFeedback.jsx
+```
+
+Components should support these states:
+
+* `checking`
+* `verified`
+* `invalid`
+* `error`
+
+Do not silently display invalid content.
+
+For invalid images:
+
+* Do not render the image bytes.
+* Show a generic integrity verification error or fallback placeholder.
+* Do not expose sensitive internal details to ordinary users.
+
+For invalid text:
+
+* Do not render the unverified text.
+* Show a safe fallback or verification error.
+
+The verification process must not introduce XSS vulnerabilities.
+
+Even verified notification, FAQ, and feedback text must be rendered as text or safely sanitized according to the application's content policy.
+
+---
+
+# 13. API Design
+
+Implement consistent API responses.
+
+Example:
+
+```http
+GET /api/notifications
+GET /api/faqs
+GET /api/feedback
+GET /api/images/:id
+GET /api/images/:id/file
+```
+
+Admin operations:
+
+```http
+POST /api/admin/notifications
+PUT /api/admin/notifications/:id
+
+POST /api/admin/faqs
+PUT /api/admin/faqs/:id
+
+POST /api/admin/images
+
+POST /api/admin/feedback/:id/approve
+PUT /api/admin/feedback/:id
+```
+
+Ensure that all relevant content creation and update operations go through the signing service.
+
+Do not allow an API route to modify signed content without re-signing it.
+
+Do not trust client-provided signature fields during creation or updates.
+
+The backend must generate the signature after validating and finalizing the content.
+
+---
+
+# 14. Signing Service Architecture
+
+Implement a reusable backend signing service rather than duplicating signing logic across controllers.
+
+Suggested structure:
+
+```text
+backend/
+├── security/
+│   ├── signingConfig.js
+│   ├── keyProvider.js
+│   ├── signingService.js
+│   ├── canonicalPayload.js
+│   ├── algorithms/
+│   │   ├── rsa.js
+│   │   └── ecdsa.js
+│   └── signatureValidation.js
+│
+├── modules/
+│   ├── notifications/
+│   ├── images/
+│   ├── faqs/
+│   └── feedback/
+```
+
+The signing service should expose functions similar to:
+
+```js
+signContent({
+  type,
+  content,
+  keyId,
+});
+
+verifyContent({
+  type,
+  content,
+  signature,
+  trustedKey,
+});
+```
+
+Separate the signing implementation from business logic.
+
+Use dependency injection or an explicit algorithm registry to make switching algorithms testable.
+
+Do not dynamically load arbitrary crypto modules based on untrusted request data.
+
+---
+
+# 15. Key Rotation
+
+Implement key identifiers from the beginning.
+
+Example:
+
+```text
+content-key-v1
+content-key-v2
+```
+
+Requirements:
+
+* New content uses the active signing key.
+* Existing content remains verifiable using an authorized previous key.
+* The frontend can trust multiple active/previous public keys during rotation.
+* The backend rejects unknown or revoked key IDs.
+* Document how old signatures are handled after key revocation.
+* Do not delete old keys until all content signed with them has been migrated, expired, or otherwise handled according to a defined policy.
+
+Do not silently replace a key while retaining the same key ID.
+
+---
+
+# 16. Database Schema
+
+Design a reusable signature metadata model.
+
+Example fields:
+
+```text
+signature_algorithm
+signature_key_id
+signature_value
+signature_encoding
+signature_schema_version
+signed_at
+```
+
+For images:
+
+```text
+sha256
+file_size
+mime_type
+storage_key
+```
+
+Consider a separate `content_signatures` table if multiple content types share the signing system.
+
+The schema must support:
+
+* Content type
+* Content ID
+* Signature
+* Algorithm
+* Key ID
+* Schema version
+* Signing timestamp
+* Revocation or invalidation status if needed
+
+Avoid storing duplicate signature records without a clear versioning policy.
+
+Ensure that updates to signed content and signature metadata are handled atomically where supported by the database.
+
+---
+
+# 17. Security Requirements
+
+Implement the following:
+
+* Private key never exposed to React.
+* Private key never returned by an API.
+* Private key not committed to Git.
+* Private key file permissions restricted.
+* Secure configuration management.
+* HTTPS in production.
+* Admin authentication and authorization.
+* Input validation.
+* File upload validation.
+* Protection against path traversal.
+* Protection against XSS.
+* Protection against signature algorithm confusion.
+* Protection against replay or stale content where relevant.
+* Clear logging of signature verification failures.
+* Do not log private keys or sensitive content.
+* Do not treat a valid signature as authorization to perform an action.
+
+Explain which protections are provided by cryptographic signatures and which require ordinary application security controls.
+
+---
+
+# 18. Algorithm Switching
+
+I want to switch between RSA and ECDSA without rewriting the business logic.
+
+Example configuration:
+
+```env
+CONTENT_SIGNING_ALGORITHM=ECDSA
+CONTENT_SIGNING_KEY_ID=content-key-v1
+```
+
+The implementation must support:
+
+```env
+CONTENT_SIGNING_ALGORITHM=RSA
+```
+
+The signing service must select the configured algorithm from a fixed, validated configuration.
+
+Provide:
+
+1. RSA key generation commands.
+2. ECDSA key generation commands.
+3. X.509 certificate generation commands.
+4. Node.js signing code for both algorithms.
+5. Browser verification code for both algorithms.
+6. Configuration validation.
+7. Tests for switching algorithms.
+8. Documentation for key rotation when changing algorithms.
+
+Do not assume that existing signatures can be verified with a newly selected algorithm. The signature envelope must preserve the algorithm and key ID used at signing time.
+
+---
+
+# 19. Testing Requirements
+
+Write automated tests for:
+
+## Notifications
+
+* Valid notification verifies successfully.
+* Modified text fails verification.
+* Modified ID fails verification.
+* Modified timestamp fails verification.
+* Missing signature fails.
+* Unknown key ID fails.
+* Unsupported algorithm fails.
+* Re-signed updated content verifies successfully.
+
+## Images
+
+* Original image verifies successfully.
+* One-byte modification fails.
+* Image replacement fails.
+* Recomputed unsigned hash fails signature verification.
+* Modified image metadata fails.
+* Modified file size fails.
+* Wrong MIME type fails according to the defined policy.
+* Missing file fails.
+* Missing signature fails.
+* Object URL is not created before successful verification.
+* Object URL is revoked when the component unmounts or content changes.
+
+## Algorithms
+
+* RSA signing and verification.
+* ECDSA signing and verification.
+* RSA-PSS parameter compatibility.
+* ECDSA IEEE P1363 signature compatibility.
+* Invalid algorithm configuration.
+* Key rotation.
+* Unknown key ID.
+* Tampered signature.
+* Tampered canonical payload.
+
+Use test fixtures and avoid hardcoding production secrets.
+
+---
+
+# 20. Deliverables
+
+Provide the implementation in logical stages:
+
+## Stage 1: Security foundation
+
+* Configuration
+* Key loading
+* X.509 certificate handling
+* RSA implementation
+* ECDSA implementation
+* Canonical payload serialization
+* Signature envelope
+* Key ID handling
+
+## Stage 2: Backend content signing
+
+* Generic signing service
+* Notification signing
+* FAQ signing
+* Feedback signing
+* Image hash and signing
+* Database schema
+* API integration
+
+## Stage 3: Frontend verification
+
+* Trusted key configuration
+* RSA verification
+* ECDSA verification
+* Generic verification utilities
+* Verified React components
+* Image download and hash verification
+* Safe failure states
+
+## Stage 4: Security hardening
+
+* Authentication and authorization review
+* File upload security
+* Key protection
+* Key rotation
+* Logging
+* Rate limiting where appropriate
+* Error handling
+* HTTPS deployment guidance
+
+## Stage 5: Tests and documentation
+
+* Unit tests
+* Integration tests
+* Tampering tests
+* Algorithm switching tests
+* Deployment instructions
+* Key rotation documentation
+* Security limitations
+
+---
+
+# 21. Implementation Rules
+
+Before modifying the project:
+
+1. Inspect the existing project structure.
+2. Identify the Express entry point.
+3. Identify the database technology and ORM, if any.
+4. Identify existing image upload routes.
+5. Identify existing notification, FAQ, feedback, and product image models.
+6. Identify the frontend build system (Vite, CRA, Next.js, etc.).
+7. Reuse existing authentication and authorization mechanisms where appropriate.
+8. Do not overwrite existing business logic unnecessarily.
+9. Present a plan of files to create or modify.
+10. Ask for clarification only when required to avoid destructive or incorrect changes.
+
+After implementation:
+
+* Explain all modified files.
+* Explain how to generate keys and certificates.
+* Explain how to configure RSA or ECDSA.
+* Explain how to run tests.
+* Explain how to verify a modified image and notification.
+* Explain limitations of frontend-only verification.
+* Do not claim that security is complete without identifying untested assumptions.
+
+Start by inspecting the existing codebase, then implement the signing system incrementally.
+
+--------------------------------------------------------------------------
+
+- Is it possible to sign using p12 file? Maybe the p12 file path and backup password will be specified on .env file. Also when verifying, caChain.crt file can be used to verify.
+
+--------------------------------------------------------------------------
+
+- On admin page dashboard or on header, the cert expire days should be shown so its easy to check when I have to renew the cert.
+- Please make p12 and cert for local test.
+
+--------------------------------------------------------------------------
+
+- Please reference blog pages of vendor project, because articles are depend on the vendor's database and sometimes it can be a child of parent article.
+Please make best UX for current blog schema.
+- For account page, software/appstore, karaoke, media, minus can be remained with the name of Software Points (currently Crystal Points), but crystal points and activity points can not integrated into the same page. Its completely different so please add 2 page source for them.
+- For account page, appstore/wallet and account/points?source=CRYSTAL can be included into a new menu category named Crystal Points. In this category you can add points transfer, point charge, change wallet password pages, I think you already done for it, but currently I cant find the pages.
+- I just try to add homepage adverts and I cant see the uploaded image both on admin and web page. I'm not sure sigining and verifying is working well
+Also please check mock data (notices, adverts, product images) that its already signed with current env and sign it if it doesn't.
+
+
+--------------------------------------------------------------------------
+
+- I cant preview image thumbnail on admin homepage adverts page.
+- The first blog article of each subject are shown differently with other articles, and please make the same style. First one is not need to be shown differently.
+- My require for the security of site notices, faqs, product images, advert images, I was meaning that once the db text or the image is changed by certain reason (like hacking), but the frontend prevent loading changed ones, while it is working well for the ones that was update by admin page.
+So I was expected the sign and the cert field on the db, but I cant find it.
+Please describe how you did it before, and what is the best way to do with my require.
+- For blog project, please implement 3 thumb up logic for logged in accounts. I mean that according to the vendor backend logic, the gold, silber (silver), bronze thumb up is able to set for each article.
+- Once the security p12 file is updated (renewed or changed), then how to verify original data (signed by old p12)?
+
+--------------------------------------------------------------------------
+
+- I cant thumb up (gold, silver, bronze) even I already logged in to the web site. I already require for this according to the vendor project? Well vendor backend already have the logic for blogRoutes, while it was working for the crystal-app. So please reference it and implement with best UX.
+
+--------------------------------------------------------------------------
+
+- for site notices, sometimes the content length is too big and original oracle database VARCHAR2 max-length was 4000. While the content have html tags, so its content length is more than the characters shown on the frontend. For now, that is the max-length for site notice's content and how to fix it?
+
+--------------------------------------------------------------------------
+
+- I already requested to upload about images on admin page and load it from the web page, but its not good choice. I'd like to make about page of website with static images. But I'm not sure that about page should have only image urls and the images are uploaded to server or I have to store the images to web project assets and load it? Please advise the best choice for about page.
+- I think its better to implement lazy loading for page route (page loading), and image loading. Its better to load skeleton instead of placeholder image, because I like it.
+Could you review the project and make better UX?
+- Well on the crystal-web project, once I logged in, I can post the blog article. Could you implement it? User can only post one main article and child article per day.
+
+--------------------------------------------------------------------------
+
+- move crystal-web/assets to crystal-web/src/assets
+- wiring that component into product cards, carousels and the media library. That is the remaining piece of this item
+- For blog article, I want to use RichTextEditor, not Textarea.
+
+---------------------------------------------------------------------------
+
+- What does heroOfItsSection meaning on crystal-admin smartphone products page?
+- On admin page, when you try to upload image but doesnt click OK button yet, but once you click upload button, the real image is uploaded. I want to upload only when I click OK button and it upload data, only when upload and save info successed to close the modal.
+Also all uploaded images are maintained, but I want to remain only active images at the moment, I mean when I replace (update) the image or delete the image, the original uploaded image file also deleted.
+- When I set the product (smartphone, eproduct) price as -1, then it doesn't shown on the frontend, but shown as hidden, so the product card height has consistency.
+- Please migrate /assets to /src/assets on crystal-web
+- For web and admin, I'd like to collect all .test files to one folder,
+- for crystal-admin, the sidebar menu can be expanded by the user operation or when containing current page. Currently all menus are shown and its not good UX.
+- on crystal-web notification modal, the min-height or static height should be specified both desktop/mobile, because if there's only one notice and the notice content is short, then the notification modal is shown widely (small height), so the modal background is not seem to smartphone (its tri-foldable for desktop, smartphone for mobile)
+- for crystal-backend, the footer data is specified as static, so I think the backend-admin/website footer is not necessary.
+- Please set the thousand decimal delimiter as ' ' for web/account/eshop/cards page.
+- When I try to show detail drawer for web/account/eshop/orders, each items price color should be red or blue for foreign currency or native currenty, while its showing well on the top of drawer header. I need to set it same font color style for each items.
+- Well, for the account/eshop/orders the address field width should be more wide, and the eye icon button to view detail should be pinned to the right of the table.
+- For about page, all asset images are stored to the project and it should not be loaded from uploaded image url, but currently its using fileUrl to load it so I have some problems on rendering the image when deploy. e.g. ResponsiveMedia.js +56
+I'd review the code and show the suitable images for about page.
+- Well, you alread implemented the content signing and verifying. I'd like to sign listing thumbnails, category and series banners, OS artworks as well.
+- Now according to the sigining limitation, I have to deploy the service to https, while its impossible to use https at the moment. I'd like to deploy to http and is there any way to do? I have to use domain http://your-domain.com or http://192.168.1.100.
+- For db schema, for fields like start date and end date, it should use datetime (represent by seconds) instead of timestamp (represent by miliseconds).
+
+---------------------------------------------------------------------------
+
+- I have to use backend/admin footer management, because the phone numbers can be used for web and app. So it should be fetched from api so to be used on both web and app.
+- Plain HTTP remains unsuitable for content verification: browsers do not expose WebCrypto on ordinary http://domain or LAN-IP origins, and any JavaScript fallback could itself be replaced over HTTP. Practical options are HTTPS with a local CA/reverse proxy, localhost, or Chromium’s insecure-origin flag for controlled development only. The storefront intentionally continues to fail closed. If so, I'd like to change the sign and verify method because using http is essential. Could you give me other method for it?
+Also please give me the way to stop verifying images and contents for web by setting a flag?
+
+---------------------------------------------------------------------------
+
+- I have to use http, its essential. Also I have to sign images and content on admin and show it on web only when it is verified. Is there any way without content sigining or image watermaking?
+The goal is to verify changes that is not updated by admin page.
+In this case, I mean verify process on server, please take care with the api speed, because verifying can take some time, especially for verifying images.
+
+---------------------------------------------------------------------------
+
+- /account/appstore/purchases license key detail, please reference vendor project so to show QR code or license string.
+- /smartphones/products/c9-pro when the product's main image is only one, then its showing too large image, please make suitable size of images.
+Also the main images can be shown as carousel for both desktop and mobile view.
+The advert gallery images width is too large. Please check and make suitable size for viewing.
+- Please set the content width for crystal-web as wide for default.
+- Some phrases are not translated. e.g. 'Add to comparison', 'Nothing to compare yet'. Please review all admin and web project and make full translation.
+- /admin/support/agencies/smartphone and /admin/support/agencies/eproduct, we need display order (or display position) field to set the default sort order.
+For one agency, there can be several phone numbers.
+For agencies, there should have the field representing the exact position for the address, I mean the special well-known building nearby so easy to find the agency. The field can be set on admin page, but should not be shown to the web, because its only for admin users.
+- For smartphone or eproduct service centers, when filter by province, the province sort order on the select filter should be predefined. Is there any way to set the province order?
+- For about page, when using fileUrl util function is not showing correct url because its showing 	http://localhost:3401/static/media/overview.7e427d58.svg but for production, its url is not that form. So for about page images, like /static/ prefix images should be use local path without http://.
+- Please remove unused dictionaries
+- For blog detail page, the article content width is too small, please set the content width suitable for the content width of system setting. (according to the content width setting, wide/standard/full on the top-right setting on header)
+- /admin/support/faqs the section field is unnecesary, so please remove it.
+Also please set the category as Smartphones, TV, STB, Computer, Secure Camera, etc products, crystal app, eshop, appstore.
+- The main menu and the account menu for desktop and the mobile is not the same on web project, e.g. the main menu/eshop has submenus, while for desktop, its only external link. So do for appstore. Please review mobile menu and make same logic for desktop.
+- For web project, please use DatePicker same with the admin project.
+- For /support/faq, the read count is not necessary for faq, so please remove it.
+- /account/eshop/experience the points text color can be blue for plus (+) and red (or pink) for minus (-) on the table.
+- /account/appstore/purchases, the default period can be the 1st of this month is the start_date and today is the end_date.
+/account/appstore/ pages period filter are the same default condition.
+there's no translation for license_state, e.g. success for license_state is not translated.
+On apptore pages, search by keyword is not working well, please review vendor project for account appstore pages.
+- /account/eproduct/keygen/karaoke, manbang, bmedia pages, when downloading the license file, please dont open blank tab, because its only for downloading the file, no need to open blank tab.
+- /account/points?source=SOFTWARE the only point_type=3 rows of soft_point_log table should be fetched, I mean only rows with point_type=3 on soft_point_log for this user should be fetched from db.
+- /admin/catalog/products/smartphone when I try to edit Uppercase on Slug field, it automatically converted to lowercase, while I need unchanged for user input.
+On the edit modal, the price should be shown like 1099.00 -> 1099, 832.40 -> 832.4
+- /account/dashboard, I'd like to show only 4 cards.
+1st is the eshop commerce value, 2nd is the software points = sum appstore point + sum karaoke point + some media points + minus points (its has minus sign so actually its minus calc).
+3rd is the register points = phone register points + sum eproduct register points. The phone register points are calculated by summing the value register_point_log's points which its point_type is 0.
+The 4th is the activity point stats.
+Under the 4 cards, I'd like to show the user details from users table, I think its better to show user_id, user_name, gender, birthday, phone numbers (the phone numbers can be fetched from user_phone_numbers which its phone_type is only 0).
+- On mobile view, when I try to add a phone to compare, the section to represent the compare on the footer region is now shown.
+- Please review the mobile view, because on mobile view, /smartphones/compare, Clear button located outside of the screen. 
+/smartphones/products, the filter select is outside of the screen when showing on the mobile phone.
+- For writing blog, I have to use RichTextEditor (TinyMCE). And I revert package.json because it can be used further.
+- On admin page, it is possible to edit the blog article by manager.
+- The storefront product main images can be auto-played like HeroCarousel.
+- For desktop and mobile menu, please revert to use original menu for eshop and appstore on desktop, I'd like to remove cards, orders, purchases submenus. Only eshop and appstore external link needed (without external link icon)
+For support menu, please remain only FAQ, Contact Us at the moment. Remove all link to 'Support Home'. The page only remains for further use.
+
+---------------------------------------------------------------------------
+
+- For desktop main menu panel (the menu panel when mouse hover to the main menu), I'd like to show Shop category which contains Eshop and Appstore submenu as you provided before.
+- For mobile main menu panel, please remove support menu category because it is not in desktop header, and also can be navigated by the footer.
+- For crystal-web, the blog content editor (RichTextEditor) is not the same with the admin page. The toolbar is fully customized using Chakra-UI, and apply the theme for light/night mode. Also I'd like to implement image upload for RichTextEditor for further use, currently its not used, but the component already have it.
+- Write article is only enabled for desktop view, so please hide the write article button for mobile view.
+
+---------------------------------------------------------------------------
+
+- On homepage, when the images of hero carousel is too many, then the carousel indicators are shown, so the play/pause button is outside of the screen, no way to click it. Please fix it for mobile view.
+- Is it possible to load gif on hero carousel? Also it possible to show video (mp4 or avi) on Hero Carousel?
+- I'd like to implement popup adverts on homepage, so if there's a full screen advert to shown as popup, it will be good UX. It should have start_date and end_date. It can show over 2 images at the same time, if its period contains today.
+- Images, gif for hero carousel should be signed and verified by server or client according .env
+- On desktop/mobile view, there's no way to navigate /smartphones and /eproducts, I mean smartphone and eproduct first page.
+- Well, for the phone series, I'd like to set the separate image for product series. Currently its using the image from one of the products but its the series image so I have to make a new image to be shown on series card.
+- The series card for homepage and smartphones page looks different because the card width is different so on smartphones page, it seems wide, even its completely the same. Please make the series card width the same as homepage and smartphones page, so I can upload one image to be shown same with those pags. I prefer homepage's smartphone series. Its 2x2 grid on mobile view.
+- Could you set more margin between faq question and answer?
+Also when mouse click on faq question, the rectangle is shown outside of the question to show its selected, but selected question is already expaneded so the rectangle is not necessary.
+- On desktop/mobile view, the eshop and appstore menu dont have external link icon. Also when clicking it, please navigate to eshop or appstore url, and don't show new tab.
+- For showing video on hero carousel, I have one problem, because thousands of people trying to view the video and it can make bottleneck for the project, so overall project performance can be low. Is there any best way for UX?
+- The video can be shown as popup like the other advert images, also gif.
+The video should be auto-played, with sound not muted.

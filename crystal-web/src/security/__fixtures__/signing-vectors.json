@@ -1,0 +1,1066 @@
+[
+  {
+    "name": "ECDSA-P256-SHA256 notification: notification with Unicode, HTML and every optional set",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - the text changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 50&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 50&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - the id changed",
+    "type": "notification",
+    "content": {
+      "id": 102,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":102,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - the updated timestamp changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.001Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.001Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - the status changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "DRAFT",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"DRAFT\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - one bit of the signature flipped",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "XszwyvczjLNB1i2nY5HCQ0Ib4aQkWbudzxSe4W3w3vQDSQxO8cVdFymVKoRds3j8XmtfX4iDTjfN7lQ9y+9oLQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: notification with null optionals, a negative order and an escaped lone surrogate",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": null,
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":null,\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "Eilh1AZa4J2Evy4itmkNtxgWeSH0PxTEONas+Y/ijNxRJweZDJu2Oe+nQ3RV3Qr24MBvaHitzeQIZbBBPVSQqg==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - a null optional filled in",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": "2026-01-02T00:00:00.000Z",
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":\"2026-01-02T00:00:00.000Z\",\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "Eilh1AZa4J2Evy4itmkNtxgWeSH0PxTEONas+Y/ijNxRJweZDJu2Oe+nQ3RV3Qr24MBvaHitzeQIZbBBPVSQqg==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - one bit of the signature flipped",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": null,
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":null,\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "Eilh1AZa4J2Evy4itmkNtxgWeSH0PxTEONas+Y/ijNxRJweZDJu2Oe+nQ3RV3Qr24MBvaHitzeQIZbBBPVSQqw==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: faq with a Unicode answer",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "u59b/ITlo0iLOCHVcLaWpyNV2s0NWOohAb+70GAy+Whct3TWqx+rF0REiLiLqBxf7nWiWAXsPjhauoYI9YYZoA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: TAMPERED - the answer changed",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt. ",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt. \",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "u59b/ITlo0iLOCHVcLaWpyNV2s0NWOohAb+70GAy+Whct3TWqx+rF0REiLiLqBxf7nWiWAXsPjhauoYI9YYZoA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: TAMPERED - the category changed",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "TV",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":12,\"category\":\"TV\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "u59b/ITlo0iLOCHVcLaWpyNV2s0NWOohAb+70GAy+Whct3TWqx+rF0REiLiLqBxf7nWiWAXsPjhauoYI9YYZoA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: TAMPERED - one bit of the signature flipped",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "u59b/ITlo0iLOCHVcLaWpyNV2s0NWOohAb+70GAy+Whct3TWqx+rF0REiLiLqBxf7nWiWAXsPjhauoYI9YYZoQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: faq about a service rather than a product",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign in?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign in?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "5W5KEBKSq5quvNOgkOIVXzTJQbu1W/i1OBrAnEpcdoKOKta1bEWMtCA8Ax5W4TPUQSyr1qf3efSM9nhzDKc9Qg==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: TAMPERED - the question changed",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign out?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign out?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "5W5KEBKSq5quvNOgkOIVXzTJQbu1W/i1OBrAnEpcdoKOKta1bEWMtCA8Ax5W4TPUQSyr1qf3efSM9nhzDKc9Qg==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 faq: TAMPERED - one bit of the signature flipped",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign in?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign in?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "5W5KEBKSq5quvNOgkOIVXzTJQbu1W/i1OBrAnEpcdoKOKta1bEWMtCA8Ax5W4TPUQSyr1qf3efSM9nhzDKc9Qw==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: png image",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - one byte of the file changed and its hash recomputed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "7dd3e822f3ca776cefaaa2926b3341ef6f7622476bec6f40a1d127b12fc94926"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"7dd3e822f3ca776cefaaa2926b3341ef6f7622476bec6f40a1d127b12fc94926\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIAAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - the size changed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 71,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":71,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - the MIME type changed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/jpeg",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/jpeg\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - the signature presented for another path",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/other.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/other.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzQ==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - one bit of the signature flipped",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "L5hpBWYwPacfP0QcEu9BOyy4/S4zQR7p3sJae48srnQkplg0ZWC/hL1icoEbYw3AUKNdlNm0pPiZnCklsPpjzA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: svg image",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809\"}}",
+    "signature": "yyJekOeI0ap0Cy5wwGfE2ZqYHjIIxgb5ROB/Z6AQmfvzWxZkz/oY3DqOZMesKFSmNb7QW++P9pPNcvZWMbla3A==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "valid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4K"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - the file replaced by another whose hash was recomputed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "75ca2e015182b42f5a80cdee5f1002200e5ad707b88c5961ae28f41665f5a87f"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"75ca2e015182b42f5a80cdee5f1002200e5ad707b88c5961ae28f41665f5a87f\"}}",
+    "signature": "yyJekOeI0ap0Cy5wwGfE2ZqYHjIIxgb5ROB/Z6AQmfvzWxZkz/oY3DqOZMesKFSmNb7QW++P9pPNcvZWMbla3A==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyIiBoZWlnaHQ9IjIiLz4K"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 image: TAMPERED - one bit of the signature flipped",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809\"}}",
+    "signature": "yyJekOeI0ap0Cy5wwGfE2ZqYHjIIxgb5ROB/Z6AQmfvzWxZkz/oY3DqOZMesKFSmNb7QW++P9pPNcvZWMbla3Q==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4K"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - replayed under another key id",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-ecdsa-v1-other",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-ecdsa-v1-other\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "2AwFi714lVhHai1eqCTy2uqExffF49Uom3yF3nAdK/CiO+iw7dKiASqZyd1af2PyjJ8wGciCzifeYs7ziW71GA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "ECDSA-P256-SHA256 notification: TAMPERED - replayed under the other algorithm name",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-ecdsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-ecdsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "2AwFi714lVhHai1eqCTy2uqExffF49Uom3yF3nAdK/CiO+iw7dKiASqZyd1af2PyjJ8wGciCzifeYs7ziW71GA==",
+    "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJjM+c1DCOtS1/hnHTzEz+0C4HxtalcBSPBVzxEhbSAUS1DZEZk1O37KTaQjRToiwhfDgY4E23azfJzq9YUtnQ==",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: notification with Unicode, HTML and every optional set",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ22",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - the text changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 50&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 50&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ22",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - the id changed",
+    "type": "notification",
+    "content": {
+      "id": 102,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":102,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ22",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - the updated timestamp changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.001Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.001Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ22",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - the status changed",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "DRAFT",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"DRAFT\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ22",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - one bit of the signature flipped",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "R25ogZxGP2bFpTqWe5O74J7gS+h40p1CvfxMmMtBxUZu+fdkMSg+0r0jG6dXF8ecm3LulGxy8/CgKfF2KigsAaylt3Yjl1gj3mKLQeaY4ux2dcM1x1mA9D02nSQr95AGtcqekOkOnbPeDYgxZEwlZNMp/AaxtJKjtes7XOIgJm+Hstgs1pu6BSJjOBpPM7HF8gMjjhMZkHCU+T0ghtGOSC0vDyeCZERiaWUPZgsxoJIJSjssBCOgx33DojwbadVEGiJn69TJUytPG5WFfVz3sOvxXZFQ4Bo5Pfn3UimBOt74L/+4em4EziKnunn1/PIYhM4lkJUYN932Q9ltn2EUsas7vxb7nwnjG94xRMyVz4LyvkhVQhB/knWiMKU2dpkvKqV9ZyknZVSzb9raWYzil4vGxapE+NgeD2/1UOZgNe6xcC6YqbcOh36VjGKHIXoQwBWQpDkx04iwuaiyJ49L0S8UqBGU28Fsug+zCzyrus1JA1hy+vOml1FFZcVxpJ23",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: notification with null optionals, a negative order and an escaped lone surrogate",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": null,
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":null,\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "lCcrN89I3eZVXFjtzc2XXNJj3HzFB23P8Knk/0h22ID2pV4UJutkmtSiIrEssA62Ub+Os6yh4B2gKzvjWJHjDzzF17CtjcWRpEa1sY6iovcrRlx3EYLpS43jN6gMlUv9cTzoRliypeE7tO+Y8TGfNojVLKduEJLXfyN6Q37VywoU7wFBM24+IuFw7EBTMqKfoBFvhXoF65GOz98RNgq/D+UDgRrYidUhAfpzefEA9X2m2ozEUzuMtVxMS54386k2BwQJMXx0mVoC1hSeZMpn6tZNMC/qJbX8clDSxHR3Plumwt9DTt2WX3vKsI6Cjfc9rhY1AcUTLcsD1wjSVr0pHTd+uL5jIMnuq/CJhCDnvMYfNzBjvs3pSB+9JHijuahVLiZ6IP9oERb4eyDHN+rUfNxYyIwW8e4E1iKZJR3BdsvJ9Xsg35qwEk9GYrNbGfNMSRGfZSaNP2KObbV20BTO88CzgeOc2SN8lQ7TgE9wSqscPO7c8nY3rRP1GjmU1+TK",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - a null optional filled in",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": "2026-01-02T00:00:00.000Z",
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":\"2026-01-02T00:00:00.000Z\",\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "lCcrN89I3eZVXFjtzc2XXNJj3HzFB23P8Knk/0h22ID2pV4UJutkmtSiIrEssA62Ub+Os6yh4B2gKzvjWJHjDzzF17CtjcWRpEa1sY6iovcrRlx3EYLpS43jN6gMlUv9cTzoRliypeE7tO+Y8TGfNojVLKduEJLXfyN6Q37VywoU7wFBM24+IuFw7EBTMqKfoBFvhXoF65GOz98RNgq/D+UDgRrYidUhAfpzefEA9X2m2ozEUzuMtVxMS54386k2BwQJMXx0mVoC1hSeZMpn6tZNMC/qJbX8clDSxHR3Plumwt9DTt2WX3vKsI6Cjfc9rhY1AcUTLcsD1wjSVr0pHTd+uL5jIMnuq/CJhCDnvMYfNzBjvs3pSB+9JHijuahVLiZ6IP9oERb4eyDHN+rUfNxYyIwW8e4E1iKZJR3BdsvJ9Xsg35qwEk9GYrNbGfNMSRGfZSaNP2KObbV20BTO88CzgeOc2SN8lQ7TgE9wSqscPO7c8nY3rRP1GjmU1+TK",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - one bit of the signature flipped",
+    "type": "notification",
+    "content": {
+      "id": 7,
+      "title": "Maintenance tonight \ud800 (lone surrogate, escaped by JSON.stringify)",
+      "content": "",
+      "originId": null,
+      "status": "REVIEW",
+      "startsAt": null,
+      "endsAt": null,
+      "sortOrder": -5,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":7,\"title\":\"Maintenance tonight \\ud800 (lone surrogate, escaped by JSON.stringify)\",\"content\":\"\",\"originId\":null,\"status\":\"REVIEW\",\"startsAt\":null,\"endsAt\":null,\"sortOrder\":-5,\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"updatedAt\":\"2026-01-01T00:00:00.000Z\"}}",
+    "signature": "lCcrN89I3eZVXFjtzc2XXNJj3HzFB23P8Knk/0h22ID2pV4UJutkmtSiIrEssA62Ub+Os6yh4B2gKzvjWJHjDzzF17CtjcWRpEa1sY6iovcrRlx3EYLpS43jN6gMlUv9cTzoRliypeE7tO+Y8TGfNojVLKduEJLXfyN6Q37VywoU7wFBM24+IuFw7EBTMqKfoBFvhXoF65GOz98RNgq/D+UDgRrYidUhAfpzefEA9X2m2ozEUzuMtVxMS54386k2BwQJMXx0mVoC1hSeZMpn6tZNMC/qJbX8clDSxHR3Plumwt9DTt2WX3vKsI6Cjfc9rhY1AcUTLcsD1wjSVr0pHTd+uL5jIMnuq/CJhCDnvMYfNzBjvs3pSB+9JHijuahVLiZ6IP9oERb4eyDHN+rUfNxYyIwW8e4E1iKZJR3BdsvJ9Xsg35qwEk9GYrNbGfNMSRGfZSaNP2KObbV20BTO88CzgeOc2SN8lQ7TgE9wSqscPO7c8nY3rRP1GjmU1+TL",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: faq with a Unicode answer",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "xCjznYi9IBpk3Q7o8QANUL7+XeexBCH7FTE8iEBiGIrTGcqj74OvSTWei1M5JLxsIyEM9qs68WvfwKfCe7HHlXlHzwB/nZpjxWCM0TespNRfX6xpAzbam8PVmNIDVvrIGIiLTU96I2Fi8kzzN5TTK2mJQRurE/+8+2uhMzOolKvXQLlRVuuFXf2OtlafzxdfFgCjIFVGBxgFqFJHkOCk938M8Xc14ju89z+++woITVLm1glBTBp/E6YZHq1FLVjTZV04V9JHAMqYYPzk9q+jl1m1PwIwG9EXulSsvripY/uu3pbna9Rc1uyhwkrMYlaIraBjRY7QR4TbjGCC8LutlJG4uZHXjWULHU702hiu9WjRzMzkNB1hIDozKBMxzh4yRsc+/X7THi0fKIHa6ZFu0qNwV0izOQzNinQwYpUDmIMNFi9oDOIjxR7w2W5hJzxdEFI16LvXrggJqDBHDcXCf0l5qQe3dTuPXDSZyIsX7xXPkC74tHJoMVtblmjsoakd",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: TAMPERED - the answer changed",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt. ",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt. \",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "xCjznYi9IBpk3Q7o8QANUL7+XeexBCH7FTE8iEBiGIrTGcqj74OvSTWei1M5JLxsIyEM9qs68WvfwKfCe7HHlXlHzwB/nZpjxWCM0TespNRfX6xpAzbam8PVmNIDVvrIGIiLTU96I2Fi8kzzN5TTK2mJQRurE/+8+2uhMzOolKvXQLlRVuuFXf2OtlafzxdfFgCjIFVGBxgFqFJHkOCk938M8Xc14ju89z+++woITVLm1glBTBp/E6YZHq1FLVjTZV04V9JHAMqYYPzk9q+jl1m1PwIwG9EXulSsvripY/uu3pbna9Rc1uyhwkrMYlaIraBjRY7QR4TbjGCC8LutlJG4uZHXjWULHU702hiu9WjRzMzkNB1hIDozKBMxzh4yRsc+/X7THi0fKIHa6ZFu0qNwV0izOQzNinQwYpUDmIMNFi9oDOIjxR7w2W5hJzxdEFI16LvXrggJqDBHDcXCf0l5qQe3dTuPXDSZyIsX7xXPkC74tHJoMVtblmjsoakd",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: TAMPERED - the category changed",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "TV",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":12,\"category\":\"TV\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "xCjznYi9IBpk3Q7o8QANUL7+XeexBCH7FTE8iEBiGIrTGcqj74OvSTWei1M5JLxsIyEM9qs68WvfwKfCe7HHlXlHzwB/nZpjxWCM0TespNRfX6xpAzbam8PVmNIDVvrIGIiLTU96I2Fi8kzzN5TTK2mJQRurE/+8+2uhMzOolKvXQLlRVuuFXf2OtlafzxdfFgCjIFVGBxgFqFJHkOCk938M8Xc14ju89z+++woITVLm1glBTBp/E6YZHq1FLVjTZV04V9JHAMqYYPzk9q+jl1m1PwIwG9EXulSsvripY/uu3pbna9Rc1uyhwkrMYlaIraBjRY7QR4TbjGCC8LutlJG4uZHXjWULHU702hiu9WjRzMzkNB1hIDozKBMxzh4yRsc+/X7THi0fKIHa6ZFu0qNwV0izOQzNinQwYpUDmIMNFi9oDOIjxR7w2W5hJzxdEFI16LvXrggJqDBHDcXCf0l5qQe3dTuPXDSZyIsX7xXPkC74tHJoMVtblmjsoakd",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: TAMPERED - one bit of the signature flipped",
+    "type": "faq",
+    "content": {
+      "id": 12,
+      "category": "SMARTPHONE",
+      "question": "Why does my C9 say \"Сим-карта не найдена\"?",
+      "answer": "重启手机，然后重新插入 SIM 卡。\nIf it still fails, visit a service centre — bring your receipt.",
+      "sortOrder": 3,
+      "status": "PUBLISHED",
+      "createdAt": "2026-08-01T12:00:00.000Z",
+      "updatedAt": "2026-09-01T08:15:30.500Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":12,\"category\":\"SMARTPHONE\",\"question\":\"Why does my C9 say \\\"Сим-карта не найдена\\\"?\",\"answer\":\"重启手机，然后重新插入 SIM 卡。\\nIf it still fails, visit a service centre — bring your receipt.\",\"sortOrder\":3,\"status\":\"PUBLISHED\",\"createdAt\":\"2026-08-01T12:00:00.000Z\",\"updatedAt\":\"2026-09-01T08:15:30.500Z\"}}",
+    "signature": "xCjznYi9IBpk3Q7o8QANUL7+XeexBCH7FTE8iEBiGIrTGcqj74OvSTWei1M5JLxsIyEM9qs68WvfwKfCe7HHlXlHzwB/nZpjxWCM0TespNRfX6xpAzbam8PVmNIDVvrIGIiLTU96I2Fi8kzzN5TTK2mJQRurE/+8+2uhMzOolKvXQLlRVuuFXf2OtlafzxdfFgCjIFVGBxgFqFJHkOCk938M8Xc14ju89z+++woITVLm1glBTBp/E6YZHq1FLVjTZV04V9JHAMqYYPzk9q+jl1m1PwIwG9EXulSsvripY/uu3pbna9Rc1uyhwkrMYlaIraBjRY7QR4TbjGCC8LutlJG4uZHXjWULHU702hiu9WjRzMzkNB1hIDozKBMxzh4yRsc+/X7THi0fKIHa6ZFu0qNwV0izOQzNinQwYpUDmIMNFi9oDOIjxR7w2W5hJzxdEFI16LvXrggJqDBHDcXCf0l5qQe3dTuPXDSZyIsX7xXPkC74tHJoMVtblmjsoakc",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: faq about a service rather than a product",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign in?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign in?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "ZSyqoD7UBboQ/IYRHmDAYA01HLA5Fzc/OUNAV9LQ4KbXiitw/ZvR18PPrlStDuGe0Koiq9pGGY1cdX3sYKYWQFDo9+HEa6btqIwSdiEFHOse48eIjKbuD0/OTxKZHWcJC/xQV7nFGtB7iJXf1pVojCPVLLrTfvH7J8QlpixYhSgtZ0iGHplr5CROZEU5w5prcoOH9njWAwRF+/EyVJOKc7WtIObeWVf9PvDOm5tJUgLQtz7fvMkoyIavensiG0+Wgwpln/LxDev8XU8q2X31Byt5B2I4IKQUAdjyBjpnxRcj29/6IYo0MPfQN9juSfFwqCNTrtq/N7B9uHVnd26KIazsNCHZM9BwJ/M3nUE43dhn8fflqs4hGE399UjbclEiVO2fVWeEpWfETlFALc4+BFZ44bRElrR7HloYhjwXR/yp0p/kMm/8xqZWRjRUvIr4XokcuHd/z7+DxkShNuvkz9Bgdid+7oJFbDm9otml+vH56nCQ33F3xnjxyeXpsSKz",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: TAMPERED - the question changed",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign out?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign out?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "ZSyqoD7UBboQ/IYRHmDAYA01HLA5Fzc/OUNAV9LQ4KbXiitw/ZvR18PPrlStDuGe0Koiq9pGGY1cdX3sYKYWQFDo9+HEa6btqIwSdiEFHOse48eIjKbuD0/OTxKZHWcJC/xQV7nFGtB7iJXf1pVojCPVLLrTfvH7J8QlpixYhSgtZ0iGHplr5CROZEU5w5prcoOH9njWAwRF+/EyVJOKc7WtIObeWVf9PvDOm5tJUgLQtz7fvMkoyIavensiG0+Wgwpln/LxDev8XU8q2X31Byt5B2I4IKQUAdjyBjpnxRcj29/6IYo0MPfQN9juSfFwqCNTrtq/N7B9uHVnd26KIazsNCHZM9BwJ/M3nUE43dhn8fflqs4hGE399UjbclEiVO2fVWeEpWfETlFALc4+BFZ44bRElrR7HloYhjwXR/yp0p/kMm/8xqZWRjRUvIr4XokcuHd/z7+DxkShNuvkz9Bgdid+7oJFbDm9otml+vH56nCQ33F3xnjxyeXpsSKz",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 faq: TAMPERED - one bit of the signature flipped",
+    "type": "faq",
+    "content": {
+      "id": 99,
+      "category": "CRYSTAL_APP",
+      "question": "How do I sign in?",
+      "answer": "Use your Crystal ID.",
+      "sortOrder": 0,
+      "status": "ARCHIVED",
+      "createdAt": "2026-02-28T23:59:59.999Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"faq\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":99,\"category\":\"CRYSTAL_APP\",\"question\":\"How do I sign in?\",\"answer\":\"Use your Crystal ID.\",\"sortOrder\":0,\"status\":\"ARCHIVED\",\"createdAt\":\"2026-02-28T23:59:59.999Z\",\"updatedAt\":\"2026-03-01T00:00:00.000Z\"}}",
+    "signature": "ZSyqoD7UBboQ/IYRHmDAYA01HLA5Fzc/OUNAV9LQ4KbXiitw/ZvR18PPrlStDuGe0Koiq9pGGY1cdX3sYKYWQFDo9+HEa6btqIwSdiEFHOse48eIjKbuD0/OTxKZHWcJC/xQV7nFGtB7iJXf1pVojCPVLLrTfvH7J8QlpixYhSgtZ0iGHplr5CROZEU5w5prcoOH9njWAwRF+/EyVJOKc7WtIObeWVf9PvDOm5tJUgLQtz7fvMkoyIavensiG0+Wgwpln/LxDev8XU8q2X31Byt5B2I4IKQUAdjyBjpnxRcj29/6IYo0MPfQN9juSfFwqCNTrtq/N7B9uHVnd26KIazsNCHZM9BwJ/M3nUE43dhn8fflqs4hGE399UjbclEiVO2fVWeEpWfETlFALc4+BFZ44bRElrR7HloYhjwXR/yp0p/kMm/8xqZWRjRUvIr4XokcuHd/z7+DxkShNuvkz9Bgdid+7oJFbDm9otml+vH56nCQ33F3xnjxyeXpsSKy",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: png image",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEW",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - one byte of the file changed and its hash recomputed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "7dd3e822f3ca776cefaaa2926b3341ef6f7622476bec6f40a1d127b12fc94926"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"7dd3e822f3ca776cefaaa2926b3341ef6f7622476bec6f40a1d127b12fc94926\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEW",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIAAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - the size changed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 71,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":71,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEW",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - the MIME type changed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/jpeg",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/jpeg\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEW",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - the signature presented for another path",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/other.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/other.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEW",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - one bit of the signature flipped",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/products/c9/main.png",
+      "mimeType": "image/png",
+      "size": 70,
+      "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/products/c9/main.png\",\"mimeType\":\"image/png\",\"size\":70,\"sha256\":\"c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77\"}}",
+    "signature": "SR5L5ZSonHBKrRbbb7/4U5ld90Trfv20IVDEJcfc6S96bBL8GG3qSNzOKGrYzEKEd53a8Ey97sXN5IH/9LmdtxbO6w/CSQzlTiqvQo+JenrBHhOvMziPc3veY9XfsA4PDJa3LaaEgnvtn1u1Je15yyZkord8sB17tSOZ7LUi+gZEs1Goj5otz4z7/y1FANzyi1lw1w0vkublF71O5/ygP7XYoNx3DVYya1lIkoYScPNCzs84cIW7O8FwBya3rQ0HWn8IBahqzfiR+lnivSjyAeV9TTDvcNdG6sWHAsZiF/0hH+KdbV45PVu9lHiPo9/C2p6nHPFVD6YUC+97/W+L+YkD1qaBlLYi3RKmdOKcft+VDtNvu9Gguqomlb4RawvNTzYYnopfn10CkJar6XlOD6qefPXZ3M1sAR31742UK5foouY0KsckpUxtR7eAmZUSL/SgmsdQvGm3bk1utTis+OwcapLzfJJtcSQQKsdbqBja/J/5UrrBC2nZATep1rEX",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid",
+    "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: svg image",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809\"}}",
+    "signature": "xRGC6A9YfSynX7kiEPdW849uFa/5JXK7UhPRq/Zq97Zo5bcqMJXTOPLgrwJo4+6ZeHoeHgqW/4NdTUkiJ72+8DLm29XWVyBf6i4E5pqcPrJmNnKQr13lLUK5/ADjrUqpmfrykNxAEcloQihLDZXh7DMhv2MK0KFJiQGKAEa1CJYi5KmG16ojJyQ+6D5NbKXDmiGQR/SPI8lwM/Y7MmtfddW6mjoNsM/XckfIs/2oPKiwd8OaBCxIzx0oau1Hv0o8A92tsTU80z+l0mv9OkKMZnwhcA7ahKvz3SequWAjhNsErMGcGEL2moPhElQZyRz2P53dUsFvqr0N8OCTVaCC8QKXGRLB6njTa2vEEGvqIaDoDIcPm1rYV2bg1sL7y8YTenCTsrWJ8u7HzJFJlGUDazGYbMHUSU88pnLdGZfzJzHsEn51yRgakbX9mQH9xUGf9P0POaApUU3KKepZke/H+CdnwNPOWw8A8nrKQLH/wBruVb5iNAokrSqoVkWufCcd",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "valid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4K"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - the file replaced by another whose hash was recomputed",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "75ca2e015182b42f5a80cdee5f1002200e5ad707b88c5961ae28f41665f5a87f"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"75ca2e015182b42f5a80cdee5f1002200e5ad707b88c5961ae28f41665f5a87f\"}}",
+    "signature": "xRGC6A9YfSynX7kiEPdW849uFa/5JXK7UhPRq/Zq97Zo5bcqMJXTOPLgrwJo4+6ZeHoeHgqW/4NdTUkiJ72+8DLm29XWVyBf6i4E5pqcPrJmNnKQr13lLUK5/ADjrUqpmfrykNxAEcloQihLDZXh7DMhv2MK0KFJiQGKAEa1CJYi5KmG16ojJyQ+6D5NbKXDmiGQR/SPI8lwM/Y7MmtfddW6mjoNsM/XckfIs/2oPKiwd8OaBCxIzx0oau1Hv0o8A92tsTU80z+l0mv9OkKMZnwhcA7ahKvz3SequWAjhNsErMGcGEL2moPhElQZyRz2P53dUsFvqr0N8OCTVaCC8QKXGRLB6njTa2vEEGvqIaDoDIcPm1rYV2bg1sL7y8YTenCTsrWJ8u7HzJFJlGUDazGYbMHUSU88pnLdGZfzJzHsEn51yRgakbX9mQH9xUGf9P0POaApUU3KKepZke/H+CdnwNPOWw8A8nrKQLH/wBruVb5iNAokrSqoVkWufCcd",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyIiBoZWlnaHQ9IjIiLz4K"
+  },
+  {
+    "name": "RSA-PSS-SHA256 image: TAMPERED - one bit of the signature flipped",
+    "type": "image",
+    "content": {
+      "storageKey": "/uploads/adverts/home-crystal.svg",
+      "mimeType": "image/svg+xml",
+      "size": 63,
+      "sha256": "38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"image\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"storageKey\":\"/uploads/adverts/home-crystal.svg\",\"mimeType\":\"image/svg+xml\",\"size\":63,\"sha256\":\"38faf4153750fdb3d8b4ac3c34650dce4c2128f5c7b1dce0c1f5efb5c2522809\"}}",
+    "signature": "xRGC6A9YfSynX7kiEPdW849uFa/5JXK7UhPRq/Zq97Zo5bcqMJXTOPLgrwJo4+6ZeHoeHgqW/4NdTUkiJ72+8DLm29XWVyBf6i4E5pqcPrJmNnKQr13lLUK5/ADjrUqpmfrykNxAEcloQihLDZXh7DMhv2MK0KFJiQGKAEa1CJYi5KmG16ojJyQ+6D5NbKXDmiGQR/SPI8lwM/Y7MmtfddW6mjoNsM/XckfIs/2oPKiwd8OaBCxIzx0oau1Hv0o8A92tsTU80z+l0mv9OkKMZnwhcA7ahKvz3SequWAjhNsErMGcGEL2moPhElQZyRz2P53dUsFvqr0N8OCTVaCC8QKXGRLB6njTa2vEEGvqIaDoDIcPm1rYV2bg1sL7y8YTenCTsrWJ8u7HzJFJlGUDazGYbMHUSU88pnLdGZfzJzHsEn51yRgakbX9mQH9xUGf9P0POaApUU3KKepZke/H+CdnwNPOWw8A8nrKQLH/wBruVb5iNAokrSqoVkWufCcc",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid",
+    "bytes": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4K"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - replayed under another key id",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "RSA-PSS-SHA256",
+    "keyId": "fixture-rsa-v1-other",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"RSA-PSS-SHA256\",\"kid\":\"fixture-rsa-v1-other\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "hTPpXQrln/izDBUT/Va7Df1Mnw7ZdogeQtNpuzK0mlJ6Qpi7XJTEol6COUmMpZ++Nes7pFeh4Zb8fahA3sj85wObCfx3Oawq8yilZEkL5dba0IvIz5i6jFWbqUCt6KDrQQQeR+EK8gGwI9CHBOqMGPi1Vg4bj3T4GggbonSC7uJ6kN9SyLl1lCj89PL2iB9OxZGwNKpsfCGvypOR/sS1lGitr8BlVf+eSd+N7bcQiVkjPzQbzAwcWfeNQJkjx8eJUsW3uuf/cjRa9cwuT0KolIHiVOknzhi2QCdEwkV7eOsHfqAYaZmB9boCvOo0/hzZY/QGoXWow9jaPMXIgsCcbj32h8RXTQur0A8g7GxRGp+vK14ah1sxmoo2bxTJh6OdbTAP1rQ5OUBcVkYnZCZGB4FyndciPelGaRB+12v/mhtsUa6J9jGVE7HBh5idbSxfcc/LEAey7HQTSxarJ1IHR+oFTBJJGUMfqNs9+FULEdVKd+YDt6zKP4ggvXLl6mXg",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  },
+  {
+    "name": "RSA-PSS-SHA256 notification: TAMPERED - replayed under the other algorithm name",
+    "type": "notification",
+    "content": {
+      "id": 101,
+      "title": "系统维护 — Техническое обслуживание 🔧",
+      "content": "<p>Crystal \"C9\" update: 5&nbsp;% off <a href=\"/smartphones/c9\">today</a></p>\n<p>tab\there, backslash \\ here, é is not é, and a line separator</p>",
+      "originId": 3,
+      "status": "PUBLISHED",
+      "startsAt": "2026-09-16T00:00:00.000Z",
+      "endsAt": "2026-10-01T23:59:59.999Z",
+      "sortOrder": 10,
+      "createdAt": "2026-09-15T09:30:12.345Z",
+      "updatedAt": "2026-09-16T10:00:00.000Z"
+    },
+    "algorithm": "ECDSA-P256-SHA256",
+    "keyId": "fixture-rsa-v1",
+    "canonical": "{\"v\":1,\"type\":\"notification\",\"alg\":\"ECDSA-P256-SHA256\",\"kid\":\"fixture-rsa-v1\",\"content\":{\"id\":101,\"title\":\"系统维护 — Техническое обслуживание 🔧\",\"content\":\"<p>Crystal \\\"C9\\\" update: 5&nbsp;% off <a href=\\\"/smartphones/c9\\\">today</a></p>\\n<p>tab\\there, backslash \\\\ here, é is not é, and a line separator</p>\",\"originId\":3,\"status\":\"PUBLISHED\",\"startsAt\":\"2026-09-16T00:00:00.000Z\",\"endsAt\":\"2026-10-01T23:59:59.999Z\",\"sortOrder\":10,\"createdAt\":\"2026-09-15T09:30:12.345Z\",\"updatedAt\":\"2026-09-16T10:00:00.000Z\"}}",
+    "signature": "hTPpXQrln/izDBUT/Va7Df1Mnw7ZdogeQtNpuzK0mlJ6Qpi7XJTEol6COUmMpZ++Nes7pFeh4Zb8fahA3sj85wObCfx3Oawq8yilZEkL5dba0IvIz5i6jFWbqUCt6KDrQQQeR+EK8gGwI9CHBOqMGPi1Vg4bj3T4GggbonSC7uJ6kN9SyLl1lCj89PL2iB9OxZGwNKpsfCGvypOR/sS1lGitr8BlVf+eSd+N7bcQiVkjPzQbzAwcWfeNQJkjx8eJUsW3uuf/cjRa9cwuT0KolIHiVOknzhi2QCdEwkV7eOsHfqAYaZmB9boCvOo0/hzZY/QGoXWow9jaPMXIgsCcbj32h8RXTQur0A8g7GxRGp+vK14ah1sxmoo2bxTJh6OdbTAP1rQ5OUBcVkYnZCZGB4FyndciPelGaRB+12v/mhtsUa6J9jGVE7HBh5idbSxfcc/LEAey7HQTSxarJ1IHR+oFTBJJGUMfqNs9+FULEdVKd+YDt6zKP4ggvXLl6mXg",
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4+UKe0L94AUJ+gWjwk58LsBkRkX/sluHqUpy8SkUvCpKTLeQeNZjFXcTU+YVFSQB6zCLwPxEdDfPG7w2LCWNWV48TzhCcbwDKMgCJgePU0yZ1guiByFz860670wKNgp2uKnv7GaYDrnGyuLCMYvfWduHfj2d4hm2OZhj67+sg/XoLKAKI1+Bw+DQ2Sw4NE80vMETgbkzs/0Gk2Sgpar+uluh8US2uSqVDmSAObIDKyJ00eRCkBOkwEeC2+wRo/MiyK9QqzlYY5bvK58rTBez14N1kMNdOBjUKqiRtxKFxkabABFlQ6Q2ZvIj1hcQndZiIV8jJC0aJn8WpwDGYnDSW30iF88K8dH/EOJHiMjALrb4XduLzshOH5AmPtgO0wIN/J8YocV1FdPJVe6NV6QyW3pfh47KvbgI4ijXaFUJCjMsz0xWm9FZiKnTy14Z84FaUU6MAG+RbgVLqbsHAPaq1aiQTsarg/uVnCBjck61/ixnsaZZK8e7v8dZSOQ8r/rtAgMBAAE=",
+    "expect": "invalid"
+  }
+]

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-label="institute research crystal os">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="hsl(157, 62%, 58%)"/>
+      <stop offset="100%" stop-color="hsl(199, 58%, 34%)"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#g)"/>
+  <circle cx="1248" cy="240" r="280" fill="rgba(255,255,255,0.12)"/>
+  <circle cx="352" cy="820" r="200" fill="rgba(0,0,0,0.10)"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="75" font-weight="600" fill="rgba(255,255,255,0.94)">institute research crystal os</text>
+  <text x="50%" y="575" text-anchor="middle" font-family="DM Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="38" fill="rgba(255,255,255,0.62)">1600 x 1000</text>
+</svg>
