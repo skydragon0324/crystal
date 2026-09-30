@@ -175,7 +175,7 @@ function buttonSaying(pattern) {
 }
 
 describe('the popup adverts', () => {
-  test('a live campaign opens over the page, and says which of how many it is', async () => {
+  test('it fills the screen, and carries nothing but the advert and the way out', async () => {
     const first = png(0x11);
     const second = png(0x22);
     live.rows = [picture(1, '/uploads/showcase/a.png', first), picture(2, '/uploads/showcase/b.png', second)];
@@ -187,8 +187,23 @@ describe('the popup adverts', () => {
     await settle();
 
     expect(dialog()).toBeTruthy();
-    expect(dialog().textContent).toContain('1');
-    /* The close button exists before a single advert has been clicked through. */
+
+    /*
+     * TWO CONTROLS, AND NO MORE: the advert, which is the way on, and the
+     * close button, which is the way out. The counter and the "next" and
+     * "learn more" buttons that used to sit under the picture are what this
+     * is holding the line against - a full-screen advert with a toolbar on
+     * it reads as a page about an advert.
+     */
+    const controls = document.querySelectorAll('[role="dialog"] button');
+    expect(controls.length).toBe(2);
+
+    /* Which advert this is, and what clicking does, is said in the label. */
+    const advance = document.querySelector('[role="dialog"] button[aria-label*="advertisement"]');
+    expect(advance).toBeTruthy();
+    expect(advance.getAttribute('aria-label')).toContain('2');
+
+    /* The way out is there before a single advert has been clicked through. */
     expect(buttonSaying(/close/i)).toBeTruthy();
 
     view.unmount();
@@ -248,6 +263,45 @@ describe('the popup adverts', () => {
     await settle();
     expect(dialog()).toBeTruthy();
     third.unmount();
+  });
+
+  test('an advert that goes somewhere carries the way there, and it is not the picture', async () => {
+    const first = png(0x51);
+    const second = png(0x52);
+    live.rows = [
+      picture(1, '/uploads/showcase/linked.png', first, { link_url: '/smartphones' }),
+      picture(2, '/uploads/showcase/plain.png', second)
+    ];
+
+    const view = mount(<PopupAdverts />, verifierFor({
+      '/uploads/showcase/linked.png': first,
+      '/uploads/showcase/plain.png': second
+    }));
+    await settle();
+
+    /* Three controls on a linked advert: the picture, the way out, the way there. */
+    const goto = Array.prototype.filter.call(
+      document.querySelectorAll('[role="dialog"] a, [role="dialog"] button'),
+      (node) => (node.getAttribute('href') || '') === '/smartphones'
+    )[0];
+    expect(goto).toBeTruthy();
+
+    /*
+     * FOLLOWING IT CLOSES THE POPUP RATHER THAN TURNING THE PAGE.
+     *
+     * A dialog left hanging over the page it just sent somebody to is a
+     * dialog about an advert they have left. What must NOT happen is the
+     * advert underneath taking the same click and moving to the second one -
+     * a visitor would arrive on a new page having silently skipped an
+     * advert. The button stops its own click, which is what this proves:
+     * the run is gone, not advanced.
+     */
+    click(goto);
+    await settle();
+
+    expect(dialog()).toBeFalsy();
+
+    view.unmount();
   });
 
   test('a film is shown without being verified, and starts silent with a way to hear it', async () => {

@@ -742,7 +742,6 @@ const en = {
       couldNotReachCrystal: 'Could not reach Crystal - please check your connection',
       serverTookTooLong: 'The server took too long to answer'
     },
-    next: 'Next',
     nothingHereYet: 'Nothing here yet',
     overview: 'Overview',
     products: 'Products',
@@ -898,8 +897,6 @@ const en = {
       yesterday: 'Yesterday'
     },
     popupadverts: {
-      advertOfTotal: 'Advertisement {number} of {total}',
-      advertisement: 'Advertisement',
       closeTheAdverts: 'Close the advertisements',
       theNextAdvert: 'Show the next advertisement, {number} of {total}'
     },
@@ -1960,7 +1957,6 @@ const zh = {
       couldNotReachCrystal: '无法连接 Crystal，请检查网络连接',
       serverTookTooLong: '服务器响应超时'
     },
-    next: '下一个',
     nothingHereYet: '暂无内容',
     overview: '概览',
     products: '产品',
@@ -2116,8 +2112,6 @@ const zh = {
       yesterday: '昨天'
     },
     popupadverts: {
-      advertOfTotal: '第 {number} 个广告，共 {total} 个',
-      advertisement: '广告',
       closeTheAdverts: '关闭广告',
       theNextAdvert: '显示下一个广告，第 {number} 个，共 {total} 个'
     },
@@ -3190,7 +3184,6 @@ const ru = {
       couldNotReachCrystal: 'Не удалось связаться с Crystal — проверьте подключение',
       serverTookTooLong: 'Сервер слишком долго не отвечает'
     },
-    next: 'Далее',
     nothingHereYet: 'Здесь пока ничего нет',
     overview: 'Обзор',
     products: 'Товары',
@@ -3346,8 +3339,6 @@ const ru = {
       yesterday: 'Вчера'
     },
     popupadverts: {
-      advertOfTotal: 'Реклама {number} из {total}',
-      advertisement: 'Реклама',
       closeTheAdverts: 'Закрыть рекламу',
       theNextAdvert: 'Показать следующую рекламу, {number} из {total}'
     },

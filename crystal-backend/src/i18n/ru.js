@@ -166,6 +166,14 @@ module.exports = {
     tokenExpired: 'срок действия токена истёк'
   },
 
+  scene: {
+    aLayerNeedsAPicture: 'слою {layer} сцены нужно изображение',
+    aPictureMustBeAnUpload: 'слой {layer} должен указывать на загруженный файл, а не на другой адрес',
+    thatIsNotAScene: 'сцена должна быть объектом со списком слоёв',
+    tooManyLayers: 'в сцене может быть не более {limit} слоёв',
+    unknownAnimation: 'анимации с названием {name} не существует'
+  },
+
   upload: {
     contentDoesNotMatchType: 'содержимое файла не является {declared} - файл должен быть того типа, который заявлен',
     onlyDocumentsAreAllowed: 'сюда можно загружать только документы ({types})',

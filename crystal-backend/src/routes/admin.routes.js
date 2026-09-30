@@ -1,6 +1,7 @@
 const Router = require('express-promise-router');
 const { authenticate } = require('../middleware/auth');
 const { attachActor } = require('../utils/actor');
+const scene = require('../utils/scene');
 const crudFactory = require('./crud.routes');
 const { FAQ_CATEGORIES } = require('../utils/faqCategories');
 const contentOf = require('../security/contentOf');
@@ -229,7 +230,9 @@ router.use('/faqs', crudFactory({
     // The row is the image. Deleting an advert must make its uploaded bytes
     // eligible for cleanup immediately, not retain them in a recycle bin.
     softDelete: false,
-    columns: ['device_type', 'file_path', 'alt_text', 'link_url', 'sort_order', 'status'],
+    columns: ['device_type', 'file_path', 'alt_text', 'link_url', 'sort_order', 'status', 'scene'],
+    /* A scene is JSON the storefront renders, so it is rebuilt from known fields. */
+    sanitise: scene.sanitiseRow,
     fileColumns: ['file_path'],
     searchable: ['alt_text', 'link_url', 'file_path'],
     sortable: ['id', 'device_type', 'sort_order', 'created_at'],

@@ -166,6 +166,14 @@ module.exports = {
     tokenExpired: '登录已过期'
   },
 
+  scene: {
+    aLayerNeedsAPicture: '场景的 {layer} 图层需要一张图片',
+    aPictureMustBeAnUpload: '{layer} 图层必须指向已上传的文件，而不是其他地址',
+    thatIsNotAScene: '场景必须是包含图层列表的对象',
+    tooManyLayers: '一个场景最多只能有 {limit} 个图层',
+    unknownAnimation: '没有名为 {name} 的动画'
+  },
+
   upload: {
     contentDoesNotMatchType: '文件内容并非 {declared}——文件必须与其声明的类型一致',
     onlyDocumentsAreAllowed: '此处仅允许上传文档（{types}）',

@@ -321,7 +321,8 @@ async function detail(slug, device) {
    */
   const [signedAssets, signedImages, mainImageIntegrity] = await Promise.all([
     integrity.images(assets),
-    integrity.images(mainImages),
+    /* media(), not images(): a shot may be a scene, whose layers are signed one by one. */
+    integrity.media(mainImages),
     integrity.imageEnvelope(product.main_image)
   ]);
 
@@ -399,11 +400,11 @@ async function galleryOf(slug, device) {
 
   const adverts = await productImages.ofProduct(product.id,
     { kind: 'ADVERT', device: device });
-  if (adverts.length) return integrity.images(adverts);
+  if (adverts.length) return integrity.media(adverts);
 
   // A product with no advertising run falls back to its studio set, so a
   // tab that would otherwise be empty still shows something.
-  return integrity.images(await productImages.ofProduct(product.id, { kind: 'MAIN', device: device }));
+  return integrity.media(await productImages.ofProduct(product.id, { kind: 'MAIN', device: device }));
 }
 
 /**

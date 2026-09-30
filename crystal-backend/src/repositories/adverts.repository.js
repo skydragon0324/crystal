@@ -26,7 +26,12 @@ function live(placement, device) {
   const qb = db(TABLE)
     .where({ placement: String(placement).toUpperCase(), status: 'ACTIVE', is_deleted: false })
     .orderBy([{ column: 'sort_order' }, { column: 'id' }])
-    .select('id', 'placement', 'device_type', 'file_path', 'alt_text', 'link_url', 'sort_order');
+    /*
+     * `scene` comes with it: an advert that is an animated scene is drawn
+     * from this column and shows `file_path` only where motion is refused,
+     * so fetching one without the other is half an advert.
+     */
+    .select('id', 'placement', 'device_type', 'file_path', 'alt_text', 'link_url', 'sort_order', 'scene');
 
   if (device) qb.whereIn('device_type', [device, 'all']);
   return qb;

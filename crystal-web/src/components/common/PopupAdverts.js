@@ -3,13 +3,11 @@ import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Button,
-  Flex,
   Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
-  ModalOverlay,
-  Text
+  ModalOverlay
 } from '@chakra-ui/react';
 
 import AdvertVideo from '@/components/common/AdvertVideo';
@@ -19,7 +17,6 @@ import { STATES } from '@/security/verifySignature';
 import { fileUrl } from '@/api/client';
 import api from '@/api';
 import { useApi } from '@/hooks/useApi';
-import { useSurface } from '@/theme/tokens';
 import { useT } from '@/i18n';
 
 /**
@@ -50,10 +47,20 @@ import { useT } from '@/i18n';
  * Escape closes it as it does every dialog on the site. Clicking past the
  * LAST one closes it too, so the natural way through it is also a way out.
  *
- * A LINK IS A BUTTON, NOT THE PICTURE. The picture already does something -
- * it advances - so an advert that goes somewhere gets its own button
- * underneath. A picture that sometimes advanced and sometimes navigated
- * would be a trap.
+ * IT IS THE WHOLE SCREEN, AND IT CARRIES NOTHING BUT THE ADVERT. No counter,
+ * no "next", no "learn more": a full-screen advert with a toolbar under it
+ * reads as a web page about an advert rather than as the advert. What is left
+ * is the artwork, which advances when it is clicked, and the X, which closes.
+ *
+ * A CAMPAIGN THAT GOES SOMEWHERE SAYS SO IN A CORNER. `link_url` is followed
+ * by one small button on the artwork, at the opposite edge from the speaker
+ * and diagonally away from the close button, so the three controls on a
+ * full-screen advert are never under the same thumb.
+ *
+ * The PICTURE still only ever advances. A picture that sometimes advanced
+ * and sometimes navigated would be a trap: a visitor reaching for the next
+ * advert must not be sent off the site by the same gesture. So the button
+ * takes its own click and stops it there.
  */
 
 /** Where this browser remembers the popups it has already been shown. */
@@ -79,7 +86,6 @@ function rememberSeen(ids) {
 
 export default function PopupAdverts() {
   const t = useT();
-  const surface = useSurface();
 
   const popups = useApi(() => api.site.popups(), []);
 
@@ -141,7 +147,6 @@ export default function PopupAdverts() {
       isVideo={isVideo}
       isLast={isLast}
       refused={refused}
-      surface={surface}
       t={t}
     />
   );
@@ -154,7 +159,7 @@ export default function PopupAdverts() {
  */
 function PopupDialog(props) {
   const {
-    isOpen, onClose, unseen, at, setAt, advert, checked, isVideo, isLast, refused, surface, t
+    isOpen, onClose, unseen, at, setAt, advert, checked, isVideo, isLast, refused, t
   } = props;
 
   /*
@@ -186,112 +191,142 @@ function PopupDialog(props) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      isCentered
-      size="xl"
-      motionPreset="slideInBottom"
+      /* The advert IS the screen - no dialog frame, no margins, no furniture. */
+      size="full"
+      motionPreset="fade"
     >
-      <ModalOverlay bg="blackAlpha.700" />
-      <ModalContent bg={surface.card} borderRadius="16px" overflow="hidden" mx="4">
-        {/* Always reachable, from the first advert onward. */}
+      <ModalOverlay bg="blackAlpha.900" />
+      <ModalContent
+        bg="black"
+        m="0"
+        borderRadius="0"
+        overflow="hidden"
+        position="relative"
+      >
+        {/*
+          * THE ONLY CONTROL ON IT.
+          *
+          * There is no counter, no "next" and no "learn more" any more: a
+          * full-screen advert with a toolbar under it reads as a web page
+          * about an advert. The picture is the way on, the X is the way out,
+          * and both are things a visitor already knows how to use.
+          */}
         <ModalCloseButton
-          zIndex="2"
+          zIndex="4"
+          top={{ base: 3, md: 5 }}
+          right={{ base: 3, md: 5 }}
+          size="lg"
           color="white"
-          bg="blackAlpha.500"
+          bg="blackAlpha.600"
           borderRadius="999px"
-          _hover={{ bg: 'blackAlpha.700' }}
+          _hover={{ bg: 'blackAlpha.800' }}
           aria-label={t('common.close')}
         />
 
-        <ModalBody p="0">
+        <ModalBody p="0" position="relative">
           {/*
-            * THE PICTURE IS THE WAY ON. It is a button, and it says so - a
-            * screen reader is told which advert this is and that activating
-            * it brings the next, rather than being handed an image with a
-            * click handler bolted to it.
+            * NOTHING IS CROPPED. The artwork is whatever shape the campaign
+            * was drawn in - a portrait phone advert, a landscape banner
+            * reused from the hero - and `contain` shows every one of them
+            * whole against the black, rather than cutting the ends off half
+            * of them, usually the half with the words on.
             */}
-          <Box
-            as="button"
-            type="button"
-            onClick={next}
-            display="block"
-            w="100%"
-            position="relative"
-            /*
-              * A TALL BOX, AND NOTHING CROPPED INSIDE IT.
-              *
-              * The artwork is whatever shape the campaign was drawn in -
-              * a portrait phone advert, a landscape banner reused from the
-              * hero - and `cover` would cut the ends off half of them,
-              * usually the half with the words on. `contain` shows every
-              * advert whole, on the dialog's own ground, at the cost of a
-              * band above and below a wide one - kept small by giving the
-              * phone a tall box and the desktop a wide one, which is the way
-              * round campaigns are drawn.
-              */
-            pb={{ base: '125%', md: '70%' }}
-            bg={surface.raised}
-            aria-label={isLast
-              ? t('components.popupadverts.closeTheAdverts')
-              : t('components.popupadverts.theNextAdvert', { number: at + 2, total: unseen.length })}
-            _focusVisible={{ outline: '2px solid', outlineColor: 'brand.500', outlineOffset: '-2px' }}
-          >
+          <Box position="absolute" top="0" right="0" bottom="0" left="0">
             {isVideo ? (
               <AdvertVideo
                 path={advert.file_path}
                 altText={advert.alt_text || ''}
                 active
                 fit="contain"
+                /* Not the top right - that corner is the close button. */
+                corner="bottom-left"
               />
             ) : (
-              <Box position="absolute" top="0" right="0" bottom="0" left="0">
-                <Picture
-                  verification={checked}
-                  src={fileUrl(advert.file_path)}
-                  alt={advert.alt_text || ''}
-                  height="100%"
-                  rounded={false}
-                  fit="contain"
-                  eager
-                />
-              </Box>
+              <Picture
+                verification={checked}
+                src={fileUrl(advert.file_path)}
+                alt={advert.alt_text || ''}
+                height="100%"
+                rounded={false}
+                fit="contain"
+                eager
+              />
             )}
           </Box>
 
-          <Flex
-            align="center"
-            justify="space-between"
-            gap="3"
-            data-gap="12"
-            px={{ base: 4, md: 5 }}
-            py="3"
-            borderTop="1px solid"
-            borderColor={surface.border}
-          >
-            {/* Where in the run this is - so the close button is an informed choice. */}
-            <Text fontSize="xs" color={surface.muted}>
-              {unseen.length > 1
-                ? t('components.popupadverts.advertOfTotal', { number: at + 1, total: unseen.length })
-                : t('components.popupadverts.advertisement')}
-            </Text>
+          {/*
+            * THE WAY ON, laid OVER the advert rather than wrapped around it.
+            *
+            * It was the wrapper until a film went in one: a <button> inside a
+            * <button> is invalid, and the sound control inside it passed its
+            * clicks up to this one - so turning the sound on dismissed the
+            * popup. As a sibling it takes the clicks nothing else wanted, and
+            * the speaker, drawn above it, takes its own.
+            *
+            * It is a real button with a real label, so a screen reader is
+            * told which advert this is and what activating it does, and a
+            * keyboard can reach it.
+            */}
+          <Box
+            as="button"
+            type="button"
+            onClick={next}
+            position="absolute"
+            top="0"
+            right="0"
+            bottom="0"
+            left="0"
+            zIndex="2"
+            w="100%"
+            aria-label={isLast
+              ? t('components.popupadverts.closeTheAdverts')
+              : t('components.popupadverts.theNextAdvert', { number: at + 2, total: unseen.length })}
+            _focusVisible={{ outline: '2px solid', outlineColor: 'brand.500', outlineOffset: '-4px' }}
+          />
 
-            <Flex align="center" gap="2" data-gap="8">
-              {goesTo && (
-                <Button
-                  size="sm"
-                  variant="brand"
-                  {...(isExternalLink
-                    ? { as: 'a', href: goesTo }
-                    : { as: RouterLink, to: goesTo, onClick: onClose })}
-                >
-                  {t('common.learnMore')}
-                </Button>
-              )}
-
-              <Button size="sm" variant="quiet" onClick={next}>
-                {isLast ? t('common.close') : t('common.next')}
-              </Button>
-            </Flex>
-          </Flex>
+          {/*
+            * WHERE THE ADVERT GOES, if it goes anywhere.
+            *
+            * Above the surface that advances - z-index again - and it stops
+            * its own click there, so this navigates and the picture around it
+            * still turns the page. An address that leaves the site is a real
+            * anchor; anything else is a route, and following it closes the
+            * popup rather than leaving it hanging over the page it opened.
+            */}
+          {goesTo && (
+            <Button
+              {...(isExternalLink
+                ? { as: 'a', href: goesTo }
+                : { as: RouterLink, to: goesTo })}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!isExternalLink) onClose();
+              }}
+              position="absolute"
+              /*
+                * BOTTOM CENTRE, which is where it lands ON the artwork.
+                *
+                * The picture is drawn `contain`, so it is always centred and
+                * always touches either the top and bottom edges or the left
+                * and right ones. A button in a corner sits on the black beside
+                * a portrait advert on a wide screen; the middle of the bottom
+                * edge is over the picture for every tall one and for every
+                * advert on a phone, which is most of them. It is also where a
+                * reader looks for the call to action on a full-screen advert.
+                */
+              bottom={{ base: 5, md: 8 }}
+              left="50%"
+              transform="translateX(-50%)"
+              zIndex="3"
+              variant="brand"
+              size="lg"
+              borderRadius="999px"
+              px="7"
+              boxShadow="0 10px 30px rgba(0, 0, 0, 0.45)"
+            >
+              {t('common.learnMore')}
+            </Button>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>

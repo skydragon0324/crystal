@@ -67,7 +67,20 @@ function SpeakerIcon({ muted }) {
   );
 }
 
-export default function AdvertVideo({ path, altText, active, fit, onDuration, onEnded }) {
+/*
+ * WHERE THE SPEAKER SITS.
+ *
+ * Top right on a hero slide, where nothing else is. NOT there in a popup:
+ * that corner belongs to the dialog's close button, and two round buttons in
+ * one corner is a visitor tapping the wrong one and losing the advert they
+ * were about to turn the sound on for.
+ */
+const CORNERS = {
+  'top-right': { top: { base: '10px', md: '14px' }, right: { base: '10px', md: '14px' } },
+  'bottom-left': { bottom: { base: '10px', md: '14px' }, left: { base: '10px', md: '14px' } }
+};
+
+export default function AdvertVideo({ path, altText, active, fit, corner, onDuration, onEnded }) {
   const t = useT();
 
   const videoRef = useRef(null);
@@ -115,7 +128,21 @@ export default function AdvertVideo({ path, altText, active, fit, onDuration, on
     return () => { cancelled = true; };
   }, [active, path]);
 
-  const toggleSound = () => {
+  const toggleSound = (event) => {
+    /*
+     * THE CLICK STOPS HERE.
+     *
+     * This button sits ON an advert, and an advert is itself something to
+     * click: the popup's picture turns to the next one, and a hero slide with
+     * a link follows it. Without this, turning the sound on dismissed the
+     * popup or navigated away - the visitor asked to hear the advert and was
+     * taken off it instead.
+     */
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     const video = videoRef.current;
     const next = !muted;
 
@@ -165,8 +192,14 @@ export default function AdvertVideo({ path, altText, active, fit, onDuration, on
           aria-label={muted ? t('components.advertvideo.turnTheSoundOn') : t('components.advertvideo.turnTheSoundOff')}
           aria-pressed={!muted}
           position="absolute"
-          top={{ base: '10px', md: '14px' }}
-          right={{ base: '10px', md: '14px' }}
+          {...(CORNERS[corner] || CORNERS['top-right'])}
+          /*
+           * ABOVE WHATEVER COVERS THE ADVERT. Both places that show a film
+           * lay a full-bleed target over it - the popup's "next" surface, a
+           * hero slide's link - and the last one drawn would otherwise take
+           * every click, including the ones aimed at this.
+           */
+          zIndex="3"
           w="34px"
           h="34px"
           display="flex"

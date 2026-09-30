@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 import { EmptyState, ErrorState, Loading, Section } from '@/components/common';
 import { VerifiedPicture } from '@/components/common/Picture';
+import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
 import api from '@/api';
 import { useApi } from '@/hooks/useApi';
 import VerifiedProductImage from '@/components/security/VerifiedProductImage';
@@ -120,7 +121,24 @@ export default function GalleryTab({ slug }) {
                   * cannot be shown before they are hashed, and the hash
                   * cannot be taken of bytes the browser has not fetched.
                   */}
-                {known ? (
+                {asset.scene ? (
+                  /*
+                   * AN ANIMATED PANEL (spec section 2D). An advertising run
+                   * is where a scene earns its keep - a product revealing
+                   * itself, copy arriving after it - and the panel keeps its
+                   * own proportions, so a run of scenes and stills sits in
+                   * one column without the page jumping as they arrive.
+                   *
+                   * It plays by itself here, unlike a hero slide: there is no
+                   * carousel around it to own the clock, and a panel somebody
+                   * has scrolled to is a panel they are looking at.
+                   */
+                  <ImageAnimator
+                    scene={asset.scene}
+                    ariaLabel={asset.alt_text || ''}
+                    borderRadius="0"
+                  />
+                ) : known ? (
                   <VerifiedPicture
                     integrity={asset.integrity}
                     expectedPath={asset.file_path}

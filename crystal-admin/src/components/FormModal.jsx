@@ -8,6 +8,7 @@ import SelectField from './SelectField';
 import ColorField from './ColorField';
 import DatePicker from './DatePicker';
 import ImageField from './ImageField';
+import SceneEditor from './scene/SceneEditor';
 import FileListField from './FileListField';
 import RichTextEditor from './RichTextEditor';
 import { useI18n } from '../i18n';
@@ -422,6 +423,21 @@ export default function FormModal({
        * flag so that a screen has to say it wants video - a product's hero
        * image taking an MP4 by accident is a broken <img> on the storefront.
        */
+      /*
+       * AN ANIMATED SCENE - a background and layers, each with its own
+       * motion. It is JSON on the row rather than a file, and the editor
+       * previews it as it is built; see components/scene/SceneEditor.
+       */
+      case 'scene':
+        return (
+          <SceneEditor
+            value={value || null}
+            folder={f.folder || 'showcase'}
+            isDisabled={f.isReadOnly}
+            onChange={(next) => set(f.name, next)}
+          />
+        );
+
       case 'image':
       case 'media':
         return (

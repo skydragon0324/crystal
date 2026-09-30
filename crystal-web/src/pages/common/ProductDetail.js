@@ -212,6 +212,13 @@ export default function ProductDetail({ sectionPath, sectionTitle }) {
     path: asset.file_path,
     altText: asset.alt_text || p.name,
     integrity: asset.integrity,
+    /*
+     * A shot may be an animated SCENE rather than a photograph - the handset
+     * floating, its screen fading up, its camera turning in. The carousel
+     * draws whichever it is given; this only has to pass it on.
+     */
+    mediaType: asset.media_type,
+    scene: asset.scene,
     width: asset.width,
     height: asset.height
   }));

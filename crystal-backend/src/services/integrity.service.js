@@ -268,14 +268,47 @@ async function media(rows, column) {
   const key = column || 'file_path';
 
   return Promise.all((rows || []).map(async function (row) {
-    if (mediaKind.isVideo(row[key])) {
-      return Object.assign({}, row, { media_type: 'video', integrity: null });
+    /*
+     * A SCENE IS SIGNED PICTURE BY PICTURE. Its background and every layer
+     * are ordinary uploads, so each one carries its own envelope beside the
+     * `src` it belongs to and the storefront checks them all before it draws
+     * anything - see components/ImageAnimator. A scene still keeps its row's
+     * own `file_path` envelope, because that file is the still a reader is
+     * shown where motion is refused.
+     */
+    const base = row.scene
+      ? Object.assign({}, row, { scene: await sceneEnvelopes(row.scene) })
+      : row;
+
+    if (mediaKind.isVideo(base[key])) {
+      return Object.assign({}, base, { media_type: 'video', integrity: null });
     }
-    return Object.assign({}, row, {
-      media_type: 'image',
-      integrity: await imageEnvelope(row[key])
+    return Object.assign({}, base, {
+      media_type: base.scene ? 'scene' : 'image',
+      integrity: await imageEnvelope(base[key])
     });
   }));
+}
+
+/** One scene, with an envelope attached to each of its pictures. */
+async function sceneEnvelopes(scene) {
+  if (!scene || typeof scene !== 'object') return scene;
+
+  const signed = Object.assign({}, scene);
+
+  if (signed.background && signed.background.src) {
+    signed.background = Object.assign({}, signed.background, {
+      integrity: await imageEnvelope(signed.background.src)
+    });
+  }
+
+  signed.layers = await Promise.all((Array.isArray(scene.layers) ? scene.layers : [])
+    .map(async function (layer) {
+      if (!layer || !layer.src) return layer;
+      return Object.assign({}, layer, { integrity: await imageEnvelope(layer.src) });
+    }));
+
+  return signed;
 }
 
 module.exports = {

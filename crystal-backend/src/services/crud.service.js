@@ -47,6 +47,17 @@ module.exports = function createCrudService(opts) {
    */
   const signed = opts.signed ? createSignedRows(Object.assign({ pk: pk }, opts.signed)) : null;
 
+  /*
+   * A LAST LOOK AT THE COLUMNS BEFORE THEY ARE WRITTEN.
+   *
+   * The controller has already narrowed the body to this table's columns;
+   * this is for a column whose VALUE has a shape - an advert's animated
+   * scene, which is JSON the storefront hands to a renderer and must
+   * therefore be rebuilt from known fields rather than stored as it
+   * arrived. A table that declares nothing is written exactly as before.
+   */
+  const sanitise = opts.sanitise || function (data) { return data; };
+
   function search(filters, paging) {
     return repo.search(filters, paging);
   }
@@ -61,7 +72,9 @@ module.exports = function createCrudService(opts) {
     return row;
   }
 
-  async function create(data, actor, extras) {
+  async function create(rawData, actor, extras) {
+    const data = sanitise(rawData);
+
     const row = signed
       ? await transaction(async function (trx) {
         const inserted = await repo.insert(data, trx);
@@ -76,7 +89,8 @@ module.exports = function createCrudService(opts) {
     return row;
   }
 
-  async function update(id, data, actor, extras) {
+  async function update(id, rawData, actor, extras) {
+    const data = sanitise(rawData);
     const hasExtras = !!(afterSave && extras && Object.keys(extras).length);
 
     // An edit that only changed the child list is still an edit; it is only

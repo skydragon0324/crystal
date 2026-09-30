@@ -4,6 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { fileUrl } from '@/api/client';
 import AdvertVideo from '@/components/common/AdvertVideo';
+import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
 import Picture from '@/components/common/Picture';
 import { useVerifiedImages } from '@/components/security/hooks';
 import { ImagePlaceholder } from '@/components/security/IntegrityState';
@@ -140,6 +141,18 @@ export const ADVERT_RATIO = { base: '125%', md: '39.6%' };
  */
 function isVideoSlide(slide) {
   return !!slide && slide.mediaType === 'video';
+}
+
+/**
+ * Whether a slide is an animated SCENE - a background and transparent layers
+ * with their own motion - rather than one flat file.
+ *
+ * A scene still carries the row's own picture, which is what a reader is
+ * shown where motion is refused, so it goes through the deck's verification
+ * exactly like any other slide; what changes is only what is drawn.
+ */
+function isSceneSlide(slide) {
+  return !!slide && !!slide.scene && Array.isArray(slide.scene.layers) && slide.scene.layers.length > 0;
 }
 
 /**
@@ -499,7 +512,27 @@ export default function HeroCarousel({
               // to move, but it is not content the page is offering now.
               aria-hidden={position !== index}
             >
-              {isVideoSlide(slide) ? (
+              {isSceneSlide(slide) ? (
+                /*
+                 * AN ANIMATED SCENE, which plays only while it is the slide
+                 * being looked at and stops when the deck stops - the
+                 * carousel already knows about hovering, a hidden tab and a
+                 * visitor who pressed pause, and a scene with a clock of its
+                 * own would drift away from all three.
+                 *
+                 * It reports its own length, so a scene whose layers settle
+                 * after six seconds is shown for six rather than being cut
+                 * off at the interval the pictures use.
+                 */
+                <ImageAnimator
+                  fill
+                  scene={slide.scene}
+                  isPlaying={position === index && running}
+                  ariaLabel={slide.altText || slide.alt || ''}
+                  borderRadius="0"
+                  onDuration={(ms) => rememberDuration(position, ms / 1000)}
+                />
+              ) : isVideoSlide(slide) ? (
                 /*
                  * A FILM, which plays only while it is the slide being shown
                  * and drives the clock itself: `onDuration` hands its length
@@ -577,6 +610,12 @@ export default function HeroCarousel({
                   to={isExternal(slide.linkUrl) ? undefined : slide.linkUrl}
                   position="absolute"
                   insetX="0" insetY="0"
+                  /*
+                    A film's sound button is drawn above this - it is z-index
+                    3 - so a visitor reaching for the speaker gets the
+                    speaker rather than the advert's destination.
+                  */
+                  zIndex="1"
                   aria-label={slide.altText || slide.alt || undefined}
                   tabIndex={position === index ? 0 : -1}
                 />

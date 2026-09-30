@@ -61,6 +61,16 @@ const COVERED_ELSEWHERE = [
    */
   path.join('i18n', 'index.js'),
   /*
+   * THE SCENE PRESETS' NAMES AND HINTS. "Product hero", "the handset rises,
+   * its screen and camera arrive" - these are written for the person BUILDING
+   * an advert in the console, not for anybody reading the storefront, and the
+   * storefront never draws one. They live here because a preset is the shape
+   * of a scene and belongs beside the component that draws scenes; the console
+   * has its own copy of the list, in its own catalogue, for the screen that
+   * actually shows them.
+   */
+  path.join('components', 'ImageAnimator', 'presets.js'),
+  /*
    * THE EDITOR'S FONT PICKER. 'Times New Roman' is a CSS family name that has
    * to survive into the markup verbatim - a translated one is a font nobody
    * has. The Chinese entries are written in Chinese for the same reason: that

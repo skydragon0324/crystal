@@ -111,6 +111,19 @@ export default function Adverts({ placement }) {
             { value: 'ACTIVE', label: 'Active' },
             { value: 'INACTIVE', label: 'Inactive' }
           ]
+        },
+        /*
+         * AND THE ADVERT CAN MOVE BY ITSELF.
+         *
+         * A scene is a background with layers arriving over it, each with its
+         * own motion - built and previewed here, stored as JSON on this row,
+         * drawn by the storefront's ImageAnimator. When there is one it is
+         * what a visitor sees; the picture above stays as the still, which is
+         * what somebody who has asked their system for less movement gets.
+         */
+        {
+          name: 'scene', label: 'Animated scene', type: 'scene', folder: 'showcase', span: 2,
+          help: 'Leave this alone for an ordinary advert. A scene replaces the picture with a background and layers that move.'
         }
       ]}
     />

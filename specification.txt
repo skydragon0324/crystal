@@ -5863,3 +5863,710 @@ Also when mouse click on faq question, the rectangle is shown outside of the que
 - For showing video on hero carousel, I have one problem, because thousands of people trying to view the video and it can make bottleneck for the project, so overall project performance can be low. Is there any best way for UX?
 - The video can be shown as popup like the other advert images, also gif.
 The video should be auto-played, with sound not muted.
+
+---------------------------------------------------------------------------
+- Please make 20+ mock images and gif for homepage hero carousel. Also please make video mock data on hero carousel for test.
+- I'd like to make mock images for popup, also video for popup.
+- The popup advert should be shown as full screen, without buttons on the modal.
+- When I click on mute icon on popup and hero carousel, it dismiss the popup modal or navigate to /about. I want to play the sound, though.
+
+---------------------------------------------------------------------------
+
+# Crystal Project Image Animation Framework Specification
+
+## 1. Objective
+
+Develop a reusable image animation system for Crystal web pages.
+
+The system replaces static hero images with layered animated compositions.
+
+A visual scene consists of:
+
+* Background image
+* Multiple transparent PNG layers
+* Text layers (optional)
+* Product layers (optional)
+* Decorative effects (optional)
+
+Each layer has its own animation definition.
+
+The animation duration should synchronize with the carousel autoplay interval so users perceive the whole image as an animated hero scene.
+
+---
+
+# 2. Target Components
+
+The animation framework must support:
+
+## A. Landing Page Hero Carousel
+
+Example:
+
+```
+Background:
+    mountain.jpg
+
+Layers:
+    cloud.png
+    airplane.png
+    product.png
+    text.png
+```
+
+Animation:
+
+* Cloud enters from left
+* Airplane enters from right
+* Product scales from small to normal
+* Text fades in
+
+---
+
+## B. Smartphone Hero Carousel
+
+Example:
+
+```
+Background:
+    phone-background.jpg
+
+Layers:
+
+    phone-body.png
+    camera-module.png
+    screen-content.png
+    feature-icons.png
+```
+
+Animation:
+
+* Phone slides upward
+* Camera module fades in
+* Screen content zooms
+* Feature icons appear sequentially
+
+---
+
+## C. Smartphone Main Image
+
+Used in product detail page.
+
+Requirements:
+
+* Smooth entrance animation
+* Repeat animation option
+* Interactive hover animation
+
+Examples:
+
+* Phone rotation
+* Floating effect
+* Light reflection movement
+
+---
+
+## D. Advertisement Gallery Images
+
+Used for marketing banners.
+
+Requirements:
+
+* Short animation
+* Lightweight
+* Mobile optimized
+
+Examples:
+
+* Product reveal
+* Text entrance
+* Background movement
+
+---
+
+# 3. Animation Model
+
+Each image scene is a collection of layers.
+
+Example:
+
+```json
+{
+  "sceneId": "phone_hero_001",
+
+  "duration": 5000,
+
+  "layers": [
+
+    {
+      "id": "phone",
+
+      "type": "image",
+
+      "src": "/images/phone.png",
+
+      "animation": {
+
+        "name": "slide-up",
+
+        "delay": 500,
+
+        "duration": 1200,
+
+        "easing": "ease-out"
+
+      }
+
+    }
+
+  ]
+}
+```
+
+---
+
+# 4. Supported Animation Library
+
+The first version should implement these animations.
+
+---
+
+## 1. Fade In
+
+Use:
+
+* text
+* icons
+* small objects
+
+Parameters:
+
+```
+opacity:
+0 -> 1
+```
+
+---
+
+## 2. Slide From Top
+
+Use:
+
+* clouds
+* banners
+* floating objects
+
+Motion:
+
+```
+translateY(-200px)
+       |
+       v
+translateY(0)
+```
+
+---
+
+## 3. Slide From Bottom
+
+Use:
+
+* products
+* phones
+* devices
+
+Motion:
+
+```
+translateY(200px)
+       |
+       v
+translateY(0)
+```
+
+---
+
+## 4. Slide From Left
+
+Use:
+
+* text
+* features
+* decoration
+
+Motion:
+
+```
+translateX(-300px)
+       |
+       v
+translateX(0)
+```
+
+---
+
+## 5. Slide From Right
+
+Use:
+
+* products
+* advertisements
+
+Motion:
+
+```
+translateX(300px)
+       |
+       v
+translateX(0)
+```
+
+---
+
+## 6. Zoom In
+
+Use:
+
+* main product image
+
+Motion:
+
+```
+scale(0.5)
+       |
+       v
+scale(1)
+```
+
+---
+
+## 7. Zoom Out
+
+Use:
+
+* background image
+
+Motion:
+
+```
+scale(1.15)
+       |
+       v
+scale(1)
+```
+
+---
+
+## 8. Rotate In
+
+Use:
+
+* logos
+* icons
+
+Motion:
+
+```
+rotate(90deg)
+       |
+       v
+rotate(0)
+```
+
+---
+
+## 9. Bounce In
+
+Use:
+
+* buttons
+* feature icons
+
+Motion:
+
+```
+overshoot
+    |
+settle
+```
+
+---
+
+## 10. Floating
+
+Continuous animation.
+
+Example:
+
+Phone floating:
+
+```
+translateY(0)
+      |
+translateY(-20px)
+      |
+translateY(0)
+```
+
+---
+
+## 11. Stagger Animation
+
+Multiple layers appear sequentially.
+
+Example:
+
+```
+Background
+   |
+Phone
+   |
+Camera
+   |
+Text
+   |
+Icons
+```
+
+---
+
+## 12. Combination Animation
+
+Recommended default.
+
+Example:
+
+```
+Background:
+    zoom-out
+
+Phone:
+    slide-up + fade
+
+Text:
+    slide-left
+
+Icons:
+    stagger fade
+```
+
+---
+
+# 5. Animation Preset System
+
+Create reusable presets.
+
+Example:
+
+```
+presets/
+
+hero-product.json
+
+hero-banner.json
+
+phone-showcase.json
+
+gallery-advert.json
+```
+
+Example:
+
+```json
+{
+"name":"phone-showcase",
+
+"layers":[
+
+{
+"animation":"zoom-in",
+"duration":1000
+},
+
+{
+"animation":"fade-in",
+"delay":800
+},
+
+{
+"animation":"slide-left",
+"delay":1200
+}
+
+]
+
+}
+```
+
+---
+
+# 6. React Component Design
+
+Recommended structure:
+
+```
+src/
+
+components/
+
+ ImageAnimator/
+
+    ImageAnimator.jsx
+
+    AnimationLayer.jsx
+
+    animationRegistry.js
+
+    presets/
+
+       hero.js
+
+       product.js
+
+       gallery.js
+```
+
+---
+
+## Component Example
+
+```jsx
+<ImageAnimator
+
+scene={heroScene}
+
+autoplay={true}
+
+duration={5000}
+
+/>
+```
+
+---
+
+# 7. Animation Engine Requirements
+
+The engine must support:
+
+## Layer Position
+
+```
+x
+y
+width
+height
+z-index
+```
+
+---
+
+## Timing
+
+```
+delay
+
+duration
+
+repeat
+
+direction
+```
+
+---
+
+## Control
+
+```
+play()
+
+pause()
+
+restart()
+
+reset()
+```
+
+---
+
+## Responsive Support
+
+Must support:
+
+Desktop:
+
+```
+1920x1080
+```
+
+Tablet:
+
+```
+768x1024
+```
+
+Mobile:
+
+```
+390x844
+```
+
+Layer coordinates should scale proportionally.
+
+---
+
+# 8. Recommended Technology
+
+For React 16.14:
+
+Primary:
+
+* CSS Animation
+* CSS Transform
+* React state control
+
+Optional:
+
+* Framer Motion (if upgrading React ecosystem)
+* GSAP for advanced product animation
+
+Recommended first implementation:
+
+```
+CSS Animation + React Controller
+```
+
+because:
+
+* lightweight
+* compatible with React 16
+* easy CDN caching
+* good mobile performance
+
+---
+
+# 9. Admin Page Requirement
+
+Admin should allow:
+
+Scene creation:
+
+```
+Scene Name
+
+Background Image
+
+Layers
+
+    Upload PNG
+
+    Position
+
+    Animation Type
+
+    Delay
+
+    Duration
+
+    Order
+```
+
+Example:
+
+```
+Hero01
+
+Background:
+    hero-bg.jpg
+
+
+Layer 1:
+    phone.png
+
+    Animation:
+       slide-up
+
+    Delay:
+       500ms
+
+
+Layer 2:
+    text.png
+
+    Animation:
+       fade-in
+
+    Delay:
+       1200ms
+```
+
+---
+
+# 10. Performance Requirements
+
+Target:
+
+Mobile:
+
+* < 500KB animation metadata
+* GPU accelerated transforms
+* Avoid canvas rendering initially
+
+Use:
+
+```
+transform
+opacity
+```
+
+Avoid:
+
+```
+top
+left
+width
+height
+```
+
+during animation.
+
+---
+
+# 11. Development Roadmap
+
+## Phase 1
+
+Create animation engine:
+
+* 12 basic animations
+* JSON scene format
+* React component
+
+## Phase 2
+
+Integrate:
+
+* Landing hero carousel
+
+## Phase 3
+
+Integrate:
+
+* Smartphone hero
+* Product page
+
+## Phase 4
+
+Admin animation editor
+
+## Phase 5
+
+Advanced effects:
+
+* particles
+* lighting
+* 3D rotation
+* parallax
+
+```
+
+This specification should be given to Claude together with the Crystal project source. The most important architectural decision is: **do not code animations directly into each page; build one reusable `ImageAnimator` component driven by JSON animation scenes.** This will allow the same animation system to power all four areas of your website.
+```

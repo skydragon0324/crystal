@@ -200,6 +200,14 @@ module.exports = {
     tokenExpired: 'token expired'
   },
 
+  scene: {
+    aLayerNeedsAPicture: 'the {layer} layer of a scene needs a picture',
+    aPictureMustBeAnUpload: 'the {layer} layer must point at an uploaded file, not at another address',
+    thatIsNotAScene: 'a scene must be an object with a list of layers',
+    tooManyLayers: 'a scene may have at most {limit} layers',
+    unknownAnimation: 'there is no animation called {name}'
+  },
+
   upload: {
     contentDoesNotMatchType: 'the file\'s contents are not {declared} - a file must be the type it says it is',
     onlyDocumentsAreAllowed: 'only documents are allowed here ({types})',

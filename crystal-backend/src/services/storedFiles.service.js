@@ -23,6 +23,43 @@ function uploaded(path) {
   return typeof path === 'string' && path.indexOf('/uploads/') === 0;
 }
 
+/*
+ * The two columns that hold an animated scene, whose pictures are NOT in a
+ * column of their own: they are `src` values inside the JSON. A file used
+ * only by a scene would otherwise look unreferenced, and the first delete of
+ * anything that shared it would take the scene's artwork with it.
+ */
+const SCENE_COLUMNS = [
+  ['site_adverts', 'scene'],
+  ['product_images', 'scene']
+];
+
+async function isReferencedByScene(path) {
+  for (let i = 0; i < SCENE_COLUMNS.length; i += 1) {
+    const ref = SCENE_COLUMNS[i];
+
+    /* A layer's src, or the background's. */
+    // eslint-disable-next-line no-await-in-loop
+    const found = await db.raw(
+      'SELECT 1 FROM ?? AS t'
+      + ' WHERE t.?? IS NOT NULL'
+      + '   AND ('
+      + '     t.??->\'background\'->>\'src\' = ?'
+      + '     OR EXISTS ('
+      + '       SELECT 1 FROM jsonb_array_elements(COALESCE(t.??->\'layers\', \'[]\'::jsonb)) AS layer'
+      + '        WHERE layer->>\'src\' = ?'
+      + '     )'
+      + '   )'
+      + ' LIMIT 1',
+      [ref[0], ref[1], ref[1], path, ref[1], path]
+    );
+
+    if (found && found.rows && found.rows.length) return true;
+  }
+
+  return false;
+}
+
 async function isReferenced(path) {
   for (let i = 0; i < REFERENCES.length; i += 1) {
     const ref = REFERENCES[i];
@@ -30,7 +67,8 @@ async function isReferenced(path) {
     const row = await db(ref[0]).where(ref[1], path).first(ref[1]);
     if (row) return true;
   }
-  return false;
+
+  return isReferencedByScene(path);
 }
 
 async function removeIfUnreferenced(path) {

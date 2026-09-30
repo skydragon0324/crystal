@@ -391,6 +391,9 @@ const OS_SHOTS = [
   { file: 'feature-3', w: 1600, h: 900, alt: 'the redesigned camera app' }
 ];
 
+/* The mock scenes - the artwork, and the JSON that places it. */
+const mockScenes = require('../../../scripts/lib/mockScenes');
+
 exports.seed = async function seed(knex) {
   const random = rng(20260826);
 
@@ -759,22 +762,64 @@ exports.seed = async function seed(knex) {
   await knex('media_assets').insert(media);
 
   /*
-   * THE HOMEPAGE'S OWN RUN - the company, not any one phone. Where each goes
-   * is the reason it is there: the range, the other half of the catalogue,
-   * and the service network.
+   * THE HOMEPAGE'S OWN RUN - the company, not any one phone.
+   *
+   * TWENTY-TWO SLIDES, WHICH IS MORE THAN A SITE WOULD RUN. A real homepage
+   * shows three or four; this many are seeded because the things that break a
+   * carousel only break it when it is full - the indicator row outgrowing a
+   * 390px phone and taking the play/pause button off the screen with it was
+   * exactly that bug. A developer should meet the crowded case without having
+   * to build it by hand.
+   *
+   * THREE FORMATS, because the advert screens take all three and each one is
+   * a different path through the code:
+   *
+   *   .svg   still artwork, signed and verified in the browser
+   *   .gif   animated, signed and verified like any other image
+   *   .mp4   a film, NOT signed, played from its ordinary address
+   *
+   * The films are the last two slides rather than the first, so the page's
+   * largest paint is still a picture.
    */
   const HOME_RUN = [
     { file: 'home-crystal', alt: 'Crystal - technology for every day', link: '/about' },
     { file: 'home-eproducts', alt: 'Crystal Vision and Box', link: '/eproducts' },
-    { file: 'home-service', alt: 'Service centres near you', link: '/support/centres' }
+    { file: 'home-service', alt: 'Service centres near you', link: '/support/centres' },
+    { file: 'home-c9-pro', alt: 'The C9 Pro, in four finishes', link: '/smartphones' },
+    { file: 'home-trade-in', alt: 'Trade in your old handset', link: '/support/faq' },
+    { file: 'home-crystal-os', alt: 'Crystal OS 5.2 is here', link: '/support/os' },
+    { file: 'home-eshop', alt: 'Everything, in the Crystal Eshop', link: null },
+    { file: 'home-appstore', alt: 'Apps made for Crystal', link: null },
+    { file: 'home-warranty', alt: 'Two years of cover, as standard', link: '/support/faq' },
+    { file: 'home-delivery', alt: 'Free delivery on every order', link: null },
+    { file: 'home-vision', alt: 'Crystal Vision, on every wall', link: '/eproducts' },
+    { file: 'home-camera', alt: 'See more with Crystal cameras', link: '/eproducts' },
+    { file: 'home-points', alt: 'Points on everything you buy', link: '/account/points' },
+    { file: 'home-blog', alt: 'From the Crystal blog', link: '/blog' },
+    { file: 'home-compare', alt: 'Compare any two handsets', link: '/smartphones/compare' },
+    { file: 'home-centres', alt: 'A counter near you', link: '/support/centres' },
+    { file: 'home-students', alt: 'Student pricing, all year', link: null },
+    { file: 'home-business', alt: 'Crystal for business', link: null },
+    { file: 'home-recycle', alt: 'Recycle any handset, free', link: null },
+    { file: 'home-launch', alt: 'Launch week', link: '/smartphones', gif: true },
+    { file: 'home-sale', alt: 'The mid-season sale', link: null, gif: true },
+    { file: 'hero-film', alt: 'Crystal - the film', link: '/about', film: true }
   ];
 
   HOME_RUN.forEach(function (slide, order) {
     ['desktop', 'mobile'].forEach(function (device) {
+      /*
+       * A film has its own two files and no third one to fall back to; a GIF
+       * and a still are named the way every other crop on the site is.
+       */
+      let extension = '.svg';
+      if (slide.gif) extension = '.gif';
+      if (slide.film) extension = '.mp4';
+
       adverts.push({
         placement: 'HOME',
         device_type: device,
-        file_path: '/uploads/showcase/' + slide.file + (device === 'mobile' ? '-mobile' : '') + '.svg',
+        file_path: '/uploads/showcase/' + slide.file + (device === 'mobile' ? '-mobile' : '') + extension,
         alt_text: slide.alt,
         link_url: slide.link,
         sort_order: (order + 1) * 10
@@ -783,6 +828,117 @@ exports.seed = async function seed(knex) {
   });
 
   await knex('site_adverts').insert(adverts);
+
+  /*
+   * AND TWO OF THEM ARE ANIMATED SCENES.
+   *
+   * A scene is a background and a few transparent layers, each with its own
+   * motion - the specification's own two examples, drawn as real PNGs with
+   * real alpha by scripts/lib/mockScenes.js. The JSON is stored on the
+   * advert row (site_adverts.scene, delta 035) and the storefront draws it
+   * with components/ImageAnimator.
+   *
+   * `file_path` is the scene's own background, and it is not spare: it is
+   * the still a reader is shown where motion is refused, and the picture the
+   * console lists the row by.
+   *
+   * They are LAST in each run, so the page still opens on a flat advert:
+   * a scene is several files and the largest paint should not wait for them.
+   */
+  const scenes = [
+    {
+      placement: 'HOME',
+      scene: mockScenes.landingScene().scene,
+      alt: 'Crystal C9 - an animated scene',
+      link: '/smartphones'
+    },
+    {
+      placement: 'SMARTPHONE',
+      scene: mockScenes.phoneScene().scene,
+      alt: 'The C9 Pro - an animated scene',
+      link: '/smartphones/products'
+    }
+  ];
+
+  const sceneRows = [];
+  scenes.forEach(function (entry, order) {
+    ['desktop', 'mobile'].forEach(function (device) {
+      sceneRows.push({
+        placement: entry.placement,
+        device_type: device,
+        file_path: entry.scene.background.src,
+        alt_text: entry.alt,
+        link_url: entry.link,
+        sort_order: 900 + order,
+        scene: JSON.stringify(entry.scene)
+      });
+    });
+  });
+
+  await knex('site_adverts').insert(sceneRows);
+
+  /*
+   * The product page's own scene: the handset floating, its screen fading up
+   * and its camera turning in. It goes on the first MAIN shot, so one product
+   * detail page animates and the rest stay as they were - which is also how
+   * an operator would roll this out.
+   */
+  const firstShot = await knex('product_images').where({ kind: 'MAIN' }).orderBy('id').first('id');
+  if (firstShot) {
+    await knex('product_images')
+      .where({ id: firstShot.id })
+      .update({ scene: JSON.stringify(mockScenes.productScene().scene) });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  the popup adverts                                                  */
+  /* ------------------------------------------------------------------ */
+
+  /*
+   * THREE CAMPAIGNS RUNNING TODAY, and one that has finished.
+   *
+   * The finished one is the point of seeding four: a period that has passed
+   * must not reach the storefront, and the only way to see that working is to
+   * have one. The live three are a still, a GIF and a film, so the popup's
+   * three rendering paths are all on screen in one sitting - click through
+   * them and every one of them has been exercised.
+   *
+   * The dates are relative to the day the seed runs, because a fixed date is
+   * a mock that stops working in a fortnight.
+   */
+  function day(offset) {
+    const when = new Date();
+    when.setDate(when.getDate() + offset);
+    return when.toISOString().slice(0, 10);
+  }
+
+  await knex('site_popups').insert([
+    {
+      file_path: '/uploads/showcase/popup-sale.svg',
+      alt_text: 'The mid-season sale is on',
+      link_url: '/smartphones',
+      start_date: day(-3), end_date: day(14), sort_order: 10, status: 'ACTIVE'
+    },
+    {
+      file_path: '/uploads/showcase/popup-launch.gif',
+      alt_text: 'Launch week - the C9 Pro',
+      link_url: '/smartphones/products',
+      start_date: day(-1), end_date: day(7), sort_order: 20, status: 'ACTIVE'
+    },
+    {
+      file_path: '/uploads/showcase/popup-film.mp4',
+      alt_text: 'The sale, in thirty seconds',
+      link_url: null,
+      start_date: day(0), end_date: day(10), sort_order: 30, status: 'ACTIVE'
+    },
+    {
+      /* Over and done with: the storefront must not send this one. */
+      file_path: '/uploads/showcase/popup-winter.svg',
+      alt_text: 'Winter offers - finished',
+      link_url: null,
+      start_date: day(-40), end_date: day(-12), sort_order: 40, status: 'ACTIVE'
+    }
+  ]);
 
   /* ------------------------------------------------------------------ */
   /*  the popup notices                                                  */

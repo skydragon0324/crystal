@@ -101,6 +101,8 @@ export default function SectionLanding({ type, sectionPath, title }) {
     linkUrl: asset.link_url,
     /* image or video - the server decided, from what the stored bytes are. */
     mediaType: asset.media_type,
+    /* An animated scene, when the advert is one - see components/ImageAnimator. */
+    scene: asset.scene,
     integrity: asset.integrity
   }));
 

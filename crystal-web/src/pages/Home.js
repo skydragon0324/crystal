@@ -117,6 +117,8 @@ export default function Home() {
     linkUrl: advert.link_url,
     /* image or video - the server decided, from what the stored bytes are. */
     mediaType: advert.media_type,
+    /* An animated scene, when the advert is one - see components/ImageAnimator. */
+    scene: advert.scene,
     integrity: advert.integrity
   }));
 

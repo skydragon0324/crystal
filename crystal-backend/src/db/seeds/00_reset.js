@@ -43,6 +43,7 @@ const TABLES = [
 
   /* content and catalogue */
   'site_adverts',
+  'site_popups',
   'site_notices',
   'notice_origins',
   'articles',

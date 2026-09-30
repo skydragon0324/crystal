@@ -1,9 +1,27 @@
 'use strict';
 
 /**
- * Writes an SVG placeholder for every /uploads/... path the database
- * references, so the seeded site renders with artwork instead of broken
- * images.
+ * Writes a placeholder for every /uploads/... path the database references,
+ * so the seeded site renders with artwork instead of broken images.
+ *
+ * THREE KINDS, DECIDED BY THE EXTENSION THE SEED ASKED FOR:
+ *
+ *   .svg   a still - a gradient, two discs and the family's name
+ *   .gif   an ANIMATED still, drawn frame by frame and LZW-compressed here
+ *          (lib/gif.js), because the advert screens take moving artwork now
+ *   .mp4   a FILM, which cannot be generated: encoding H.264 needs an
+ *          encoder, and the project has none. The three clips in
+ *          scripts/mock/ were made once with a WebAssembly x264 outside this
+ *          repository - see scripts/mock/README.md - and are COPIED here.
+ *   .png   a SCENE LAYER - a cloud, a phone body, a line of copy - drawn
+ *          with real alpha (lib/png.js, lib/mockScenes.js). Transparency is
+ *          why these are not SVG: a scene is layers stacked over each other,
+ *          and a layer that is opaque where it should be clear hides the one
+ *          beneath it.
+ *
+ * A picture and a GIF are signed as they are written, like an upload. A FILM
+ * IS NOT: the server does not sign video (src/middleware/upload.js says why),
+ * so a signature here would be an envelope nothing ever checks.
  *
  * The colour is derived from the path, which means a product's cover, hero
  * and gallery shots all come out in the same hue and the pages look
@@ -14,6 +32,9 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../src/config');
+const gif = require('./lib/gif');
+const mockArt = require('./lib/mockArt');
+const mockScenes = require('./lib/mockScenes');
 const db = require('../src/config/db');
 const contentOf = require('../src/security/contentOf');
 const imageFile = require('../src/security/imageFile');
@@ -83,6 +104,59 @@ function svgFor(filePath, width, height) {
     '</svg>\n';
 }
 
+/**
+ * A GIF is drawn rather than described, so it is kept SMALL: twelve frames of
+ * a 1920px banner is eight megabytes of mock data in a repository checkout.
+ * Half size is plenty to see that it moves.
+ */
+function gifFor(filePath, width, height) {
+  const family = familyFor(filePath);
+
+  /*
+   * Capped on BOTH sides, not just the width. A phone crop is 1080x1350, and
+   * scaling only its width still left twelve frames of 960x1200 - six hundred
+   * kilobytes of mock data for one slide. Which is a fair demonstration of
+   * why an advert that moves should be a film, but not one worth making on
+   * every developer's machine.
+   */
+  const scale = Math.min(1, 960 / (width || 960), 720 / (height || 380));
+  const w = Math.max(2, Math.round((width || 960) * scale));
+  const h = Math.max(2, Math.round((height || 380) * scale));
+
+  const built = mockArt.build({
+    width: w,
+    height: h,
+    hue: hueFor(family),
+    title: family.replace(/-/g, ' '),
+    subtitle: 'animated gif',
+    frames: 12,
+    delay: 8
+  });
+
+  return gif.encode({ width: w, height: h, palette: built.palette, frames: built.frames });
+}
+
+/*
+ * Every scene layer this project knows how to draw, by file name.
+ *
+ * The scenes themselves are seeded as JSON on the advert rows; this is the
+ * other half - the pictures those layers point at. A path that is not in here
+ * is not a mock scene layer and is drawn as an ordinary placeholder.
+ */
+const SCENE_LAYERS = Object.assign(
+  {},
+  mockScenes.landingScene().files,
+  mockScenes.phoneScene().files,
+  mockScenes.productScene().files
+);
+
+/** The fixture a film path is copied from, or null if there is none for it. */
+function filmFor(filePath) {
+  const name = path.basename(filePath);
+  const fixture = path.join(__dirname, 'mock', name);
+  return fs.existsSync(fixture) ? fixture : null;
+}
+
 /** Collects every upload path the database mentions, with its intended size. */
 async function collectPaths() {
   const wanted = {};
@@ -134,6 +208,32 @@ async function collectPaths() {
     add(row.file_path, row.device_type === 'mobile' ? 1080 : 1920, row.device_type === 'mobile' ? 1350 : 760);
   });
 
+  /*
+   * And the popups, which have no device crop: one picture is shown over the
+   * whole page on every screen, so it is drawn tall enough to survive a phone.
+   */
+  const popups = await db('site_popups').select('file_path');
+  popups.forEach(function (row) { add(row.file_path, 1080, 1350); });
+
+  /*
+   * A SCENE'S LAYERS ARE NOT A COLUMN. They are `src` values inside the
+   * JSON, so they are collected by walking it - a scene whose layers were
+   * missed here would be an advert with a background and nothing on it.
+   */
+  function addScene(scene) {
+    if (!scene || typeof scene !== 'object') return;
+    if (scene.background && scene.background.src) add(scene.background.src, scene.width, scene.height);
+    (Array.isArray(scene.layers) ? scene.layers : []).forEach(function (layer) {
+      if (layer && layer.src) add(layer.src, layer.width || scene.width, layer.height || scene.height);
+    });
+  }
+
+  const scenes = await db('site_adverts').select('scene').whereNotNull('scene');
+  scenes.forEach(function (row) { addScene(row.scene); });
+
+  const productScenes = await db('product_images').select('scene').whereNotNull('scene');
+  productScenes.forEach(function (row) { addScene(row.scene); });
+
   // A product's own two runs live in their own table now, not in media_assets.
   const shots = await db('product_images').select('file_path', 'width', 'height');
   shots.forEach(function (row) { add(row.file_path, row.width, row.height); });
@@ -157,6 +257,8 @@ async function main() {
   let written = 0;
   let skipped = 0;
   let signed = 0;
+  let films = 0;
+  const missing = [];
 
   for (let i = 0; i < paths.length; i += 1) {
     const publicPath = paths[i];
@@ -171,7 +273,30 @@ async function main() {
     const dir = path.dirname(target);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    fs.writeFileSync(target, svgFor(publicPath, wanted[publicPath].width, wanted[publicPath].height));
+    const extension = path.extname(publicPath).toLowerCase();
+
+    if (extension === '.mp4' || extension === '.webm') {
+      const fixture = filmFor(publicPath);
+      if (!fixture) {
+        missing.push(publicPath);
+        continue;
+      }
+      fs.copyFileSync(fixture, target);
+      written++;
+      films++;
+      /* Deliberately not signed - see the note at the top of this file. */
+      continue;
+    }
+
+    const sceneLayer = SCENE_LAYERS[path.basename(publicPath)];
+    if (sceneLayer) {
+      /* Drawn at the size the scene places it at, with its alpha intact. */
+      fs.writeFileSync(target, sceneLayer());
+    } else if (extension === '.gif') {
+      fs.writeFileSync(target, gifFor(publicPath, wanted[publicPath].width, wanted[publicPath].height));
+    } else {
+      fs.writeFileSync(target, svgFor(publicPath, wanted[publicPath].width, wanted[publicPath].height));
+    }
     written++;
 
     /*
@@ -190,9 +315,16 @@ async function main() {
   }
 
   console.log(
-    'mock images: ' + written + ' written (' + signed + ' signed), ' + skipped + ' already present ' +
-    '(' + paths.length + ' referenced by the database)'
+    'mock images: ' + written + ' written (' + signed + ' signed, ' + films + ' films copied), '
+    + skipped + ' already present (' + paths.length + ' referenced by the database)'
   );
+
+  if (missing.length) {
+    console.log(
+      'no fixture for ' + missing.length + ' film(s): ' + missing.join(', ')
+      + '\n  see scripts/mock/README.md - a film cannot be generated here'
+    );
+  }
   await db.destroy();
 }
 
