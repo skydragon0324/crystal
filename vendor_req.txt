@@ -1,0 +1,32 @@
+Thanks, and I'd like some more detailed requirements.
+- The UI theme should be using https://horizon-ui.com/chakra-pro by using current chakra version. I mean its only the theme.
+- The UI is almost same with https://www.mi.com/global/ , exactly the main menu and header and footer.
+- Update Datatable
+Every header can be resizable and it can be set by parameter.
+Header field (Th) can be fixed and the header can be freeze.
+One or more specific row or rows can be highlighted by parameter.
+Action button can be shown all or hidden and by clicking ... button to show context menu.
+When sort changed, it can be smoothly updated.
+When loading, skeletons can be shown.
+When window size small, it can be scrollable.
+- Each page showing datatable, especially on account page, it should be shown as card view with suitable design. Note: card view should only applied to mobile view, not web view.
+- Other useful components can be used for my project, and please try to use attachments. Dont try to use original react-select, etc.
+Each select can searchable, checkable.
+
+-------------------------------
+
+- For phone page, please make mock image url for show phones.
+- For intro page, please use some real image, not blank image to show it.
+- Each page showing datatable, especially on account page, it should be shown as card view with suitable design. Note: card view should only applied to mobile view, not web view.
+- Please refactor en.js to be correct internationalization.
+- Please update login page, and makeup all UI as mordern style. The style should be according to the https://horizon-ui.com/chakra-pro as I mentioned before.
+- Make this UI for both light and dark mode.
+- For phone page, I have carousel on the top. Please use real image for it.
+- Please fully customized carousel. Its like https://www.mi.com/global/ homepage's carousel.
+It has indicator and every indicator is representing show time for each image. On the end of indicators it has play & pause button to set autoplay.
+Please make wonderful carousel like https://www.mi.com/global/.
+
+------------------------------------
+
+- Please make homepage with suitable contents. It should contain herocarousel for advertisement.
+- Please remake all UI with suitable contents and best practise.
