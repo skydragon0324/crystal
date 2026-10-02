@@ -42,7 +42,30 @@ const UNIQUE = {
   uq_product_specification: 'conflict.thatSpecificationIsAlready',
   uq_replenishment_part: 'conflict.thatPartIsAlreadyOn',
   uq_stock_agency_part: 'conflict.thatPartAlreadyHasA',
-  uq_technician_skill: 'conflict.thatTechnicianAlreadyHas'
+  uq_technician_skill: 'conflict.thatTechnicianAlreadyHas',
+
+  /*
+   * The CRM's. The services check most of these first and say so with the
+   * details; these are for the request that loses a race to one that did not.
+   */
+  uq_crm_reg_one_owner: 'crm.someoneElseHoldsThisProduct',
+  uq_crm_reg_current: 'crm.thisCustomerAlreadyHoldsItThatWay',
+  uq_crm_reservation_id_card: 'crm.thisIdCardHasAnEntry',
+  uq_crm_transfer_open: 'crm.aRequestIsAlreadyOpen',
+  uq_crm_contact: 'crm.thisContactIsAlready',
+  uq_crm_target: 'crm.alreadyATarget',
+  uq_crm_project_account: 'crm.thatAccountIsAlreadyLinked',
+  uq_crm_instance_ext: 'crm.thatSerialIsAlreadyKnown',
+  uq_crm_product_code: 'crm.thatCodeIsTaken',
+  uq_crm_program_location: 'crm.thatSiteIsAlreadyInTheProgram',
+  uq_crm_program_quota: 'crm.thatQuotaAlreadyExists',
+  uq_crm_program_tier: 'crm.thatCodeIsTaken',
+  uq_crm_capability: 'crm.theSiteAlreadyHasThat',
+  uq_crm_loc_target: 'crm.thatTargetAlreadyExists',
+  uq_crm_segment_code: 'crm.thatCodeIsTaken',
+  uq_crm_campaign_code: 'crm.thatCodeIsTaken',
+  uq_crm_comm_option: 'crm.thatOptionAlreadyExists',
+  uq_crm_tier_code: 'crm.thatCodeIsTaken'
 };
 
 /**

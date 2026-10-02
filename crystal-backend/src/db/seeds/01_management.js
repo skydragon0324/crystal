@@ -123,7 +123,41 @@ const PAGES = [
   ['/admin/management/roles', 'Roles', 'MdAssignmentInd', '/admin/management'],
   ['/admin/management/pages', 'Pages', 'MdWeb', '/admin/management'],
   ['/admin/management/permissions', 'Permissions', 'MdLock', '/admin/management'],
-  ['/admin/management/audit', 'Audit log', 'MdHistory', '/admin/management']
+  ['/admin/management/audit', 'Audit log', 'MdHistory', '/admin/management'],
+
+  /*
+   * THE CRM, one group of its own.
+   *
+   * At the END of the list rather than beside Members, and that is not a
+   * statement about importance: a page's sort_order is its position here, and
+   * an install that is migrated rather than reseeded receives these rows from
+   * syncPages with the positions they have in this array. Put in the middle,
+   * they would take numbers the existing pages already hold and the menu would
+   * interleave. See sql/deltas/036 and migration 20260930100000.
+   *
+   * Nothing under /admin/crm replaces a screen above. Repair tickets, member
+   * accounts, registered devices and wallets carry on exactly as they are; the
+   * CRM reads them and keeps its own customer, product, service and points
+   * record beside them.
+   */
+  ['/admin/crm', 'CRM', 'MdContacts', null],
+  ['/admin/crm/overview', 'CRM overview', 'MdDonutLarge', '/admin/crm'],
+  /* The design's core: who the customer is, what they did, what it is worth. */
+  ['/admin/crm/customers', 'Customers', 'MdPeopleOutline', '/admin/crm'],
+  ['/admin/crm/transactions', 'Transactions', 'MdReceipt', '/admin/crm'],
+  ['/admin/crm/products', 'Products and registrations', 'MdDevicesOther', '/admin/crm'],
+  ['/admin/crm/transfers', 'Transfers and assignments', 'MdSwapHoriz', '/admin/crm'],
+  ['/admin/crm/service-cases', 'Service cases', 'MdHeadset', '/admin/crm'],
+  ['/admin/crm/memberships', 'Memberships and tiers', 'MdCardMembership', '/admin/crm'],
+  ['/admin/crm/analysis', 'Analysis and grades', 'MdInsertChart', '/admin/crm'],
+  ['/admin/crm/segments', 'Segments', 'MdGroupWork', '/admin/crm'],
+  ['/admin/crm/campaigns', 'Campaigns', 'MdRecordVoiceOver', '/admin/crm'],
+  /* What the vendor ran that the design did not have: points, programs, its service network. */
+  ['/admin/crm/points', 'Reward points', 'MdStars', '/admin/crm'],
+  ['/admin/crm/programs', 'Activity programs', 'MdEventAvailable', '/admin/crm'],
+  ['/admin/crm/sites', 'Service network', 'MdPlace', '/admin/crm'],
+  ['/admin/crm/site-activity', 'Location activity', 'MdTimeline', '/admin/crm'],
+  ['/admin/crm/settings', 'CRM basic data', 'MdSettingsApplications', '/admin/crm']
 ];
 
 /**
@@ -157,7 +191,14 @@ const ROLES = [
       ['/admin/support', 2],
       ['/admin/catalog', 1],
       ['/admin/members', 1],
-      ['/admin/management/audit', 1]
+      ['/admin/management/audit', 1],
+      /*
+       * Runs the CRM day to day, and reads its settings rather than editing
+       * them: a point type or a tier changed mid-year changes what every
+       * balance and every program already means.
+       */
+      ['/admin/crm', 2],
+      ['/admin/crm/settings', 1]
     ]
   },
   {
@@ -178,7 +219,14 @@ const ROLES = [
       ['/admin/service/claims', 2],
       ['/admin/service/symptoms', 1],
       ['/admin/analysis/agency-health', 1],
-      ['/admin/support/pricing', 1]
+      ['/admin/support/pricing', 1],
+      /*
+       * A centre records what happens at its own counter - a prize handed
+       * over, a reservation collected, a training session - and looks up the
+       * customer in front of it. Nothing else in the CRM is its business.
+       */
+      ['/admin/crm/site-activity', 2],
+      ['/admin/crm/customers', 1]
     ]
   },
   {
@@ -245,6 +293,14 @@ const SETTINGS = [
     'Points for signing in, once a day', null],
   ['points.license_cost', '1000', 'number', 'points',
     'Points a device licence costs', null],
+  /*
+   * What one unit of the Eshop's and the Appstore's native currency is worth in
+   * the CRM's reporting currency. The CRM's Dream-wide spend adds those projects
+   * to Crystal's, and nothing upstream converts them - see services/crm/vendorImport.
+   */
+  ['company.native_currency_rate', '0.01', 'number', 'company',
+    'Native currency to reporting currency rate',
+    'Used by the CRM to add Eshop and Appstore amounts paid in native currency to Dream-wide figures.'],
   ['company.name', 'Crystal Electronics', 'string', 'company',
     'Company name', 'Printed on job sheets and claim statements.'],
   ['company.support_phone', '400-820-0000', 'string', 'company',
@@ -252,7 +308,7 @@ const SETTINGS = [
 ];
 
 /**
- * PAGES IS EXPORTED, and it is the only thing in this file that is.
+ * PAGES IS EXPORTED - and, since the CRM, the role grids below it.
  *
  * It is the canonical list of the console's screens - `npm run pages:sync`
  * and the migration behind it (20260916110000) read it and add whatever an
@@ -265,6 +321,18 @@ const SETTINGS = [
  * and nowhere else.
  */
 exports.PAGES = PAGES;
+
+/*
+ * THE ROLES AND THE PREFIX RULE, for the one migration that has to grant a
+ * whole new group of pages to an install that already has its roles.
+ *
+ * syncPages grants a new page its PARENT's level - which is right for a page
+ * added under an existing group and grants nothing for a new top-level group,
+ * whose parent row does not exist yet. The CRM migration therefore reads each
+ * role's grid from here, the way the seed does, rather than restating it.
+ */
+exports.ROLES = ROLES;
+exports.levelFor = levelFor;
 
 exports.seed = async function seed(knex) {
   /* ---- pages, parents resolved after insert so order does not matter ---- */

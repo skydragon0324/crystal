@@ -15,6 +15,8 @@ dist/
 # there is nothing here worth committing.
 crystal-backend/uploads/*
 !crystal-backend/uploads/.gitkeep
+# customer documents kept by the CRM - private, never committed
+crystal-backend/crm-private/
 
 # The throwaway certificate authority scripts/x509-dev-pki.js writes. It
 # holds private keys, however worthless, and a key in a repository is a habit.

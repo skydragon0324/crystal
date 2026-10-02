@@ -311,6 +311,246 @@ export const wallets = {
   adjust: (userId, body) => client.post('/wallets/' + userId + '/adjust', body)
 };
 
+/* ---- 10. the CRM ----
+ *
+ * One object with a group per screen, because the CRM is one module with its
+ * own prefix on the API - /admin/crm - and a screen reads more naturally as
+ * `crm.programs.reserve(id, body)` than as thirty exports that all start with
+ * the same four letters. The vocabularies under `settings` are the generic
+ * seven, as every other master table in the console is.
+ */
+const CRM = '/crm';
+
+export const crm = {
+  meta: () => client.get(CRM + '/meta'),
+  overview: () => client.get(CRM + '/overview'),
+  importCrystal: () => client.post(CRM + '/import'),
+  importVendor: () => client.post(CRM + '/import/vendor'),
+  recalculate: () => client.post(CRM + '/recalculate'),
+
+  analysis: {
+    summary: (date) => client.get(CRM + '/analysis/summary', { params: { reference_date: date } }),
+    snapshots: (params) => client.get(CRM + '/analysis/snapshots', { params }),
+    metrics: (params) => client.get(CRM + '/analysis/metrics', { params }),
+    model: () => client.get(CRM + '/analysis/model'),
+    run: (date) => client.post(CRM + '/analysis/run', { reference_date: date })
+  },
+
+  transactions: {
+    list: (params) => client.get(CRM + '/transactions', { params }),
+    get: (id) => client.get(CRM + '/transactions/' + id)
+  },
+
+  memberships: {
+    list: (params) => client.get(CRM + '/memberships', { params }),
+    distribution: () => client.get(CRM + '/memberships/distribution'),
+    history: (id) => client.get(CRM + '/memberships/' + id + '/history'),
+    setTier: (id, tierId, reason) => client.post(CRM + '/memberships/' + id + '/tier', { tier_id: tierId, reason: reason }),
+    setStatus: (id, status) => client.post(CRM + '/memberships/' + id + '/status', { membership_status: status })
+  },
+
+  organizations: {
+    assignType: (id, payload) => client.post(CRM + '/parties/' + id + '/org-types', payload),
+    endType: (id, assignmentId) => client.post(CRM + '/parties/' + id + '/org-types/' + assignmentId + '/end'),
+    setIndustry: (id, payload) => client.put(CRM + '/parties/' + id + '/industries', payload),
+    removeIndustry: (id, industryId) => client.delete(CRM + '/parties/' + id + '/industries/' + industryId),
+    addPerson: (id, payload) => client.post(CRM + '/parties/' + id + '/people', payload),
+    endPerson: (id, relationshipId) => client.post(CRM + '/parties/' + id + '/people/' + relationshipId + '/end')
+  },
+
+  departments: {
+    staff: () => client.get(CRM + '/departments/staff'),
+    roles: () => client.get(CRM + '/departments/roles'),
+    assignManager: (managerId, departmentId) => client.put(CRM + '/departments/staff/' + managerId, { department_id: departmentId }),
+    setRoleDepartment: (roleId, departmentId) => client.put(CRM + '/departments/roles/' + roleId, { department_id: departmentId })
+  },
+
+  /** The customer record's figures and cards, and what can be done from it. */
+  customer360: {
+    overview: (id) => client.get(CRM + '/parties/' + id + '/360'),
+    search: (q) => client.get(CRM + '/search', { params: { q: q } }),
+    addRelationship: (id, payload) => client.post(CRM + '/parties/' + id + '/relationships', payload),
+    endRelationship: (id, relationshipId) => client.post(CRM + '/parties/' + id + '/relationships/' + relationshipId + '/end'),
+    addTag: (id, tagId) => client.post(CRM + '/parties/' + id + '/tags', { tag_id: tagId }),
+    removeTag: (id, tagId) => client.delete(CRM + '/parties/' + id + '/tags/' + tagId),
+    notes: (id, params) => client.get(CRM + '/parties/' + id + '/notes', { params }),
+    addNote: (id, payload) => client.post(CRM + '/parties/' + id + '/notes', payload),
+    updateNote: (id, noteId, payload) => client.put(CRM + '/parties/' + id + '/notes/' + noteId, payload),
+    removeNote: (id, noteId) => client.delete(CRM + '/parties/' + id + '/notes/' + noteId),
+    files: (id) => client.get(CRM + '/parties/' + id + '/files'),
+    /* Multipart, so the JSON content type is left off for the browser to write the boundary. */
+    uploadFile: (id, file, description) => {
+      const form = new FormData();
+      form.append('file', file);
+      if (description) form.append('description', description);
+      return client.post(CRM + '/parties/' + id + '/files', form, { headers: { 'Content-Type': undefined } });
+    },
+    /* The bytes come back as a blob: a plain link could not carry the Authorization header. */
+    downloadFile: (id, fileId) => client.get(CRM + '/parties/' + id + '/files/' + fileId + '/download', { responseType: 'blob' }),
+    removeFile: (id, fileId) => client.delete(CRM + '/parties/' + id + '/files/' + fileId),
+    interactions: (id, params) => client.get(CRM + '/parties/' + id + '/interactions', { params }),
+    logInteraction: (id, payload) => client.post(CRM + '/parties/' + id + '/interactions', payload),
+    sendMessage: (id, payload) => client.post(CRM + '/parties/' + id + '/messages', payload),
+    team: (id) => client.get(CRM + '/parties/' + id + '/team'),
+    assignTeam: (id, payload) => client.post(CRM + '/parties/' + id + '/team', payload),
+    endTeam: (id, teamMemberId) => client.post(CRM + '/parties/' + id + '/team/' + teamMemberId + '/end'),
+    agreements: (id) => client.get(CRM + '/parties/' + id + '/agreements'),
+    createAgreement: (id, payload) => client.post(CRM + '/parties/' + id + '/agreements', payload),
+    updateAgreement: (id, agreementId, payload) => client.put(CRM + '/parties/' + id + '/agreements/' + agreementId, payload)
+  },
+
+  parties: {
+    list: (params) => client.get(CRM + '/parties', { params }),
+    lookup: (q, ids) => client.get(CRM + '/parties/lookup', { params: { q: q, ids: ids } }),
+    get: (id) => client.get(CRM + '/parties/' + id),
+    create: (payload) => client.post(CRM + '/parties', payload),
+    update: (id, payload) => client.put(CRM + '/parties/' + id, payload),
+    setStatus: (id, status) => client.post(CRM + '/parties/' + id + '/status', { party_status: status }),
+    addContact: (id, payload) => client.post(CRM + '/parties/' + id + '/contacts', payload),
+    updateContact: (id, contactId, payload) => client.put(CRM + '/parties/' + id + '/contacts/' + contactId, payload),
+    linkAccount: (id, payload) => client.post(CRM + '/parties/' + id + '/accounts', payload),
+    unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
+    setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
+    merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_id: mergedId, merge_reason: reason }),
+    duplicates: (params) => client.get(CRM + '/duplicates', { params }),
+    scanDuplicates: () => client.post(CRM + '/duplicates/scan'),
+    acceptDuplicate: (id) => client.post(CRM + '/duplicates/' + id + '/accept'),
+    rejectDuplicate: (id) => client.post(CRM + '/duplicates/' + id + '/reject')
+  },
+
+  products: {
+    instances: (params) => client.get(CRM + '/instances', { params }),
+    instanceLookup: (q) => client.get(CRM + '/instances/lookup', { params: { q: q } }),
+    instance: (id) => client.get(CRM + '/instances/' + id),
+    updateInstance: (id, payload) => client.put(CRM + '/instances/' + id, payload),
+    registrations: (params) => client.get(CRM + '/registrations', { params }),
+    register: (payload) => client.post(CRM + '/registrations', payload),
+    endRegistration: (id, reason) => client.post(CRM + '/registrations/' + id + '/end', { end_reason_code: reason }),
+    catalogLookup: (params) => client.get(CRM + '/catalog/lookup', { params })
+  },
+  catalog: createResource(CRM + '/catalog'),
+
+  transfers: {
+    list: (params) => client.get(CRM + '/transfers', { params }),
+    request: (payload) => client.post(CRM + '/transfers', payload),
+    transition: (id, status, reason) => client.post(CRM + '/transfers/' + id + '/status', { status: status, reason: reason })
+  },
+
+  cases: {
+    list: (params) => client.get(CRM + '/cases', { params }),
+    get: (id) => client.get(CRM + '/cases/' + id),
+    create: (payload) => client.post(CRM + '/cases', payload),
+    update: (id, payload) => client.put(CRM + '/cases/' + id, payload),
+    classify: (id, payload) => client.put(CRM + '/cases/' + id + '/classification', payload)
+  },
+
+  points: {
+    accounts: (params) => client.get(CRM + '/point-accounts', { params }),
+    events: (params) => client.get(CRM + '/point-events', { params }),
+    drift: () => client.get(CRM + '/point-drift'),
+    adjust: (payload) => client.post(CRM + '/point-adjustments', payload)
+  },
+  pointRules: createResource(CRM + '/point-rules'),
+
+  programs: {
+    list: (params) => client.get(CRM + '/programs', { params }),
+    options: () => client.get(CRM + '/programs/options'),
+    get: (id) => client.get(CRM + '/programs/' + id),
+    create: (payload) => client.post(CRM + '/programs', payload),
+    update: (id, payload) => client.put(CRM + '/programs/' + id, payload),
+    transition: (id, status) => client.post(CRM + '/programs/' + id + '/status', { status: status }),
+    saveTier: (id, tierId, payload) => (tierId
+      ? client.put(CRM + '/programs/' + id + '/tiers/' + tierId, payload)
+      : client.post(CRM + '/programs/' + id + '/tiers', payload)),
+    removeTier: (id, tierId) => client.delete(CRM + '/programs/' + id + '/tiers/' + tierId),
+    addLocation: (id, payload) => client.post(CRM + '/programs/' + id + '/locations', payload),
+    removeLocation: (id, rowId) => client.delete(CRM + '/programs/' + id + '/locations/' + rowId),
+    saveQuota: (id, quotaId, payload) => (quotaId
+      ? client.put(CRM + '/programs/' + id + '/quotas/' + quotaId, payload)
+      : client.post(CRM + '/programs/' + id + '/quotas', payload)),
+    removeQuota: (id, quotaId) => client.delete(CRM + '/programs/' + id + '/quotas/' + quotaId),
+    saveReward: (id, rewardId, payload) => (rewardId
+      ? client.put(CRM + '/programs/' + id + '/rewards/' + rewardId, payload)
+      : client.post(CRM + '/programs/' + id + '/rewards', payload)),
+    removeReward: (id, rewardId) => client.delete(CRM + '/programs/' + id + '/rewards/' + rewardId),
+    targets: (id, params) => client.get(CRM + '/programs/' + id + '/targets', { params }),
+    addTarget: (id, payload) => client.post(CRM + '/programs/' + id + '/targets', payload),
+    buildTargets: (id) => client.post(CRM + '/programs/' + id + '/targets/build'),
+    revokeTarget: (id, targetId) => client.post(CRM + '/programs/' + id + '/targets/' + targetId + '/revoke'),
+    reservations: (id, params) => client.get(CRM + '/programs/' + id + '/reservations', { params }),
+    reserve: (id, payload) => client.post(CRM + '/programs/' + id + '/reservations', payload),
+    reservationEvents: (reservationId) => client.get(CRM + '/reservations/' + reservationId + '/events'),
+    moveReservation: (reservationId, payload) => client.post(CRM + '/reservations/' + reservationId + '/status', payload),
+    awards: (id, params) => client.get(CRM + '/programs/' + id + '/awards', { params }),
+    award: (id, payload) => client.post(CRM + '/programs/' + id + '/awards', payload),
+    moveAward: (awardId, payload) => client.post(CRM + '/awards/' + awardId + '/status', payload)
+  },
+
+  sites: {
+    list: (params) => client.get(CRM + '/sites', { params }),
+    options: () => client.get(CRM + '/sites/options'),
+    get: (id) => client.get(CRM + '/sites/' + id),
+    create: (payload) => client.post(CRM + '/sites', payload),
+    update: (id, payload) => client.put(CRM + '/sites/' + id, payload),
+    addCapability: (id, payload) => client.post(CRM + '/sites/' + id + '/capabilities', payload),
+    endCapability: (id, capabilityId) => client.post(CRM + '/sites/' + id + '/capabilities/' + capabilityId + '/end')
+  },
+
+  siteActivity: {
+    list: (params) => client.get(CRM + '/site-activities', { params }),
+    record: (payload) => client.post(CRM + '/site-activities', payload),
+    reverse: (id, note) => client.post(CRM + '/site-activities/' + id + '/reverse', { note: note }),
+    events: (params) => client.get(CRM + '/site-events', { params }),
+    createEvent: (payload) => client.post(CRM + '/site-events', payload),
+    updateEvent: (id, payload) => client.put(CRM + '/site-events/' + id, payload),
+    targets: (params) => client.get(CRM + '/site-targets', { params }),
+    createTarget: (payload) => client.post(CRM + '/site-targets', payload),
+    updateTarget: (id, payload) => client.put(CRM + '/site-targets/' + id, payload),
+    removeTarget: (id) => client.delete(CRM + '/site-targets/' + id)
+  },
+
+  segments: {
+    list: (params) => client.get(CRM + '/segments', { params }),
+    options: () => client.get(CRM + '/segments/options'),
+    fields: () => client.get(CRM + '/segments/fields'),
+    preview: (rule) => client.post(CRM + '/segments/preview', { rule_expression: rule }),
+    get: (id) => client.get(CRM + '/segments/' + id),
+    members: (id, params) => client.get(CRM + '/segments/' + id + '/members', { params }),
+    create: (payload) => client.post(CRM + '/segments', payload),
+    update: (id, payload) => client.put(CRM + '/segments/' + id, payload),
+    newVersion: (id, rule) => client.post(CRM + '/segments/' + id + '/versions', { rule_expression: rule }),
+    evaluate: (id) => client.post(CRM + '/segments/' + id + '/evaluate')
+  },
+
+  campaigns: {
+    list: (params) => client.get(CRM + '/campaigns', { params }),
+    options: () => client.get(CRM + '/campaigns/options'),
+    get: (id) => client.get(CRM + '/campaigns/' + id),
+    create: (payload) => client.post(CRM + '/campaigns', payload),
+    update: (id, payload) => client.put(CRM + '/campaigns/' + id, payload),
+    transition: (id, status) => client.post(CRM + '/campaigns/' + id + '/status', { status: status }),
+    addAudience: (id, payload) => client.post(CRM + '/campaigns/' + id + '/audiences', payload),
+    saveAction: (id, actionId, payload) => (actionId
+      ? client.put(CRM + '/campaigns/' + id + '/actions/' + actionId, payload)
+      : client.post(CRM + '/campaigns/' + id + '/actions', payload)),
+    prepareAction: (id, actionId) => client.post(CRM + '/campaigns/' + id + '/actions/' + actionId + '/prepare'),
+    setActionStatus: (id, actionId, status) =>
+      client.post(CRM + '/campaigns/' + id + '/actions/' + actionId + '/status', { status: status }),
+    recipients: (id, actionId, params) =>
+      client.get(CRM + '/campaigns/' + id + '/actions/' + actionId + '/recipients', { params }),
+    addCost: (id, payload) => client.post(CRM + '/campaigns/' + id + '/costs', payload),
+    removeCost: (id, costId) => client.delete(CRM + '/campaigns/' + id + '/costs/' + costId)
+  },
+
+  /* The vocabularies, one generic resource each, keyed by their path on the API. */
+  settings: function (path) { return createResource(CRM + '/settings/' + path); },
+  statusMap: {
+    list: () => client.get(CRM + '/settings/status-map'),
+    save: (payload) => client.put(CRM + '/settings/status-map', payload),
+    remove: (projectId, code) => client.delete(CRM + '/settings/status-map/' + projectId + '/' + encodeURIComponent(code))
+  }
+};
+
 /* ---- 1. management ---- */
 
 export const admins = createResource('/admins');
@@ -351,7 +591,7 @@ const api = {
   smartphoneAdverts,
   popupAdverts,
   faqs, servicePrices, agencies, provinces, media, articles,
-  members, wallets, admins, roles, pages, permissions, audit, settings, footer
+  members, wallets, crm, admins, roles, pages, permissions, audit, settings, footer
 };
 
 export default api;
