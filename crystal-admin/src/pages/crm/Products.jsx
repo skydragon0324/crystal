@@ -18,7 +18,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { date, dateTime, number } from '../../utils/format';
 import {
-  Fact, Facts, PartyPicker, Status, choices, optionsFrom, useCatalogOptions, useCrmMeta, useSiteOptions, word, filtersFor } from './shared';
+  Fact, Facts, PartyPicker, Status, choices, optionsFrom, useCatalogOptions, useCrmMeta, useSiteOptions, word, filtersFor, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/products';
 
@@ -37,7 +37,7 @@ const END_REASONS = ['RETURNED', 'LOST', 'SCRAPPED', 'EXPIRED', 'CANCELLED', 'AS
  * which is what the points rules and the programs read.
  */
 export default function Products() {
-  const t = useT();
+  const translate = useT();
   const location = useLocation();
   const history = useHistory();
   const instanceId = new URLSearchParams(location.search).get('instance');
@@ -47,9 +47,9 @@ export default function Products() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{t('crm.products.registrations')}</Tab>
-            <Tab fontSize="sm">{t('crm.products.devicesAndLicences')}</Tab>
-            <Tab fontSize="sm">{t('crm.products.catalogue')}</Tab>
+            <Tab fontSize="sm">{translate('crm.products.registrations')}</Tab>
+            <Tab fontSize="sm">{translate('crm.products.devicesAndLicences')}</Tab>
+            <Tab fontSize="sm">{translate('crm.products.catalogue')}</Tab>
           </TabList>
           <TabPanels>
             <TabPanel px={0}><Registrations /></TabPanel>
@@ -64,7 +64,7 @@ export default function Products() {
 }
 
 function Registrations() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const history = useHistory();
@@ -84,7 +84,7 @@ function Registrations() {
       const { data } = await crm.products.register(values);
       const paid = data && data.point_event ? Number(data.point_event.points_delta) : 0;
       toast({
-        title: paid ? t('crm.products.registeredWithPoints', { n: number(paid) }) : t('crm.products.registered'),
+        title: paid ? translate('crm.products.registeredWithPoints', { n: number(paid) }) : translate('crm.products.registered'),
         status: 'success', duration: 3000
       });
       form.onClose();
@@ -100,13 +100,13 @@ function Registrations() {
 
   const end = async (values) => {
     const agreed = await confirm({
-      tone: 'danger', title: t('crm.products.endRegistration'), body: t('crm.products.endExplained'),
-      detail: ending.external_product_instance_id, confirmLabel: t('crm.products.end')
+      tone: 'danger', title: translate('crm.products.endRegistration'), body: translate('crm.products.endExplained'),
+      detail: ending.external_product_instance_id, confirmLabel: translate('crm.products.end')
     });
     if (!agreed) return false;
     try {
       await crm.products.endRegistration(ending.product_registration_id, values.end_reason_code);
-      toast({ title: t('Saved'), status: 'success', duration: 2500 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2500 });
       setEnding(null);
       list.reload();
       return true;
@@ -121,7 +121,7 @@ function Registrations() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'current', label: 'Current or past', value: list.params.current,
             options: [{ value: 1, label: 'Current only' }],
             onChange: (value) => list.setFilter({ current: value || undefined }) },
@@ -137,22 +137,22 @@ function Registrations() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.products.register')}
+            {translate('crm.products.register')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'product_name', label: 'Product' },
             { key: 'external_product_instance_id', label: 'Serial or key' },
-            { key: 'class_name', label: 'Product class', render: (row) => t(row.class_name || '-') },
-            { key: 'relationship_code', label: 'Held as', render: (row) => word(t, row.relationship_code) },
-            { key: 'registration_channel', label: 'Channel', render: (row) => word(t, row.registration_channel) },
+            { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name || '-') },
+            { key: 'relationship_code', label: 'Held as', render: (row) => word(translate, row.relationship_code) },
+            { key: 'registration_channel', label: 'Channel', render: (row) => word(translate, row.registration_channel) },
             { key: 'project_code', label: 'Project' },
             { key: 'registered_at', label: 'Registered', render: (row) => dateTime(row.registered_at) },
-            { key: 'valid_to', label: 'Ended', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(t, row.end_reason_code) : '-') }
+            { key: 'valid_to', label: 'Ended', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : '-') }
           ]}
           rows={list.rows}
           loading={list.loading}
@@ -167,7 +167,7 @@ function Registrations() {
           rowKey={(row) => row.product_registration_id || row.id}
           onRowClick={(row) => row.product_instance_id && history.push(PAGE + '?instance=' + row.product_instance_id)}
           actions={canWrite ? [
-            { key: 'end', label: t('crm.products.end'), hidden: (row) => !!row.valid_to, onClick: (row) => setEnding(row) }
+            { key: 'end', label: translate('crm.products.end'), hidden: (row) => !!row.valid_to, onClick: (row) => setEnding(row) }
           ] : []}
           actionsIconOnly={false}
           storageKey={PAGE + '/registrations'}
@@ -177,7 +177,7 @@ function Registrations() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.products.register')}
+        title={translate('crm.products.register')}
         initial={{ relationship_code: 'OWNER', registration_channel: 'CONSOLE' }}
         onSubmit={register}
         saving={saving}
@@ -192,7 +192,7 @@ function Registrations() {
             options: choices(['OWNER', 'USER', 'REGISTERED_USER', 'LESSEE', 'LICENSEE']) },
           { name: 'registration_channel', label: 'Channel', type: 'select', isClearable: false,
             options: choices(['CONSOLE', 'AGENCY', 'WEB', 'APP']) },
-          { name: 'registered_at_location_id', label: 'Registered at service location', type: 'select', options: sites, isSearchable: true },
+          { name: 'registered_at_service_center_id', label: 'Registered at service location', type: 'select', options: sites, isSearchable: true },
           { name: 'purchase_date', label: 'Bought on', type: 'date' },
           { name: 'purchase_place', label: 'Bought at' },
           { name: 'acquisition_type_id', label: 'How it was obtained', type: 'select',
@@ -207,7 +207,7 @@ function Registrations() {
       <FormModal
         isOpen={!!ending}
         onClose={() => setEnding(null)}
-        title={t('crm.products.endRegistration')}
+        title={translate('crm.products.endRegistration')}
         initial={{ end_reason_code: 'RETURNED' }}
         onSubmit={end}
         fields={[
@@ -220,7 +220,7 @@ function Registrations() {
 }
 
 function Instances() {
-  const t = useT();
+  const translate = useT();
   const history = useHistory();
   const meta = useCrmMeta();
   const list = useList((params) => crm.products.instances(params), { page: 1, limit: 20, dir: 'desc' });
@@ -230,7 +230,7 @@ function Instances() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'instance_kind', label: 'Kind', value: list.params.instance_kind,
             options: choices(['DEVICE', 'LICENCE', 'ENTITLEMENT']),
             onChange: (value) => list.setFilter({ instance_kind: value || undefined }) },
@@ -247,8 +247,8 @@ function Instances() {
           columns={[
             { key: 'external_product_instance_id', label: 'Serial or key' },
             { key: 'product_name', label: 'Product' },
-            { key: 'instance_kind', label: 'Kind', render: (row) => word(t, row.instance_kind) },
-            { key: 'class_name', label: 'Product class', render: (row) => t(row.class_name || '-') },
+            { key: 'instance_kind', label: 'Kind', render: (row) => word(translate, row.instance_kind) },
+            { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name || '-') },
             { key: 'holder_name', label: 'Held by' },
             { key: 'registration_cnt', label: 'Registrations', isNumeric: true, render: (row) => number(row.registration_cnt) },
             { key: 'project_code', label: 'Project' },
@@ -271,7 +271,7 @@ function Instances() {
 }
 
 function Catalogue() {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const api = crm.catalog;
 
@@ -282,13 +282,13 @@ function Catalogue() {
       pkField="product_id"
       canRestore={false}
       defaultSort="product_name"
-      subtitle={t('crm.products.catalogueExplained')}
+      subtitle={translate('crm.products.catalogueExplained')}
       columns={[
         { key: 'product_code', label: 'Code' },
         { key: 'product_name', label: 'Product', maxW: '16rem' },
         { key: 'project_code', label: 'Project', sortable: false },
-        { key: 'product_kind', label: 'Kind', render: (row) => word(t, row.product_kind) },
-        { key: 'class_name', label: 'Product class', sortable: false, render: (row) => t(row.class_name || '-') },
+        { key: 'product_kind', label: 'Kind', render: (row) => word(translate, row.product_kind) },
+        { key: 'class_name', label: 'Product class', sortable: false, render: (row) => translate(row.class_name || '-') },
         { key: 'crystal_product_name', label: 'Crystal product', sortable: false },
         { key: 'instance_cnt', label: 'Known units', sortable: false, isNumeric: true, render: (row) => number(row.instance_cnt) },
         { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
@@ -316,7 +316,7 @@ function Catalogue() {
 
 /** One product's whole story: every holder in order, every request, every repair. */
 function InstanceDetail({ id, onClose }) {
-  const t = useT();
+  const translate = useT();
   const [detail, setDetail] = useState(null);
 
   useEffect(() => {
@@ -331,14 +331,14 @@ function InstanceDetail({ id, onClose }) {
     <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{instance.external_product_instance_id || t('crm.products.product')}</ModalHeader>
+        <ModalHeader>{instance.external_product_instance_id || translate('crm.products.product')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={5}>
             <Facts>
               <Fact label="Product">{instance.product_name}</Fact>
-              <Fact label="Product class">{instance.class_name ? t(instance.class_name) : null}</Fact>
-              <Fact label="Kind">{word(t, instance.instance_kind)}</Fact>
+              <Fact label="Product class">{instance.class_name ? translate(instance.class_name) : null}</Fact>
+              <Fact label="Kind">{word(translate, instance.instance_kind)}</Fact>
               <Fact label="Status">{instance.status ? <Status value={instance.status} /> : null}</Fact>
               <Fact label="Serial number">{instance.serial_number}</Fact>
               <Fact label="IMEI">{instance.imei}</Fact>
@@ -346,29 +346,29 @@ function InstanceDetail({ id, onClose }) {
               <Fact label="Valid until">{date(instance.valid_until)}</Fact>
             </Facts>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.products.holders')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.products.holders')}</Text>
               <DataTable
                 hidePagination
                 rows={record.registrations || []}
                 rowKey={(row) => row.product_registration_id}
                 columns={[
                   { key: 'party_name', label: 'Customer' },
-                  { key: 'relationship_code', label: 'Held as', render: (row) => word(t, row.relationship_code) },
+                  { key: 'relationship_code', label: 'Held as', render: (row) => word(translate, row.relationship_code) },
                   { key: 'valid_from', label: 'From', render: (row) => dateTime(row.valid_from) },
-                  { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? dateTime(row.valid_to) : t('crm.customer.now')) },
-                  { key: 'end_reason_code', label: 'Ended because', render: (row) => (row.end_reason_code ? word(t, row.end_reason_code) : '-') },
+                  { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? dateTime(row.valid_to) : translate('crm.customer.now')) },
+                  { key: 'end_reason_code', label: 'Ended because', render: (row) => (row.end_reason_code ? word(translate, row.end_reason_code) : '-') },
                   { key: 'previous_owner_name', label: 'Previous owner' }
                 ]}
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.customer.transfers')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.customer.transfers')}</Text>
               <DataTable
                 hidePagination
                 rows={record.transfers || []}
                 rowKey={(row) => row.product_transfer_id}
                 columns={[
-                  { key: 'transfer_kind', label: 'What', render: (row) => word(t, row.transfer_kind) },
+                  { key: 'transfer_kind', label: 'What', render: (row) => word(translate, row.transfer_kind) },
                   { key: 'from_name', label: 'From' },
                   { key: 'to_name', label: 'To' },
                   { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
@@ -377,22 +377,22 @@ function InstanceDetail({ id, onClose }) {
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.customer.service')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.customer.service')}</Text>
               <DataTable
                 hidePagination
                 rows={record.cases || []}
                 rowKey={(row) => row.case_id}
                 columns={[
                   { key: 'external_case_id', label: 'Case' },
-                  { key: 'case_type_name', label: 'Type', render: (row) => t(row.case_type_name || '-') },
-                  { key: 'status_name', label: 'Status', render: (row) => t(row.status_name || '-') },
+                  { key: 'case_type_name', label: 'Type', render: (row) => translate(row.case_type_name || '-') },
+                  { key: 'status_name', label: 'Status', render: (row) => translate(row.status_name || '-') },
                   { key: 'received_at', label: 'Received', render: (row) => dateTime(row.received_at) }
                 ]}
               />
             </Box>
             {(record.licences || []).length ? (
               <Box>
-                <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.products.licencesOnIt')}</Text>
+                <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.products.licencesOnIt')}</Text>
                 <DataTable
                   hidePagination
                   rows={record.licences}

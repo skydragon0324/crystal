@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { HttpError } = require('../../utils/response');
+const locations = require('./locations');
 const { COUNTED_STATUSES } = require('./transactions.service');
 
 /**
@@ -50,12 +51,12 @@ function round(value, places) {
 async function purchaseFacts(partyId) {
   const result = await db.raw(`
     WITH bought AS (
-      SELECT x.transaction_id, x.transaction_type_code, x.transaction_at, x.project_id,
-             COALESCE(x.reporting_net_amount, 0) AS amount
-        FROM crm_transaction x
-        JOIN crm_transaction_party tp ON tp.transaction_id = x.transaction_id
+      SELECT txn.transaction_id, txn.transaction_type_code, txn.transaction_at, txn.project_id,
+             COALESCE(txn.reporting_net_amount, 0) AS amount
+        FROM crm_transaction txn
+        JOIN crm_transaction_party tp ON tp.transaction_id = txn.transaction_id
        WHERE tp.party_id = ? AND tp.party_role_code = 'BUYER'
-         AND x.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
+         AND txn.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
     )
     SELECT
       COALESCE(SUM(amount), 0) AS lifetime_spend,
@@ -80,26 +81,26 @@ async function purchaseFacts(partyId) {
 /** Spend per calendar month for the last twelve months, oldest first, every month present. */
 async function monthlySpend(partyId) {
   const result = await db.raw(`
-    SELECT to_char(m.month, 'YYYY-MM') AS month, COALESCE(SUM(x.reporting_net_amount), 0) AS amount
-      FROM generate_series(date_trunc('month', now()) - interval '11 months', date_trunc('month', now()), interval '1 month') AS m(month)
+    SELECT to_char(calendar.month, 'YYYY-MM') AS month, COALESCE(SUM(txn.reporting_net_amount), 0) AS amount
+      FROM generate_series(date_trunc('month', now()) - interval '11 months', date_trunc('month', now()), interval '1 month') AS calendar(month)
       LEFT JOIN crm_transaction_party tp ON tp.party_id = ? AND tp.party_role_code = 'BUYER'
-      LEFT JOIN crm_transaction x ON x.transaction_id = tp.transaction_id
-            AND date_trunc('month', x.transaction_at) = m.month
-            AND x.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
-     GROUP BY m.month ORDER BY m.month`, [partyId].concat(COUNTED_STATUSES));
+      LEFT JOIN crm_transaction txn ON txn.transaction_id = tp.transaction_id
+            AND date_trunc('month', txn.transaction_at) = calendar.month
+            AND txn.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
+     GROUP BY calendar.month ORDER BY calendar.month`, [partyId].concat(COUNTED_STATUSES));
   return result.rows.map(function (row) { return { month: row.month, amount: round(row.amount, 2) }; });
 }
 
 /** Spend per calendar year, the last five years. */
 async function yearlySpend(partyId) {
   const result = await db.raw(`
-    SELECT y.year::int AS year, COALESCE(SUM(x.reporting_net_amount), 0) AS amount
-      FROM generate_series(extract(year FROM now())::int - 4, extract(year FROM now())::int) AS y(year)
+    SELECT calendar.year::int AS year, COALESCE(SUM(txn.reporting_net_amount), 0) AS amount
+      FROM generate_series(extract(year FROM now())::int - 4, extract(year FROM now())::int) AS calendar(year)
       LEFT JOIN crm_transaction_party tp ON tp.party_id = ? AND tp.party_role_code = 'BUYER'
-      LEFT JOIN crm_transaction x ON x.transaction_id = tp.transaction_id
-            AND extract(year FROM x.transaction_at)::int = y.year
-            AND x.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
-     GROUP BY y.year ORDER BY y.year`, [partyId].concat(COUNTED_STATUSES));
+      LEFT JOIN crm_transaction txn ON txn.transaction_id = tp.transaction_id
+            AND extract(year FROM txn.transaction_at)::int = calendar.year
+            AND txn.transaction_status IN (${COUNTED_STATUSES.map(function () { return '?'; }).join(', ')})
+     GROUP BY calendar.year ORDER BY calendar.year`, [partyId].concat(COUNTED_STATUSES));
   return result.rows.map(function (row) { return { year: row.year, amount: round(row.amount, 2) }; });
 }
 
@@ -110,28 +111,29 @@ async function serviceFacts(partyId) {
       SELECT COUNT(*)::int AS total_cases,
              COUNT(*) FILTER (WHERE NOT st.is_terminal)::int AS open_cases,
              COUNT(*) FILTER (WHERE st.status_code = 'CLOSED')::int AS resolved_cases,
-             AVG(EXTRACT(EPOCH FROM (s.first_response_at - s.received_at)) / 3600)
-               FILTER (WHERE s.first_response_at IS NOT NULL) AS avg_response_hours,
-             AVG(EXTRACT(EPOCH FROM (s.closed_at - s.received_at)) / 86400)
-               FILTER (WHERE s.closed_at IS NOT NULL) AS avg_resolution_days,
-             AVG(s.satisfaction_rating) AS csat,
-             COUNT(s.satisfaction_rating)::int AS csat_responses
-        FROM crm_service_case s JOIN crm_service_status st ON st.service_status_id = s.service_status_id
-       WHERE s.party_id = ?`, [partyId]).then(function (result) { return result.rows[0]; }),
+             AVG(EXTRACT(EPOCH FROM (service_case.first_response_at - service_case.received_at)) / 3600)
+               FILTER (WHERE service_case.first_response_at IS NOT NULL) AS avg_response_hours,
+             AVG(EXTRACT(EPOCH FROM (service_case.closed_at - service_case.received_at)) / 86400)
+               FILTER (WHERE service_case.closed_at IS NOT NULL) AS avg_resolution_days,
+             AVG(service_case.satisfaction_rating) AS csat,
+             COUNT(service_case.satisfaction_rating)::int AS csat_responses
+        FROM crm_service_case service_case JOIN crm_service_status st ON st.service_status_id = service_case.service_status_id
+       WHERE service_case.party_id = ?`, [partyId]).then(function (result) { return result.rows[0]; }),
     db.raw(`
-      SELECT to_char(m.month, 'YYYY-MM') AS month,
-             COUNT(s.case_id)::int AS opened,
-             COUNT(s.case_id) FILTER (WHERE s.closed_at IS NOT NULL)::int AS resolved
-        FROM generate_series(date_trunc('month', now()) - interval '5 months', date_trunc('month', now()), interval '1 month') AS m(month)
-        LEFT JOIN crm_service_case s ON s.party_id = ? AND date_trunc('month', s.received_at) = m.month
-       GROUP BY m.month ORDER BY m.month`, [partyId]).then(function (result) { return result.rows; }),
-    db('crm_service_case as s')
-      .join('crm_service_case_type as ct', 'ct.case_type_id', 's.case_type_id')
-      .join('crm_service_status as st', 'st.service_status_id', 's.service_status_id')
-      .leftJoin('crm_service_location as l', 'l.service_location_id', 's.service_location_id')
-      .where('s.party_id', partyId).orderBy('s.received_at', 'desc').limit(5)
-      .select('s.case_id', 's.external_case_id', 's.title', 's.received_at', 's.closed_at', 's.reception_channel_code',
-        'ct.display_name as case_type_name', 'st.status_code', 'st.display_name as status_name', 'st.is_terminal', 'l.location_name'),
+      SELECT to_char(calendar.month, 'YYYY-MM') AS month,
+             COUNT(service_case.case_id)::int AS opened,
+             COUNT(service_case.case_id) FILTER (WHERE service_case.closed_at IS NOT NULL)::int AS resolved
+        FROM generate_series(date_trunc('month', now()) - interval '5 months', date_trunc('month', now()), interval '1 month') AS calendar(month)
+        LEFT JOIN crm_service_case service_case ON service_case.party_id = ? AND date_trunc('month', service_case.received_at) = calendar.month
+       GROUP BY calendar.month ORDER BY calendar.month`, [partyId]).then(function (result) { return result.rows; }),
+    db('crm_service_case as service_case')
+      .join('crm_service_case_type as ct', 'ct.case_type_id', 'service_case.case_type_id')
+      .join('crm_service_status as st', 'st.service_status_id', 'service_case.service_status_id')
+      .leftJoin('crm_service_center as center', 'center.service_center_id', 'service_case.service_center_id')
+      .where('service_case.party_id', partyId).orderBy('service_case.received_at', 'desc').limit(5)
+      .select('service_case.case_id', 'service_case.external_case_id', 'service_case.title', 'service_case.received_at',
+        'service_case.closed_at', 'service_case.reception_channel_code',
+        'ct.display_name as case_type_name', 'st.status_code', 'st.display_name as status_name', 'st.is_terminal', 'center.service_center_name'),
     db('crm_party_interaction').where('party_id', partyId).count({ total: '*' }).first()
   ]);
   return {
@@ -160,8 +162,8 @@ async function accountsByProject(partyId) {
     db('crm_project_account').where('party_id', partyId).orderBy([{ column: 'unlinked_at', order: 'desc' }, { column: 'is_primary', order: 'desc' }]),
     db.raw(`
       SELECT project_id, MAX(at) AS last_activity_at FROM (
-        SELECT x.project_id, x.transaction_at AS at FROM crm_transaction x
-          JOIN crm_transaction_party tp ON tp.transaction_id = x.transaction_id WHERE tp.party_id = ?
+        SELECT txn.project_id, txn.transaction_at AS at FROM crm_transaction txn
+          JOIN crm_transaction_party tp ON tp.transaction_id = txn.transaction_id WHERE tp.party_id = ?
         UNION ALL
         SELECT project_id, received_at FROM crm_service_case WHERE party_id = ?
       ) activity GROUP BY project_id`, [partyId, partyId]).then(function (result) { return result.rows; })
@@ -196,19 +198,20 @@ async function accountsByProject(partyId) {
 /** Relationships seen from this party: what each other party is to them. */
 async function relationshipsOf(partyId) {
   const result = await db.raw(`
-    SELECT r.party_relationship_id, r.status, r.valid_from, r.valid_to, r.note,
-           r.related_party_id AS other_party_id, r.relationship_type_code AS type_code, 'OWN' AS side
-      FROM crm_party_relationship r WHERE r.party_id = ?
+    SELECT relationship.party_relationship_id, relationship.status, relationship.valid_from, relationship.valid_to, relationship.note,
+           relationship.related_party_id AS other_party_id, relationship.relationship_type_code AS type_code, 'OWN' AS side
+      FROM crm_party_relationship relationship WHERE relationship.party_id = ?
     UNION ALL
-    SELECT r.party_relationship_id, r.status, r.valid_from, r.valid_to, r.note,
-           r.party_id, t.inverse_code, 'INVERSE'
-      FROM crm_party_relationship r JOIN crm_party_relationship_type t ON t.relationship_type_code = r.relationship_type_code
-     WHERE r.related_party_id = ?`, [partyId, partyId]);
+    SELECT relationship.party_relationship_id, relationship.status, relationship.valid_from, relationship.valid_to, relationship.note,
+           relationship.party_id, relationship_type.inverse_code, 'INVERSE'
+      FROM crm_party_relationship relationship
+      JOIN crm_party_relationship_type relationship_type ON relationship_type.relationship_type_code = relationship.relationship_type_code
+     WHERE relationship.related_party_id = ?`, [partyId, partyId]);
   const rows = result.rows;
   if (!rows.length) return [];
   const [parties, types] = await Promise.all([
     db('crm_party').whereIn('party_id', rows.map(function (row) { return row.other_party_id; }))
-      .select('party_id', 'party_no', 'display_name', 'party_type', 'party_status'),
+      .select('party_id', 'display_name', 'party_type', 'party_status'),
     db('crm_party_relationship_type').select('relationship_type_code', 'relationship_name', 'is_hierarchy')
   ]);
   const partyOf = {};
@@ -219,7 +222,7 @@ async function relationshipsOf(partyId) {
     const other = partyOf[row.other_party_id] || {};
     return Object.assign(row, {
       relationship_name: (typeOf[row.type_code] || {}).relationship_name || row.type_code,
-      other_party_no: other.party_no, other_name: other.display_name, other_party_type: other.party_type
+      other_name: other.display_name, other_party_type: other.party_type
     });
   }).sort(function (first, second) { return (first.status === 'ACTIVE' ? 0 : 1) - (second.status === 'ACTIVE' ? 0 : 1); });
 }
@@ -241,9 +244,9 @@ async function hierarchyOf(partyId) {
   const up = await db.raw(`
     WITH RECURSIVE edges AS (${EDGES}),
     chain AS (
-      SELECT ?::bigint AS party_id, 0 AS depth
+      SELECT ?::varchar AS party_id, 0 AS depth
       UNION
-      SELECT e.parent_id, c.depth + 1 FROM chain c JOIN edges e ON e.child_id = c.party_id WHERE c.depth < 10
+      SELECT edge.parent_id, link.depth + 1 FROM chain link JOIN edges edge ON edge.child_id = link.party_id WHERE link.depth < 10
     )
     SELECT party_id FROM chain ORDER BY depth DESC LIMIT 1`, [partyId]);
   const rootId = up.rows.length ? up.rows[0].party_id : partyId;
@@ -251,19 +254,21 @@ async function hierarchyOf(partyId) {
   const down = await db.raw(`
     WITH RECURSIVE edges AS (${EDGES}),
     tree AS (
-      SELECT ?::bigint AS party_id, NULL::bigint AS parent_id, 0 AS depth
+      SELECT ?::varchar AS party_id, NULL::varchar AS parent_id, 0 AS depth
       UNION
-      SELECT e.child_id, e.parent_id, t.depth + 1 FROM tree t JOIN edges e ON e.parent_id = t.party_id WHERE t.depth < 10
+      SELECT edge.child_id, edge.parent_id, node.depth + 1 FROM tree node JOIN edges edge ON edge.parent_id = node.party_id WHERE node.depth < 10
     )
-    SELECT t.party_id, t.parent_id, t.depth, p.party_no, p.display_name
-      FROM tree t JOIN crm_party p ON p.party_id = t.party_id
-     ORDER BY t.depth, p.display_name`, [rootId]);
+    SELECT node.party_id, node.parent_id, node.depth, party.display_name
+      FROM tree node JOIN crm_party party ON party.party_id = node.party_id
+     ORDER BY node.depth, party.display_name`, [rootId]);
 
   const affiliates = await db.raw(`
-    SELECT CASE WHEN r.party_id = ? THEN r.related_party_id ELSE r.party_id END AS party_id, p.party_no, p.display_name
-      FROM crm_party_relationship r
-      JOIN crm_party p ON p.party_id = CASE WHEN r.party_id = ? THEN r.related_party_id ELSE r.party_id END
-     WHERE r.relationship_type_code = 'AFFILIATE' AND r.status = 'ACTIVE' AND ? IN (r.party_id, r.related_party_id)`,
+    SELECT CASE WHEN relationship.party_id = ? THEN relationship.related_party_id ELSE relationship.party_id END AS party_id,
+           party.display_name
+      FROM crm_party_relationship relationship
+      JOIN crm_party party ON party.party_id = CASE WHEN relationship.party_id = ? THEN relationship.related_party_id ELSE relationship.party_id END
+     WHERE relationship.relationship_type_code = 'AFFILIATE' AND relationship.status = 'ACTIVE'
+       AND ? IN (relationship.party_id, relationship.related_party_id)`,
   [partyId, partyId, partyId]);
 
   return { root_party_id: rootId, nodes: down.rows, affiliates: affiliates.rows };
@@ -271,18 +276,21 @@ async function hierarchyOf(partyId) {
 
 /** The people of an organization, each with their roles, title and how to reach them. */
 async function keyContacts(partyId) {
-  const people = await db('crm_organization_person_relationship as r')
-    .join('crm_party as p', 'p.party_id', 'r.person_party_id')
-    .leftJoin('crm_person as n', 'n.party_id', 'r.person_party_id')
-    .where({ 'r.organization_party_id': partyId, 'r.relationship_status': 'ACTIVE' })
-    .orderBy('r.created_at')
-    .select('r.org_person_relationship_id', 'r.person_party_id', 'p.party_no', 'p.display_name', 'n.job_title');
+  const people = await db('crm_organization_person_relationship as relationship')
+    .join('crm_party as party', 'party.party_id', 'relationship.person_party_id')
+    .leftJoin('crm_person as person', 'person.party_id', 'relationship.person_party_id')
+    .leftJoin('crm_job_title as jt', 'jt.job_title_id', 'person.job_title_id')
+    .where({ 'relationship.organization_party_id': partyId, 'relationship.relationship_status': 'ACTIVE' })
+    .orderBy('relationship.created_at')
+    .select('relationship.org_person_relationship_id', 'relationship.person_party_id', 'party.party_id', 'party.display_name',
+      'jt.job_name as job_title_name');
   if (!people.length) return [];
   const ids = people.map(function (person) { return person.person_party_id; });
   const [roles, contacts] = await Promise.all([
-    db('crm_organization_person_role as o').join('crm_org_contact_role as c', 'c.contact_role_id', 'o.contact_role_id')
-      .whereIn('o.org_person_relationship_id', people.map(function (person) { return person.org_person_relationship_id; }))
-      .whereNull('o.valid_to').select('o.org_person_relationship_id', 'o.is_primary', 'o.department_name', 'c.role_code', 'c.role_name'),
+    db('crm_organization_person_role as person_role').join('crm_org_contact_role as contact_role', 'contact_role.contact_role_id', 'person_role.contact_role_id')
+      .whereIn('person_role.org_person_relationship_id', people.map(function (person) { return person.org_person_relationship_id; }))
+      .whereNull('person_role.valid_to').select('person_role.org_person_relationship_id', 'person_role.is_primary',
+        'person_role.department_name', 'contact_role.role_code', 'contact_role.role_name'),
     db('crm_contact_point').whereIn('party_id', ids).where('status', 'ACTIVE').whereIn('contact_type', ['EMAIL', 'MOBILE', 'PHONE'])
       .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'contact_point_id' }]).select('party_id', 'contact_type', 'contact_value')
   ]);
@@ -307,11 +315,12 @@ async function reachOf(partyId) {
   const [contacts, consents, channels] = await Promise.all([
     db('crm_contact_point').where({ party_id: partyId, status: 'ACTIVE' })
       .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'contact_point_id' }]),
-    db('crm_party_communication_consent as c')
-      .join('crm_project_communication_option as o', 'o.project_communication_option_id', 'c.project_communication_option_id')
-      .join('crm_communication_channel as ch', 'ch.channel_id', 'o.channel_id')
-      .where('c.party_id', partyId)
-      .select('ch.channel_code', 'c.consent_status', 'c.is_preferred', 'c.captured_at'),
+    db('crm_party_communication_consent as consent')
+      .join('crm_project_communication_option as communication_option', 'communication_option.project_communication_option_id',
+        'consent.project_communication_option_id')
+      .join('crm_communication_channel as ch', 'ch.channel_id', 'communication_option.channel_id')
+      .where('consent.party_id', partyId)
+      .select('ch.channel_code', 'consent.consent_status', 'consent.is_preferred', 'consent.captured_at'),
     db('crm_communication_channel').where('is_active', true).orderBy('channel_id').select('channel_code', 'channel_name')
   ]);
   const byChannel = channels.map(function (channel) {
@@ -337,16 +346,19 @@ async function reachOf(partyId) {
 /** The last campaigns that reached the customer, and how they answered. */
 async function campaignHistory(partyId) {
   const result = await db.raw(`
-    SELECT r.recipient_id, c.campaign_id, c.campaign_name, ch.channel_code, ch.channel_name,
-           COALESCE(r.delivered_at, r.sent_at, r.created_at) AS at, r.recipient_status, r.skip_reason_code,
-           EXISTS (SELECT 1 FROM crm_campaign_conversion v WHERE v.recipient_id = r.recipient_id) AS converted,
-           EXISTS (SELECT 1 FROM crm_campaign_interaction i WHERE i.recipient_id = r.recipient_id AND i.interaction_type = 'CLICK') AS clicked,
-           EXISTS (SELECT 1 FROM crm_campaign_interaction i WHERE i.recipient_id = r.recipient_id AND i.interaction_type = 'OPEN') AS opened
-      FROM crm_campaign_recipient r
-      JOIN crm_campaign c ON c.campaign_id = r.campaign_id
-      JOIN crm_campaign_action a ON a.action_id = r.action_id
-      JOIN crm_communication_channel ch ON ch.channel_id = a.channel_id
-     WHERE r.party_id = ?
+    SELECT recipient.recipient_id, campaign.campaign_id, campaign.campaign_name, ch.channel_code, ch.channel_name,
+           COALESCE(recipient.delivered_at, recipient.sent_at, recipient.created_at) AS at, recipient.recipient_status, recipient.skip_reason_code,
+           EXISTS (SELECT 1 FROM crm_campaign_conversion conversion
+                    WHERE conversion.recipient_id = recipient.recipient_id) AS converted,
+           EXISTS (SELECT 1 FROM crm_campaign_interaction interaction
+                    WHERE interaction.recipient_id = recipient.recipient_id AND interaction.interaction_type = 'CLICK') AS clicked,
+           EXISTS (SELECT 1 FROM crm_campaign_interaction interaction
+                    WHERE interaction.recipient_id = recipient.recipient_id AND interaction.interaction_type = 'OPEN') AS opened
+      FROM crm_campaign_recipient recipient
+      JOIN crm_campaign campaign ON campaign.campaign_id = recipient.campaign_id
+      JOIN crm_campaign_action campaign_action ON campaign_action.action_id = recipient.action_id
+      JOIN crm_communication_channel ch ON ch.channel_id = campaign_action.channel_id
+     WHERE recipient.party_id = ?
      ORDER BY at DESC LIMIT 8`, [partyId]);
   return result.rows.map(function (row) {
     let outcome = 'NOT_OPENED';
@@ -377,61 +389,68 @@ async function overview(partyId) {
     reachOf(partyId),
     relationshipsOf(partyId),
     campaignHistory(partyId),
-    db('crm_party_analysis_snapshot as s').leftJoin('crm_corporate_grade as g', 'g.corporate_grade_id', 's.corporate_grade_id')
-      .where('s.party_id', partyId).whereNull('s.project_id').orderBy('s.reference_date', 'desc').limit(60)
-      .select('s.reference_date', 's.corporate_score', 's.score_components', 's.activity_status', 's.registered_device_count',
-        's.purchase_amount_lifetime', 'g.grade_code', 'g.grade_name'),
-    db('crm_party_tag as pt').join('crm_tag as t', 't.tag_id', 'pt.tag_id').where('pt.party_id', partyId)
-      .orderBy('pt.tagged_at').select('t.tag_id', 't.tag_code', 't.tag_name', 't.color_scheme', 'pt.tagged_at'),
-    db('crm_segment_membership as m').join('crm_segment as s', 's.segment_id', 'm.segment_id')
-      .where('m.party_id', partyId).whereNull('m.unmatched_at').where('s.status', 'ACTIVE')
-      .orderBy('m.matched_at', 'desc').select('s.segment_id', 's.segment_name', 'm.matched_at'),
-    db('crm_transaction as x').join('crm_transaction_party as tp', 'tp.transaction_id', 'x.transaction_id')
-      .join('crm_project as j', 'j.project_id', 'x.project_id')
-      .where({ 'tp.party_id': partyId, 'tp.party_role_code': 'BUYER' }).whereNotIn('x.transaction_type_code', NOT_AN_ORDER)
-      .orderBy('x.transaction_at', 'desc').limit(5)
-      .select('x.transaction_id', 'x.external_transaction_id', 'x.transaction_at', 'x.transaction_status', 'x.transaction_type_code',
-        'x.net_amount', 'x.currency_code', 'x.reporting_net_amount', 'j.project_code', 'j.project_name',
-        db.raw('EXISTS (SELECT 1 FROM crm_transaction r WHERE r.original_transaction_id = x.transaction_id) AS refunded')),
-    db('crm_product_registration as r')
-      .join('crm_product_instance as i', 'i.product_instance_id', 'r.product_instance_id')
-      .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-      .join('crm_project as j', 'j.project_id', 'r.project_id')
-      .leftJoin('crm_product_class as k', 'k.product_class_id', 'c.product_class_id')
-      .where('r.party_id', partyId).whereNull('r.valid_to')
-      .orderBy('r.valid_from', 'desc').limit(6)
-      .select('r.product_registration_id', 'r.valid_from', 'i.product_instance_id', 'i.external_product_instance_id', 'i.serial_number',
-        'i.imei', 'i.status as instance_status', 'c.product_name', 'k.class_code', 'k.product_domain', 'j.project_code', 'j.project_name'),
-    db('crm_party_interaction as i').leftJoin('managers as m', 'm.id', 'i.manager_id')
-      .leftJoin('crm_service_case as s', 's.case_id', 'i.case_id')
-      .where('i.party_id', partyId).orderBy('i.occurred_at', 'desc').limit(5)
-      .select('i.*', 'm.name as agent_name', 's.external_case_id'),
-    db('crm_party_note as n').leftJoin('managers as m', 'm.id', 'n.created_by_manager_id')
-      .where('n.party_id', partyId).whereNull('n.deleted_at')
-      .orderBy([{ column: 'n.is_pinned', order: 'desc' }, { column: 'n.created_at', order: 'desc' }]).limit(3)
-      .select('n.note_id', 'n.note_text', 'n.is_pinned', 'n.created_at', 'm.name as author_name'),
-    db('crm_party_team_member as t').join('managers as m', 'm.id', 't.manager_id')
-      .where('t.party_id', partyId).whereNull('t.ended_at').select('t.team_member_id', 't.team_role', 't.manager_id', 'm.name as manager_name'),
+    db('crm_party_analysis_snapshot as snapshot').leftJoin('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
+      .where('snapshot.party_id', partyId).whereNull('snapshot.project_id').orderBy('snapshot.reference_date', 'desc').limit(60)
+      .select('snapshot.reference_date', 'snapshot.corporate_score', 'snapshot.score_components', 'snapshot.activity_status',
+        'snapshot.registered_device_count', 'snapshot.purchase_amount_lifetime', 'grade.grade_code', 'grade.grade_name'),
+    db('crm_party_tag as pt').join('crm_tag as tag', 'tag.tag_id', 'pt.tag_id').where('pt.party_id', partyId)
+      .orderBy('pt.tagged_at').select('tag.tag_id', 'tag.tag_code', 'tag.tag_name', 'tag.color_scheme', 'pt.tagged_at'),
+    db('crm_segment_membership as membership').join('crm_segment as segment', 'segment.segment_id', 'membership.segment_id')
+      .where('membership.party_id', partyId).whereNull('membership.unmatched_at').where('segment.status', 'ACTIVE')
+      .orderBy('membership.matched_at', 'desc').select('segment.segment_id', 'segment.segment_name', 'membership.matched_at'),
+    db('crm_transaction as txn').join('crm_transaction_party as tp', 'tp.transaction_id', 'txn.transaction_id')
+      .join('crm_project as project', 'project.project_id', 'txn.project_id')
+      .where({ 'tp.party_id': partyId, 'tp.party_role_code': 'BUYER' }).whereNotIn('txn.transaction_type_code', NOT_AN_ORDER)
+      .orderBy('txn.transaction_at', 'desc').limit(5)
+      .select('txn.transaction_id', 'txn.external_transaction_id', 'txn.transaction_at', 'txn.transaction_status', 'txn.transaction_type_code',
+        'txn.net_amount', 'txn.currency_code', 'txn.reporting_net_amount', 'project.project_code', 'project.project_name',
+        db.raw('EXISTS (SELECT 1 FROM crm_transaction refund WHERE refund.original_transaction_id = txn.transaction_id) AS refunded')),
+    db('crm_product_registration as registration')
+      .join('crm_product_instance as instance', 'instance.product_instance_id', 'registration.product_instance_id')
+      .join('crm_product_catalog as catalog', 'catalog.product_id', 'instance.product_id')
+      .join('crm_project as project', 'project.project_id', 'registration.project_id')
+      .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'catalog.product_class_id')
+      .where('registration.party_id', partyId).whereNull('registration.valid_to')
+      .orderBy('registration.valid_from', 'desc').limit(6)
+      .select('registration.product_registration_id', 'registration.valid_from', 'instance.product_instance_id',
+        'instance.external_product_instance_id', 'instance.serial_number', 'instance.imei', 'instance.status as instance_status',
+        'catalog.product_name', 'product_class.class_code', 'product_class.product_domain', 'project.project_code', 'project.project_name'),
+    db('crm_party_interaction as interaction').leftJoin('managers as manager', 'manager.id', 'interaction.manager_id')
+      .leftJoin('crm_service_case as service_case', 'service_case.case_id', 'interaction.case_id')
+      .where('interaction.party_id', partyId).orderBy('interaction.occurred_at', 'desc').limit(5)
+      .select('interaction.*', 'manager.name as agent_name', 'service_case.external_case_id'),
+    db('crm_party_note as note').leftJoin('managers as manager', 'manager.id', 'note.created_by_manager_id')
+      .where('note.party_id', partyId).whereNull('note.deleted_at')
+      .orderBy([{ column: 'note.is_pinned', order: 'desc' }, { column: 'note.created_at', order: 'desc' }]).limit(3)
+      .select('note.note_id', 'note.note_text', 'note.is_pinned', 'note.created_at', 'manager.name as author_name'),
+    db('crm_party_team_member as team_member').join('managers as manager', 'manager.id', 'team_member.manager_id')
+      .where('team_member.party_id', partyId).whereNull('team_member.ended_at')
+      .select('team_member.team_member_id', 'team_member.team_role', 'team_member.manager_id', 'manager.name as manager_name'),
     db('crm_party_agreement').where('party_id', partyId)
       .orderByRaw("CASE status WHEN 'ACTIVE' THEN 0 WHEN 'DRAFT' THEN 1 ELSE 2 END, start_date DESC").first(),
     isOrganization
-      ? db('crm_organization as o').leftJoin('crm_location as l', 'l.location_id', 'o.headquarters_location_id')
-        .where('o.party_id', partyId).first('o.*', 'l.location_name as headquarters_location_name', 'l.full_name as headquarters_full_name')
-      : db('crm_person as n').leftJoin('crm_location as l', 'l.location_id', 'n.home_location_id')
-        .where('n.party_id', partyId).first('n.*', 'l.location_name as home_location_name', 'l.full_name as home_full_name'),
+      ? db('crm_organization as organization').leftJoin('crm_location as place', 'place.location_pk', 'organization.location_pk')
+        .where('organization.party_id', partyId)
+        .first('organization.*', 'place.location_name', db.raw(locations.fullNameOf('organization.location_pk') + ' AS location_full_name'))
+      : db('crm_person as person').leftJoin('crm_location as place', 'place.location_pk', 'person.home_location_pk')
+        .leftJoin('crm_job_title as jt', 'jt.job_title_id', 'person.job_title_id')
+        .where('person.party_id', partyId).first('person.*', 'place.location_name as home_location_name',
+          db.raw(locations.fullNameOf('person.home_location_pk') + ' AS home_full_name'), 'jt.job_name as job_title_name'),
     isOrganization
       ? Promise.all([
         hierarchyOf(partyId),
         keyContacts(partyId),
-        db('crm_organization_industry as oi').join('crm_industry as i', 'i.industry_id', 'oi.industry_id')
+        db('crm_organization_industry as oi').join('crm_industry as industry', 'industry.industry_id', 'oi.industry_id')
           .where('oi.organization_party_id', partyId).whereNull('oi.valid_to')
-          .orderBy('oi.is_primary', 'desc').select('i.industry_id', 'i.industry_name', 'oi.is_primary'),
-        db('crm_organization_type_assignment as a').join('crm_organization_type as t', 't.organization_type_id', 'a.organization_type_id')
-          .where({ 'a.organization_party_id': partyId, 'a.status': 'ACTIVE' }).select('t.type_code', 't.type_name')
+          .orderBy('oi.is_primary', 'desc').select('industry.industry_id', 'industry.industry_name', 'oi.is_primary'),
+        db('crm_organization_type_assignment as assignment')
+          .join('crm_organization_type as organization_type', 'organization_type.organization_type_id', 'assignment.organization_type_id')
+          .where({ 'assignment.organization_party_id': partyId, 'assignment.status': 'ACTIVE' })
+          .select('organization_type.type_code', 'organization_type.type_name')
       ]).then(function (parts) { return { hierarchy: parts[0], key_contacts: parts[1], industries: parts[2], organization_types: parts[3] }; })
-      : db('crm_organization_person_relationship as r').join('crm_party as p', 'p.party_id', 'r.organization_party_id')
-        .where({ 'r.person_party_id': partyId, 'r.relationship_status': 'ACTIVE' })
-        .select('r.org_person_relationship_id', 'p.party_id', 'p.party_no', 'p.display_name')
+      : db('crm_organization_person_relationship as relationship').join('crm_party as employer', 'employer.party_id', 'relationship.organization_party_id')
+        .where({ 'relationship.person_party_id': partyId, 'relationship.relationship_status': 'ACTIVE' })
+        .select('relationship.org_person_relationship_id', 'employer.party_id', 'employer.party_id', 'employer.display_name')
         .then(function (employers) { return { employers: employers }; })
   ]);
 
@@ -464,7 +483,7 @@ async function overview(partyId) {
   if (!isOrganization) {
     (extra.employers || []).forEach(function (employer) {
       relatedPeople.push({ party_relationship_id: 'employer-' + employer.org_person_relationship_id, status: 'ACTIVE',
-        other_party_id: employer.party_id, other_party_no: employer.party_no, other_name: employer.display_name,
+        other_party_id: employer.party_id, other_name: employer.display_name,
         other_party_type: 'ORGANIZATION', type_code: 'EMPLOYER', relationship_name: 'Employer', side: 'EMPLOYMENT' });
     });
   }

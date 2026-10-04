@@ -32,7 +32,7 @@ const KINDS = ['SERVICE_CENTER', 'SALES_AGENCY', 'COLLECTION_POINT', 'PARTNER_SH
  * capabilities, and that is what decides which activities it can record.
  */
 export default function Sites() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const location = useLocation();
@@ -42,14 +42,14 @@ export default function Sites() {
   const [saving, setSaving] = useState(false);
 
   const openSite = new URLSearchParams(location.search).get('site');
-  const list = useList((params) => crm.sites.list(params), { page: 1, limit: 20, sort: 'location_name', dir: 'asc' });
+  const list = useList((params) => crm.sites.list(params), { page: 1, limit: 20, sort: 'service_center_name', dir: 'asc' });
 
   const save = async (values) => {
     setSaving(true);
     try {
-      if (editing) await crm.sites.update(editing.service_location_id, values);
+      if (editing) await crm.sites.update(editing.service_center_id, values);
       else await crm.sites.create(values);
-      toast({ title: t(editing ? 'Saved' : 'Created'), status: 'success', duration: 2500 });
+      toast({ title: editing ? translate('Saved') : translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -71,28 +71,28 @@ export default function Sites() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
-          { key: 'location_kind', label: 'Kind', value: list.params.location_kind, width: '12rem', options: choices(KINDS),
-            onChange: (value) => list.setFilter({ location_kind: value || undefined }) },
+        filters={filtersFor(translate, [
+          { key: 'service_center_kind', label: 'Kind', value: list.params.service_center_kind, width: '12rem', options: choices(KINDS),
+            onChange: (value) => list.setFilter({ service_center_kind: value || undefined }) },
           { key: 'status', label: 'Status', value: list.params.status, options: choices(['ACTIVE', 'SUSPENDED', 'CLOSED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={() => openForm(null)}>
-            {t('crm.sites.newSite')}
+            {translate('crm.sites.newSite')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'location_code', label: 'Code' },
-            { key: 'location_name', label: 'Service location', maxW: '16rem' },
-            { key: 'location_kind', label: 'Kind', sortable: false, render: (row) => word(t, row.location_kind) },
+            { key: 'service_center_code', label: 'Code' },
+            { key: 'service_center_name', label: 'Service location', maxW: '16rem' },
+            { key: 'service_center_kind', label: 'Kind', sortable: false, render: (row) => word(translate, row.service_center_kind) },
             { key: 'area_name', label: 'Area', sortable: false },
             { key: 'operator_name', label: 'Run by', sortable: false },
             { key: 'capabilities', label: 'Can do', sortable: false, maxW: '16rem',
-              render: (row) => String(row.capabilities || '').split(',').filter(Boolean).map((capability) => word(t, capability)).join(', ') || '-' },
+              render: (row) => String(row.capabilities || '').split(',').filter(Boolean).map((capability) => word(translate, capability)).join(', ') || '-' },
             { key: 'activity_30d', label: 'Activity (30 days)', sortable: false, isNumeric: true, render: (row) => number(row.activity_30d) },
             { key: 'source_project_code', label: 'From', sortable: false },
             { key: 'status', label: 'Status', sortable: false, render: (row) => <Status value={row.status} /> }
@@ -107,9 +107,9 @@ export default function Sites() {
           onSort={list.setSort}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.service_location_id || row.id}
-          onRowClick={(row) => history.push(PAGE + '?site=' + (row.service_location_id || row.id))}
-          actions={canWrite ? [{ key: 'edit', label: t('common.edit'), onClick: (row) => openForm(row) }] : []}
+          rowKey={(row) => row.service_center_id || row.id}
+          onRowClick={(row) => history.push(PAGE + '?site=' + (row.service_center_id || row.id))}
+          actions={canWrite ? [{ key: 'edit', label: translate('common.edit'), onClick: (row) => openForm(row) }] : []}
           actionsIconOnly={false}
           storageKey={PAGE}
         />
@@ -118,15 +118,15 @@ export default function Sites() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t(editing ? 'crm.sites.editSite' : 'crm.sites.newSite')}
+        title={translate(editing ? 'crm.sites.editSite' : 'crm.sites.newSite')}
         initial={editing ? Object.assign({}, editing, { opened_on: dateInput(editing.opened_on), closed_on: dateInput(editing.closed_on) })
-          : { location_kind: 'PARTNER_SHOP', status: 'ACTIVE' }}
+          : { service_center_kind: 'PARTNER_SHOP', status: 'ACTIVE' }}
         onSubmit={save}
         saving={saving}
         fields={[
-          { name: 'location_code', label: 'Code', required: true },
-          { name: 'location_name', label: 'Service location', required: true },
-          { name: 'location_kind', label: 'Kind', type: 'select', required: true, isClearable: false, options: choices(KINDS) },
+          { name: 'service_center_code', label: 'Code', required: true },
+          { name: 'service_center_name', label: 'Service location', required: true },
+          { name: 'service_center_kind', label: 'Kind', type: 'select', required: true, isClearable: false, options: choices(KINDS) },
           { name: 'status', label: 'Status', type: 'select', isClearable: false, options: choices(['ACTIVE', 'SUSPENDED', 'CLOSED']) },
           { name: 'address_line', label: 'Address', colSpan: 'full' },
           { name: 'landmark', label: 'Landmark', colSpan: 'full' },
@@ -143,7 +143,7 @@ export default function Sites() {
 }
 
 function SiteDetail({ id, onClose }) {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const meta = useCrmMeta();
@@ -163,8 +163,8 @@ function SiteDetail({ id, onClose }) {
 
   const add = async (values) => {
     try {
-      await crm.sites.addCapability(site.service_location_id, values);
-      toast({ title: t('Created'), status: 'success', duration: 2500 });
+      await crm.sites.addCapability(site.service_center_id, values);
+      toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       load();
       return true;
@@ -176,12 +176,12 @@ function SiteDetail({ id, onClose }) {
 
   const end = async (row) => {
     const agreed = await confirm({
-      tone: 'danger', title: t('crm.sites.endCapability'), body: t('crm.sites.endCapabilityExplained'),
-      detail: word(t, row.capability_code), confirmLabel: t('crm.sites.end')
+      tone: 'danger', title: translate('crm.sites.endCapability'), body: translate('crm.sites.endCapabilityExplained'),
+      detail: word(translate, row.capability_code), confirmLabel: translate('crm.sites.end')
     });
     if (!agreed) return;
     try {
-      await crm.sites.endCapability(site.service_location_id, row.capability_id);
+      await crm.sites.endCapability(site.service_center_id, row.capability_id);
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -198,13 +198,13 @@ function SiteDetail({ id, onClose }) {
     <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{site.location_name || t('crm.sites.site')}</ModalHeader>
+        <ModalHeader>{site.service_center_name || translate('crm.sites.site')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={5}>
             <Facts>
-              <Fact label="Code">{site.location_code}</Fact>
-              <Fact label="Kind">{site.location_kind ? word(t, site.location_kind) : null}</Fact>
+              <Fact label="Code">{site.service_center_code}</Fact>
+              <Fact label="Kind">{site.service_center_kind ? word(translate, site.service_center_kind) : null}</Fact>
               <Fact label="Status">{site.status ? <Status value={site.status} /> : null}</Fact>
               <Fact label="Area">{site.area_name}</Fact>
               <Fact label="Address">{site.address_line}</Fact>
@@ -214,9 +214,9 @@ function SiteDetail({ id, onClose }) {
             </Facts>
             <Box>
               <Box display="flex" justifyContent="space-between" mb={2}>
-                <Text fontSize="sm" fontWeight="600">{t('crm.sites.capabilities')}</Text>
-                {canWrite && site.service_location_id ? (
-                  <Button size="xs" variant="subtle" onClick={form.onOpen}>{t('crm.sites.addCapability')}</Button>
+                <Text fontSize="sm" fontWeight="600">{translate('crm.sites.capabilities')}</Text>
+                {canWrite && site.service_center_id ? (
+                  <Button size="xs" variant="subtle" onClick={form.onOpen}>{translate('crm.sites.addCapability')}</Button>
                 ) : null}
               </Box>
               <DataTable
@@ -224,26 +224,26 @@ function SiteDetail({ id, onClose }) {
                 rows={record.capabilities || []}
                 rowKey={(row) => row.capability_id}
                 columns={[
-                  { key: 'capability_code', label: 'Can do', render: (row) => word(t, row.capability_code) },
+                  { key: 'capability_code', label: 'Can do', render: (row) => word(translate, row.capability_code) },
                   { key: 'project_code', label: 'Project' },
-                  { key: 'crystal_section', label: 'Section', render: (row) => (row.crystal_section ? word(t, row.crystal_section) : '-') },
+                  { key: 'crystal_section', label: 'Section', render: (row) => (row.crystal_section ? word(translate, row.crystal_section) : '-') },
                   { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
                   { key: 'valid_to', label: 'Until', render: (row) => date(row.valid_to) },
                   { key: 'is_active', label: 'Status', render: (row) => <Status value={row.is_active ? 'ACTIVE' : 'ENDED'} /> }
                 ]}
-                actions={canWrite ? [{ key: 'end', label: t('crm.sites.end'), hidden: (row) => !row.is_active, onClick: end }] : []}
+                actions={canWrite ? [{ key: 'end', label: translate('crm.sites.end'), hidden: (row) => !row.is_active, onClick: end }] : []}
                 actionsIconOnly={false}
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.sites.programsHere')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.sites.programsHere')}</Text>
               <DataTable
                 hidePagination
                 rows={record.programs || []}
-                rowKey={(row) => row.activity_program_id + '-' + row.location_role}
+                rowKey={(row) => row.activity_program_id + '-' + row.service_center_role}
                 columns={[
                   { key: 'program_name', label: 'Program' },
-                  { key: 'location_role', label: 'Role', render: (row) => word(t, row.location_role) },
+                  { key: 'service_center_role', label: 'Role', render: (row) => word(translate, row.service_center_role) },
                   { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
                 ]}
               />
@@ -255,7 +255,7 @@ function SiteDetail({ id, onClose }) {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.sites.addCapability')}
+        title={translate('crm.sites.addCapability')}
         onSubmit={add}
         fields={[
           { name: 'capability_code', label: 'Can do', type: 'select', required: true, options: choices(capabilityCodes) },

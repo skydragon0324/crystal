@@ -9,7 +9,7 @@ const transactions = require('./transactions.service');
  *   A PROJECT SNAPSHOT per project the party has facts in (project_id set):
  *   what they spent there, how often, how recently, their service cases and
  *   complaints, what they hold, what points they earned, how often they
- *   visited a service location.
+ *   visited a service centre.
  *
  *   ONE DREAM-WIDE SNAPSHOT (project_id NULL), RECALCULATED FROM THE FACTS -
  *   never from the project rows. Spend and counts are summed across projects
@@ -115,20 +115,20 @@ async function load(connection, refDate) {
 
   const [purchases, cases, held, earned, visits] = await Promise.all([
     /* one row per counted transaction: amount, day, type - grouping happens in JS */
-    selectRows(`SELECT tp.party_id, t.project_id, t.transaction_at, t.transaction_type_code,
-              COALESCE(t.reporting_net_amount, 0) AS amount
-         FROM crm_transaction t
-         JOIN crm_transaction_party tp ON tp.transaction_id = t.transaction_id AND tp.party_role_code = 'BUYER'
-        WHERE t.transaction_status IN (${marks}) AND t.transaction_at < ${end}`, counted.concat([refDate])),
-    selectRows(`SELECT s.party_id, s.project_id, s.received_at, ct.case_type_code
-         FROM crm_service_case s JOIN crm_service_case_type ct ON ct.case_type_id = s.case_type_id
-        WHERE s.received_at < ${end} AND s.received_at >= ${start}`, [refDate, refDate]),
-    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS n FROM crm_product_registration
+    selectRows(`SELECT tp.party_id, sale.project_id, sale.transaction_at, sale.transaction_type_code,
+              COALESCE(sale.reporting_net_amount, 0) AS amount
+         FROM crm_transaction sale
+         JOIN crm_transaction_party tp ON tp.transaction_id = sale.transaction_id AND tp.party_role_code = 'BUYER'
+        WHERE sale.transaction_status IN (${marks}) AND sale.transaction_at < ${end}`, counted.concat([refDate])),
+    selectRows(`SELECT service_case.party_id, service_case.project_id, service_case.received_at, ct.case_type_code
+         FROM crm_service_case service_case JOIN crm_service_case_type ct ON ct.case_type_id = service_case.case_type_id
+        WHERE service_case.received_at < ${end} AND service_case.received_at >= ${start}`, [refDate, refDate]),
+    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS held_count FROM crm_product_registration
         WHERE valid_to IS NULL AND relationship_code IN ('OWNER', 'LICENSEE') GROUP BY 1, 2`, []),
-    selectRows(`SELECT a.party_id, e.project_id, COALESCE(SUM(e.points_delta), 0) AS n
-         FROM crm_point_event e JOIN crm_point_account a ON a.point_account_id = e.point_account_id
-        WHERE e.points_delta > 0 AND e.occurred_at < ${end} AND e.occurred_at >= ${start} GROUP BY 1, 2`, [refDate, refDate]),
-    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS n FROM crm_location_activity
+    selectRows(`SELECT account.party_id, point_event.project_id, COALESCE(SUM(point_event.points_delta), 0) AS points_earned
+         FROM crm_point_event point_event JOIN crm_point_account account ON account.point_account_id = point_event.point_account_id
+        WHERE point_event.points_delta > 0 AND point_event.occurred_at < ${end} AND point_event.occurred_at >= ${start} GROUP BY 1, 2`, [refDate, refDate]),
+    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS visit_count FROM crm_service_center_activity
         WHERE party_id IS NOT NULL AND status = 'COMPLETED' AND occurred_at < ${end} AND occurred_at >= ${start}
         GROUP BY 1, 2`, [refDate, refDate])
   ]);
@@ -163,13 +163,13 @@ function accumulate(data, ref) {
     callback(factsFor(partyId, null), projectId);
   };
 
-  data.purchases.forEach(function (t) {
-    const when = new Date(t.transaction_at);
+  data.purchases.forEach(function (purchaseRow) {
+    const when = new Date(purchaseRow.transaction_at);
     const recent = when >= yearAgo;
-    const purchase = NOT_A_PURCHASE.indexOf(t.transaction_type_code) === -1;
-    both(t.party_id, t.project_id, function (facts, projectId) {
-      facts.purchase_amount_lifetime += Number(t.amount);
-      if (recent) facts.purchase_amount_12m += Number(t.amount);
+    const purchase = NOT_A_PURCHASE.indexOf(purchaseRow.transaction_type_code) === -1;
+    both(purchaseRow.party_id, purchaseRow.project_id, function (facts, projectId) {
+      facts.purchase_amount_lifetime += Number(purchaseRow.amount);
+      if (recent) facts.purchase_amount_12m += Number(purchaseRow.amount);
       if (!purchase) return;
       facts.transaction_count_lifetime += 1;
       if (!facts.first_transaction_at || when < facts.first_transaction_at) facts.first_transaction_at = when;
@@ -190,14 +190,14 @@ function accumulate(data, ref) {
     });
   });
   data.held.forEach(function (heldRow) {
-    both(heldRow.party_id, heldRow.project_id, function (facts) { facts.registered_device_count += Number(heldRow.n); });
+    both(heldRow.party_id, heldRow.project_id, function (facts) { facts.registered_device_count += Number(heldRow.held_count); });
   });
   data.earned.forEach(function (earnedRow) {
-    both(earnedRow.party_id, earnedRow.project_id, function (facts) { facts.points_earned_12m += Number(earnedRow.n); });
+    both(earnedRow.party_id, earnedRow.project_id, function (facts) { facts.points_earned_12m += Number(earnedRow.points_earned); });
   });
   data.visits.forEach(function (visitRow) {
     both(visitRow.party_id, visitRow.project_id, function (facts, projectId) {
-      facts.location_visit_count_12m += Number(visitRow.n);
+      facts.location_visit_count_12m += Number(visitRow.visit_count);
       if (projectId) facts.projects[projectId] = true;
     });
   });
@@ -242,12 +242,12 @@ async function run(options) {
     connection('crm_corporate_grade').where('is_active', true).orderBy('rank_no', 'desc'),
     connection('crm_metric_definition').where('is_active', true),
     connection('crm_currency').where('is_reporting', true).first('currency_code'),
-    connection('crm_point_account').select('party_id').sum({ n: 'balance' }).groupBy('party_id'),
-    connection('crm_project_account as a').join('crm_project as j', 'j.project_id', 'a.project_id')
-      .whereNull('a.unlinked_at').whereNot('j.project_code', 'PLATFORM')
-      .select('a.party_id').countDistinct({ n: 'a.project_id' }).groupBy('a.party_id'),
+    connection('crm_point_account').select('party_id').sum({ balance_total: 'balance' }).groupBy('party_id'),
+    connection('crm_project_account as account').join('crm_project as project', 'project.project_id', 'account.project_id')
+      .whereNull('account.unlinked_at').whereNot('project.project_code', 'PLATFORM')
+      .select('account.party_id').countDistinct({ project_count: 'account.project_id' }).groupBy('account.party_id'),
     connection('crm_service_case').where('received_at', '<', connection.raw('?::date + 1', [refDate]))
-      .select('party_id').max({ d: 'received_at' }).groupBy('party_id'),
+      .select('party_id').max({ last_received_at: 'received_at' }).groupBy('party_id'),
     connection('crm_project').where('project_code', 'PLATFORM').first('project_id')
   ]);
 
@@ -262,9 +262,9 @@ async function run(options) {
     list.forEach(function (row) { out[row.party_id] = row[field]; });
     return out;
   };
-  const pointsOf = byParty(balances, 'n');
-  const projectsOf = byParty(accounts, 'n');
-  const serviceOf = byParty(lastService, 'd');
+  const pointsOf = byParty(balances, 'balance_total');
+  const projectsOf = byParty(accounts, 'project_count');
+  const serviceOf = byParty(lastService, 'last_received_at');
   const gradeFor = function (value) {
     return grades.filter(function (grade) {
       return (grade.min_score === null || value >= Number(grade.min_score)) && (grade.max_score === null || value < Number(grade.max_score));

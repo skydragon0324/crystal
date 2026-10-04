@@ -16,7 +16,7 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime, number } from '../../utils/format';
-import { Fact, Facts, Status, choices, optionsFrom, rowsOf, useCrmMeta, filtersFor, translateOptions } from './shared';
+import { Fact, Facts, Status, choices, optionsFrom, rowsOf, useCrmMeta, filtersFor, translateOptions, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/segments';
 
@@ -52,7 +52,7 @@ const PARAM_WORDS = {
  * can always be traced back to the rule that chose them.
  */
 export default function Segments() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const location = useLocation();
@@ -69,7 +69,7 @@ export default function Segments() {
     setSaving(true);
     try {
       const { data } = await crm.segments.create(Object.assign({}, values, { rule_expression: rule }));
-      toast({ title: t('Created'), status: 'success', duration: 2500 });
+      toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       if (data && data.segment_id) history.push(PAGE + '?segment=' + data.segment_id);
@@ -87,14 +87,14 @@ export default function Segments() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status, options: choices(['DRAFT', 'ACTIVE', 'PAUSED', 'ARCHIVED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />}
             onClick={() => { setRule({ all: [] }); form.onOpen(); }}>
-            {t('crm.segments.newSegment')}
+            {translate('crm.segments.newSegment')}
           </Button>
         ) : null}
       />
@@ -125,7 +125,7 @@ export default function Segments() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.segments.newSegment')}
+        title={translate('crm.segments.newSegment')}
         initial={{ calculation_frequency: 'ON_DEMAND' }}
         onSubmit={create}
         saving={saving}
@@ -156,7 +156,7 @@ export default function Segments() {
  * can still build one that matches nobody, which is what the preview is for.
  */
 export function RuleEditor({ value, onChange }) {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const [fields, setFields] = useState([]);
   const [count, setCount] = useState(null);
@@ -208,11 +208,11 @@ export function RuleEditor({ value, onChange }) {
   return (
     <Stack spacing={2}>
       <HStack>
-        <Text fontSize="sm">{t('crm.segments.customersMatching')}</Text>
+        <Text fontSize="sm">{translate('crm.segments.customersMatching')}</Text>
         <Box w="10rem">
           <SelectField
             size="sm" isClearable={false} value={group}
-            options={translateOptions(t, [{ value: 'all', label: 'All of these' }, { value: 'any', label: 'Any of these' }])}
+            options={translateOptions(translate, [{ value: 'all', label: 'All of these' }, { value: 'any', label: 'Any of these' }])}
             onChange={(picked) => write(conditions, picked || 'all')}
           />
         </Box>
@@ -223,7 +223,7 @@ export function RuleEditor({ value, onChange }) {
           <Box w="15rem">
             <SelectField
               size="sm" isClearable={false} value={condition.field}
-              options={translateOptions(t, fields.map((fieldInfo) => ({ value: fieldInfo.field, label: FIELD_WORDS[fieldInfo.field] || fieldInfo.field })))}
+              options={translateOptions(translate, fields.map((fieldInfo) => ({ value: fieldInfo.field, label: FIELD_WORDS[fieldInfo.field] || fieldInfo.field })))}
               onChange={(picked) => write(conditions.map((existingCondition, position) => (position === index ? { field: picked } : existingCondition)))}
             />
           </Box>
@@ -238,16 +238,16 @@ export function RuleEditor({ value, onChange }) {
             return (
               <Box key={param} w={options ? '12rem' : '7rem'}>
                 {options ? (
-                  <SelectField size="sm" value={condition[param] || null} options={translateOptions(t, options)}
-                    placeholder={t(PARAM_WORDS[param] || param)} onChange={(picked) => set(picked)} />
+                  <SelectField size="sm" value={condition[param] || null} options={translateOptions(translate, options)}
+                    placeholder={translate(PARAM_WORDS[param] || param)} onChange={(picked) => set(picked)} />
                 ) : (
                   <Input size="sm" value={condition[param] === undefined ? '' : condition[param]}
-                    placeholder={t(PARAM_WORDS[param] || param)} onChange={(event) => set(event.target.value)} />
+                    placeholder={translate(PARAM_WORDS[param] || param)} onChange={(event) => set(event.target.value)} />
                 )}
               </Box>
             );
           })}
-          <IconButton size="sm" variant="ghost" icon={<DeleteIcon />} aria-label={t('common.remove')}
+          <IconButton size="sm" variant="ghost" icon={<DeleteIcon />} aria-label={translate('common.remove')}
             onClick={() => write(conditions.filter((existingCondition, position) => position !== index))} />
         </HStack>
       ))}
@@ -255,11 +255,11 @@ export function RuleEditor({ value, onChange }) {
       <HStack>
         <Button size="xs" variant="subtle" leftIcon={<AddIcon w="0.5rem" h="0.5rem" />}
           onClick={() => write(conditions.concat([{ field: 'owns_class', min: 1 }]))}>
-          {t('crm.segments.addCondition')}
+          {translate('crm.segments.addCondition')}
         </Button>
-        <Button size="xs" variant="ghost" isDisabled={!conditions.length} onClick={preview}>{t('crm.segments.preview')}</Button>
+        <Button size="xs" variant="ghost" isDisabled={!conditions.length} onClick={preview}>{translate('crm.segments.preview')}</Button>
         {count === null ? null : (
-          <Text fontSize="xs">{typeof count === 'number' ? t('crm.segments.wouldMatch', { n: number(count) }) : count}</Text>
+          <Text fontSize="xs">{typeof count === 'number' ? translate('crm.segments.wouldMatch', { n: number(count) }) : count}</Text>
         )}
       </HStack>
     </Stack>
@@ -267,7 +267,7 @@ export function RuleEditor({ value, onChange }) {
 }
 
 function SegmentDetail({ id, onClose }) {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const { canWrite } = usePermission(PAGE);
   const [detail, setDetail] = useState(null);
@@ -296,7 +296,7 @@ function SegmentDetail({ id, onClose }) {
     setBusy(true);
     try {
       const result = await work();
-      toast({ title: t(done || 'Saved'), status: 'success', duration: 2500 });
+      toast({ title: done ? translate(done) : translate('Saved'), status: 'success', duration: 2500 });
       load();
       members.reload();
       return result;
@@ -314,7 +314,7 @@ function SegmentDetail({ id, onClose }) {
     <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{segment.segment_name || t('crm.segments.segment')}</ModalHeader>
+        <ModalHeader>{segment.segment_name || translate('crm.segments.segment')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <Stack spacing={5}>
@@ -327,7 +327,7 @@ function SegmentDetail({ id, onClose }) {
             {segment.segment_description ? <Text fontSize="sm">{segment.segment_description}</Text> : null}
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.segments.currentRule')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.segments.currentRule')}</Text>
               {editing ? <RuleEditor value={rule} onChange={setRule} /> : (
                 <Box as="pre" fontSize="xs" whiteSpace="pre-wrap" p={3} borderWidth="1px" borderRadius="md">
                   {current ? JSON.stringify(current.rule_expression, null, 2) : '-'}
@@ -337,14 +337,14 @@ function SegmentDetail({ id, onClose }) {
 
             <Box>
               <Box display="flex" justifyContent="space-between" mb={2}>
-                <Text fontSize="sm" fontWeight="600">{t(past ? 'crm.segments.pastMembers' : 'crm.segments.members')}</Text>
+                <Text fontSize="sm" fontWeight="600">{translate(past ? 'crm.segments.pastMembers' : 'crm.segments.members')}</Text>
                 <Button size="xs" variant="ghost" onClick={() => setPast(!past)}>
-                  {t(past ? 'crm.segments.showCurrent' : 'crm.segments.showPast')}
+                  {translate(past ? 'crm.segments.showCurrent' : 'crm.segments.showPast')}
                 </Button>
               </Box>
               <DataTable
                 columns={[
-                  { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+                  { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
                   { key: 'matched_at', label: 'Joined', render: (row) => dateTime(row.matched_at) },
                   { key: 'unmatched_at', label: 'Left', render: (row) => dateTime(row.unmatched_at) }
                 ]}
@@ -359,7 +359,7 @@ function SegmentDetail({ id, onClose }) {
             </Box>
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.segments.versions')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.segments.versions')}</Text>
               <DataTable
                 hidePagination
                 rows={versions}
@@ -379,25 +379,25 @@ function SegmentDetail({ id, onClose }) {
             <HStack spacing={2}>
               {editing ? (
                 <>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>{translate('common.cancel')}</Button>
                   <Button size="sm" variant="brand" isLoading={busy}
                     onClick={() => act(() => crm.segments.newVersion(segment.segment_id, rule)).then((succeeded) => { if (succeeded) setEditing(false); })}>
-                    {t('crm.segments.saveAsNewVersion')}
+                    {translate('crm.segments.saveAsNewVersion')}
                   </Button>
                 </>
               ) : (
                 <>
                   <Button size="sm" variant="ghost"
                     onClick={() => act(() => crm.segments.update(segment.segment_id, { status: segment.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED' }))}>
-                    {t(segment.status === 'ARCHIVED' ? 'crm.segments.unarchive' : 'crm.segments.archive')}
+                    {translate(segment.status === 'ARCHIVED' ? 'crm.segments.unarchive' : 'crm.segments.archive')}
                   </Button>
                   <Button size="sm" variant="subtle"
                     onClick={() => { setRule(current ? current.rule_expression : { all: [] }); setEditing(true); }}>
-                    {t('crm.segments.changeRule')}
+                    {translate('crm.segments.changeRule')}
                   </Button>
                   <Button size="sm" variant="brand" isLoading={busy} isDisabled={segment.status === 'ARCHIVED'}
                     onClick={() => act(() => crm.segments.evaluate(segment.segment_id), 'crm.segments.evaluated')}>
-                    {t('crm.segments.evaluateNow')}
+                    {translate('crm.segments.evaluateNow')}
                   </Button>
                 </>
               )}

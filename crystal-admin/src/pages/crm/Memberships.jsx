@@ -12,7 +12,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, number } from '../../utils/format';
-import { Status, amount, choices, filtersFor, optionsFrom, rowsOf, useCrmMeta } from './shared';
+import { Status, amount, choices, filtersFor, optionsFrom, rowsOf, useCrmMeta, partyIdLabel } from './shared';
 import { Panel, ProjectTags } from './ui';
 
 export const PAGE = '/admin/crm/memberships';
@@ -30,7 +30,7 @@ export const PAGE = '/admin/crm/memberships';
  * here; the change is appended to the tier history with the reason given.
  */
 export default function Memberships() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const meta = useCrmMeta();
@@ -53,7 +53,7 @@ export default function Memberships() {
   const save = async (values) => {
     try {
       await crm.memberships.setTier(changing.membership_id, values.tier_id, values.reason);
-      toast({ title: t('Saved'), status: 'success', duration: 2500 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2500 });
       setChanging(null);
       list.reload();
       loadLadders();
@@ -72,12 +72,12 @@ export default function Memberships() {
             const rows = byProject[code];
             const total = rows.reduce((sum, ladderRow) => sum + ladderRow.members, 0) || 1;
             return (
-              <Panel key={code + position} title={<Flex align="center"><ProjectTags codes={[code]} /><Text ml={2}>{t('crm.memberships.ladder')}</Text></Flex>}>
+              <Panel key={code + position} title={<Flex align="center"><ProjectTags codes={[code]} /><Text ml={2}>{translate('crm.memberships.ladder')}</Text></Flex>}>
                 <Stack spacing={2.5} px={4} py={3}>
                   {rows.slice().reverse().map((ladderRow, index) => (
                     <Box key={String(ladderRow.project_tier_id) + index}>
                       <Flex justify="space-between" fontSize="sm">
-                        <Text>{t(ladderRow.tier_name)}</Text>
+                        <Text>{translate(ladderRow.tier_name)}</Text>
                         <Text fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>{number(ladderRow.members)}</Text>
                       </Flex>
                       <Progress value={(ladderRow.members / total) * 100} size="xs" borderRadius="full" colorScheme="brand" mt="2px" />
@@ -89,14 +89,14 @@ export default function Memberships() {
           })}
         </SimpleGrid>
       ) : (
-        <Card><Text fontSize="sm" color={surface.muted}>{t('crm.memberships.noTiersYet')}</Text></Card>
+        <Card><Text fontSize="sm" color={surface.muted}>{translate('crm.memberships.noTiersYet')}</Text></Card>
       )}
 
       <Card bodyProps={false}>
         <Toolbar
           search={list.params.q}
           onSearch={(searchText) => list.setFilter({ q: searchText })}
-          filters={filtersFor(t, [
+          filters={filtersFor(translate, [
             { key: 'project_id', label: 'Project', value: list.params.project_id,
               options: optionsFrom(meta.projects, 'project_id', 'project_name'),
               onChange: (value) => list.setFilter({ project_id: value || undefined, current_tier_id: undefined }) },
@@ -112,10 +112,10 @@ export default function Memberships() {
         <Box px="0.5rem" pb="0.5rem">
           <DataTable
             columns={[
-              { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+              { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
               { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'external_member_id', label: 'Member number' },
-              { key: 'tier_name', label: 'Project tier', render: (row) => t(row.tier_name || '-') },
+              { key: 'tier_name', label: 'Project tier', render: (row) => translate(row.tier_name || '-') },
               { key: 'tier_value', label: 'Tier value', isNumeric: true, render: (row) => amount(row.tier_value, 2) },
               { key: 'available_reward_points', label: 'Reward points', isNumeric: true, render: (row) => amount(row.available_reward_points, 2) },
               { key: 'change_cnt', label: 'Tier changes', isNumeric: true, render: (row) => number(row.change_cnt) },
@@ -135,8 +135,8 @@ export default function Memberships() {
             rowKey={(row) => row.membership_id || row.id}
             renderExpanded={(row) => <TierHistory membershipId={row.membership_id} />}
             actions={[
-              { key: 'open', label: t('crm.memberships.openCustomer'), onClick: (row) => history.push('/admin/crm/customers/' + row.party_id) }
-            ].concat(canWrite ? [{ key: 'tier', label: t('crm.memberships.changeTier'), onClick: (row) => setChanging(row) }] : [])}
+              { key: 'open', label: translate('crm.memberships.openCustomer'), onClick: (row) => history.push('/admin/crm/customers/' + row.party_id) }
+            ].concat(canWrite ? [{ key: 'tier', label: translate('crm.memberships.changeTier'), onClick: (row) => setChanging(row) }] : [])}
             actionsIconOnly={false}
             storageKey={PAGE}
           />
@@ -146,7 +146,7 @@ export default function Memberships() {
       <FormModal
         isOpen={!!changing}
         onClose={() => setChanging(null)}
-        title={t('crm.memberships.changeTier')}
+        title={translate('crm.memberships.changeTier')}
         initial={changing ? { tier_id: changing.current_tier_id } : {}}
         onSubmit={save}
         fields={[
@@ -161,7 +161,7 @@ export default function Memberships() {
 }
 
 function TierHistory({ membershipId }) {
-  const t = useT();
+  const translate = useT();
   const [rows, setRows] = useState([]);
   useEffect(() => {
     if (!membershipId) return;
@@ -174,8 +174,8 @@ function TierHistory({ membershipId }) {
       rowKey={(row) => row.membership_tier_history_id}
       columns={[
         { key: 'changed_at', label: 'When', render: (row) => date(row.changed_at) },
-        { key: 'old_tier_name', label: 'From', render: (row) => t(row.old_tier_name || '-') },
-        { key: 'new_tier_name', label: 'To', render: (row) => t(row.new_tier_name || '-') },
+        { key: 'old_tier_name', label: 'From', render: (row) => translate(row.old_tier_name || '-') },
+        { key: 'new_tier_name', label: 'To', render: (row) => translate(row.new_tier_name || '-') },
         { key: 'change_reason', label: 'Reason' }
       ]}
     />

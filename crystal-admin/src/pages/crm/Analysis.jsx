@@ -17,7 +17,7 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { choices, filtersFor, optionsFrom, translateOptions, useCrmMeta } from './shared';
+import { choices, filtersFor, optionsFrom, translateOptions, useCrmMeta, partyIdLabel } from './shared';
 import { Amount, Dot, GradeBadge, InfoList, Kpi, KpiStrip, Panel, ProjectTags, ScoreBreakdown, ScoreMeter } from './ui';
 
 export const PAGE = '/admin/crm/analysis';
@@ -35,7 +35,7 @@ const GRADE_FILL = { AAA: '#805ad5', AA: '#3182ce', A: '#319795', B: '#dd6b20', 
  * comes from, every snapshot, every metric value, and how the score is made.
  */
 export default function Analysis() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const { canWrite } = usePermission(PAGE);
@@ -53,13 +53,13 @@ export default function Analysis() {
 
   const runNow = async () => {
     const agreed = await confirm({
-      tone: 'info', title: t('crm.analysis.runNow'), body: t('crm.analysis.runExplained'), confirmLabel: t('crm.analysis.run')
+      tone: 'info', title: translate('crm.analysis.runNow'), body: translate('crm.analysis.runExplained'), confirmLabel: translate('crm.analysis.run')
     });
     if (!agreed) return;
     setBusy(true);
     try {
       const { data } = await crm.analysis.run();
-      toast({ title: t('crm.analysis.finished', { n: number((data || {}).snapshots) }), status: 'success', duration: 3000 });
+      toast({ title: translate('crm.analysis.finished', { n: number((data || {}).snapshots) }), status: 'success', duration: 3000 });
       setRefDate(null);
       load();
     } catch (error) {
@@ -77,9 +77,9 @@ export default function Analysis() {
       <Card bodyProps={false}>
         <Flex px={5} py={4} align="center" justify="space-between" wrap="wrap">
           <Box maxW="46rem" mr={4} mb={{ base: 3, md: 0 }}>
-            <Text fontSize="sm">{t('crm.analysis.intro')}</Text>
+            <Text fontSize="sm">{translate('crm.analysis.intro')}</Text>
             {summaryData.reference_date ? (
-              <Text fontSize="xs" mt={1}>{t('crm.analysis.lastRun', { date: date(summaryData.reference_date), when: dateTime(totals.calculated_at), model: totals.model_version || '' })}</Text>
+              <Text fontSize="xs" mt={1}>{translate('crm.analysis.lastRun', { date: date(summaryData.reference_date), when: dateTime(totals.calculated_at), model: totals.model_version || '' })}</Text>
             ) : null}
           </Box>
           <HStack spacing={2}>
@@ -88,11 +88,11 @@ export default function Analysis() {
                 size="sm" isClearable={false} isSearchable={false}
                 value={refDate || summaryData.reference_date || null}
                 options={(summaryData.dates || []).map((referenceDate) => ({ value: referenceDate, label: referenceDate }))}
-                placeholder={t('crm.analysis.referenceDate')}
+                placeholder={translate('crm.analysis.referenceDate')}
                 onChange={(value) => setRefDate(value || null)}
               />
             </Box>
-            {canWrite ? <Button size="sm" variant="brand" isLoading={busy} onClick={runNow}>{t('crm.analysis.runNow')}</Button> : null}
+            {canWrite ? <Button size="sm" variant="brand" isLoading={busy} onClick={runNow}>{translate('crm.analysis.runNow')}</Button> : null}
           </HStack>
         </Flex>
       </Card>
@@ -100,10 +100,10 @@ export default function Analysis() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{t('crm.analysis.overview')}</Tab>
-            <Tab fontSize="sm">{t('crm.analysis.snapshots')}</Tab>
-            <Tab fontSize="sm">{t('crm.analysis.metricValues')}</Tab>
-            <Tab fontSize="sm">{t('crm.analysis.howTheScoreWorks')}</Tab>
+            <Tab fontSize="sm">{translate('crm.analysis.overview')}</Tab>
+            <Tab fontSize="sm">{translate('crm.analysis.snapshots')}</Tab>
+            <Tab fontSize="sm">{translate('crm.analysis.metricValues')}</Tab>
+            <Tab fontSize="sm">{translate('crm.analysis.howTheScoreWorks')}</Tab>
           </TabList>
           <TabPanels>
             <TabPanel><SummaryTab summaryData={summaryData} /></TabPanel>
@@ -118,7 +118,7 @@ export default function Analysis() {
 }
 
 function SummaryTab({ summaryData }) {
-  const t = useT();
+  const translate = useT();
   const { colorMode } = useColorMode();
   const viz = vizPalette(colorMode);
   const totals = summaryData.totals || {};
@@ -126,7 +126,7 @@ function SummaryTab({ summaryData }) {
   const activity = summaryData.activity || [];
   const projects = summaryData.projects || [];
 
-  if (!summaryData.reference_date) return <Text fontSize="sm">{t('crm.analysis.notRunYet')}</Text>;
+  if (!summaryData.reference_date) return <Text fontSize="sm">{translate('crm.analysis.notRunYet')}</Text>;
 
   return (
     <Stack spacing={4}>
@@ -142,7 +142,7 @@ function SummaryTab({ summaryData }) {
       </KpiStrip>
 
       <Grid templateColumns={{ base: '1fr', xl: '3fr 2fr' }} gridGap={4}>
-        <Panel title={t('crm.analysis.gradeDistribution')}>
+        <Panel title={translate('crm.analysis.gradeDistribution')}>
           <Box h="15rem" px={2} py={3}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={grades} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
@@ -150,7 +150,7 @@ function SummaryTab({ summaryData }) {
                 <XAxis dataKey="grade_code" tick={{ fontSize: 11, fill: viz.textSecondary }} tickLine={false} axisLine={{ stroke: viz.grid }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: viz.textSecondary }} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{ fill: viz.grid, fillOpacity: 0.4 }} {...vizTooltip(viz)} />
-                <Bar dataKey="parties" name={t('crm.analysis.customers')} radius={[4, 4, 0, 0]} maxBarSize={48}>
+                <Bar dataKey="parties" name={translate('crm.analysis.customers')} radius={[4, 4, 0, 0]} maxBarSize={48}>
                   {grades.map((grade) => <Cell key={grade.grade_code} fill={GRADE_FILL[grade.grade_code] || viz.series1} />)}
                 </Bar>
               </BarChart>
@@ -161,7 +161,7 @@ function SummaryTab({ summaryData }) {
             rows={grades}
             rowKey={(row) => row.corporate_grade_id}
             columns={[
-              { key: 'grade_code', label: 'Grade', render: (row) => <HStack><GradeBadge code={row.grade_code} /><Text fontSize="sm">{t(row.grade_name)}</Text></HStack> },
+              { key: 'grade_code', label: 'Grade', render: (row) => <HStack><GradeBadge code={row.grade_code} /><Text fontSize="sm">{translate(row.grade_name)}</Text></HStack> },
               { key: 'min_score', label: 'Score band', render: (row) => number(row.min_score) + ' - ' + (row.max_score === null ? '100' : number(row.max_score)) },
               { key: 'parties', label: 'Customers', isNumeric: true, render: (row) => number(row.parties) },
               { key: 'spend_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.spend_12m} /> }
@@ -169,7 +169,7 @@ function SummaryTab({ summaryData }) {
           />
         </Panel>
         <Stack spacing={4}>
-          <Panel title={t('crm.analysis.activity')}>
+          <Panel title={translate('crm.analysis.activity')}>
             <Stack spacing={2.5} px={4} py={3}>
               {activity.map((activityRow) => (
                 <Box key={activityRow.activity_status}>
@@ -182,7 +182,7 @@ function SummaryTab({ summaryData }) {
               ))}
             </Stack>
           </Panel>
-          <Panel title={t('crm.analysis.spendByProject')}>
+          <Panel title={translate('crm.analysis.spendByProject')}>
             <DataTable
               hidePagination
               rows={projects}
@@ -202,7 +202,7 @@ function SummaryTab({ summaryData }) {
 }
 
 function SnapshotsTab({ refDate, model }) {
-  const t = useT();
+  const translate = useT();
   const history = useHistory();
   const meta = useCrmMeta();
   const [scope, setScope] = useState('dream');
@@ -222,7 +222,7 @@ function SnapshotsTab({ refDate, model }) {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'scope', label: 'Scope', value: scope,
             options: [{ value: 'dream', label: 'Dream-wide' }, { value: 'project', label: 'Per project' }],
             onChange: (value) => { setScope(value || 'dream'); list.setFilter({ scope: value || 'dream', sort: value === 'project' ? 'purchase_amount_12m' : 'corporate_score' }); } },
@@ -240,7 +240,7 @@ function SnapshotsTab({ refDate, model }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', sortable: false, render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', sortable: false, render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             dream ? { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => <GradeBadge code={row.grade_code} /> }
               : { key: 'project_code', label: 'Project', sortable: false, render: (row) => <ProjectTags codes={[row.project_code]} /> },
             dream ? { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> } : null,
@@ -266,7 +266,7 @@ function SnapshotsTab({ refDate, model }) {
           rowKey={(row) => row.analysis_snapshot_id || row.id}
           renderExpanded={dream ? (row) => <Box maxW="28rem"><ScoreBreakdown components={row.score_components} model={model} /></Box> : undefined}
           onRowDoubleClick={(row) => history.push('/admin/crm/customers/' + row.party_id)}
-          rowHint={t('crm.analysis.openCustomerHint')}
+          rowHint={translate('crm.analysis.openCustomerHint')}
           storageKey={PAGE + '/snapshots'}
         />
       </Box>
@@ -275,7 +275,7 @@ function SnapshotsTab({ refDate, model }) {
 }
 
 function MetricsTab({ refDate }) {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const definitions = meta.metric_definitions || [];
   const [metric, setMetric] = useState(null);
@@ -289,7 +289,7 @@ function MetricsTab({ refDate }) {
   }, [chosen.metric_definition_id, refDate]);
 
   const show = (row) => {
-    if (row.value_type === 'BOOLEAN') return row.boolean_value ? t('common.yes') : '-';
+    if (row.value_type === 'BOOLEAN') return row.boolean_value ? translate('common.yes') : '-';
     if (row.value_type === 'DATE') return date(row.date_value);
     if (row.value_type === 'TEXT') return row.text_value;
     return number(row.numeric_value, row.unit_code === 'SCORE' ? 4 : 0);
@@ -302,16 +302,16 @@ function MetricsTab({ refDate }) {
           <SelectField
             size="sm" isClearable={false}
             value={chosen.metric_definition_id || null}
-            options={translateOptions(t, definitions.map((definition) => ({ value: definition.metric_definition_id, label: definition.metric_name })))}
+            options={translateOptions(translate, definitions.map((definition) => ({ value: definition.metric_definition_id, label: definition.metric_name })))}
             onChange={(value) => setMetric(value)}
           />
         </Box>
-        {chosen.description ? <Text fontSize="xs" flex="1" minW="16rem">{t(chosen.description)}</Text> : null}
+        {chosen.description ? <Text fontSize="xs" flex="1" minW="16rem">{translate(chosen.description)}</Text> : null}
       </Flex>
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'numeric_value', label: 'Value', isNumeric: true, render: show },
             { key: 'unit_code', label: 'Unit', render: (row) => row.unit_code || '-' },
             { key: 'reference_date', label: 'Reference date', render: (row) => date(row.reference_date) },
@@ -335,7 +335,7 @@ function MetricsTab({ refDate }) {
 }
 
 function ModelTab({ model, grades }) {
-  const t = useT();
+  const translate = useT();
   const surface = useSurface();
   const parts = (model && model.parts) || {};
   const rows = [
@@ -344,25 +344,25 @@ function ModelTab({ model, grades }) {
   ];
   return (
     <Grid templateColumns={{ base: '1fr', xl: '3fr 2fr' }} gridGap={4}>
-      <Panel title={t('crm.analysis.theSixParts', { model: (model && model.version) || '' })}>
+      <Panel title={translate('crm.analysis.theSixParts', { model: (model && model.version) || '' })}>
         <Stack spacing={3} p={4}>
-          <Text fontSize="sm" color={surface.muted}>{t('crm.analysis.modelIntro')}</Text>
+          <Text fontSize="sm" color={surface.muted}>{translate('crm.analysis.modelIntro')}</Text>
           {rows.map((part) => (
             <Flex key={part[0]} align="flex-start">
               <Box w="3rem" flexShrink={0} fontWeight="700" fontSize="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {parts[part[0]] ? parts[part[0]].weight : '-'}
               </Box>
-              <Text fontSize="sm">{t(part[1])}</Text>
+              <Text fontSize="sm">{translate(part[1])}</Text>
             </Flex>
           ))}
         </Stack>
       </Panel>
-      <Panel title={t('crm.analysis.gradeBands')}>
+      <Panel title={translate('crm.analysis.gradeBands')}>
         <InfoList items={grades.map((grade) => ({
-          label: grade.grade_code + '  ' + t(grade.grade_name),
+          label: grade.grade_code + '  ' + translate(grade.grade_name),
           value: number(grade.min_score) + ' - ' + (grade.max_score === null ? '100' : number(grade.max_score))
         }))} />
-        <Text fontSize="xs" color={surface.muted} px={4} py={3}>{t('crm.analysis.bandsAreBasicData')}</Text>
+        <Text fontSize="xs" color={surface.muted} px={4} py={3}>{translate('crm.analysis.bandsAreBasicData')}</Text>
       </Panel>
     </Grid>
   );

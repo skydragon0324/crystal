@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
+const { searchId } = require('./partyId');
 
 /**
  * MEMBERSHIPS AND PROJECT TIERS - design section 3.6 / 9.
@@ -21,18 +22,18 @@ const PAGE = '/admin/crm/memberships';
 const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
 
 function query(filters) {
-  const qb = db('crm_membership as m')
-    .join('crm_party as p', 'p.party_id', 'm.party_id')
-    .join('crm_project as j', 'j.project_id', 'm.project_id')
-    .leftJoin('crm_project_tier as t', 't.project_tier_id', 'm.current_tier_id');
-  if (filters.project_id) qb.where('m.project_id', filters.project_id);
-  if (filters.current_tier_id) qb.where('m.current_tier_id', filters.current_tier_id);
-  if (filters.membership_status) qb.where('m.membership_status', filters.membership_status);
-  if (filters.party_id) qb.where('m.party_id', filters.party_id);
+  const qb = db('crm_membership as membership')
+    .join('crm_party as party', 'party.party_id', 'membership.party_id')
+    .join('crm_project as project', 'project.project_id', 'membership.project_id')
+    .leftJoin('crm_project_tier as tier', 'tier.project_tier_id', 'membership.current_tier_id');
+  if (filters.project_id) qb.where('membership.project_id', filters.project_id);
+  if (filters.current_tier_id) qb.where('membership.current_tier_id', filters.current_tier_id);
+  if (filters.membership_status) qb.where('membership.membership_status', filters.membership_status);
+  if (filters.party_id) qb.where('membership.party_id', filters.party_id);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('p.display_name', 'ilike', like).orWhere('p.party_no', 'ilike', like).orWhere('m.external_member_id', 'ilike', like);
+      this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)).orWhere('membership.external_member_id', 'ilike', like);
     });
   }
   return qb;
@@ -40,12 +41,12 @@ function query(filters) {
 
 async function search(filters, paging) {
   const count = await query(filters).count({ c: '*' }).first();
-  const sort = { tier_value: 'm.tier_value', joined_at: 'm.joined_at', available_reward_points: 'm.available_reward_points' }[paging.sort]
-    || 'm.membership_id';
+  const sort = { tier_value: 'membership.tier_value', joined_at: 'membership.joined_at', available_reward_points: 'membership.available_reward_points' }[paging.sort]
+    || 'membership.membership_id';
   const rows = await query(filters)
-    .select('m.*', 'p.party_no', 'p.display_name as party_name', 'j.project_code', 'j.project_name',
-      't.tier_code', 't.tier_name', 't.rank_no as tier_rank',
-      db.raw('(SELECT COUNT(*) FROM crm_membership_tier_history h WHERE h.membership_id = m.membership_id)::int AS change_cnt'))
+    .select('membership.*', 'party.party_id', 'party.display_name as party_name', 'project.project_code', 'project.project_name',
+      'tier.tier_code', 'tier.tier_name', 'tier.rank_no as tier_rank',
+      db.raw('(SELECT COUNT(*) FROM crm_membership_tier_history tier_history WHERE tier_history.membership_id = membership.membership_id)::int AS change_cnt'))
     .orderByRaw(sort + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')
     .limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.c) };
@@ -54,22 +55,22 @@ async function search(filters, paging) {
 /** Members per tier, per project - the shape of each project's own ladder. */
 function distribution() {
   return db.raw(`
-    SELECT j.project_id, j.project_code, t.project_tier_id, t.tier_code, t.tier_name, t.rank_no,
-           COUNT(m.membership_id)::int AS members
-      FROM crm_project_tier t
-      JOIN crm_project j ON j.project_id = t.project_id
-      LEFT JOIN crm_membership m ON m.current_tier_id = t.project_tier_id AND m.membership_status = 'ACTIVE'
-     WHERE t.is_active
-     GROUP BY j.project_id, t.project_tier_id
-     ORDER BY j.project_id, t.rank_no`).then(function (result) { return result.rows; });
+    SELECT project.project_id, project.project_code, tier.project_tier_id, tier.tier_code, tier.tier_name, tier.rank_no,
+           COUNT(membership.membership_id)::int AS members
+      FROM crm_project_tier tier
+      JOIN crm_project project ON project.project_id = tier.project_id
+      LEFT JOIN crm_membership membership ON membership.current_tier_id = tier.project_tier_id AND membership.membership_status = 'ACTIVE'
+     WHERE tier.is_active
+     GROUP BY project.project_id, tier.project_tier_id
+     ORDER BY project.project_id, tier.rank_no`).then(function (result) { return result.rows; });
 }
 
 function history(membershipId) {
-  return db('crm_membership_tier_history as h')
-    .leftJoin('crm_project_tier as o', 'o.project_tier_id', 'h.old_tier_id')
-    .join('crm_project_tier as n', 'n.project_tier_id', 'h.new_tier_id')
-    .where('h.membership_id', membershipId).orderBy('h.changed_at', 'desc')
-    .select('h.*', 'o.tier_name as old_tier_name', 'n.tier_name as new_tier_name');
+  return db('crm_membership_tier_history as tier_history')
+    .leftJoin('crm_project_tier as old_tier', 'old_tier.project_tier_id', 'tier_history.old_tier_id')
+    .join('crm_project_tier as new_tier', 'new_tier.project_tier_id', 'tier_history.new_tier_id')
+    .where('tier_history.membership_id', membershipId).orderBy('tier_history.changed_at', 'desc')
+    .select('tier_history.*', 'old_tier.tier_name as old_tier_name', 'new_tier.tier_name as new_tier_name');
 }
 
 /** A manager's correction of a tier: history appended, current tier set, together. */

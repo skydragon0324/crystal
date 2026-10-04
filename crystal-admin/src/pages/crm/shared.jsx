@@ -15,7 +15,7 @@ import { useT } from '../../i18n';
  *
  * The CRM names things by CODE - DRAFT, TARGETS_FROZEN, OWNER, PHONE_9 - the
  * way its tables do. A code is not a word, so it is never put on screen as it
- * is: WORDS below turns each one into English, and t() turns the English into
+ * is: WORDS below turns each one into English, and translate() turns the English into
  * the reader's language through the catalogue, the same way a column label
  * is. A code nobody has written a word for falls through as itself, which is
  * visible and greppable rather than blank.
@@ -136,10 +136,20 @@ const TONE = {
   SENT: 'teal', RUNNING: 'orange', COMPLETE: 'green', PAUSED: 'orange', LEFT: 'gray', INACTIVE: 'gray'
 };
 
+/**
+ * The field problems an API refusal carries in `detail` ([{ field, message }]),
+ * joined with '; ', for a toast's description - so "some details are not valid"
+ * is followed by which ones and why. Undefined when there are none.
+ */
+export function problemsOf(error) {
+  const list = error && Array.isArray(error.detail) ? error.detail.filter((item) => item && item.message) : [];
+  return list.length ? list.map((item) => item.message).join('; ') : undefined;
+}
+
 /** A code as the reader's word. */
-export function word(t, code) {
+export function word(translate, code) {
   if (code === null || code === undefined || code === '') return '-';
-  return WORDS[code] ? t(WORDS[code]) : String(code);
+  return WORDS[code] ? translate(WORDS[code]) : String(code);
 }
 
 /** Select options for a list of codes, labelled by WORDS. */
@@ -149,10 +159,10 @@ export function choices(codes) {
 
 /** A status as a coloured word. */
 export function Status({ value }) {
-  const t = useT();
+  const translate = useT();
   /* Only override the badge's own palette where this list has an opinion. */
   const tone = TONE[value] ? { colorScheme: TONE[value] } : {};
-  return <StatusBadge value={value} label={word(t, value)} {...tone} />;
+  return <StatusBadge value={value} label={word(translate, value)} {...tone} />;
 }
 
 /* ------------------------------------------------------------ the vocabularies */
@@ -213,7 +223,7 @@ export function optionsFrom(list, idKey, label) {
  * shown by name even after the box is cleared.
  */
 export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
-  const t = useT();
+  const translate = useT();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState([]);
   const [chosen, setChosen] = useState(null);
@@ -241,7 +251,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
   }, [query]);
 
   const label = function (party) {
-    return (party.display_name || '-') + '  ' + party.party_no + (party.mobile ? '  ' + party.mobile : '');
+    return (party.display_name || '-') + '  ' + partyIdLabel(party.party_id) + (party.mobile ? '  ' + party.mobile : '');
   };
 
   const options = found.map((party) => ({ value: party.party_id, label: label(party) }));
@@ -259,7 +269,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
           borderRadius="md"
           value={query}
           isDisabled={isDisabled}
-          placeholder={placeholder || t('crm.common.findACustomer')}
+          placeholder={placeholder || translate('crm.common.findACustomer')}
           onChange={(event) => setQuery(event.target.value)}
         />
       </InputGroup>
@@ -269,7 +279,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
         value={value || null}
         isDisabled={isDisabled}
         isSearchable={false}
-        placeholder={t('crm.common.chooseFromTheMatches')}
+        placeholder={translate('crm.common.chooseFromTheMatches')}
         onChange={(next) => {
           const hit = found.filter((party) => String(party.party_id) === String(next))[0];
           if (hit) setChosen(hit);
@@ -282,7 +292,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
 
 /** The same search for a product instance, by serial, IMEI or product name. */
 export function InstancePicker({ value, onChange }) {
-  const t = useT();
+  const translate = useT();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState([]);
 
@@ -301,7 +311,7 @@ export function InstancePicker({ value, onChange }) {
       <InputGroup size="sm">
         <InputLeftElement pointerEvents="none"><SearchIcon color="gray.400" boxSize="0.8em" /></InputLeftElement>
         <Input
-          borderRadius="md" value={query} placeholder={t('crm.common.findAProduct')}
+          borderRadius="md" value={query} placeholder={translate('crm.common.findAProduct')}
           onChange={(event) => setQuery(event.target.value)}
         />
       </InputGroup>
@@ -309,7 +319,7 @@ export function InstancePicker({ value, onChange }) {
         size="sm"
         isSearchable={false}
         value={value || null}
-        placeholder={t('crm.common.chooseFromTheMatches')}
+        placeholder={translate('crm.common.chooseFromTheMatches')}
         options={found.map((instance) => ({
           value: instance.product_instance_id,
           label: instance.external_product_instance_id + '  ' + (instance.product_name || '') + (instance.holder_name ? '  (' + instance.holder_name + ')' : '')
@@ -330,7 +340,7 @@ export function useSiteOptions() {
       .catch(() => {});
     return () => { live = false; };
   }, []);
-  return sites.map((site) => ({ value: site.service_location_id, label: site.location_name + '  ' + site.location_code }));
+  return sites.map((site) => ({ value: site.service_center_id, label: site.service_center_name + '  ' + site.service_center_code }));
 }
 
 /** The CRM product catalogue, as options. */
@@ -350,11 +360,11 @@ export function useCatalogOptions() {
 
 /** A labelled value, the way a record's facts are laid out on a detail screen. */
 export function Fact({ label, children }) {
-  const t = useT();
+  const translate = useT();
   const muted = useColorModeValue('gray.500', 'gray.400');
   return (
     <Box minW={0}>
-      <Text fontSize="0.66rem" color={muted} textTransform="uppercase" letterSpacing="0.05em">{t(label)}</Text>
+      <Text fontSize="0.66rem" color={muted} textTransform="uppercase" letterSpacing="0.05em">{translate(label)}</Text>
       <Box fontSize="sm" mt="2px" wordBreak="break-word">
         {children === null || children === undefined || children === '' ? '-' : children}
       </Box>
@@ -368,13 +378,13 @@ export function Facts({ children, columns }) {
 
 /** The strip at the top of a record: what it is, and what can be done to it. */
 export function RecordHeader({ title, subtitle, badges, actions, onBack }) {
-  const t = useT();
+  const translate = useT();
   const muted = useColorModeValue('gray.500', 'gray.400');
   return (
     <Flex justify="space-between" align="flex-start" wrap="wrap" mb={4}>
       <Box mb={2} mr={4}>
         <HStack spacing={3} align="center">
-          {onBack ? <Button size="sm" variant="ghost" onClick={onBack}>{t('common.back')}</Button> : null}
+          {onBack ? <Button size="sm" variant="ghost" onClick={onBack}>{translate('common.back')}</Button> : null}
           <Text fontSize="lg" fontWeight="700">{title}</Text>
           {badges}
         </HStack>
@@ -387,9 +397,14 @@ export function RecordHeader({ title, subtitle, badges, actions, onBack }) {
 
 /** Loading, or not found - what a detail screen shows before it has a record. */
 export function Pending({ loading }) {
-  const t = useT();
+  const translate = useT();
   if (loading) return <Flex justify="center" py={10}><Spinner /></Flex>;
-  return <Text fontSize="sm" py={6}>{t('crm.common.notFound')}</Text>;
+  return <Text fontSize="sm" py={6}>{translate('crm.common.notFound')}</Text>;
+}
+
+/** A customer as screens show it: its party_id. */
+export function partyIdLabel(partyId) {
+  return partyId || '';
 }
 
 /** A number with a unit, blank-safe. */
@@ -407,10 +422,10 @@ export function rowsOf(data) {
 }
 
 /** Run an action with a toast either way; resolves true when it worked. */
-export async function attempt(toast, t, work, done) {
+export async function attempt(toast, translate, work, done) {
   try {
     const result = await work();
-    toast({ title: t(done || 'common.saved'), status: 'success', duration: 2500 });
+    toast({ title: translate(done || 'common.saved'), status: 'success', duration: 2500 });
     return result || true;
   } catch (error) {
     toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -439,9 +454,9 @@ export function dateInput(value) {
 }
 
 /** Option labels in the reader's language, for a SelectField that is not inside a FormModal. */
-export function translateOptions(t, options) {
+export function translateOptions(translate, options) {
   return (options || []).map(function (option) {
-    return typeof option.label === 'string' ? Object.assign({}, option, { label: t(option.label) }) : option;
+    return typeof option.label === 'string' ? Object.assign({}, option, { label: translate(option.label) }) : option;
   });
 }
 
@@ -451,13 +466,13 @@ export function translateOptions(t, options) {
  * The Toolbar hands its filters to SelectField as they are, and SelectField
  * draws a label as it is given - so a filter declared in English would be
  * English on a Chinese screen. Each filter's name (shown as its placeholder)
- * and each of its options go through t() here instead.
+ * and each of its options go through translate() here instead.
  */
-export function filtersFor(t, filters) {
+export function filtersFor(translate, filters) {
   return filters.map(function (filter) {
     return Object.assign({}, filter, {
-      placeholder: t(filter.placeholder || filter.label),
-      options: translateOptions(t, filter.options)
+      placeholder: translate(filter.placeholder || filter.label),
+      options: translateOptions(translate, filter.options)
     });
   });
 }

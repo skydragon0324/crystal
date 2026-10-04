@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const defaultDb = require('../../config/db');
+const legacy = require('../../config/legacy');
 const vocabulary = require('../../repositories/crm/vocabulary.repository');
 const contact = require('./contact');
 const ledger = require('./ledger');
@@ -40,7 +41,7 @@ function context(connection) {
     vocabulary.mapOf('crm_point_type', connection),
     vocabulary.mapOf('crm_service_case_type', connection),
     vocabulary.mapOf('crm_service_priority', connection),
-    vocabulary.mapOf('crm_location_activity_type', connection),
+    vocabulary.mapOf('crm_service_center_activity_type', connection),
     connection('crm_currency').pluck('currency_code'),
     connection('crm_currency').where('is_reporting', true).first('currency_code')
   ]).then(function (results) {
@@ -54,14 +55,33 @@ function context(connection) {
 
 /* ------------------------------------------------------------ 1. places */
 
-async function importAreas(connection) {
-  const res = await connection.raw(`
-    INSERT INTO crm_location (location_type, location_name, crystal_province_name, full_name)
-    SELECT 'PROVINCE', p.name, p.name, p.name
-      FROM provinces p
-     WHERE p.is_deleted = false
-       AND NOT EXISTS (SELECT 1 FROM crm_location l WHERE l.crystal_province_name = p.name)`);
-  return { added: res.rowCount };
+/**
+ * THE VENDOR'S LOCATION LIST, copied as it is: same columns, same keys
+ * (crm_location.location_pk = ora_pid.locations.location_pk). Read through the
+ * legacy handle, so it works whether the vendor runs on PostgreSQL or Oracle.
+ * A row already here is updated; nothing is deleted - a location a customer
+ * points at stays even if the vendor removes it.
+ */
+async function importLocations(connection) {
+  const rows = await legacy.connection()(legacy.pid('locations'))
+    .select('location_pk', 'location_name', 'location_code', 'parent_code', 'position');
+  let added = 0;
+  let updated = 0;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    // eslint-disable-next-line no-await-in-loop
+    const result = await connection.raw(`
+      INSERT INTO crm_location (location_pk, location_name, location_code, parent_code, position)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (location_pk) DO UPDATE SET
+        location_name = EXCLUDED.location_name, location_code = EXCLUDED.location_code,
+        parent_code = EXCLUDED.parent_code, position = EXCLUDED.position
+      RETURNING (xmax = 0) AS inserted`,
+    [row.location_pk, row.location_name, row.location_code, row.parent_code === undefined ? null : row.parent_code, Number(row.position) || 0]);
+    if (result.rows[0] && result.rows[0].inserted) added += 1; else updated += 1;
+  }
+  return { added: added, updated: updated };
 }
 
 /**
@@ -73,43 +93,49 @@ async function importAreas(connection) {
  * is the section's question, not the site's.
  */
 async function importSites(connection, ctx) {
-  const agencies = await connection('agencies as a').leftJoin('crm_location as l', 'l.crystal_province_name', 'a.province')
-    .select('a.*', 'l.location_id');
+  /* A centre's province is matched to the vendor province of the same name. */
+  const agencies = await connection('agencies as agency')
+    .joinRaw(`LEFT JOIN LATERAL (
+        SELECT place.location_pk FROM crm_location place
+         WHERE lower(trim(place.location_name)) = lower(trim(agency.province))
+         ORDER BY (place.parent_code IS NULL OR place.parent_code IN ('', '0')) DESC, place.location_pk
+         LIMIT 1) loc ON true`)
+    .select('agency.*', 'loc.location_pk as location_pk');
   let added = 0;
   let updated = 0;
 
   for (let index = 0; index < agencies.length; index += 1) {
     const agency = agencies[index];
     const values = {
-      location_name: agency.name,
-      location_kind: agency.tier === 0 ? 'COLLECTION_POINT' : 'SERVICE_CENTER',
-      location_id: agency.location_id || null,
+      service_center_name: agency.name,
+      service_center_kind: agency.tier === 0 ? 'COLLECTION_POINT' : 'SERVICE_CENTER',
+      location_pk: agency.location_pk || null,
       address_line: agency.address,
       landmark: agency.landmark,
       status: agency.is_deleted ? 'CLOSED' : (agency.status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED'),
       source_project_id: ctx.project.CRYSTAL,
       source_table_code: 'agencies',
-      source_location_key: String(agency.id)
+      source_service_center_key: String(agency.id)
     };
 
     // eslint-disable-next-line no-await-in-loop
-    const existing = await connection('crm_service_location').where('crystal_agency_id', agency.id).first('service_location_id');
+    const existing = await connection('crm_service_center').where('crystal_agency_id', agency.id).first('service_center_id');
     let siteId;
     if (existing) {
       // eslint-disable-next-line no-await-in-loop
-      await connection('crm_service_location').where('service_location_id', existing.service_location_id).update(values);
-      siteId = existing.service_location_id;
+      await connection('crm_service_center').where('service_center_id', existing.service_center_id).update(values);
+      siteId = existing.service_center_id;
       updated += 1;
     } else {
       const code = agency.code || ('AG-' + agency.id);
       // eslint-disable-next-line no-await-in-loop
-      const clash = await connection('crm_service_location').where('location_code', code).first('service_location_id');
+      const clash = await connection('crm_service_center').where('service_center_code', code).first('service_center_id');
       // eslint-disable-next-line no-await-in-loop
-      const rows = await connection('crm_service_location').insert(Object.assign(values, {
-        location_code: clash ? 'AG-' + agency.id : code,
+      const rows = await connection('crm_service_center').insert(Object.assign(values, {
+        service_center_code: clash ? 'AG-' + agency.id : code,
         crystal_agency_id: agency.id
-      })).returning('service_location_id');
-      siteId = typeof rows[0] === 'object' ? rows[0].service_location_id : rows[0];
+      })).returning('service_center_id');
+      siteId = typeof rows[0] === 'object' ? rows[0].service_center_id : rows[0];
       added += 1;
     }
 
@@ -123,18 +149,18 @@ async function importSites(connection, ctx) {
       const sections = bySection[codes[codeIndex]];
       // eslint-disable-next-line no-await-in-loop
       await connection.raw(`
-        INSERT INTO crm_service_location_capability (service_location_id, project_id, capability_code, crystal_section)
+        INSERT INTO crm_service_center_capability (service_center_id, project_id, capability_code, crystal_section)
         SELECT ?, ?, ?, ?
-         WHERE NOT EXISTS (SELECT 1 FROM crm_service_location_capability
-                            WHERE service_location_id = ? AND COALESCE(project_id, 0) = ? AND capability_code = ? AND is_active)`,
+         WHERE NOT EXISTS (SELECT 1 FROM crm_service_center_capability
+                            WHERE service_center_id = ? AND COALESCE(project_id, 0) = ? AND capability_code = ? AND is_active)`,
       [siteId, ctx.project.CRYSTAL, codes[codeIndex], sections.length === 1 ? sections[0] : null,
         siteId, ctx.project.CRYSTAL, codes[codeIndex]]);
     }
 
     /* What a centre no longer offers is ended, not deleted. */
     // eslint-disable-next-line no-await-in-loop
-    await connection('crm_service_location_capability')
-      .where({ service_location_id: siteId, project_id: ctx.project.CRYSTAL, is_active: true })
+    await connection('crm_service_center_capability')
+      .where({ service_center_id: siteId, project_id: ctx.project.CRYSTAL, is_active: true })
       .whereNotIn('capability_code', codes.length ? codes : ['-'])
       .update({ is_active: false, valid_to: connection.raw('CURRENT_DATE') });
   }
@@ -147,11 +173,11 @@ async function importSites(connection, ctx) {
 async function importFaults(connection, ctx) {
   const res = await connection.raw(`
     INSERT INTO crm_fault_category (project_id, fault_code, display_name, crystal_symptom_id)
-    SELECT ?, s.code, s.name, s.id FROM symptom_catalog s
-     WHERE NOT EXISTS (SELECT 1 FROM crm_fault_category f WHERE f.crystal_symptom_id = s.id)`, [ctx.project.CRYSTAL]);
+    SELECT ?, symptom.code, symptom.name, symptom.id FROM symptom_catalog symptom
+     WHERE NOT EXISTS (SELECT 1 FROM crm_fault_category fault WHERE fault.crystal_symptom_id = symptom.id)`, [ctx.project.CRYSTAL]);
   await connection.raw(`
-    UPDATE crm_fault_category f SET display_name = s.name, fault_code = s.code
-      FROM symptom_catalog s WHERE f.crystal_symptom_id = s.id`);
+    UPDATE crm_fault_category fault SET display_name = symptom.name, fault_code = symptom.code
+      FROM symptom_catalog symptom WHERE fault.crystal_symptom_id = symptom.id`);
   return { added: res.rowCount };
 }
 
@@ -160,8 +186,9 @@ const KIND_CLASS = { SMARTPHONE: 'SMARTPHONE', TV: 'EPRODUCT', STB: 'STB', COMPU
 const LICENCE_CLASS = { KARAOKE: 'KARAOKE_LICENCE', MEDIA: 'MEDIA_LICENCE', TV: 'MEDIA_LICENCE', STB: 'MEDIA_LICENCE' };
 
 async function importCatalogue(connection, ctx) {
-  const products = await connection('products as p').join('product_categories as c', 'c.id', 'p.category_id')
-    .select('p.id', 'p.name', 'p.slug', 'p.model_code', 'p.price', 'p.currency', 'p.status', 'p.is_deleted', 'c.type');
+  const products = await connection('products as product').join('product_categories as category', 'category.id', 'product.category_id')
+    .select('product.id', 'product.name', 'product.slug', 'product.model_code', 'product.price', 'product.currency',
+      'product.status', 'product.is_deleted', 'category.type');
   let added = 0;
 
   for (let index = 0; index < products.length; index += 1) {
@@ -415,13 +442,13 @@ async function importPoints(connection, ctx) {
   const typeId = ctx.pointType.CRYSTAL;
   if (!typeId) return { added: 0 };
 
-  const logs = await connection('point_logs as l')
+  const logs = await connection('point_logs as point_log')
     .whereNotExists(function () {
-      this.select(connection.raw(1)).from('crm_point_event as e')
-        .where('e.project_id', ctx.project.CRYSTAL).where('e.source_table_code', 'point_logs')
-        .whereRaw('e.external_event_id = l.id::text');
+      this.select(connection.raw(1)).from('crm_point_event as point_event')
+        .where('point_event.project_id', ctx.project.CRYSTAL).where('point_event.source_table_code', 'point_logs')
+        .whereRaw('point_event.external_event_id = point_log.id::text');
     })
-    .orderBy([{ column: 'l.user_id' }, { column: 'l.created_at' }, { column: 'l.id' }]);
+    .orderBy([{ column: 'point_log.user_id' }, { column: 'point_log.created_at' }, { column: 'point_log.id' }]);
 
   let added = 0;
   await connection.transaction(async function (trx) {
@@ -490,8 +517,8 @@ async function importCases(connection, ctx) {
   (await connection('crm_service_status_map').where('project_id', ctx.project.CRYSTAL))
     .forEach(function (row) { statusMap[row.source_status_code] = row.service_status_id; });
   const sites = {};
-  (await connection('crm_service_location').whereNotNull('crystal_agency_id').select('crystal_agency_id', 'service_location_id'))
-    .forEach(function (row) { sites[row.crystal_agency_id] = row.service_location_id; });
+  (await connection('crm_service_center').whereNotNull('crystal_agency_id').select('crystal_agency_id', 'service_center_id'))
+    .forEach(function (row) { sites[row.crystal_agency_id] = row.service_center_id; });
   const faults = {};
   (await connection('crm_fault_category').whereNotNull('crystal_symptom_id').select('crystal_symptom_id', 'fault_category_id'))
     .forEach(function (row) { faults[row.crystal_symptom_id] = row.fault_category_id; });
@@ -502,28 +529,29 @@ async function importCases(connection, ctx) {
   const caseByTicket = {};
 
   for (let index = 0; index < tickets.length; index += 1) {
-    const t = tickets[index];
+    const ticket = tickets[index];
 
     // eslint-disable-next-line no-await-in-loop
     await connection.transaction(async function (trx) {
-      let partyId = t.user_id ? owners[t.user_id] : null;
+      let partyId = ticket.user_id ? owners[ticket.user_id] : null;
 
       if (!partyId) {
-        const phone = contact.phone(t.customer_phone);
-        const known = phone ? await trx('crm_contact_point as c').join('crm_party as p', 'p.party_id', 'c.party_id')
-          .where({ 'c.contact_type': 'MOBILE', 'c.normalized_value': phone, 'c.status': 'ACTIVE' })
-          .whereIn('p.party_status', ['ACTIVE', 'INACTIVE'])
-          .orderBy('p.party_id').first('p.party_id') : null;
+        const phone = contact.phone(ticket.customer_phone);
+        const known = phone ? await trx('crm_contact_point as contact_point')
+          .join('crm_party as party', 'party.party_id', 'contact_point.party_id')
+          .where({ 'contact_point.contact_type': 'MOBILE', 'contact_point.normalized_value': phone, 'contact_point.status': 'ACTIVE' })
+          .whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
+          .orderBy('party.party_pk').first('party.party_id') : null;
 
         if (known) {
           partyId = known.party_id;
         } else {
           const party = await parties.createParty(trx, {
-            party_type: 'PERSON', display_name: t.customer_name, full_name: t.customer_name,
-            origin_project_id: ctx.project.CRYSTAL, first_seen_at: t.received_at,
+            party_type: 'PERSON', display_name: ticket.customer_name, full_name: ticket.customer_name,
+            origin_project_id: ctx.project.CRYSTAL, first_seen_at: ticket.received_at,
             contacts: [
-              t.customer_phone ? { contact_type: 'MOBILE', contact_value: t.customer_phone, source_project_id: ctx.project.CRYSTAL } : null,
-              t.customer_email ? { contact_type: 'EMAIL', contact_value: t.customer_email, source_project_id: ctx.project.CRYSTAL } : null
+              ticket.customer_phone ? { contact_type: 'MOBILE', contact_value: ticket.customer_phone, source_project_id: ctx.project.CRYSTAL } : null,
+              ticket.customer_email ? { contact_type: 'EMAIL', contact_value: ticket.customer_email, source_project_id: ctx.project.CRYSTAL } : null
             ].filter(Boolean)
           });
           partyId = party.party_id;
@@ -531,78 +559,78 @@ async function importCases(connection, ctx) {
       }
 
       const instance = await trx('crm_product_instance')
-        .where({ project_id: ctx.project.CRYSTAL, external_product_instance_id: t.serial_number }).first('product_instance_id');
+        .where({ project_id: ctx.project.CRYSTAL, external_product_instance_id: ticket.serial_number }).first('product_instance_id');
 
-      const total = Number(t.total_amount || 0) + Number(t.covered_amount || 0);
+      const total = Number(ticket.total_amount || 0) + Number(ticket.covered_amount || 0);
       const values = {
         party_id: partyId,
         project_id: ctx.project.CRYSTAL,
-        external_case_id: t.ticket_no,
-        service_location_id: sites[t.agency_id] || null,
-        case_type_id: t.is_warranty ? ctx.caseType.WARRANTY_REPAIR : ctx.caseType.REPAIR,
-        service_status_id: statusMap[String(t.status)],
-        service_priority_id: ctx.priority[PRIORITY[t.priority]] || null,
-        reception_channel_code: CHANNEL[t.intake_channel] || null,
+        external_case_id: ticket.ticket_no,
+        service_center_id: sites[ticket.agency_id] || null,
+        case_type_id: ticket.is_warranty ? ctx.caseType.WARRANTY_REPAIR : ctx.caseType.REPAIR,
+        service_status_id: statusMap[String(ticket.status)],
+        service_priority_id: ctx.priority[PRIORITY[ticket.priority]] || null,
+        reception_channel_code: CHANNEL[ticket.intake_channel] || null,
         related_product_instance_id: instance ? instance.product_instance_id : null,
-        is_warranty: t.is_warranty,
-        title: t.ticket_no,
-        description: t.fault_description,
-        received_at: t.received_at,
-        first_response_at: t.diagnosed_at,
-        due_at: t.promised_at,
-        completed_at: t.repaired_at,
-        closed_at: [7, 9].indexOf(Number(t.status)) !== -1 ? (t.closed_at || t.updated_at) : null,
+        is_warranty: ticket.is_warranty,
+        title: ticket.ticket_no,
+        description: ticket.fault_description,
+        received_at: ticket.received_at,
+        first_response_at: ticket.diagnosed_at,
+        due_at: ticket.promised_at,
+        completed_at: ticket.repaired_at,
+        closed_at: [7, 9].indexOf(Number(ticket.status)) !== -1 ? (ticket.closed_at || ticket.updated_at) : null,
         total_cost: total,
-        customer_paid_amount: t.total_amount,
-        currency_code: ctx.currencies.indexOf(t.currency) !== -1 ? t.currency : null,
-        satisfaction_rating: t.rating || null,
-        source_created_at: t.created_at,
-        source_updated_at: t.updated_at,
+        customer_paid_amount: ticket.total_amount,
+        currency_code: ctx.currencies.indexOf(ticket.currency) !== -1 ? ticket.currency : null,
+        satisfaction_rating: ticket.rating || null,
+        source_created_at: ticket.created_at,
+        source_updated_at: ticket.updated_at,
         ingested_at: trx.fn.now()
       };
       if (!values.service_status_id) return;
 
-      const existing = await trx('crm_service_case').where('crystal_repair_ticket_id', t.id).first('case_id');
+      const existing = await trx('crm_service_case').where('crystal_repair_ticket_id', ticket.id).first('case_id');
       let caseId;
       if (existing) {
         await trx('crm_service_case').where('case_id', existing.case_id).update(values);
         caseId = existing.case_id;
         updated += 1;
       } else {
-        const rows = await trx('crm_service_case').insert(Object.assign(values, { crystal_repair_ticket_id: t.id })).returning('case_id');
+        const rows = await trx('crm_service_case').insert(Object.assign(values, { crystal_repair_ticket_id: ticket.id })).returning('case_id');
         caseId = typeof rows[0] === 'object' ? rows[0].case_id : rows[0];
         added += 1;
       }
-      caseByTicket[t.id] = caseId;
+      caseByTicket[ticket.id] = caseId;
 
       /* A classification the CRM has not been given yet starts from what the bench found. */
       await trx.raw(`
         INSERT INTO crm_service_case_classification (case_id, fault_category_id, resolution_text)
         SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM crm_service_case_classification WHERE case_id = ?)`,
-      [caseId, faults[t.symptom_id] || null, t.resolution || null, caseId]);
+      [caseId, faults[ticket.symptom_id] || null, ticket.resolution || null, caseId]);
 
-      const site = sites[t.agency_id];
+      const site = sites[ticket.agency_id];
       if (site) {
-        const rows = [[ctx.activityType.REPAIR_INTAKE, t.received_at, 'intake']];
-        if (Number(t.status) === 7 && t.closed_at) rows.push([ctx.activityType.REPAIR_DELIVERY, t.closed_at, 'delivery']);
+        const rows = [[ctx.activityType.REPAIR_INTAKE, ticket.received_at, 'intake']];
+        if (Number(ticket.status) === 7 && ticket.closed_at) rows.push([ctx.activityType.REPAIR_DELIVERY, ticket.closed_at, 'delivery']);
         for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
           if (!rows[rowIndex][0]) continue;
           // eslint-disable-next-line no-await-in-loop
           await trx.raw(`
-            INSERT INTO crm_location_activity
-              (service_location_id, activity_type_id, project_id, occurred_at, party_id,
+            INSERT INTO crm_service_center_activity
+              (service_center_id, activity_type_id, project_id, occurred_at, party_id,
                related_service_case_id, related_product_instance_id, external_activity_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (project_id, activity_type_id, external_activity_id) WHERE external_activity_id IS NOT NULL DO NOTHING`,
           [site, rows[rowIndex][0], ctx.project.CRYSTAL, rows[rowIndex][1], partyId, caseId,
-            instance ? instance.product_instance_id : null, 'repair_tickets:' + t.id + ':' + rows[rowIndex][2]]);
+            instance ? instance.product_instance_id : null, 'repair_tickets:' + ticket.id + ':' + rows[rowIndex][2]]);
         }
       }
     });
   }
 
   /* A repeat visit points at the case it came back from. */
-  const reopened = tickets.filter(function (t) { return t.reopened_from && caseByTicket[t.reopened_from] && caseByTicket[t.id]; });
+  const reopened = tickets.filter(function (ticket) { return ticket.reopened_from && caseByTicket[ticket.reopened_from] && caseByTicket[ticket.id]; });
   for (let index = 0; index < reopened.length; index += 1) {
     // eslint-disable-next-line no-await-in-loop
     await connection('crm_service_case').where('case_id', caseByTicket[reopened[index].id])
@@ -634,8 +662,8 @@ async function importCases(connection, ctx) {
 async function importTransactions(connection, ctx) {
   const owners = await partyByUser(connection, ctx);
   const sites = {};
-  (await connection('crm_service_location').whereNotNull('crystal_agency_id').select('crystal_agency_id', 'service_location_id'))
-    .forEach(function (row) { sites[row.crystal_agency_id] = row.service_location_id; });
+  (await connection('crm_service_center').whereNotNull('crystal_agency_id').select('crystal_agency_id', 'service_center_id'))
+    .forEach(function (row) { sites[row.crystal_agency_id] = row.service_center_id; });
   const reporting = ctx.reporting;
   const cur = function (code) { return ctx.currencies.indexOf(code) !== -1 ? code : reporting; };
 
@@ -644,32 +672,33 @@ async function importTransactions(connection, ctx) {
 
   await connection.transaction(async function (trx) {
     /* repairs */
-    const paid = await trx('repair_tickets as t').join('crm_service_case as s', 's.crystal_repair_ticket_id', 't.id')
-      .where('t.pay_state', 2).where('t.total_amount', '>', 0).where('t.is_deleted', false)
-      .select('t.id', 't.ticket_no', 't.total_amount', 't.currency', 't.agency_id', 't.closed_at', 't.updated_at',
-        't.received_at', 's.case_id', 's.party_id', 's.related_product_instance_id');
+    const paid = await trx('repair_tickets as ticket')
+      .join('crm_service_case as service_case', 'service_case.crystal_repair_ticket_id', 'ticket.id')
+      .where('ticket.pay_state', 2).where('ticket.total_amount', '>', 0).where('ticket.is_deleted', false)
+      .select('ticket.id', 'ticket.ticket_no', 'ticket.total_amount', 'ticket.currency', 'ticket.agency_id', 'ticket.closed_at', 'ticket.updated_at',
+        'ticket.received_at', 'service_case.case_id', 'service_case.party_id', 'service_case.related_product_instance_id');
     for (let index = 0; index < paid.length; index += 1) {
-      const t = paid[index];
+      const ticket = paid[index];
       // eslint-disable-next-line no-await-in-loop
       const outcome = await transactions.upsert(trx, {
         project_id: ctx.project.CRYSTAL,
-        external_transaction_id: 'repair:' + t.ticket_no,
+        external_transaction_id: 'repair:' + ticket.ticket_no,
         transaction_type_code: 'SERVICE_PAYMENT',
         transaction_status: 'PAID',
-        currency_code: cur(t.currency),
-        net_amount: Number(t.total_amount),
+        currency_code: cur(ticket.currency),
+        net_amount: Number(ticket.total_amount),
         sales_channel_code: 'SERVICE_CENTRE',
-        service_location_id: sites[t.agency_id] || null,
-        transaction_at: t.closed_at || t.updated_at || t.received_at,
-        parties: [{ party_id: t.party_id, party_role_code: 'BUYER' }, { party_id: t.party_id, party_role_code: 'PAYER' }],
+        service_center_id: sites[ticket.agency_id] || null,
+        transaction_at: ticket.closed_at || ticket.updated_at || ticket.received_at,
+        parties: [{ party_id: ticket.party_id, party_role_code: 'BUYER' }, { party_id: ticket.party_id, party_role_code: 'PAYER' }],
         items: [{
-          external_item_id: t.ticket_no, product_instance_id: t.related_product_instance_id,
-          quantity: 1, net_amount: Number(t.total_amount)
+          external_item_id: ticket.ticket_no, product_instance_id: ticket.related_product_instance_id,
+          quantity: 1, net_amount: Number(ticket.total_amount)
         }]
       }, reporting);
       count(outcome);
       // eslint-disable-next-line no-await-in-loop
-      await trx('crm_service_case').where('case_id', t.case_id).update({ related_transaction_id: outcome.transaction_id });
+      await trx('crm_service_case').where('case_id', ticket.case_id).update({ related_transaction_id: outcome.transaction_id });
     }
 
     /* the wallet: purchases first, so refunds can find them */
@@ -720,11 +749,12 @@ async function importTransactions(connection, ctx) {
     }
 
     /* licences bought with points */
-    const licences = await trx('licenses as l')
-      .leftJoin('crm_product_instance as i', function () {
-        this.on('i.external_product_instance_id', trx.raw("'LIC-' || l.id")).andOn('i.project_id', trx.raw('?', [ctx.project.CRYSTAL]));
+    const licences = await trx('licenses as licence_row')
+      .leftJoin('crm_product_instance as instance', function () {
+        this.on('instance.external_product_instance_id', trx.raw("'LIC-' || licence_row.id"))
+          .andOn('instance.project_id', trx.raw('?', [ctx.project.CRYSTAL]));
       })
-      .where('l.points_used', '>', 0).select('l.*', 'i.product_instance_id', 'i.product_id');
+      .where('licence_row.points_used', '>', 0).select('licence_row.*', 'instance.product_instance_id', 'instance.product_id');
     for (let index = 0; index < licences.length; index += 1) {
       const licence = licences[index];
       const partyId = owners[licence.user_id];
@@ -755,7 +785,7 @@ async function importTransactions(connection, ctx) {
 /* ------------------------------------------------------------ the run */
 
 const STEPS = [
-  ['areas', importAreas],
+  ['locations', importLocations],
   ['sites', importSites],
   ['faults', importFaults],
   ['catalogue', importCatalogue],

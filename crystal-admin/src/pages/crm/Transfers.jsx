@@ -12,7 +12,7 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime } from '../../utils/format';
-import { InstancePicker, PartyPicker, Status, choices, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor } from './shared';
+import { InstancePicker, PartyPicker, Status, choices, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/transfers';
 
@@ -46,7 +46,7 @@ const VERB = {
  * right now.
  */
 export default function Transfers() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const meta = useCrmMeta();
@@ -61,7 +61,7 @@ export default function Transfers() {
     setSaving(true);
     try {
       await crm.transfers.request(values);
-      toast({ title: t('crm.transfers.requested'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.transfers.requested'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -76,15 +76,15 @@ export default function Transfers() {
   const move = async (row, status) => {
     const agreed = await confirm({
       tone: status === 'COMPLETED' ? 'info' : 'danger',
-      title: t(VERB[status]),
-      body: t(status === 'COMPLETED' ? 'crm.transfers.completeExplained' : 'crm.transfers.closeExplained'),
-      detail: word(t, row.transfer_kind) + '  ·  ' + (row.external_product_instance_id || ''),
-      confirmLabel: t(VERB[status])
+      title: translate(VERB[status]),
+      body: translate(status === 'COMPLETED' ? 'crm.transfers.completeExplained' : 'crm.transfers.closeExplained'),
+      detail: word(translate, row.transfer_kind) + '  ·  ' + (row.external_product_instance_id || ''),
+      confirmLabel: translate(VERB[status])
     });
     if (!agreed) return;
     try {
       await crm.transfers.transition(row.product_transfer_id, status);
-      toast({ title: t('Saved'), status: 'success', duration: 2500 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2500 });
       list.reload();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -93,7 +93,7 @@ export default function Transfers() {
 
   const actions = canWrite ? ['ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'].map((status) => ({
     key: status,
-    label: t(VERB[status]),
+    label: translate(VERB[status]),
     hidden: (row) => (NEXT[row.status] || []).indexOf(status) === -1,
     onClick: (row) => move(row, status)
   })) : [];
@@ -103,7 +103,7 @@ export default function Transfers() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'open', label: 'Open or all', value: list.params.open,
             options: [{ value: '1', label: 'Open only' }],
             onChange: (value) => list.setFilter({ open: value || undefined }) },
@@ -115,18 +115,18 @@ export default function Transfers() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.transfers.newRequest')}
+            {translate('crm.transfers.newRequest')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'transfer_kind', label: 'What', render: (row) => word(t, row.transfer_kind) },
+            { key: 'transfer_kind', label: 'What', render: (row) => word(translate, row.transfer_kind) },
             { key: 'product_name', label: 'Product' },
             { key: 'external_product_instance_id', label: 'Serial or key' },
-            { key: 'from_name', label: 'From', render: (row) => (row.from_name ? row.from_name + '  ' + row.from_party_no : '-') },
-            { key: 'to_name', label: 'To', render: (row) => (row.to_name ? row.to_name + '  ' + row.to_party_no : (row.to_instance_external_id || '-')) },
+            { key: 'from_name', label: 'From', render: (row) => (row.from_name ? row.from_name + '  ' + partyIdLabel(row.from_party_id) : '-') },
+            { key: 'to_name', label: 'To', render: (row) => (row.to_name ? row.to_name + '  ' + partyIdLabel(row.to_party_id) : (row.to_instance_external_id || '-')) },
             { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
             { key: 'reason', label: 'Reason', maxW: '14rem' },
             { key: 'requested_at', label: 'Requested', render: (row) => dateTime(row.requested_at) },
@@ -149,7 +149,7 @@ export default function Transfers() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.transfers.newRequest')}
+        title={translate('crm.transfers.newRequest')}
         initial={{ transfer_kind: 'OWNERSHIP_TRANSFER' }}
         onSubmit={request}
         saving={saving}
@@ -174,7 +174,7 @@ export default function Transfers() {
                 : null) },
             { name: 'acquisition_type_id', label: 'How it was obtained', type: 'select',
               options: optionsFrom(meta.acquisition_types, 'acquisition_type_id', 'acquisition_name') },
-            { name: 'handled_at_location_id', label: 'Handled at service location', type: 'select', options: sites, isSearchable: true },
+            { name: 'handled_at_service_center_id', label: 'Handled at service location', type: 'select', options: sites, isSearchable: true },
             { name: 'reason', label: 'Reason', type: 'textarea', colSpan: 'full' }
           ];
         }())}

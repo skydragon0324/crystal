@@ -368,7 +368,7 @@ export const crm = {
   /** The customer record's figures and cards, and what can be done from it. */
   customer360: {
     overview: (id) => client.get(CRM + '/parties/' + id + '/360'),
-    search: (q) => client.get(CRM + '/search', { params: { q: q } }),
+    search: (query) => client.get(CRM + '/search', { params: { q: query } }),
     addRelationship: (id, payload) => client.post(CRM + '/parties/' + id + '/relationships', payload),
     endRelationship: (id, relationshipId) => client.post(CRM + '/parties/' + id + '/relationships/' + relationshipId + '/end'),
     addTag: (id, tagId) => client.post(CRM + '/parties/' + id + '/tags', { tag_id: tagId }),
@@ -401,11 +401,21 @@ export const crm = {
 
   parties: {
     list: (params) => client.get(CRM + '/parties', { params }),
-    lookup: (q, ids) => client.get(CRM + '/parties/lookup', { params: { q: q, ids: ids } }),
+    lookup: (query, ids) => client.get(CRM + '/parties/lookup', { params: { q: query, ids: ids } }),
     get: (id) => client.get(CRM + '/parties/' + id),
     create: (payload) => client.post(CRM + '/parties', payload),
+    /* Customers on file who look like a person not yet saved. */
+    similar: (params) => client.get(CRM + '/parties/similar', { params }),
+    /* People from an Excel sheet; dryRun only reports what would happen. Multipart, so the JSON content type is left off. */
+    importPeople: (file, dryRun) => {
+      const form = new FormData();
+      form.append('file', file);
+      return client.post(CRM + '/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: { 'Content-Type': undefined } });
+    },
+    importTemplate: () => client.get(CRM + '/parties/import/template', { responseType: 'blob' }),
     update: (id, payload) => client.put(CRM + '/parties/' + id, payload),
     setStatus: (id, status) => client.post(CRM + '/parties/' + id + '/status', { party_status: status }),
+    setChecked: (id, checked) => client.post(CRM + '/parties/' + id + '/checked', { is_checked_manually: checked }),
     addContact: (id, payload) => client.post(CRM + '/parties/' + id + '/contacts', payload),
     updateContact: (id, contactId, payload) => client.put(CRM + '/parties/' + id + '/contacts/' + contactId, payload),
     linkAccount: (id, payload) => client.post(CRM + '/parties/' + id + '/accounts', payload),
@@ -420,7 +430,7 @@ export const crm = {
 
   products: {
     instances: (params) => client.get(CRM + '/instances', { params }),
-    instanceLookup: (q) => client.get(CRM + '/instances/lookup', { params: { q: q } }),
+    instanceLookup: (query) => client.get(CRM + '/instances/lookup', { params: { q: query } }),
     instance: (id) => client.get(CRM + '/instances/' + id),
     updateInstance: (id, payload) => client.put(CRM + '/instances/' + id, payload),
     registrations: (params) => client.get(CRM + '/registrations', { params }),

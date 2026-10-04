@@ -38,6 +38,6 @@ exports.down = async function down(knex) {
     await knex.raw('ALTER TABLE crm_organization DROP COLUMN IF EXISTS ??', [ORG_COLUMNS[position]]);
   }
   await knex('crm_org_contact_role').whereIn('role_code', NEW_ROLES)
-    .whereNotExists(knex('crm_organization_person_role as r').whereRaw('r.contact_role_id = crm_org_contact_role.contact_role_id'))
+    .whereNotExists(knex('crm_organization_person_role as person_role').whereRaw('person_role.contact_role_id = crm_org_contact_role.contact_role_id'))
     .del();
 };

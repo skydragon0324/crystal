@@ -35,9 +35,9 @@ async function wouldLoop(childId, parentId) {
   const result = await db.raw(`
     WITH RECURSIVE edges AS (${EDGES}),
     below AS (
-      SELECT ?::bigint AS party_id, 0 AS depth
+      SELECT ?::varchar AS party_id, 0 AS depth
       UNION
-      SELECT e.child_id, b.depth + 1 FROM below b JOIN edges e ON e.parent_id = b.party_id WHERE b.depth < 20
+      SELECT edge.child_id, below_row.depth + 1 FROM below below_row JOIN edges edge ON edge.parent_id = below_row.party_id WHERE below_row.depth < 20
     )
     SELECT 1 FROM below WHERE party_id = ? LIMIT 1`, [childId, parentId]);
   return result.rows.length > 0;
@@ -102,7 +102,7 @@ async function addTag(partyId, body, actor) {
   if (!tag) throw new HttpError(400, 'crm.chooseATag');
   await db('crm_party_tag').insert({ party_id: partyId, tag_id: tag.tag_id, tagged_by_manager_id: actor.manager_id })
     .onConflict(['party_id', 'tag_id']).ignore();
-  audit.created(actor, 'crm_party_tag', partyId + ':' + tag.tag_id, { party_id: Number(partyId), tag_code: tag.tag_code }, PAGE);
+  audit.created(actor, 'crm_party_tag', partyId + ':' + tag.tag_id, { party_id: partyId, tag_code: tag.tag_code }, PAGE);
   return tag;
 }
 

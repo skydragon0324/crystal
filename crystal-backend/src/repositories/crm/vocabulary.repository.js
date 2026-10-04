@@ -27,9 +27,10 @@ const LISTS = {
   crm_service_case_type: ['case_type_id', 'case_type_code'],
   crm_service_status: ['service_status_id', 'status_code'],
   crm_service_priority: ['service_priority_id', 'priority_code'],
-  crm_location_activity_type: ['activity_type_id', 'activity_code'],
+  crm_service_center_activity_type: ['activity_type_id', 'activity_code'],
   crm_communication_channel: ['channel_id', 'channel_code'],
-  crm_communication_purpose: ['purpose_id', 'purpose_code']
+  crm_communication_purpose: ['purpose_id', 'purpose_code'],
+  crm_job_title: ['job_title_id', 'job_code']
 };
 
 /** The id for one code, or null. */
@@ -75,7 +76,7 @@ async function all() {
     projects, currencies, classes, relationships, acquisitions, purposes, usages,
     pointTypes, pointEventTypes, caseTypes, statuses, priorities, issues, faults,
     rootCauses, resolutions, activityTypes, tiers, grades, channels, commPurposes,
-    orgTypes, contactRoles, departments, industries, metrics, areas, tags, partyRelationshipTypes, staff
+    orgTypes, contactRoles, departments, industries, metrics, areas, tags, partyRelationshipTypes, staff, jobTitles
   ] = await Promise.all([
     tableOf('crm_project').orderBy('project_id'),
     tableOf('crm_currency').orderBy('currency_code'),
@@ -93,7 +94,7 @@ async function all() {
     tableOf('crm_fault_category').orderBy('display_name'),
     tableOf('crm_root_cause').orderBy('display_name'),
     tableOf('crm_resolution_category').orderBy('display_name'),
-    tableOf('crm_location_activity_type').orderBy('activity_type_id'),
+    tableOf('crm_service_center_activity_type').orderBy('activity_type_id'),
     tableOf('crm_project_tier').orderBy([{ column: 'project_id' }, { column: 'rank_no' }]),
     tableOf('crm_corporate_grade').orderBy('rank_no'),
     tableOf('crm_communication_channel').orderBy('channel_id'),
@@ -103,11 +104,13 @@ async function all() {
     tableOf('crm_department').orderBy('department_name'),
     tableOf('crm_industry').orderBy('industry_name'),
     tableOf('crm_metric_definition').orderBy('metric_code'),
-    tableOf('crm_location').whereIn('location_type', ['COUNTRY', 'PROVINCE']).orderBy('location_name').limit(500),
+    /* every vendor location, with its "Province / City" name, for the location pickers */
+    require('../../services/crm/locations').all(),
     tableOf('crm_tag').where('is_active', true).orderBy('tag_name'),
     tableOf('crm_party_relationship_type').where('is_active', true).orderBy('sort_order'),
     /* Who can be put in a customer's account team: names only, never anything about the account itself. */
-    db('managers').where({ is_deleted: false, status: 'ACTIVE' }).orderBy('name').select('id as manager_id', 'name')
+    db('managers').where({ is_deleted: false, status: 'ACTIVE' }).orderBy('name').select('id as manager_id', 'name'),
+    tableOf('crm_job_title').orderBy([{ column: 'sort_order' }, { column: 'job_name' }])
   ]);
 
   return {
@@ -140,7 +143,8 @@ async function all() {
     areas: areas,
     tags: tags,
     party_relationship_types: partyRelationshipTypes,
-    staff: staff
+    staff: staff,
+    job_titles: jobTitles
   };
 }
 

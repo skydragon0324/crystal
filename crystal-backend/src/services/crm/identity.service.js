@@ -43,14 +43,14 @@ async function evidence(trx, contacts) {
     .filter(function (contactInput) { return contactInput.value; });
   if (!wanted.length) return [];
 
-  const rows = await trx('crm_contact_point as c').join('crm_party as p', 'p.party_id', 'c.party_id')
-    .where('c.status', 'ACTIVE').where('p.party_status', 'ACTIVE')
+  const rows = await trx('crm_contact_point as contact_point').join('crm_party as party', 'party.party_id', 'contact_point.party_id')
+    .where('contact_point.status', 'ACTIVE').where('party.party_status', 'ACTIVE')
     .where(function () {
       wanted.forEach((wantedContact) => {
-        this.orWhere(function () { this.where('c.contact_type', wantedContact.type).where('c.normalized_value', wantedContact.value); });
+        this.orWhere(function () { this.where('contact_point.contact_type', wantedContact.type).where('contact_point.normalized_value', wantedContact.value); });
       });
     })
-    .select('c.party_id', 'c.contact_type', 'c.is_verified');
+    .select('contact_point.party_id', 'contact_point.contact_type', 'contact_point.is_verified');
 
   const byParty = {};
   rows.forEach(function (row) {

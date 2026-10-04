@@ -1,4 +1,5 @@
 const db = require('../../config/db');
+const { searchId } = require('./partyId');
 
 /**
  * Reading what the analysis run wrote - design sections 3.7 and 3.8.
@@ -9,8 +10,8 @@ const db = require('../../config/db');
  */
 
 async function latestDate() {
-  const row = await db('crm_party_analysis_snapshot').max({ d: 'reference_date' }).first();
-  return row && row.d ? String(row.d).slice(0, 10) : null;
+  const row = await db('crm_party_analysis_snapshot').max({ latest_date: 'reference_date' }).first();
+  return row && row.latest_date ? String(row.latest_date).slice(0, 10) : null;
 }
 
 async function dates() {
@@ -19,22 +20,22 @@ async function dates() {
 }
 
 function snapshotQuery(filters, date) {
-  const qb = db('crm_party_analysis_snapshot as s')
-    .join('crm_party as p', 'p.party_id', 's.party_id')
-    .leftJoin('crm_project as j', 'j.project_id', 's.project_id')
-    .leftJoin('crm_corporate_grade as g', 'g.corporate_grade_id', 's.corporate_grade_id')
-    .where('s.reference_date', date);
+  const qb = db('crm_party_analysis_snapshot as snapshot')
+    .join('crm_party as party', 'party.party_id', 'snapshot.party_id')
+    .leftJoin('crm_project as project', 'project.project_id', 'snapshot.project_id')
+    .leftJoin('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
+    .where('snapshot.reference_date', date);
   if (filters.scope === 'project') {
-    qb.whereNotNull('s.project_id');
-    if (filters.project_id) qb.where('s.project_id', filters.project_id);
+    qb.whereNotNull('snapshot.project_id');
+    if (filters.project_id) qb.where('snapshot.project_id', filters.project_id);
   } else {
-    qb.whereNull('s.project_id');
+    qb.whereNull('snapshot.project_id');
   }
-  if (filters.corporate_grade_id) qb.where('s.corporate_grade_id', filters.corporate_grade_id);
-  if (filters.activity_status) qb.where('s.activity_status', filters.activity_status);
+  if (filters.corporate_grade_id) qb.where('snapshot.corporate_grade_id', filters.corporate_grade_id);
+  if (filters.activity_status) qb.where('snapshot.activity_status', filters.activity_status);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
-    qb.where(function () { this.where('p.display_name', 'ilike', like).orWhere('p.party_no', 'ilike', like); });
+    qb.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
   }
   return qb;
 }
@@ -46,14 +47,14 @@ async function snapshots(filters, paging) {
   const date = filters.reference_date || await latestDate();
   if (!date) return { rows: [], total: 0, summary: { reference_date: null } };
 
-  const count = await snapshotQuery(filters, date).count({ c: '*' }).first();
-  const sort = SORTS.indexOf(paging.sort) !== -1 ? 's.' + paging.sort : 's.corporate_score';
+  const count = await snapshotQuery(filters, date).count({ total: '*' }).first();
+  const sort = SORTS.indexOf(paging.sort) !== -1 ? 'snapshot.' + paging.sort : 'snapshot.corporate_score';
   const rows = await snapshotQuery(filters, date)
-    .select('s.*', 'p.party_no', 'p.display_name as party_name', 'p.party_type', 'j.project_code',
-      'g.grade_code', 'g.grade_name')
+    .select('snapshot.*', 'party.party_id', 'party.display_name as party_name', 'party.party_type', 'project.project_code',
+      'grade.grade_code', 'grade.grade_name')
     .orderByRaw(sort + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')
     .limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c), summary: { reference_date: date } };
+  return { rows: rows, total: Number(count.total), summary: { reference_date: date } };
 }
 
 /** The Dream-wide picture on one date: grade bands, activity, spend by project. */
@@ -62,21 +63,21 @@ async function summary(referenceDate) {
   if (!date) return { reference_date: null, grades: [], activity: [], projects: [], totals: {}, dates: [] };
 
   const [grades, activity, projects, totals, available] = await Promise.all([
-    db.raw(`SELECT g.corporate_grade_id, g.grade_code, g.grade_name, g.rank_no, g.min_score, g.max_score,
-                   COUNT(s.analysis_snapshot_id)::int AS parties,
-                   COALESCE(SUM(s.purchase_amount_12m), 0) AS spend_12m
-              FROM crm_corporate_grade g
-              LEFT JOIN crm_party_analysis_snapshot s
-                ON s.corporate_grade_id = g.corporate_grade_id AND s.project_id IS NULL AND s.reference_date = ?
-             WHERE g.is_active GROUP BY g.corporate_grade_id ORDER BY g.rank_no DESC`, [date]).then(function (result) { return result.rows; }),
+    db.raw(`SELECT grade.corporate_grade_id, grade.grade_code, grade.grade_name, grade.rank_no, grade.min_score, grade.max_score,
+                   COUNT(snapshot.analysis_snapshot_id)::int AS parties,
+                   COALESCE(SUM(snapshot.purchase_amount_12m), 0) AS spend_12m
+              FROM crm_corporate_grade grade
+              LEFT JOIN crm_party_analysis_snapshot snapshot
+                ON snapshot.corporate_grade_id = grade.corporate_grade_id AND snapshot.project_id IS NULL AND snapshot.reference_date = ?
+             WHERE grade.is_active GROUP BY grade.corporate_grade_id ORDER BY grade.rank_no DESC`, [date]).then(function (result) { return result.rows; }),
     db.raw(`SELECT activity_status, COUNT(*)::int AS parties FROM crm_party_analysis_snapshot
              WHERE project_id IS NULL AND reference_date = ? GROUP BY 1 ORDER BY 2 DESC`, [date]).then(function (result) { return result.rows; }),
-    db.raw(`SELECT j.project_id, j.project_code, j.project_name, COUNT(*)::int AS parties,
-                   COALESCE(SUM(s.purchase_amount_12m), 0) AS spend_12m,
-                   COALESCE(SUM(s.transaction_count_12m), 0)::int AS transactions_12m,
-                   COALESCE(SUM(s.service_case_count_12m), 0)::int AS cases_12m
-              FROM crm_party_analysis_snapshot s JOIN crm_project j ON j.project_id = s.project_id
-             WHERE s.reference_date = ? GROUP BY j.project_id ORDER BY spend_12m DESC`, [date]).then(function (result) { return result.rows; }),
+    db.raw(`SELECT project.project_id, project.project_code, project.project_name, COUNT(*)::int AS parties,
+                   COALESCE(SUM(snapshot.purchase_amount_12m), 0) AS spend_12m,
+                   COALESCE(SUM(snapshot.transaction_count_12m), 0)::int AS transactions_12m,
+                   COALESCE(SUM(snapshot.service_case_count_12m), 0)::int AS cases_12m
+              FROM crm_party_analysis_snapshot snapshot JOIN crm_project project ON project.project_id = snapshot.project_id
+             WHERE snapshot.reference_date = ? GROUP BY project.project_id ORDER BY spend_12m DESC`, [date]).then(function (result) { return result.rows; }),
     db.raw(`SELECT COUNT(*)::int AS parties, COALESCE(SUM(purchase_amount_12m), 0) AS spend_12m,
                    COALESCE(SUM(transaction_count_12m), 0)::int AS transactions_12m,
                    ROUND(AVG(corporate_score), 2) AS average_score,
@@ -91,22 +92,22 @@ async function summary(referenceDate) {
 /** One party's analysis over time, its latest rows per scope, and its latest metric values. */
 async function forParty(partyId) {
   const [history, latest, metrics] = await Promise.all([
-    db('crm_party_analysis_snapshot as s').leftJoin('crm_corporate_grade as g', 'g.corporate_grade_id', 's.corporate_grade_id')
-      .where('s.party_id', partyId).whereNull('s.project_id').orderBy('s.reference_date', 'desc').limit(24)
-      .select('s.reference_date', 's.corporate_score', 's.purchase_amount_12m', 's.activity_status', 'g.grade_code'),
-    db.raw(`SELECT DISTINCT ON (COALESCE(s.project_id, 0)) s.*, j.project_code, g.grade_code, g.grade_name
-              FROM crm_party_analysis_snapshot s
-              LEFT JOIN crm_project j ON j.project_id = s.project_id
-              LEFT JOIN crm_corporate_grade g ON g.corporate_grade_id = s.corporate_grade_id
-             WHERE s.party_id = ?
-             ORDER BY COALESCE(s.project_id, 0), s.reference_date DESC`, [partyId]).then(function (result) { return result.rows; }),
-    db.raw(`SELECT DISTINCT ON (v.metric_definition_id, COALESCE(v.project_id, 0))
-                   v.*, d.metric_code, d.metric_name, d.value_type, d.unit_code, j.project_code
-              FROM crm_party_metric_value v
-              JOIN crm_metric_definition d ON d.metric_definition_id = v.metric_definition_id
-              LEFT JOIN crm_project j ON j.project_id = v.project_id
-             WHERE v.party_id = ?
-             ORDER BY v.metric_definition_id, COALESCE(v.project_id, 0), v.reference_date DESC`, [partyId]).then(function (result) { return result.rows; })
+    db('crm_party_analysis_snapshot as snapshot').leftJoin('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
+      .where('snapshot.party_id', partyId).whereNull('snapshot.project_id').orderBy('snapshot.reference_date', 'desc').limit(24)
+      .select('snapshot.reference_date', 'snapshot.corporate_score', 'snapshot.purchase_amount_12m', 'snapshot.activity_status', 'grade.grade_code'),
+    db.raw(`SELECT DISTINCT ON (COALESCE(snapshot.project_id, 0)) snapshot.*, project.project_code, grade.grade_code, grade.grade_name
+              FROM crm_party_analysis_snapshot snapshot
+              LEFT JOIN crm_project project ON project.project_id = snapshot.project_id
+              LEFT JOIN crm_corporate_grade grade ON grade.corporate_grade_id = snapshot.corporate_grade_id
+             WHERE snapshot.party_id = ?
+             ORDER BY COALESCE(snapshot.project_id, 0), snapshot.reference_date DESC`, [partyId]).then(function (result) { return result.rows; }),
+    db.raw(`SELECT DISTINCT ON (metric_value.metric_definition_id, COALESCE(metric_value.project_id, 0))
+                   metric_value.*, definition.metric_code, definition.metric_name, definition.value_type, definition.unit_code, project.project_code
+              FROM crm_party_metric_value metric_value
+              JOIN crm_metric_definition definition ON definition.metric_definition_id = metric_value.metric_definition_id
+              LEFT JOIN crm_project project ON project.project_id = metric_value.project_id
+             WHERE metric_value.party_id = ?
+             ORDER BY metric_value.metric_definition_id, COALESCE(metric_value.project_id, 0), metric_value.reference_date DESC`, [partyId]).then(function (result) { return result.rows; })
   ]);
   return { history: history, latest: latest, metrics: metrics };
 }
@@ -114,24 +115,24 @@ async function forParty(partyId) {
 /** Values of one metric across the base, latest date first - the metric browser. */
 async function metricValues(filters, paging) {
   const qb = function () {
-    const query = db('crm_party_metric_value as v')
-      .join('crm_party as p', 'p.party_id', 'v.party_id')
-      .join('crm_metric_definition as d', 'd.metric_definition_id', 'v.metric_definition_id');
-    if (filters.metric_definition_id) query.where('v.metric_definition_id', filters.metric_definition_id);
-    if (filters.reference_date) query.where('v.reference_date', filters.reference_date);
-    else query.where('v.reference_date', db('crm_party_metric_value').max('reference_date'));
+    const query = db('crm_party_metric_value as metric_value')
+      .join('crm_party as party', 'party.party_id', 'metric_value.party_id')
+      .join('crm_metric_definition as definition', 'definition.metric_definition_id', 'metric_value.metric_definition_id');
+    if (filters.metric_definition_id) query.where('metric_value.metric_definition_id', filters.metric_definition_id);
+    if (filters.reference_date) query.where('metric_value.reference_date', filters.reference_date);
+    else query.where('metric_value.reference_date', db('crm_party_metric_value').max('reference_date'));
     if (filters.q) {
       const like = '%' + String(filters.q).trim() + '%';
-      query.where(function () { this.where('p.display_name', 'ilike', like).orWhere('p.party_no', 'ilike', like); });
+      query.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
     }
     return query;
   };
-  const count = await qb().count({ c: '*' }).first();
+  const count = await qb().count({ total: '*' }).first();
   const rows = await qb()
-    .select('v.*', 'p.party_no', 'p.display_name as party_name', 'd.metric_code', 'd.metric_name', 'd.value_type', 'd.unit_code')
-    .orderByRaw('v.numeric_value ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST, v.party_id')
+    .select('metric_value.*', 'party.party_id', 'party.display_name as party_name', 'definition.metric_code', 'definition.metric_name', 'definition.value_type', 'definition.unit_code')
+    .orderByRaw('metric_value.numeric_value ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST, metric_value.party_id')
     .limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 module.exports = { latestDate: latestDate, snapshots: snapshots, summary: summary, forParty: forParty, metricValues: metricValues };

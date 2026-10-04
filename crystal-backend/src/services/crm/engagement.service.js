@@ -54,12 +54,12 @@ async function requireParty(id) {
 
 async function notes(partyId, filters, paging) {
   const query = function () {
-    return db('crm_party_note as n').leftJoin('managers as m', 'm.id', 'n.created_by_manager_id')
-      .where('n.party_id', partyId).whereNull('n.deleted_at');
+    return db('crm_party_note as note').leftJoin('managers as manager', 'manager.id', 'note.created_by_manager_id')
+      .where('note.party_id', partyId).whereNull('note.deleted_at');
   };
   const count = await query().count({ total: '*' }).first();
-  const rows = await query().select('n.*', 'm.name as author_name')
-    .orderBy([{ column: 'n.is_pinned', order: 'desc' }, { column: 'n.created_at', order: 'desc' }])
+  const rows = await query().select('note.*', 'manager.name as author_name')
+    .orderBy([{ column: 'note.is_pinned', order: 'desc' }, { column: 'note.created_at', order: 'desc' }])
     .limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
 }
@@ -100,9 +100,9 @@ async function removeNote(partyId, noteId, actor) {
 /* ------------------------------------------------------------ files */
 
 function files(partyId) {
-  return db('crm_party_file as f').leftJoin('managers as m', 'm.id', 'f.uploaded_by_manager_id')
-    .where('f.party_id', partyId).whereNull('f.deleted_at').orderBy('f.created_at', 'desc')
-    .select('f.file_id', 'f.file_name', 'f.content_type', 'f.byte_size', 'f.description', 'f.created_at', 'm.name as uploaded_by_name');
+  return db('crm_party_file as party_file').leftJoin('managers as manager', 'manager.id', 'party_file.uploaded_by_manager_id')
+    .where('party_file.party_id', partyId).whereNull('party_file.deleted_at').orderBy('party_file.created_at', 'desc')
+    .select('party_file.file_id', 'party_file.file_name', 'party_file.content_type', 'party_file.byte_size', 'party_file.description', 'party_file.created_at', 'manager.name as uploaded_by_name');
 }
 
 /** A file held in memory by the upload middleware, written to the private folder. */
@@ -156,18 +156,18 @@ async function removeFile(partyId, fileId, actor) {
 
 async function interactions(partyId, filters, paging) {
   const query = function () {
-    const builder = db('crm_party_interaction as i').where('i.party_id', partyId);
-    if (filters.channel_code) builder.where('i.channel_code', filters.channel_code);
-    if (filters.direction) builder.where('i.direction', filters.direction);
+    const builder = db('crm_party_interaction as interaction').where('interaction.party_id', partyId);
+    if (filters.channel_code) builder.where('interaction.channel_code', filters.channel_code);
+    if (filters.direction) builder.where('interaction.direction', filters.direction);
     return builder;
   };
   const count = await query().count({ total: '*' }).first();
   const rows = await query()
-    .leftJoin('managers as m', 'm.id', 'i.manager_id')
-    .leftJoin('crm_service_case as s', 's.case_id', 'i.case_id')
-    .leftJoin('crm_project as j', 'j.project_id', 'i.project_id')
-    .select('i.*', 'm.name as agent_name', 's.external_case_id', 'j.project_code')
-    .orderBy('i.occurred_at', 'desc').limit(paging.limit).offset(paging.offset);
+    .leftJoin('managers as manager', 'manager.id', 'interaction.manager_id')
+    .leftJoin('crm_service_case as service_case', 'service_case.case_id', 'interaction.case_id')
+    .leftJoin('crm_project as project', 'project.project_id', 'interaction.project_id')
+    .select('interaction.*', 'manager.name as agent_name', 'service_case.external_case_id', 'project.project_code')
+    .orderBy('interaction.occurred_at', 'desc').limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
 }
 

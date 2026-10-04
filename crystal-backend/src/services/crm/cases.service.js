@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
+const { searchId } = require('./partyId');
 
 /**
  * SERVICE CASES: one summary per service event, whichever project ran it.
@@ -22,85 +23,91 @@ const { HttpError } = require('../../utils/response');
 const PAGE = '/admin/crm/service-cases';
 
 const CHANNELS = ['WALK_IN', 'MAIL_IN', 'ON_SITE', 'COURIER', 'PHONE', 'APP', 'WEB', 'AGENCY'];
-const EDITABLE = ['service_location_id', 'service_priority_id', 'reception_channel_code',
+const EDITABLE = ['service_center_id', 'service_priority_id', 'reception_channel_code',
   'related_product_instance_id', 'is_warranty', 'title', 'description', 'due_at',
   'total_cost', 'customer_paid_amount', 'currency_code', 'satisfaction_rating', 'first_response_at'];
 
 function caseQuery(filters) {
-  const qb = db('crm_service_case as s')
-    .join('crm_party as p', 'p.party_id', 's.party_id')
-    .join('crm_project as j', 'j.project_id', 's.project_id')
-    .join('crm_service_case_type as ct', 'ct.case_type_id', 's.case_type_id')
-    .join('crm_service_status as st', 'st.service_status_id', 's.service_status_id')
-    .leftJoin('crm_service_priority as pr', 'pr.service_priority_id', 's.service_priority_id')
-    .leftJoin('crm_service_location as l', 'l.service_location_id', 's.service_location_id')
-    .leftJoin('crm_product_instance as i', 'i.product_instance_id', 's.related_product_instance_id')
-    .leftJoin('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-    .leftJoin('crm_service_case_classification as k', 'k.case_id', 's.case_id');
+  const qb = db('crm_service_case as service_case')
+    .join('crm_party as party', 'party.party_id', 'service_case.party_id')
+    .join('crm_project as project', 'project.project_id', 'service_case.project_id')
+    .join('crm_service_case_type as ct', 'ct.case_type_id', 'service_case.case_type_id')
+    .join('crm_service_status as st', 'st.service_status_id', 'service_case.service_status_id')
+    .leftJoin('crm_service_priority as pr', 'pr.service_priority_id', 'service_case.service_priority_id')
+    .leftJoin('crm_service_center as center', 'center.service_center_id', 'service_case.service_center_id')
+    .leftJoin('crm_product_instance as instance', 'instance.product_instance_id', 'service_case.related_product_instance_id')
+    .leftJoin('crm_product_catalog as product', 'product.product_id', 'instance.product_id')
+    .leftJoin('crm_service_case_classification as classification', 'classification.case_id', 'service_case.case_id');
 
-  ['project_id', 'case_type_id', 'service_status_id', 'service_location_id', 'party_id'].forEach(function (col) {
-    if (filters[col]) qb.where('s.' + col, filters[col]);
+  ['project_id', 'case_type_id', 'service_status_id', 'service_center_id', 'party_id'].forEach(function (col) {
+    if (filters[col]) qb.where('service_case.' + col, filters[col]);
   });
   if (filters.open === '1') qb.where('st.is_terminal', false);
-  if (filters.overdue === '1') qb.where('st.is_terminal', false).where('s.due_at', '<', db.fn.now());
-  if (filters.unclassified === '1') qb.whereNull('k.service_case_classification_id');
+  if (filters.overdue === '1') qb.where('st.is_terminal', false).where('service_case.due_at', '<', db.fn.now());
+  if (filters.unclassified === '1') qb.whereNull('classification.service_case_classification_id');
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('s.external_case_id', 'ilike', like)
-        .orWhere('s.title', 'ilike', like)
-        .orWhere('p.display_name', 'ilike', like)
-        .orWhere('p.party_no', 'ilike', like)
-        .orWhere('i.serial_number', 'ilike', like);
+      this.where('service_case.external_case_id', 'ilike', like)
+        .orWhere('service_case.title', 'ilike', like)
+        .orWhere('party.display_name', 'ilike', like)
+        .orWhere('party.party_id', 'ilike', searchId(like))
+        .orWhere('instance.serial_number', 'ilike', like);
     });
   }
   return qb;
 }
 
 const LIST_COLUMNS = [
-  's.case_id', 's.party_id', 's.project_id', 's.external_case_id', 's.crystal_repair_ticket_id', 's.title',
-  's.received_at', 's.due_at', 's.completed_at', 's.closed_at', 's.is_warranty', 's.satisfaction_rating',
-  's.total_cost', 's.customer_paid_amount', 's.currency_code', 's.reception_channel_code',
-  's.service_location_id', 's.case_type_id', 's.service_status_id', 's.service_priority_id',
-  'p.party_no', 'p.display_name as party_name', 'j.project_code',
+  'service_case.case_id', 'service_case.party_id', 'service_case.project_id', 'service_case.external_case_id',
+  'service_case.crystal_repair_ticket_id', 'service_case.title',
+  'service_case.received_at', 'service_case.due_at', 'service_case.completed_at', 'service_case.closed_at',
+  'service_case.is_warranty', 'service_case.satisfaction_rating',
+  'service_case.total_cost', 'service_case.customer_paid_amount', 'service_case.currency_code', 'service_case.reception_channel_code',
+  'service_case.service_center_id', 'service_case.case_type_id', 'service_case.service_status_id', 'service_case.service_priority_id',
+  'party.party_id', 'party.display_name as party_name', 'project.project_code',
   'ct.case_type_code', 'ct.display_name as case_type_name',
   'st.status_code', 'st.display_name as status_name', 'st.is_terminal',
-  'pr.priority_code', 'pr.priority_name', 'l.location_name',
-  'i.external_product_instance_id', 'c.product_name',
-  db.raw('(k.service_case_classification_id IS NOT NULL) AS is_classified')
+  'pr.priority_code', 'pr.priority_name', 'center.service_center_name',
+  'instance.external_product_instance_id', 'product.product_name',
+  db.raw('(classification.service_case_classification_id IS NOT NULL) AS is_classified')
 ];
 
 async function search(filters, paging) {
-  const count = await caseQuery(filters).count({ c: '*' }).first();
-  const sort = { received_at: 's.received_at', due_at: 's.due_at', closed_at: 's.closed_at' }[paging.sort] || 's.received_at';
+  const count = await caseQuery(filters).count({ total: '*' }).first();
+  const sort = {
+    received_at: 'service_case.received_at', due_at: 'service_case.due_at', closed_at: 'service_case.closed_at'
+  }[paging.sort] || 'service_case.received_at';
   const rows = await caseQuery(filters).select(LIST_COLUMNS)
     .orderBy(sort, paging.dir).limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 async function detail(id) {
-  const row = await caseQuery({}).where('s.case_id', id).first(LIST_COLUMNS.concat([
-    's.description', 's.first_response_at', 's.reopened_from_case_id', 's.related_product_instance_id',
-    's.related_transaction_id', 's.source_created_at', 's.source_updated_at', 's.ingested_at',
-    's.created_at', 's.updated_at'
+  const row = await caseQuery({}).where('service_case.case_id', id).first(LIST_COLUMNS.concat([
+    'service_case.description', 'service_case.first_response_at', 'service_case.reopened_from_case_id',
+    'service_case.related_product_instance_id', 'service_case.related_transaction_id',
+    'service_case.source_created_at', 'service_case.source_updated_at', 'service_case.ingested_at',
+    'service_case.created_at', 'service_case.updated_at'
   ]));
   if (!row) throw new HttpError(404, 'common.notFound');
 
   const [classification, activities] = await Promise.all([
-    db('crm_service_case_classification as k')
-      .leftJoin('crm_issue_category as ic', 'ic.issue_category_id', 'k.issue_category_id')
-      .leftJoin('crm_fault_category as fc', 'fc.fault_category_id', 'k.fault_category_id')
-      .leftJoin('crm_root_cause as rc', 'rc.root_cause_id', 'k.root_cause_id')
-      .leftJoin('crm_resolution_category as rs', 'rs.resolution_category_id', 'k.resolution_category_id')
-      .leftJoin('managers as m', 'm.id', 'k.classified_by_manager_id')
-      .where('k.case_id', id)
-      .first('k.*', 'ic.display_name as issue_name', 'fc.display_name as fault_name',
-        'rc.display_name as root_cause_name', 'rs.display_name as resolution_name', 'm.name as classified_by_name'),
-    db('crm_location_activity as a')
-      .join('crm_location_activity_type as t', 't.activity_type_id', 'a.activity_type_id')
-      .join('crm_service_location as l', 'l.service_location_id', 'a.service_location_id')
-      .where('a.related_service_case_id', id).orderBy('a.occurred_at')
-      .select('a.location_activity_id', 'a.occurred_at', 'a.status', 't.activity_name', 'l.location_name')
+    db('crm_service_case_classification as classification')
+      .leftJoin('crm_issue_category as ic', 'ic.issue_category_id', 'classification.issue_category_id')
+      .leftJoin('crm_fault_category as fc', 'fc.fault_category_id', 'classification.fault_category_id')
+      .leftJoin('crm_root_cause as rc', 'rc.root_cause_id', 'classification.root_cause_id')
+      .leftJoin('crm_resolution_category as rs', 'rs.resolution_category_id', 'classification.resolution_category_id')
+      .leftJoin('managers as manager', 'manager.id', 'classification.classified_by_manager_id')
+      .where('classification.case_id', id)
+      .first('classification.*', 'ic.display_name as issue_name', 'fc.display_name as fault_name',
+        'rc.display_name as root_cause_name', 'rs.display_name as resolution_name', 'manager.name as classified_by_name'),
+    db('crm_service_center_activity as activity')
+      .join('crm_service_center_activity_type as activity_type', 'activity_type.activity_type_id', 'activity.activity_type_id')
+      .join('crm_service_center as center', 'center.service_center_id', 'activity.service_center_id')
+      .where('activity.related_service_case_id', id).orderBy('activity.occurred_at')
+      .select('activity.service_center_activity_id', 'activity.occurred_at', 'activity.status',
+        'activity_type.activity_name', 'center.service_center_name')
   ]);
 
   return { case: row, classification: classification || null, activities: activities };

@@ -16,7 +16,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, money, number } from '../../utils/format';
-import { PartyPicker, Pending, amount, choices, optionsFrom, useCrmMeta, useSiteOptions, word } from './shared';
+import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel } from './shared';
 import CrmSearch from './CrmSearch';
 import {
   AccountsCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
@@ -74,7 +74,7 @@ function ageOf(birthDate) {
  * comes back to it.
  */
 export default function CustomerDetail() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const history = useHistory();
@@ -141,12 +141,12 @@ export default function CustomerDetail() {
     setSaving(true);
     try {
       const result = await work();
-      toast({ title: t(done || 'Saved'), status: 'success', duration: 2500 });
+      toast({ title: done ? translate(done) : translate('Saved'), status: 'success', duration: 2500 });
       modal.onClose();
       load();
       return result || true;
     } catch (error) {
-      toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
+      toast({ title: error.message, description: problemsOf(error), status: 'error', duration: 8000, isClosable: true });
       return false;
     } finally {
       setSaving(false);
@@ -154,27 +154,27 @@ export default function CustomerDetail() {
   };
 
   const ask = async (title, body, detailText, work, tone) => {
-    const agreed = await confirm({ tone: tone || 'danger', title: t(title), body: t(body), detail: detailText, confirmLabel: t(title) });
+    const agreed = await confirm({ tone: tone || 'danger', title: translate(title), body: translate(body), detail: detailText, confirmLabel: translate(title) });
     if (agreed) run(work);
   };
 
   const copyNumber = () => {
     try {
-      navigator.clipboard.writeText(party.party_no);
-      toast({ title: t('crm.c360.copied'), status: 'success', duration: 1500 });
+      navigator.clipboard.writeText(String(party.party_id));
+      toast({ title: translate('crm.c360.copied'), status: 'success', duration: 1500 });
     } catch (error) {
-      toast({ title: party.party_no, status: 'info', duration: 3000 });
+      toast({ title: partyIdLabel(party.party_id), status: 'info', duration: 3000 });
     }
   };
 
-  const forms = formsFor({ t, record, party, isPerson, meta, dialog, run, sites, history, view: facts });
+  const forms = formsFor({ translate, record, party, isPerson, meta, dialog, run, sites, history, view: facts });
   const current = dialog ? forms[dialog.kind] : null;
-  const act = { editable: editable, open: open, run: run, ask: ask, refresh: load, version: version, timeline: timelineOf(record, t) };
+  const act = { editable: editable, open: open, run: run, ask: ask, refresh: load, version: version, timeline: timelineOf(record, translate) };
   const unusedTags = (meta.tags || []).filter((tag) => !(facts.tags || []).some((own) => own.tag_id === tag.tag_id));
 
   const statusPill = (
     <Pill code={party.party_status === 'ACTIVE' ? 'ACTIVE' : party.party_status}>
-      {party.party_status === 'ACTIVE' ? t('crm.c360.activeCustomer') : word(t, party.party_status)}
+      {party.party_status === 'ACTIVE' ? translate('crm.c360.activeCustomer') : word(translate, party.party_status)}
     </Pill>
   );
 
@@ -187,21 +187,23 @@ export default function CustomerDetail() {
       </Flex>
       <Box minW={0}>
         <HStack spacing={3} wrap="wrap">
-          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || party.party_no}</Text>
+          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_id)}</Text>
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{t('crm.c360.partyId', { number: party.party_no })}</Text>
-          <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={t('crm.c360.copyNumber')} onClick={copyNumber} />
-          <Badge variant="subtle" colorScheme="gray" textTransform="none">{t('crm.c360.individual')}</Badge>
-          {verified ? <Badge variant="subtle" colorScheme="blue" textTransform="none">{t('crm.customer.verified')}</Badge> : null}
+          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_id) })}</Text>
+          <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
+          <Badge variant="subtle" colorScheme="gray" textTransform="none">{translate('crm.c360.individual')}</Badge>
+          {verified ? <Badge variant="subtle" colorScheme="blue" textTransform="none">{translate('crm.customer.verified')}</Badge> : null}
+          <Badge variant="subtle" colorScheme={person.is_checked_manually ? 'green' : 'orange'} textTransform="none">
+            {translate(person.is_checked_manually ? 'crm.customers.checkedByHand' : 'crm.customers.notCheckedYet')}
+          </Badge>
         </HStack>
         <Wrap spacing={4} mt={2} fontSize="sm" color={surface.muted}>
-          {GENDER[person.gender_code] ? <WrapItem>{t(GENDER[person.gender_code])}</WrapItem> : null}
-          {person.birth_date ? <WrapItem>{t('crm.c360.born', { date: date(person.birth_date), age: ageOf(person.birth_date) })}</WrapItem> : null}
-          {person.nationality_code ? <WrapItem>{person.nationality_code}</WrapItem> : null}
+          {GENDER[person.gender_code] ? <WrapItem>{translate(GENDER[person.gender_code])}</WrapItem> : null}
+          {person.birth_date ? <WrapItem>{translate('crm.c360.born', { date: date(person.birth_date), age: ageOf(person.birth_date) })}</WrapItem> : null}
           {person.home_location_name ? <WrapItem>{person.home_location_name}</WrapItem> : null}
-          {person.job_title ? <WrapItem>{person.job_title}</WrapItem> : null}
+          {person.job_title_name ? <WrapItem>{translate(person.job_title_name)}</WrapItem> : null}
         </Wrap>
         <Wrap spacing={5} mt={2} fontSize="sm">
           {reach.email ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdMailOutline} color="brand.500" /><Text color="brand.500">{reach.email.contact_value}</Text></HStack></WrapItem> : null}
@@ -218,31 +220,31 @@ export default function CustomerDetail() {
       </Flex>
       <Box minW={0}>
         <HStack spacing={3} wrap="wrap">
-          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || party.party_no}</Text>
-          <Pill tone="purple">{t('crm.c360.organization')}</Pill>
+          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_id)}</Text>
+          <Pill tone="purple">{translate('crm.c360.organization')}</Pill>
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{t('crm.c360.partyId', { number: party.party_no })}</Text>
-          <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={t('crm.c360.copyNumber')} onClick={copyNumber} />
+          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_id) })}</Text>
+          <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
         </HStack>
         <Wrap spacing={6} mt={2} fontSize="sm">
           {[
-            ['crm.c360.industry', (facts.industries || []).map((industry) => t(industry.industry_name)).join(', ')],
+            ['crm.c360.industry', (facts.industries || []).map((industry) => translate(industry.industry_name)).join(', ')],
             ['crm.c360.companySize', companySize(profile.employee_count_band)],
-            ['crm.c360.headquarters', profile.headquarters_full_name || profile.headquarters_location_name || profile.headquarters_address],
+            ['Location', profile.location_full_name || profile.location_name || profile.headquarters_address],
             ['crm.c360.established', date(profile.founded_date)]
           ].map((pair) => (
             <WrapItem key={pair[0]}>
               <Box>
-                <Text fontSize="xs" color={surface.muted}>{t(pair[0])}</Text>
+                <Text fontSize="xs" color={surface.muted}>{translate(pair[0])}</Text>
                 <Text>{pair[1] || '-'}</Text>
               </Box>
             </WrapItem>
           ))}
           <WrapItem>
             <Box>
-              <Text fontSize="xs" color={surface.muted}>{t('crm.c360.website')}</Text>
+              <Text fontSize="xs" color={surface.muted}>{translate('crm.c360.website')}</Text>
               {org.website_url
                 ? <Text as="a" href={org.website_url} target="_blank" rel="noopener noreferrer" color="brand.500">{org.website_url}</Text>
                 : <Text>-</Text>}
@@ -254,7 +256,7 @@ export default function CustomerDetail() {
             <Collapse startingHeight="2.7rem" in={aboutOpen}><Text fontSize="sm">{org.description}</Text></Collapse>
             {org.description.length > 140 ? (
               <Button size="xs" variant="link" colorScheme="brand" mt={1} rightIcon={<ChevronDownIcon />} onClick={() => setAboutOpen(!aboutOpen)}>
-                {t(aboutOpen ? 'crm.c360.showLess' : 'crm.c360.showMore')}
+                {translate(aboutOpen ? 'crm.c360.showLess' : 'crm.c360.showMore')}
               </Button>
             ) : null}
           </Box>
@@ -268,16 +270,16 @@ export default function CustomerDetail() {
   const figures = (
     <Box>
       <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
-        <HeaderStat icon={Md.MdStars} iconColor="yellow.500" label={t('crm.c360.customerGrade')}
-          value={header.grade_code ? <HStack spacing={2}><Text as="span">{t(header.grade_name || header.grade_code)}</Text><Pill tone="purple">{header.grade_code}</Pill></HStack> : null}
-          sub={header.grade_since ? t('crm.c360.sinceDate', { date: date(header.grade_since) }) : t('crm.ui.notGradedYet')} />
-        <HeaderStat icon={Md.MdAccountBalanceWallet} label={t('crm.c360.totalSpend')} value={money(header.lifetime_spend)} sub={t('crm.c360.lifetime')} />
-        <HeaderStat icon={Md.MdShoppingCart} label={t('crm.c360.totalOrders')} value={number(header.orders_total)}
-          sub={isPerson ? t('crm.c360.last12Months', { n: number(header.orders_12m) }) : t('crm.c360.last24Months', { n: number(header.orders_24m) })} />
-        <HeaderStat icon={Md.MdDevicesOther} iconColor="red.400" label={t(isPerson ? 'crm.c360.totalProducts' : 'crm.c360.ownedProducts')}
-          value={number(header.products_registered)} sub={t('crm.c360.registered')} />
-        <HeaderStat icon={Md.MdHeadsetMic} label={t('crm.c360.openCases')} value={number(header.open_cases)}
-          sub={t('crm.c360.totalN', { n: number(header.total_cases) })} />
+        <HeaderStat icon={Md.MdStars} iconColor="yellow.500" label={translate('crm.c360.customerGrade')}
+          value={header.grade_code ? <HStack spacing={2}><Text as="span">{translate(header.grade_name || header.grade_code)}</Text><Pill tone="purple">{header.grade_code}</Pill></HStack> : null}
+          sub={header.grade_since ? translate('crm.c360.sinceDate', { date: date(header.grade_since) }) : translate('crm.ui.notGradedYet')} />
+        <HeaderStat icon={Md.MdAccountBalanceWallet} label={translate('crm.c360.totalSpend')} value={money(header.lifetime_spend)} sub={translate('crm.c360.lifetime')} />
+        <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.c360.totalOrders')} value={number(header.orders_total)}
+          sub={isPerson ? translate('crm.c360.last12Months', { n: number(header.orders_12m) }) : translate('crm.c360.last24Months', { n: number(header.orders_24m) })} />
+        <HeaderStat icon={Md.MdDevicesOther} iconColor="red.400" label={translate(isPerson ? 'crm.c360.totalProducts' : 'crm.c360.ownedProducts')}
+          value={number(header.products_registered)} sub={translate('crm.c360.registered')} />
+        <HeaderStat icon={Md.MdHeadsetMic} label={translate('crm.c360.openCases')} value={number(header.open_cases)}
+          sub={translate('crm.c360.totalN', { n: number(header.total_cases) })} />
       </SimpleGrid>
       <Divider my={3} />
       <KeySegments view={facts} />
@@ -291,8 +293,8 @@ export default function CustomerDetail() {
       {/* ---------------------------------------------------------- breadcrumb, search, title, actions */}
       <Flex align="center" justify="space-between" wrap="wrap" mb={3}>
         <Breadcrumb fontSize="sm" color={surface.muted} separator={<Icon as={Md.MdChevronRight} />} mb={{ base: 2, md: 0 }}>
-          <BreadcrumbItem><BreadcrumbLink onClick={() => history.push(PAGE)}>{t('crm.c360.customers')}</BreadcrumbLink></BreadcrumbItem>
-          <BreadcrumbItem isCurrentPage={isPerson}><BreadcrumbLink onClick={() => goTab('overview')}>{t('crm.c360.customer360')}</BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbItem><BreadcrumbLink onClick={() => history.push(PAGE)}>{translate('crm.c360.customers')}</BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbItem isCurrentPage={isPerson}><BreadcrumbLink onClick={() => goTab('overview')}>{translate('crm.c360.customer360')}</BreadcrumbLink></BreadcrumbItem>
           {isPerson ? null : <BreadcrumbItem isCurrentPage><Text as="span">{party.display_name}</Text></BreadcrumbItem>}
         </Breadcrumb>
         <CrmSearch />
@@ -300,62 +302,68 @@ export default function CustomerDetail() {
 
       <Flex align="center" justify="space-between" wrap="wrap" mb={4}>
         <HStack spacing={3} mb={{ base: 2, md: 0 }}>
-          <IconButton size="sm" variant="outline" icon={<Icon as={Md.MdArrowBack} />} aria-label={t('crm.customer.allCustomers')} onClick={() => history.push(PAGE)} />
-          <Text fontSize="2xl" fontWeight="800">{t('crm.c360.customer360')}</Text>
+          <IconButton size="sm" variant="outline" icon={<Icon as={Md.MdArrowBack} />} aria-label={translate('crm.customer.allCustomers')} onClick={() => history.push(PAGE)} />
+          <Text fontSize="2xl" fontWeight="800">{translate('crm.c360.customer360')}</Text>
         </HStack>
         {editable ? (
           <HStack spacing={2} wrap="wrap">
             {isPerson ? (
               <Menu placement="bottom-end">
-                <MenuButton as={Button} size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />}>{t('crm.c360.mergeLinkAccounts')}</MenuButton>
+                <MenuButton as={Button} size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />}>{translate('crm.c360.mergeLinkAccounts')}</MenuButton>
                 <MenuList fontSize="sm">
-                  <MenuItem icon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{t('crm.customer.mergeADuplicate')}</MenuItem>
-                  <MenuItem icon={<Icon as={Md.MdLink} />} onClick={() => open('account')}>{t('crm.c360.linkAccount')}</MenuItem>
+                  <MenuItem icon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{translate('crm.customer.mergeADuplicate')}</MenuItem>
+                  <MenuItem icon={<Icon as={Md.MdLink} />} onClick={() => open('account')}>{translate('crm.c360.linkAccount')}</MenuItem>
                 </MenuList>
               </Menu>
             ) : (
-              <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{t('crm.c360.merge')}</Button>
+              <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{translate('crm.c360.merge')}</Button>
             )}
             {isPerson
-              ? <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdSend} />} onClick={() => open('message')}>{t('crm.c360.sendMessage')}</Button>
+              ? <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdSend} />} onClick={() => open('message')}>{translate('crm.c360.sendMessage')}</Button>
               : (
                 <>
-                  <Button size="sm" variant="outline" onClick={() => open('case')}>{t('crm.c360.newCase')}</Button>
-                  <Button size="sm" variant="outline" onClick={() => open('campaign')}>{t('crm.c360.newCampaign')}</Button>
+                  <Button size="sm" variant="outline" onClick={() => open('case')}>{translate('crm.c360.newCase')}</Button>
+                  <Button size="sm" variant="outline" onClick={() => open('campaign')}>{translate('crm.c360.newCampaign')}</Button>
                 </>
               )}
             <ButtonGroup size="sm" isAttached variant="brand">
               <Button leftIcon={<Icon as={Md.MdEdit} />} onClick={() => open('profile', editInitial)}>
-                {t(isPerson ? 'crm.c360.editCustomer' : 'common.edit')}
+                {translate(isPerson ? 'crm.c360.editCustomer' : 'common.edit')}
               </Button>
               <Menu placement="bottom-end">
-                <MenuButton as={IconButton} icon={<ChevronDownIcon />} aria-label={t('crm.customer.moreActions')} borderLeftWidth="1px" borderColor="whiteAlpha.400" />
+                <MenuButton as={IconButton} icon={<ChevronDownIcon />} aria-label={translate('crm.customer.moreActions')} borderLeftWidth="1px" borderColor="whiteAlpha.400" />
                 <MenuList fontSize="sm">
-                  <MenuItem icon={<Icon as={Md.MdContactPhone} />} onClick={() => open('contact', { contact_type: isPerson ? 'MOBILE' : 'PHONE' })}>{t('crm.customer.addContact')}</MenuItem>
-                  <MenuItem icon={<Icon as={Md.MdPeopleOutline} />} onClick={() => open('relationship')}>{t('crm.c360.addRelationship')}</MenuItem>
-                  {isPerson ? null : <MenuItem icon={<Icon as={Md.MdGroup} />} onClick={() => open('team')}>{t('crm.c360.assignAccountTeam')}</MenuItem>}
-                  <MenuItem icon={<Icon as={Md.MdForum} />} onClick={() => open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{t('crm.c360.logInteraction')}</MenuItem>
+                  <MenuItem icon={<Icon as={Md.MdContactPhone} />} onClick={() => open('contact', { contact_type: isPerson ? 'MOBILE' : 'PHONE' })}>{translate('crm.customer.addContact')}</MenuItem>
+                  <MenuItem icon={<Icon as={Md.MdPeopleOutline} />} onClick={() => open('relationship')}>{translate('crm.c360.addRelationship')}</MenuItem>
+                  {isPerson ? null : <MenuItem icon={<Icon as={Md.MdGroup} />} onClick={() => open('team')}>{translate('crm.c360.assignAccountTeam')}</MenuItem>}
+                  <MenuItem icon={<Icon as={Md.MdForum} />} onClick={() => open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.c360.logInteraction')}</MenuItem>
+                  {isPerson ? (
+                    <MenuItem icon={<Icon as={Md.MdVerifiedUser} />}
+                      onClick={() => run(() => crm.parties.setChecked(party.party_id, !person.is_checked_manually))}>
+                      {translate(person.is_checked_manually ? 'crm.customers.markUnchecked' : 'crm.customers.markChecked')}
+                    </MenuItem>
+                  ) : null}
                   <MenuDivider />
                   {party.party_status === 'ACTIVE' ? (
                     <MenuItem icon={<Icon as={Md.MdBlock} />}
-                      onClick={() => ask('crm.customer.deactivate', 'crm.customer.statusExplained', party.party_no, () => crm.parties.setStatus(party.party_id, 'INACTIVE'))}>
-                      {t('crm.customer.deactivate')}
+                      onClick={() => ask('crm.customer.deactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_id), () => crm.parties.setStatus(party.party_id, 'INACTIVE'))}>
+                      {translate('crm.customer.deactivate')}
                     </MenuItem>
                   ) : (
                     <MenuItem icon={<Icon as={Md.MdRestore} />}
-                      onClick={() => ask('crm.customer.reactivate', 'crm.customer.statusExplained', party.party_no, () => crm.parties.setStatus(party.party_id, 'ACTIVE'), 'restore')}>
-                      {t('crm.customer.reactivate')}
+                      onClick={() => ask('crm.customer.reactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_id), () => crm.parties.setStatus(party.party_id, 'ACTIVE'), 'restore')}>
+                      {translate('crm.customer.reactivate')}
                     </MenuItem>
                   )}
                 </MenuList>
               </Menu>
             </ButtonGroup>
             <Menu placement="bottom-end">
-              <MenuButton as={IconButton} size="sm" variant="outline" icon={<Icon as={Md.MdMoreHoriz} />} aria-label={t('crm.customer.moreActions')} />
+              <MenuButton as={IconButton} size="sm" variant="outline" icon={<Icon as={Md.MdMoreHoriz} />} aria-label={translate('crm.customer.moreActions')} />
               <MenuList fontSize="sm">
-                <MenuItem icon={<Icon as={Md.MdContentCopy} />} onClick={copyNumber}>{t('crm.c360.copyNumber')}</MenuItem>
-                <MenuItem icon={<Icon as={Md.MdNote} />} onClick={() => goTab('notes')}>{t('crm.c360.notesAndHistory')}</MenuItem>
-                <MenuItem icon={<Icon as={Md.MdInsertChart} />} onClick={() => goTab('analytics')}>{t('crm.c360.tabAnalytics')}</MenuItem>
+                <MenuItem icon={<Icon as={Md.MdContentCopy} />} onClick={copyNumber}>{translate('crm.c360.copyNumber')}</MenuItem>
+                <MenuItem icon={<Icon as={Md.MdNote} />} onClick={() => goTab('notes')}>{translate('crm.c360.notesAndHistory')}</MenuItem>
+                <MenuItem icon={<Icon as={Md.MdInsertChart} />} onClick={() => goTab('analytics')}>{translate('crm.c360.tabAnalytics')}</MenuItem>
               </MenuList>
             </Menu>
           </HStack>
@@ -370,8 +378,8 @@ export default function CustomerDetail() {
         </Grid>
         {merged ? (
           <Box mt={3} p={3} borderRadius="md" bg={mergedBg} fontSize="sm">
-            {t('crm.customer.mergedInto', { number: party.merged_into_party_no || '' })}{' '}
-            <Button size="xs" variant="link" onClick={() => history.push(PAGE + '/' + party.merged_into_party_id)}>{t('crm.customer.openIt')}</Button>
+            {translate('crm.customer.mergedInto', { number: partyIdLabel(party.merged_into_party_id) })}{' '}
+            <Button size="xs" variant="link" onClick={() => history.push(PAGE + '/' + party.merged_into_party_id)}>{translate('crm.customer.openIt')}</Button>
           </Box>
         ) : null}
       </Box>
@@ -379,7 +387,7 @@ export default function CustomerDetail() {
       {/* ---------------------------------------------------------- the tabs */}
       <Tabs index={tabIndex} onChange={(index) => goTab(tabs[index][0])} isLazy variant="line" colorScheme="brand">
         <TabList overflowX="auto" overflowY="hidden" mb={4} borderColor={surface.border}>
-          {tabs.map((tab) => <Tab key={tab[0]} fontSize="sm" whiteSpace="nowrap" fontWeight="600">{t(tab[1])}</Tab>)}
+          {tabs.map((tab) => <Tab key={tab[0]} fontSize="sm" whiteSpace="nowrap" fontWeight="600">{translate(tab[1])}</Tab>)}
         </TabList>
         <TabPanels>
           {tabs.map((tab) => (
@@ -407,7 +415,7 @@ export default function CustomerDetail() {
 
 /** The tags under the name, and the menu that adds one. */
 function TagsLine({ facts, unusedTags, editable, party, run }) {
-  const t = useT();
+  const translate = useT();
   const tags = facts.tags || [];
   if (!tags.length && !editable) return null;
   return (
@@ -420,7 +428,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
       {editable && unusedTags.length ? (
         <WrapItem>
           <Menu>
-            <MenuButton as={Button} size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />}>{t('crm.c360.addTag')}</MenuButton>
+            <MenuButton as={Button} size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />}>{translate('crm.c360.addTag')}</MenuButton>
             <MenuList fontSize="sm" maxH="16rem" overflowY="auto">
               {unusedTags.map((tag) => (
                 <MenuItem key={tag.tag_id} onClick={() => run(() => crm.customer360.addTag(party.party_id, tag.tag_id), 'crm.c360.tagAdded')}>
@@ -437,7 +445,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
 
 /** One tab's content. The overview is laid out here; the other tabs live in c360Tabs. */
 function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
-  const t = useT();
+  const translate = useT();
   const props = { record: record, view: view, act: act };
   if (tabKey === 'overview') {
     return isPerson ? (
@@ -468,8 +476,8 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
           <OrganizationInfoCard view={view} onEdit={act.editable ? () => goTab('organization') : null} />
           <Stack spacing={4}>
             <KeyMetricsCard view={view} onViewAll={() => goTab('analytics')} />
-            <AccountsCard view={view} onViewAll={() => goTab('accounts')} title={t('crm.c360.accountsAndProjects')}
-              action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('account')}>{t('crm.c360.linkAccount')}</Button> : null} />
+            <AccountsCard view={view} onViewAll={() => goTab('accounts')} title={translate('crm.c360.accountsAndProjects')}
+              action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('account')}>{translate('crm.c360.linkAccount')}</Button> : null} />
           </Stack>
           <Stack spacing={4}>
             <RelationshipOwnershipCard view={view} onEdit={act.editable ? () => goTab('organization') : null} />
@@ -478,7 +486,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
         </Grid>
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1.25fr 1fr' }} gridGap={4}>
           <KeyContactsCard view={view} onViewAll={() => goTab('contacts')} onLink={act.editable ? () => act.open('person') : null} />
-          <ProductsCard view={view} onViewAll={() => goTab('products')} title={t('crm.c360.productsAndAssets')} />
+          <ProductsCard view={view} onViewAll={() => goTab('products')} title={translate('crm.c360.productsAndAssets')} />
           <ServiceSummaryCard view={view} onViewAll={() => goTab('service')} withRecentCases />
         </Grid>
         <RecentOrdersCard view={view} onViewAll={() => goTab('orders')} />
@@ -499,32 +507,32 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
 }
 
 /** Everything that happened to the customer, newest first, across projects. */
-function timelineOf(record, t) {
+function timelineOf(record, translate) {
   const items = [];
   (record.transactions || []).forEach((transaction) => items.push({
     kind: transaction.transaction_type_code === 'REFUND' ? 'REFUND' : 'TRANSACTION', id: transaction.transaction_id, at: transaction.transaction_at,
-    title: word(t, transaction.transaction_type_code) + '  ·  ' + transaction.project_code,
-    detail: money(transaction.net_amount, transaction.currency_code) + (transaction.points_used ? '  ·  ' + t('crm.customer.pointsUsed', { n: amount(transaction.points_used, 0) }) : ''),
+    title: word(translate, transaction.transaction_type_code) + '  ·  ' + transaction.project_code,
+    detail: money(transaction.net_amount, transaction.currency_code) + (transaction.points_used ? '  ·  ' + translate('crm.customer.pointsUsed', { n: amount(transaction.points_used, 0) }) : ''),
     link: '/admin/crm/transactions?txn=' + transaction.transaction_id
   }));
   (record.cases || []).forEach((serviceCase) => items.push({
-    kind: 'CASE', id: serviceCase.case_id, at: serviceCase.received_at, title: t(serviceCase.case_type_name || '-') + '  ·  ' + (serviceCase.external_case_id || ''),
-    detail: [t(serviceCase.status_name || '-'), serviceCase.location_name].filter(Boolean).join('  ·  '), link: '/admin/crm/service-cases?case=' + serviceCase.case_id
+    kind: 'CASE', id: serviceCase.case_id, at: serviceCase.received_at, title: translate(serviceCase.case_type_name || '-') + '  ·  ' + (serviceCase.external_case_id || ''),
+    detail: [translate(serviceCase.status_name || '-'), serviceCase.service_center_name].filter(Boolean).join('  ·  '), link: '/admin/crm/service-cases?case=' + serviceCase.case_id
   }));
   (record.holdings || []).forEach((holding) => items.push({
     kind: 'REGISTRATION', id: holding.product_registration_id, at: holding.valid_from,
-    title: (holding.product_name || '-') + '  ·  ' + word(t, holding.relationship_code), detail: holding.external_product_instance_id,
+    title: (holding.product_name || '-') + '  ·  ' + word(translate, holding.relationship_code), detail: holding.external_product_instance_id,
     link: '/admin/crm/products?instance=' + holding.product_instance_id
   }));
   (record.activities || []).forEach((activity) => items.push({
-    kind: 'VISIT', id: activity.location_activity_id, at: activity.occurred_at, title: t(activity.activity_name || '-'), detail: activity.location_name
+    kind: 'VISIT', id: activity.service_center_activity_id, at: activity.occurred_at, title: translate(activity.activity_name || '-'), detail: activity.service_center_name
   }));
   (record.tier_history || []).forEach((tierChange) => items.push({
     kind: 'TIER', id: tierChange.membership_tier_history_id, at: tierChange.changed_at,
-    title: tierChange.project_code + '  ·  ' + t(tierChange.new_tier_name || '-'), detail: tierChange.change_reason
+    title: tierChange.project_code + '  ·  ' + translate(tierChange.new_tier_name || '-'), detail: tierChange.change_reason
   }));
   (record.reservations || []).forEach((reservation) => items.push({
-    kind: 'ENTRY', id: reservation.reservation_id, at: reservation.reserved_at, title: reservation.program_name, detail: reservation.reservation_code + '  ·  ' + word(t, reservation.status)
+    kind: 'ENTRY', id: reservation.reservation_id, at: reservation.reserved_at, title: reservation.program_name, detail: reservation.reservation_code + '  ·  ' + word(translate, reservation.status)
   }));
   return items.filter((item) => item.at).sort((first, second) => new Date(second.at) - new Date(first.at)).slice(0, 30);
 }
@@ -539,21 +547,21 @@ const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 
 const MESSAGE_CHANNELS = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
 
 /** Every dialog the record can open, as FormModal configurations. */
-function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, history, view }) {
+function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites, history, view }) {
   const projects = optionsFrom(meta.projects, 'project_id', 'project_name');
   return {
     profile: {
-      title: t(isPerson ? 'crm.customer.editProfile' : 'crm.c360.editOrganization'),
+      title: translate(isPerson ? 'crm.customer.editProfile' : 'crm.c360.editOrganization'),
       fields: isPerson ? [
         { name: 'display_name', label: 'Name', required: true },
         { name: 'full_name', label: 'Full name' },
         { name: 'gender_code', label: 'Gender', type: 'select',
           options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }, { value: 'OTHER', label: 'Other' }, { value: 'UNKNOWN', label: 'Unknown' }] },
         { name: 'birth_date', label: 'Date of birth', type: 'date' },
-        { name: 'nationality_code', label: 'Nationality' },
-        { name: 'job_title', label: 'Job title' },
-        { name: 'preferred_language', label: 'Preferred language' },
-        { name: 'home_location_id', label: 'Area', type: 'select', options: optionsFrom(meta.areas, 'location_id', 'location_name'), isSearchable: true },
+        { name: 'job_title_id', label: 'Job title', type: 'select', isSearchable: true,
+          options: optionsFrom((meta.job_titles || []).filter((job) => job.is_active || job.job_title_id === (record.person || {}).job_title_id),
+            'job_title_id', 'job_name') },
+        { name: 'home_location_pk', label: 'Location', type: 'select', options: optionsFrom(meta.areas, 'location_id', (area) => area.full_name || area.location_name), isSearchable: true },
         { name: 'address_line', label: 'Address', colSpan: 'full' }
       ] : [
         { name: 'display_name', label: 'Name', required: true },
@@ -564,14 +572,14 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
         { name: 'employee_count_band', label: 'Company size', type: 'select', options: BANDS.map((band) => ({ value: band, label: band })) },
         { name: 'founded_date', label: 'Established', type: 'date' },
         { name: 'website_url', label: 'Website' },
-        { name: 'headquarters_location_id', label: 'Headquarters city', type: 'select', options: optionsFrom(meta.areas, 'location_id', 'location_name'), isSearchable: true },
-        { name: 'headquarters_address', label: 'Headquarters address', colSpan: 'full' },
+        { name: 'location_pk', label: 'Location', type: 'select', options: optionsFrom(meta.areas, 'location_id', (area) => area.full_name || area.location_name), isSearchable: true },
+        { name: 'headquarters_address', label: 'Address', colSpan: 'full' },
         { name: 'description', label: 'Business description', type: 'textarea', colSpan: 'full' }
       ],
       submit: (values) => run(() => crm.parties.update(party.party_id, values))
     },
     contact: {
-      title: t('crm.customer.addContact'),
+      title: translate('crm.customer.addContact'),
       fields: [
         { name: 'contact_type', label: 'Type', type: 'select', required: true, isClearable: false, options: choices(CONTACT_TYPES) },
         { name: 'contact_value', label: 'Contact', required: true },
@@ -582,7 +590,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.parties.addContact(party.party_id, values), 'Created')
     },
     account: {
-      title: t('crm.customer.linkAccount'),
+      title: translate('crm.customer.linkAccount'),
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
         { name: 'external_account_id', label: 'Account id in that project', required: true },
@@ -591,20 +599,20 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.parties.linkAccount(party.party_id, values), 'Created')
     },
     consent: {
-      title: t('crm.customer.changeConsent'),
+      title: translate('crm.customer.changeConsent'),
       fields: [
         { name: 'consent_status', label: 'Consent', type: 'select', required: true, isClearable: false,
           options: choices(['GRANTED', 'DENIED', 'WITHDRAWN', 'NOT_REQUIRED']) },
         { name: 'contact_point_id', label: 'Send to', type: 'select',
           options: (record.contacts || []).filter((contact) => contact.status === 'ACTIVE')
-            .map((contact) => ({ value: contact.contact_point_id, label: word(t, contact.contact_type) + '  ' + contact.contact_value })) },
+            .map((contact) => ({ value: contact.contact_point_id, label: word(translate, contact.contact_type) + '  ' + contact.contact_value })) },
         { name: 'reason', label: 'Reason', type: 'textarea', required: true, colSpan: 'full',
           help: 'Say how the customer told you - a call, a letter, at a counter.' }
       ],
       submit: (values) => run(() => crm.parties.setConsent(party.party_id, Object.assign({}, dialog.initial, values)))
     },
     merge: {
-      title: t('crm.customer.mergeIntoThis'),
+      title: translate('crm.customer.mergeIntoThis'),
       fields: [
         { name: 'merged_party_id', label: 'The duplicate customer', type: 'custom', required: true, colSpan: 'full',
           render: (values, set) => <PartyPicker value={values.merged_party_id} onChange={(value) => set('merged_party_id', value)} /> },
@@ -614,7 +622,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.parties.merge(party.party_id, values.merged_party_id, values.merge_reason), 'crm.customers.merged')
     },
     orgType: {
-      title: t('crm.customer.addOrganizationType'),
+      title: translate('crm.customer.addOrganizationType'),
       fields: [
         { name: 'organization_type_id', label: 'Type', type: 'select', required: true, options: optionsFrom(meta.organization_types, 'organization_type_id', 'type_name') },
         { name: 'project_id', label: 'Only in project', type: 'select', options: projects, help: 'Left empty, the type holds across Dream.' }
@@ -622,7 +630,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.organizations.assignType(party.party_id, values), 'Created')
     },
     industry: {
-      title: t('crm.customer.addIndustry'),
+      title: translate('crm.customer.addIndustry'),
       fields: [
         { name: 'industry_id', label: 'Industry', type: 'select', required: true, options: optionsFrom(meta.industries, 'industry_id', 'industry_name') },
         { name: 'is_primary', label: 'Primary', type: 'checkbox' }
@@ -630,7 +638,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.organizations.setIndustry(party.party_id, values))
     },
     person: {
-      title: t('crm.c360.linkContact'),
+      title: translate('crm.c360.linkContact'),
       fields: [
         { name: 'person_party_id', label: 'Person', type: 'custom', required: true, colSpan: 'full',
           render: (values, set) => <PartyPicker value={values.person_party_id} onChange={(value) => set('person_party_id', value)} /> },
@@ -641,7 +649,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.organizations.addPerson(party.party_id, values), 'Created')
     },
     relationship: {
-      title: t('crm.c360.addRelationship'),
+      title: translate('crm.c360.addRelationship'),
       fields: [
         { name: 'relationship_type_code', label: 'Relationship', type: 'select', required: true,
           options: (meta.party_relationship_types || [])
@@ -656,7 +664,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.customer360.addRelationship(party.party_id, values), 'Created')
     },
     interaction: {
-      title: t('crm.c360.logInteraction'),
+      title: translate('crm.c360.logInteraction'),
       fields: [
         { name: 'direction', label: 'Direction', type: 'select', required: true, isClearable: false, options: choices(['INBOUND', 'OUTBOUND']) },
         { name: 'channel_code', label: 'Channel', type: 'select', required: true, isClearable: false, options: choices(INTERACTION_CHANNELS) },
@@ -672,7 +680,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.customer360.logInteraction(party.party_id, values), 'Created')
     },
     message: {
-      title: t('crm.c360.sendMessage'),
+      title: translate('crm.c360.sendMessage'),
       fields: [
         { name: 'project_id', label: 'From project', type: 'select', required: true, options: projects },
         { name: 'channel_id', label: 'Channel', type: 'select', required: true,
@@ -687,7 +695,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.customer360.sendMessage(party.party_id, values), 'crm.c360.messageQueued')
     },
     team: {
-      title: t('crm.c360.assignAccountTeam'),
+      title: translate('crm.c360.assignAccountTeam'),
       fields: [
         { name: 'team_role', label: 'Role', type: 'select', required: true, options: choices(['ACCOUNT_MANAGER', 'SALES_REP', 'SUPPORT_MANAGER']) },
         { name: 'manager_id', label: 'Staff member', type: 'select', required: true, isSearchable: true, options: optionsFrom(meta.staff, 'manager_id', 'name'),
@@ -696,7 +704,7 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
       submit: (values) => run(() => crm.customer360.assignTeam(party.party_id, values))
     },
     agreement: {
-      title: t(dialog && dialog.initial && dialog.initial.agreement_id ? 'crm.c360.editAgreement' : 'crm.c360.addAgreement'),
+      title: translate(dialog && dialog.initial && dialog.initial.agreement_id ? 'crm.c360.editAgreement' : 'crm.c360.addAgreement'),
       fields: [
         { name: 'agreement_type', label: 'Contract type', type: 'select', required: true,
           options: choices(['ENTERPRISE', 'RESELLER', 'DISTRIBUTION', 'SERVICE_LEVEL', 'PURCHASE', 'PARTNERSHIP']) },
@@ -714,20 +722,20 @@ function formsFor({ t, record, party, isPerson, meta, dialog, run, sites, histor
         : crm.customer360.createAgreement(party.party_id, values)))
     },
     case: {
-      title: t('crm.c360.newCase'),
+      title: translate('crm.c360.newCase'),
       fields: [
         { name: 'case_type_id', label: 'Type', type: 'select', required: true, options: optionsFrom(meta.case_types, 'case_type_id', 'display_name') },
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
         { name: 'service_priority_id', label: 'Priority', type: 'select', options: optionsFrom(meta.priorities, 'service_priority_id', 'priority_name') },
         { name: 'reception_channel_code', label: 'Received by', type: 'select', options: choices(CASE_CHANNELS) },
-        { name: 'service_location_id', label: 'Service location', type: 'select', options: sites, isSearchable: true },
+        { name: 'service_center_id', label: 'Service location', type: 'select', options: sites, isSearchable: true },
         { name: 'title', label: 'Subject', required: true, colSpan: 'full' },
         { name: 'description', label: 'Description', type: 'textarea', colSpan: 'full' }
       ],
       submit: (values) => run(() => crm.cases.create(Object.assign({ party_id: party.party_id }, values)), 'Created')
     },
     campaign: {
-      title: t('crm.c360.newCampaign'),
+      title: translate('crm.c360.newCampaign'),
       fields: [
         { name: 'campaign_name', label: 'Name', required: true, colSpan: 'full' },
         { name: 'campaign_code', label: 'Code', required: true },

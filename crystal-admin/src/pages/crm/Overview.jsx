@@ -35,7 +35,7 @@ export const PAGE = '/admin/crm/overview';
  * its project, and running it twice is the same as running it once.
  */
 export default function Overview() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const history = useHistory();
@@ -65,9 +65,9 @@ export default function Overview() {
   const runImport = async () => {
     const agreed = await confirm({
       tone: 'info',
-      title: t('crm.overview.importAndAnalyse'),
-      body: t('crm.overview.importExplained'),
-      confirmLabel: t('crm.overview.import')
+      title: translate('crm.overview.importAndAnalyse'),
+      body: translate('crm.overview.importExplained'),
+      confirmLabel: translate('crm.overview.import')
     });
     if (!agreed) return;
 
@@ -77,7 +77,7 @@ export default function Overview() {
       const { data: vendor } = await crm.importVendor();
       const { data: analysed } = await crm.analysis.run();
       setLastRun(Object.assign({}, crystal || {}, vendor || {}, { analysis: { added: (analysed || {}).snapshots } }));
-      toast({ title: t('crm.overview.importFinished'), status: 'success', duration: 3000 });
+      toast({ title: translate('crm.overview.importFinished'), status: 'success', duration: 3000 });
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 8000, isClosable: true });
@@ -90,7 +90,7 @@ export default function Overview() {
     setBusy(true);
     try {
       await crm.recalculate();
-      toast({ title: t('crm.overview.recalculated'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.overview.recalculated'), status: 'success', duration: 2500 });
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -108,14 +108,14 @@ export default function Overview() {
     <Stack spacing={5}>
       <Card bodyProps={false}>
         <HStack px={5} py={4} justify="space-between" wrap="wrap" spacing={4}>
-          <Text fontSize="sm" maxW="46rem">{t('crm.overview.intro')}</Text>
+          <Text fontSize="sm" maxW="46rem">{translate('crm.overview.intro')}</Text>
           {canWrite ? (
             <HStack spacing={2}>
               <Button size="sm" variant="subtle" isLoading={busy} onClick={recalculate}>
-                {t('crm.overview.recalculate')}
+                {translate('crm.overview.recalculate')}
               </Button>
               <Button size="sm" variant="brand" isLoading={busy} onClick={runImport}>
-                {t('crm.overview.importAndAnalyse')}
+                {translate('crm.overview.importAndAnalyse')}
               </Button>
             </HStack>
           ) : null}
@@ -123,7 +123,7 @@ export default function Overview() {
       </Card>
 
       {summaryRows.length ? (
-        <Card title={t('crm.overview.lastImport')}>
+        <Card title={translate('crm.overview.lastImport')}>
           <DataTable
             rows={summaryRows}
             rowKey={(row) => row.step}
@@ -142,7 +142,7 @@ export default function Overview() {
       <SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} spacing={4}>
         <StatTile
           label="Active customers" value={number(parties.active)} icon={Md.MdPeopleOutline}
-          hint={t('crm.overview.newIn30Days', { n: number(parties.new_30d) })}
+          hint={translate('crm.overview.newIn30Days', { n: number(parties.new_30d) })}
           onClick={() => history.push('/admin/crm/customers')}
         />
         <StatTile
@@ -152,40 +152,40 @@ export default function Overview() {
         />
         <StatTile
           label="Products held" value={number(holdings.current)} icon={Md.MdDevicesOther}
-          hint={t('crm.overview.openTransfers', { n: number(holdings.open_transfers) })}
+          hint={translate('crm.overview.openTransfers', { n: number(holdings.open_transfers) })}
           onClick={() => history.push('/admin/crm/products')}
         />
         <StatTile
           label="Open service cases" value={number(cases.open)} icon={Md.MdHeadset}
           tone={cases.overdue > 0 ? 'critical' : undefined}
-          hint={t('crm.overview.overdueCount', { n: number(cases.overdue) })}
+          hint={translate('crm.overview.overdueCount', { n: number(cases.overdue) })}
           onClick={() => history.push('/admin/crm/service-cases')}
         />
         <StatTile
           label="Points outstanding" value={amount(points.outstanding, 0)} icon={Md.MdStars}
-          hint={t('crm.overview.pointsIn30Days', { earned: amount(points.earned_30d, 0), spent: amount(points.spent_30d, 0) })}
+          hint={translate('crm.overview.pointsIn30Days', { earned: amount(points.earned_30d, 0), spent: amount(points.spent_30d, 0) })}
           tone={points.drifted > 0 ? 'critical' : undefined}
           onClick={() => history.push('/admin/crm/points')}
         />
         <StatTile
           label="Programs running" value={number(programs.running)} icon={Md.MdEventAvailable}
-          hint={t('crm.overview.openEntries', { n: number(programs.reservations_open), awards: number(programs.awards_open) })}
+          hint={translate('crm.overview.openEntries', { n: number(programs.reservations_open), awards: number(programs.awards_open) })}
           onClick={() => history.push('/admin/crm/programs')}
         />
         <StatTile
           label="Location activity (30 days)" value={number(sites.activities_30d)} icon={Md.MdTimeline}
-          hint={t('crm.overview.sitesAndEvents', { sites: number(sites.active), events: number(sites.events_ahead) })}
+          hint={translate('crm.overview.sitesAndEvents', { sites: number(sites.active), events: number(sites.events_ahead) })}
           onClick={() => history.push('/admin/crm/site-activity')}
         />
         <StatTile
           label="Live campaigns" value={number(marketing.campaigns_live)} icon={Md.MdRecordVoiceOver}
-          hint={t('crm.overview.segmentsCount', { n: number(marketing.segments) })}
+          hint={translate('crm.overview.segmentsCount', { n: number(marketing.segments) })}
           onClick={() => history.push('/admin/crm/campaigns')}
         />
       </SimpleGrid>
 
       <SimpleGrid columns={{ base: 1, xl: 3 }} spacing={4}>
-        <Card title={t('crm.overview.customersByProject')}>
+        <Card title={translate('crm.overview.customersByProject')}>
           <DataTable
             rows={overview.by_project || []}
             rowKey={(row) => row.project_code}
@@ -196,26 +196,26 @@ export default function Overview() {
             ]}
           />
         </Card>
-        <Card title={t('crm.overview.holdingsByClass')}>
+        <Card title={translate('crm.overview.holdingsByClass')}>
           <DataTable
             rows={overview.by_class || []}
             rowKey={(row) => row.class_code}
             hidePagination
             columns={[
-              { key: 'class_name', label: 'Product class', render: (row) => t(row.class_name) },
+              { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name) },
               { key: 'owners', label: 'Owners', isNumeric: true, render: (row) => number(row.owners) },
               { key: 'owned', label: 'Held', isNumeric: true, render: (row) => number(row.owned) }
             ]}
           />
         </Card>
-        <Card title={t('crm.overview.activityIn30Days')}>
+        <Card title={translate('crm.overview.activityIn30Days')}>
           <Box>
             <DataTable
               rows={overview.recent_activity || []}
               rowKey={(row) => row.activity_code}
               hidePagination
               columns={[
-                { key: 'activity_name', label: 'Activity', render: (row) => t(row.activity_name) },
+                { key: 'activity_name', label: 'Activity', render: (row) => translate(row.activity_name) },
                 { key: 'cnt', label: 'Count', isNumeric: true, render: (row) => number(row.cnt) }
               ]}
             />
@@ -228,7 +228,7 @@ export default function Overview() {
 
 /** The latest analysis run, Dream-wide. */
 function DreamPicture({ summaryData, onOpen }) {
-  const t = useT();
+  const translate = useT();
   const totals = summaryData.totals || {};
   const grades = summaryData.grades || [];
   const activity = summaryData.activity || [];
@@ -236,7 +236,7 @@ function DreamPicture({ summaryData, onOpen }) {
   const most = Math.max.apply(null, grades.map((grade) => grade.parties).concat([1]));
 
   if (!summaryData.reference_date) {
-    return <Card><Text fontSize="sm">{t('crm.analysis.notRunYet')}</Text></Card>;
+    return <Card><Text fontSize="sm">{translate('crm.analysis.notRunYet')}</Text></Card>;
   }
 
   return (
@@ -252,8 +252,8 @@ function DreamPicture({ summaryData, onOpen }) {
         <Kpi label="Reference date" value={date(summaryData.reference_date)} />
       </KpiStrip>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
-        <Panel title={t('crm.analysis.gradeDistribution')}
-          action={<Button size="xs" variant="ghost" onClick={() => onOpen('/admin/crm/analysis')}>{t('crm.overview.openAnalysis')}</Button>}>
+        <Panel title={translate('crm.analysis.gradeDistribution')}
+          action={<Button size="xs" variant="ghost" onClick={() => onOpen('/admin/crm/analysis')}>{translate('crm.overview.openAnalysis')}</Button>}>
           <Stack spacing={2.5} px={4} py={3}>
             {grades.map((grade) => (
               <Flex key={grade.grade_code} align="center" cursor="pointer" onClick={() => onOpen('/admin/crm/customers?grade=' + grade.corporate_grade_id)}>
@@ -264,7 +264,7 @@ function DreamPicture({ summaryData, onOpen }) {
             ))}
           </Stack>
         </Panel>
-        <Panel title={t('crm.analysis.activity')}>
+        <Panel title={translate('crm.analysis.activity')}>
           <Stack spacing={2.5} px={4} py={3}>
             {activity.map((activityRow) => (
               <Box key={activityRow.activity_status}>
@@ -277,7 +277,7 @@ function DreamPicture({ summaryData, onOpen }) {
             ))}
           </Stack>
         </Panel>
-        <Panel title={t('crm.analysis.spendByProject')}>
+        <Panel title={translate('crm.analysis.spendByProject')}>
           <DataTable
             hidePagination
             rows={projects}

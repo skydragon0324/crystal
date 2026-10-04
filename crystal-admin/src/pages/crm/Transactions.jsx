@@ -12,7 +12,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { dateTime, money, number } from '../../utils/format';
-import { amount, choices, filtersFor, optionsFrom, useCrmMeta, word } from './shared';
+import { amount, choices, filtersFor, optionsFrom, useCrmMeta, word, partyIdLabel } from './shared';
 import { Amount, InfoList, Kpi, Panel, ProjectTags } from './ui';
 
 export const PAGE = '/admin/crm/transactions';
@@ -33,7 +33,7 @@ const TYPES = ['SALE', 'SERVICE_PAYMENT', 'APP_PURCHASE', 'LICENCE_PURCHASE', 'R
  * cancelled or failed order is listed and not counted.
  */
 export default function Transactions() {
-  const t = useT();
+  const translate = useT();
   const history = useHistory();
   const location = useLocation();
   const meta = useCrmMeta();
@@ -47,7 +47,7 @@ export default function Transactions() {
     <Stack spacing={4}>
       <HStack spacing={3} align="stretch">
         <Box flex="1"><Kpi label="Transactions listed" value={number(list.total)} /></Box>
-        <Box flex="1"><Kpi label="Counted" value={number(summary.counted)} hint={t('crm.transactions.countedHint')} /></Box>
+        <Box flex="1"><Kpi label="Counted" value={number(summary.counted)} hint={translate('crm.transactions.countedHint')} /></Box>
         <Box flex="1"><Kpi label="Net, reporting currency" value={money(summary.reporting_net)} /></Box>
       </HStack>
 
@@ -55,7 +55,7 @@ export default function Transactions() {
         <Toolbar
           search={list.params.q}
           onSearch={(searchText) => list.setFilter({ q: searchText })}
-          filters={filtersFor(t, [
+          filters={filtersFor(translate, [
             { key: 'project_id', label: 'Project', value: list.params.project_id,
               options: optionsFrom(meta.projects, 'project_id', 'project_name'),
               onChange: (value) => list.setFilter({ project_id: value || undefined }) },
@@ -70,17 +70,17 @@ export default function Transactions() {
             columns={[
               { key: 'transaction_at', label: 'When', render: (row) => dateTime(row.transaction_at) },
               { key: 'project_code', label: 'Project', sortable: false, render: (row) => <ProjectTags codes={[row.project_code]} /> },
-              { key: 'transaction_type_code', label: 'Type', sortable: false, render: (row) => word(t, row.transaction_type_code) },
+              { key: 'transaction_type_code', label: 'Type', sortable: false, render: (row) => word(translate, row.transaction_type_code) },
               { key: 'external_transaction_id', label: 'Reference', sortable: false },
               { key: 'party_name', label: 'Customer', sortable: false,
-                render: (row) => (row.party_name ? row.party_name + '  ' + row.party_no : '-') },
+                render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_id) : '-') },
               { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => <Amount value={row.net_amount} currency={row.currency_code} sign /> },
               { key: 'reporting_net_amount', label: 'Reporting amount', isNumeric: true, render: (row) => <Amount value={row.reporting_net_amount} sign /> },
               { key: 'points_used', label: 'Points used', sortable: false, isNumeric: true, render: (row) => amount(row.points_used, 0) },
               { key: 'transaction_status', label: 'Status', sortable: false,
                 render: (row) => (
                   <Text as="span" color={row.is_counted ? undefined : surface.muted}>
-                    {word(t, row.transaction_status) + (row.refund_cnt ? '  ·  ' + t('crm.transactions.refunded') : '')}
+                    {word(translate, row.transaction_status) + (row.refund_cnt ? '  ·  ' + translate('crm.transactions.refunded') : '')}
                   </Text>
                 ) }
             ]}
@@ -107,7 +107,7 @@ export default function Transactions() {
 }
 
 function TransactionDrawer({ id, onClose }) {
-  const t = useT();
+  const translate = useT();
   const history = useHistory();
   const [detail, setDetail] = useState(null);
 
@@ -125,7 +125,7 @@ function TransactionDrawer({ id, onClose }) {
       <DrawerContent>
         <DrawerCloseButton />
         <DrawerHeader fontSize="md">
-          {word(t, transaction.transaction_type_code)}{transaction.external_transaction_id ? '  ·  ' + transaction.external_transaction_id : ''}
+          {word(translate, transaction.transaction_type_code)}{transaction.external_transaction_id ? '  ·  ' + transaction.external_transaction_id : ''}
         </DrawerHeader>
         <DrawerBody pb={6}>
           <Stack spacing={4}>
@@ -133,26 +133,26 @@ function TransactionDrawer({ id, onClose }) {
               <InfoList items={[
                 { label: 'Project', value: transaction.project_code ? <ProjectTags codes={[transaction.project_code]} /> : null },
                 { label: 'When', value: dateTime(transaction.transaction_at) },
-                { label: 'Status', value: word(t, transaction.transaction_status) },
+                { label: 'Status', value: word(translate, transaction.transaction_status) },
                 { label: 'Amount', value: <Amount value={transaction.net_amount} currency={transaction.currency_code} sign /> },
                 { label: 'Reporting amount', value: <Amount value={transaction.reporting_net_amount} currency={transaction.reporting_currency_code} sign /> },
                 { label: 'Points used', value: amount(transaction.points_used, 0) },
                 { label: 'Channel', value: transaction.sales_channel_code },
-                { label: 'Service location', value: transaction.location_name },
+                { label: 'Service location', value: transaction.service_center_name },
                 transaction.original_transaction_id ? { label: 'Reverses', value: transaction.original_external_id } : null
               ]} />
             </Panel>
-            <Panel title={t('crm.transactions.parties')} empty={(record.parties || []).length ? null : 'crm.ui.nothingYet'}>
+            <Panel title={translate('crm.transactions.parties')} empty={(record.parties || []).length ? null : 'crm.ui.nothingYet'}>
               <InfoList items={(record.parties || []).map((participant) => ({
-                label: word(t, participant.party_role_code),
+                label: word(translate, participant.party_role_code),
                 value: (
                   <Text as="span" color="brand.500" cursor="pointer" onClick={() => history.push('/admin/crm/customers/' + participant.party_id)}>
-                    {(participant.party_name || '-') + '  ' + participant.party_no}
+                    {(participant.party_name || '-') + '  ' + partyIdLabel(participant.party_id)}
                   </Text>
                 )
               }))} />
             </Panel>
-            <Panel title={t('crm.transactions.lines')} empty={(record.items || []).length ? null : 'crm.ui.nothingYet'}>
+            <Panel title={translate('crm.transactions.lines')} empty={(record.items || []).length ? null : 'crm.ui.nothingYet'}>
               <DataTable
                 hidePagination
                 rows={record.items || []}
@@ -165,21 +165,21 @@ function TransactionDrawer({ id, onClose }) {
               />
             </Panel>
             {(record.refunds || []).length ? (
-              <Panel title={t('crm.transactions.refunds')}>
+              <Panel title={translate('crm.transactions.refunds')}>
                 <DataTable
                   hidePagination
                   rows={record.refunds}
                   rowKey={(row) => row.transaction_id}
                   columns={[
                     { key: 'transaction_at', label: 'When', render: (row) => dateTime(row.transaction_at) },
-                    { key: 'transaction_type_code', label: 'Type', render: (row) => word(t, row.transaction_type_code) },
+                    { key: 'transaction_type_code', label: 'Type', render: (row) => word(translate, row.transaction_type_code) },
                     { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => <Amount value={row.net_amount} currency={row.currency_code} sign /> }
                   ]}
                 />
               </Panel>
             ) : null}
             {(record.cases || []).length ? (
-              <Panel title={t('crm.transactions.forServiceCases')}>
+              <Panel title={translate('crm.transactions.forServiceCases')}>
                 <InfoList items={record.cases.map((serviceCase) => ({ label: serviceCase.external_case_id || String(serviceCase.case_id), value: dateTime(serviceCase.received_at) }))} />
               </Panel>
             ) : null}

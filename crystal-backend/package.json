@@ -18,6 +18,7 @@
     "check": "node scripts/check.js",
     "check:crm": "node scripts/check-crm.js",
     "demo:crm": "node scripts/demo-crm.js",
+    "crm:sample": "node scripts/crm-customers-sample.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "schema:verify": "node scripts/verify-schema.js",
     "migrate:verify": "node scripts/verify-migrations.js",

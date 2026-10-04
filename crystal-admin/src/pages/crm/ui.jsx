@@ -23,8 +23,8 @@ import { word } from './shared';
 const GRADE_COLOUR = { AAA: 'purple', AA: 'blue', A: 'teal', B: 'orange', C: 'gray' };
 
 export function GradeBadge({ code, size }) {
-  const t = useT();
-  if (!code) return <Text as="span" fontSize="xs" color="gray.500">{t('crm.ui.notGraded')}</Text>;
+  const translate = useT();
+  if (!code) return <Text as="span" fontSize="xs" color="gray.500">{translate('crm.ui.notGraded')}</Text>;
   const big = size === 'lg';
   return (
     <Badge
@@ -88,12 +88,12 @@ export function PartyAvatar({ name, type, size }) {
 
 /** A small labelled figure - denser than a StatTile, for a strip of eight. */
 export function Kpi({ label, value, hint, tone }) {
-  const t = useT();
+  const translate = useT();
   const surface = useSurface();
   const colour = { good: 'green.500', bad: 'red.500', warn: 'orange.500' }[tone] || surface.text;
   return (
     <Box borderWidth="1px" borderColor={surface.border} borderRadius="lg" px={3} py={2.5} bg={surface.card} minW={0}>
-      <Text fontSize="0.66rem" color={surface.muted} textTransform="uppercase" letterSpacing="0.05em" noOfLines={1}>{t(label)}</Text>
+      <Text fontSize="0.66rem" color={surface.muted} textTransform="uppercase" letterSpacing="0.05em" noOfLines={1}>{translate(label)}</Text>
       <Text fontSize="lg" fontWeight="700" color={colour} mt="2px" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value === null || value === undefined || value === '' ? '-' : value}
       </Text>
@@ -109,7 +109,7 @@ export function KpiStrip({ children }) {
 /** A titled block on a record screen, lighter than a Card. */
 export function Panel({ title, action, children, empty }) {
   const surface = useSurface();
-  const t = useT();
+  const translate = useT();
   return (
     <Box borderWidth="1px" borderColor={surface.border} borderRadius="lg" bg={surface.card} overflow="hidden">
       {title || action ? (
@@ -119,7 +119,7 @@ export function Panel({ title, action, children, empty }) {
         </Flex>
       ) : null}
       <Box p={empty ? 4 : 0}>
-        {empty ? <Text fontSize="sm" color={surface.muted}>{t(empty)}</Text> : children}
+        {empty ? <Text fontSize="sm" color={surface.muted}>{translate(empty)}</Text> : children}
       </Box>
     </Box>
   );
@@ -128,12 +128,12 @@ export function Panel({ title, action, children, empty }) {
 /** label: value lines inside a panel. */
 export function InfoList({ items }) {
   const surface = useSurface();
-  const t = useT();
+  const translate = useT();
   return (
     <Stack spacing={0} divider={<Box borderBottomWidth="1px" borderColor={surface.border} />}>
       {items.filter(Boolean).map((item) => (
         <Flex key={item.label} px={4} py={2} justify="space-between" align="center" fontSize="sm">
-          <Text color={surface.muted} mr={3}>{t(item.label)}</Text>
+          <Text color={surface.muted} mr={3}>{translate(item.label)}</Text>
           <Box textAlign="right" minW={0} wordBreak="break-word">
             {item.value === null || item.value === undefined || item.value === '' ? '-' : item.value}
           </Box>
@@ -156,8 +156,8 @@ const TIMELINE_COLOUR = {
 export function Timeline({ items, onOpen }) {
   const surface = useSurface();
   const line = useColorModeValue('gray.200', 'whiteAlpha.200');
-  const t = useT();
-  if (!items.length) return <Text fontSize="sm" color={surface.muted} p={4}>{t('crm.ui.nothingYet')}</Text>;
+  const translate = useT();
+  if (!items.length) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.ui.nothingYet')}</Text>;
   return (
     <Stack spacing={0} px={4} py={3}>
       {items.map((item, index) => (
@@ -186,7 +186,7 @@ export function Timeline({ items, onOpen }) {
 
 /** The six parts of a corporate score, each against its weight. */
 export function ScoreBreakdown({ components, model }) {
-  const t = useT();
+  const translate = useT();
   const surface = useSurface();
   const parts = (model && model.parts) || {};
   const keys = ['value', 'frequency', 'recency', 'breadth', 'ownership', 'care'];
@@ -194,7 +194,7 @@ export function ScoreBreakdown({ components, model }) {
     value: 'Spend, 12 months', frequency: 'Purchase days, 12 months', recency: 'How recently',
     breadth: 'Projects active in', ownership: 'Products held', care: 'Complaints'
   };
-  if (!components) return <Text fontSize="sm" color={surface.muted} p={4}>{t('crm.ui.notGradedYet')}</Text>;
+  if (!components) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.ui.notGradedYet')}</Text>;
   return (
     <Stack spacing={2.5} px={4} py={3}>
       {keys.map((key) => {
@@ -203,7 +203,7 @@ export function ScoreBreakdown({ components, model }) {
         return (
           <Box key={key}>
             <Flex justify="space-between" fontSize="xs">
-              <Text color={surface.muted}>{t(label[key])}</Text>
+              <Text color={surface.muted}>{translate(label[key])}</Text>
               <Text fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>{number(got, 1) + ' / ' + weight}</Text>
             </Flex>
             <Progress value={weight ? (got / weight) * 100 : 0} size="xs" borderRadius="full" colorScheme="brand" mt="2px" />
@@ -227,14 +227,14 @@ export function Amount({ value, currency, sign }) {
 
 /** A status word as a coloured dot and the word - quieter than a badge, for dense tables. */
 export function Dot({ value }) {
-  const t = useT();
+  const translate = useT();
   const colour = {
     ACTIVE: 'green.400', NEW: 'blue.400', AT_RISK: 'orange.400', LAPSED: 'red.400', NEVER_BOUGHT: 'gray.400'
   }[value] || 'gray.400';
   return (
     <HStack spacing={1.5}>
       <Box w="0.5rem" h="0.5rem" borderRadius="full" bg={colour} />
-      <Text as="span" fontSize="sm">{word(t, value)}</Text>
+      <Text as="span" fontSize="sm">{word(translate, value)}</Text>
     </HStack>
   );
 }

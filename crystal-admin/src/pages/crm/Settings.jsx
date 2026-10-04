@@ -31,25 +31,25 @@ const activeField = { name: 'is_active', label: 'In use', type: 'checkbox' };
  * deleted either; its records have to go first.
  */
 export default function Settings() {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const [current, setCurrent] = useState('projects');
 
-  const lists = listsOf(meta, t);
+  const lists = listsOf(meta, translate);
   const chosen = lists.filter((list) => list.path === current)[0] || lists[0];
 
   return (
     <Stack spacing={4}>
       <Card bodyProps={false}>
         <Flex px={5} py={4} align="center" wrap="wrap">
-          <Text fontSize="sm" mr={4} mb={{ base: 2, md: 0 }} flex="1" minW="16rem">{t('crm.settings.intro')}</Text>
+          <Text fontSize="sm" mr={4} mb={{ base: 2, md: 0 }} flex="1" minW="16rem">{translate('crm.settings.intro')}</Text>
           <Box w={{ base: '100%', md: '18rem' }}>
             <SelectField
               size="sm"
               isClearable={false}
               isSearchable
               value={current}
-              options={translateOptions(t, lists.map((list) => ({ value: list.path, label: list.title })).concat([{ value: 'status-map', label: 'Status map' }, { value: 'staff-departments', label: 'Staff and departments' }]))}
+              options={translateOptions(translate, lists.map((list) => ({ value: list.path, label: list.title })).concat([{ value: 'status-map', label: 'Status map' }, { value: 'staff-departments', label: 'Staff and departments' }]))}
               onChange={(value) => setCurrent(value || 'projects')}
             />
           </Box>
@@ -66,7 +66,7 @@ export default function Settings() {
           pkField={chosen.pk}
           canRestore={false}
           defaultSort={chosen.sort}
-          subtitle={chosen.hint ? t(chosen.hint) : undefined}
+          subtitle={chosen.hint ? translate(chosen.hint) : undefined}
           columns={chosen.columns}
           fields={chosen.fields}
           emptyRow={chosen.emptyRow}
@@ -78,12 +78,13 @@ export default function Settings() {
 }
 
 /** Every list: where it lives on the API, what it is called, and how it is shown and edited. */
-function listsOf(meta, t) {
-  const yes = (value) => (value ? t('common.yes') : '-');
+function listsOf(meta, translate) {
+  const yes = (value) => (value ? translate('common.yes') : '-');
   const projects = optionsFrom(meta.projects, 'project_id', 'project_name');
   const classes = optionsFrom(meta.product_classes, 'product_class_id', 'class_name');
   const industries = optionsFrom(meta.industries, 'industry_id', 'industry_name');
-  const areas = optionsFrom(meta.areas, 'location_id', 'location_name');
+  /* A vendor location's parent is named by its code, not its number. */
+  const locationCodes = optionsFrom(meta.areas, 'location_code', (area) => area.full_name || area.location_name);
 
   return [
     { path: 'projects', title: 'Projects', pk: 'project_id', sort: 'project_id', hint: 'crm.settings.projectsHint',
@@ -242,9 +243,14 @@ function listsOf(meta, t) {
       ],
       emptyRow: { consent_required: true, is_enabled: true } },
     simple('organization-types', 'Organization types', 'organization_type_id', 'type_code', 'type_name'),
+    { path: 'job-titles', title: 'Job titles', pk: 'job_title_id', sort: 'sort_order',
+      columns: [{ key: 'job_code', label: 'Code' }, { key: 'job_name', label: 'Name' }, { key: 'sort_order', label: 'Order', isNumeric: true }, active],
+      fields: [{ name: 'job_code', label: 'Code', required: true }, { name: 'job_name', label: 'Name', required: true },
+        { name: 'sort_order', label: 'Order', type: 'number' }, activeField],
+      emptyRow: { is_active: true, sort_order: 0 } },
     simple('departments', 'Departments', 'department_id', 'department_code', 'department_name', true),
     { path: 'tags', title: 'Customer tags', pk: 'tag_id', sort: 'tag_id', hint: 'crm.settings.tagsHint',
-      columns: [{ key: 'tag_code', label: 'Code' }, { key: 'tag_name', label: 'Name', render: (row) => t(row.tag_name) },
+      columns: [{ key: 'tag_code', label: 'Code' }, { key: 'tag_name', label: 'Name', render: (row) => translate(row.tag_name) },
         { key: 'color_scheme', label: 'Colour' }, { key: 'description', label: 'Description', maxW: '18rem' }, active],
       fields: [{ name: 'tag_code', label: 'Code', required: true }, { name: 'tag_name', label: 'Name', required: true },
         { name: 'color_scheme', label: 'Colour', type: 'select', required: true,
@@ -252,8 +258,8 @@ function listsOf(meta, t) {
         { name: 'description', label: 'Description', colSpan: 'full' }, activeField],
       emptyRow: { color_scheme: 'blue', is_active: true } },
     { path: 'relationship-types', title: 'Relationships between customers', pk: 'relationship_type_code', sort: 'sort_order', hint: 'crm.settings.relationshipTypesHint',
-      columns: [{ key: 'relationship_type_code', label: 'Code' }, { key: 'relationship_name', label: 'Name', render: (row) => t(row.relationship_name) },
-        { key: 'inverse_code', label: 'Seen from the other side' }, { key: 'applies_to', label: 'Between', render: (row) => word(t, row.applies_to) },
+      columns: [{ key: 'relationship_type_code', label: 'Code' }, { key: 'relationship_name', label: 'Name', render: (row) => translate(row.relationship_name) },
+        { key: 'inverse_code', label: 'Seen from the other side' }, { key: 'applies_to', label: 'Between', render: (row) => word(translate, row.applies_to) },
         { key: 'is_hierarchy', label: 'Builds the group tree', render: (row) => yes(row.is_hierarchy) }, active],
       fields: [{ name: 'relationship_type_code', label: 'Code', required: true }, { name: 'relationship_name', label: 'Name', required: true },
         { name: 'inverse_code', label: 'Seen from the other side', required: true, help: 'The code of the relationship read the other way - SPOUSE for SPOUSE, CHILD for PARENT.' },
@@ -266,16 +272,15 @@ function listsOf(meta, t) {
       fields: [{ name: 'industry_code', label: 'Code', required: true }, { name: 'industry_name', label: 'Name', required: true },
         { name: 'parent_industry_id', label: 'Under', type: 'select', options: industries }, activeField],
       emptyRow: { is_active: true } },
-    { path: 'locations', title: 'Areas and addresses', pk: 'location_id', sort: 'location_name', hint: 'crm.settings.locationsHint',
-      columns: [{ key: 'location_code', label: 'Code' }, { key: 'location_name', label: 'Name' },
-        { key: 'location_type', label: 'Kind' }, { key: 'full_name', label: 'Full name', maxW: '18rem' },
-        { key: 'country_code', label: 'Country' }, active],
-      fields: [{ name: 'location_code', label: 'Code', required: true }, { name: 'location_name', label: 'Name', required: true },
-        { name: 'location_type', label: 'Kind', type: 'select', required: true,
-          options: ['COUNTRY', 'REGION', 'CITY', 'DISTRICT', 'AREA'].map((code) => ({ value: code, label: code })) },
-        { name: 'parent_location_id', label: 'Under', type: 'select', options: areas },
-        { name: 'country_code', label: 'Country' }, { name: 'full_name', label: 'Full name', colSpan: 'full' }, activeField],
-      emptyRow: { location_type: 'CITY', is_active: true } },
+    { path: 'locations', title: 'Areas and addresses', pk: 'location_pk', sort: 'position', hint: 'crm.settings.locationsHint',
+      columns: [{ key: 'location_pk', label: 'Number', isNumeric: true }, { key: 'location_code', label: 'Code' },
+        { key: 'location_name', label: 'Name' }, { key: 'parent_code', label: 'Under' },
+        { key: 'position', label: 'Order', isNumeric: true }],
+      fields: [{ name: 'location_pk', label: 'Number', type: 'number', required: true },
+        { name: 'location_code', label: 'Code', required: true }, { name: 'location_name', label: 'Name', required: true },
+        { name: 'parent_code', label: 'Under', type: 'select', options: locationCodes },
+        { name: 'position', label: 'Order', type: 'number' }],
+      emptyRow: { position: 0 } },
     { path: 'metric-definitions', title: 'Metric definitions', pk: 'metric_definition_id', sort: 'metric_definition_id', hint: 'crm.settings.metricsHint',
       columns: [{ key: 'metric_code', label: 'Code' }, { key: 'metric_name', label: 'Name' },
         { key: 'value_type', label: 'Value' }, { key: 'unit_code', label: 'Unit' },
@@ -356,7 +361,7 @@ function classification(path, title, primaryKey, code, parent, projects, rows) {
 
 /** Each project's own status codes, and the CRM status each one reads as. */
 function StatusMap() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
   const form = useDisclosure();
@@ -370,7 +375,7 @@ function StatusMap() {
   const save = async (values) => {
     try {
       await crm.statusMap.save(values);
-      toast({ title: t('Saved'), status: 'success', duration: 2500 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2500 });
       form.onClose();
       load();
       return true;
@@ -382,10 +387,10 @@ function StatusMap() {
 
   return (
     <Card
-      title={t('crm.settings.statusMap')}
-      actions={canWrite ? <Button size="xs" variant="subtle" onClick={form.onOpen}>{t('crm.settings.mapAStatus')}</Button> : null}
+      title={translate('crm.settings.statusMap')}
+      actions={canWrite ? <Button size="xs" variant="subtle" onClick={form.onOpen}>{translate('crm.settings.mapAStatus')}</Button> : null}
     >
-      <Text fontSize="sm" mb={3}>{t('crm.settings.statusMapHint')}</Text>
+      <Text fontSize="sm" mb={3}>{translate('crm.settings.statusMapHint')}</Text>
       <DataTable
         hidePagination
         rows={rows}
@@ -394,10 +399,10 @@ function StatusMap() {
           { key: 'project_code', label: 'Project' },
           { key: 'source_status_code', label: 'Code in the project' },
           { key: 'source_status_label', label: 'Means there' },
-          { key: 'display_name', label: 'Reads in the CRM as', render: (row) => t(row.display_name || '-') }
+          { key: 'display_name', label: 'Reads in the CRM as', render: (row) => translate(row.display_name || '-') }
         ]}
         actions={canWrite ? [{
-          key: 'remove', label: t('common.remove'),
+          key: 'remove', label: translate('common.remove'),
           onClick: (row) => crm.statusMap.remove(row.project_id, row.source_status_code).then(load)
             .catch((error) => toast({ title: error.message, status: 'error', duration: 6000, isClosable: true }))
         }] : []}
@@ -406,7 +411,7 @@ function StatusMap() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.settings.mapAStatus')}
+        title={translate('crm.settings.mapAStatus')}
         onSubmit={save}
         fields={[
           { name: 'project_id', label: 'Project', type: 'select', required: true, options: optionsFrom(meta.projects, 'project_id', 'project_name') },
@@ -426,13 +431,13 @@ function StatusMap() {
  * department, and then nobody outside it can be put in that department with it.
  */
 function StaffDepartments() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
   const { canWrite } = usePermission(PAGE);
   const [staff, setStaff] = useState([]);
   const [roles, setRoles] = useState([]);
-  const departments = translateOptions(t, optionsFrom(meta.departments, 'department_id', 'department_name'));
+  const departments = translateOptions(translate, optionsFrom(meta.departments, 'department_id', 'department_name'));
 
   const load = () => {
     crm.departments.staff().then(({ data }) => setStaff(rowsOf(data))).catch(() => setStaff([]));
@@ -444,7 +449,7 @@ function StaffDepartments() {
   const change = async (call) => {
     try {
       await call();
-      toast({ title: t('Saved'), status: 'success', duration: 2000 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2000 });
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -455,15 +460,15 @@ function StaffDepartments() {
     <Box w="13rem">
       <SelectField
         size="sm" value={value || null} options={departments} isDisabled={!canWrite}
-        placeholder={t('crm.settings.noDepartment')} onChange={(picked) => onChange(picked || null)}
+        placeholder={translate('crm.settings.noDepartment')} onChange={(picked) => onChange(picked || null)}
       />
     </Box>
   );
 
   return (
     <Stack spacing={4}>
-      <Card title={t('crm.settings.staff')} bodyProps={false}>
-        <Text fontSize="sm" px={5} pt={3}>{t('crm.settings.staffHint')}</Text>
+      <Card title={translate('crm.settings.staff')} bodyProps={false}>
+        <Text fontSize="sm" px={5} pt={3}>{translate('crm.settings.staffHint')}</Text>
         <Box px="0.5rem" pb="0.5rem">
           <DataTable
             hidePagination
@@ -472,22 +477,22 @@ function StaffDepartments() {
             columns={[
               { key: 'name', label: 'Name' },
               { key: 'username', label: 'Username' },
-              { key: 'role_name', label: 'Role', render: (row) => t(row.role_name || '-') },
-              { key: 'role_department_name', label: 'Role is meant for', render: (row) => (row.role_department_name ? t(row.role_department_name) : '-') },
+              { key: 'role_name', label: 'Role', render: (row) => translate(row.role_name || '-') },
+              { key: 'role_department_name', label: 'Role is meant for', render: (row) => (row.role_department_name ? translate(row.role_department_name) : '-') },
               { key: 'department_id', label: 'Department',
                 render: (row) => picker(row.department_id, (value) => change(() => crm.departments.assignManager(row.manager_id, value))) }
             ]}
           />
         </Box>
       </Card>
-      <Card title={t('crm.settings.rolesByDepartment')} bodyProps={false}>
+      <Card title={translate('crm.settings.rolesByDepartment')} bodyProps={false}>
         <Box px="0.5rem" pb="0.5rem">
           <DataTable
             hidePagination
             rows={roles}
             rowKey={(row) => row.role_id}
             columns={[
-              { key: 'role_name', label: 'Role', render: (row) => t(row.role_name) },
+              { key: 'role_name', label: 'Role', render: (row) => translate(row.role_name) },
               { key: 'role_code', label: 'Code' },
               { key: 'manager_cnt', label: 'Staff', isNumeric: true },
               { key: 'department_id', label: 'Meant for',

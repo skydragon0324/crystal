@@ -20,26 +20,26 @@ const PAGE = '/admin/crm/settings';
 
 /** Every manager with their role and department - the staff list. */
 function staff() {
-  return db('managers as m')
-    .join('manager_roles as r', 'r.id', 'm.role_id')
-    .leftJoin('crm_manager_department as md', 'md.manager_id', 'm.id')
-    .leftJoin('crm_department as d', 'd.department_id', 'md.department_id')
-    .leftJoin('crm_role_department as rd', 'rd.role_id', 'r.id')
+  return db('managers as manager')
+    .join('manager_roles as manager_role', 'manager_role.id', 'manager.role_id')
+    .leftJoin('crm_manager_department as md', 'md.manager_id', 'manager.id')
+    .leftJoin('crm_department as department', 'department.department_id', 'md.department_id')
+    .leftJoin('crm_role_department as rd', 'rd.role_id', 'manager_role.id')
     .leftJoin('crm_department as rdd', 'rdd.department_id', 'rd.department_id')
-    .where('m.is_deleted', false)
-    .orderBy('m.name')
-    .select('m.id as manager_id', 'm.username', 'm.name', 'm.status', 'r.id as role_id', 'r.role_code', 'r.role_name',
-      'd.department_id', 'd.department_code', 'd.department_name',
+    .where('manager.is_deleted', false)
+    .orderBy('manager.name')
+    .select('manager.id as manager_id', 'manager.username', 'manager.name', 'manager.status', 'manager_role.id as role_id', 'manager_role.role_code', 'manager_role.role_name',
+      'department.department_id', 'department.department_code', 'department.department_name',
       'rd.department_id as role_department_id', 'rdd.department_name as role_department_name');
 }
 
 function roles() {
-  return db('manager_roles as r')
-    .leftJoin('crm_role_department as rd', 'rd.role_id', 'r.id')
-    .leftJoin('crm_department as d', 'd.department_id', 'rd.department_id')
-    .orderBy('r.role_name')
-    .select('r.id as role_id', 'r.role_code', 'r.role_name', 'd.department_id', 'd.department_name',
-      db.raw('(SELECT COUNT(*) FROM managers m WHERE m.role_id = r.id)::int AS manager_cnt'));
+  return db('manager_roles as manager_role')
+    .leftJoin('crm_role_department as rd', 'rd.role_id', 'manager_role.id')
+    .leftJoin('crm_department as department', 'department.department_id', 'rd.department_id')
+    .orderBy('manager_role.role_name')
+    .select('manager_role.id as role_id', 'manager_role.role_code', 'manager_role.role_name', 'department.department_id', 'department.department_name',
+      db.raw('(SELECT COUNT(*) FROM managers manager WHERE manager.role_id = manager_role.id)::int AS manager_cnt'));
 }
 
 /**

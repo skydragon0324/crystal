@@ -14,7 +14,7 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { date, dateTime, money, number } from '../../utils/format';
-import { PartyPicker, Status, amount, choices, dateInput, localInput, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor } from './shared';
+import { PartyPicker, Status, amount, choices, dateInput, localInput, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/site-activity';
 
@@ -35,14 +35,14 @@ const EVENT_STATUS = ['PLANNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCE
  * against the log as it stands.
  */
 export default function SiteActivity() {
-  const t = useT();
+  const translate = useT();
   return (
     <Card bodyProps={false}>
       <Tabs isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
-          <Tab fontSize="sm">{t('crm.activity.log')}</Tab>
-          <Tab fontSize="sm">{t('crm.activity.events')}</Tab>
-          <Tab fontSize="sm">{t('crm.activity.targets')}</Tab>
+          <Tab fontSize="sm">{translate('crm.activity.log')}</Tab>
+          <Tab fontSize="sm">{translate('crm.activity.events')}</Tab>
+          <Tab fontSize="sm">{translate('crm.activity.targets')}</Tab>
         </TabList>
         <TabPanels>
           <TabPanel px={0}><Log /></TabPanel>
@@ -55,7 +55,7 @@ export default function SiteActivity() {
 }
 
 function Log() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const meta = useCrmMeta();
@@ -71,7 +71,7 @@ function Log() {
     setSaving(true);
     try {
       await crm.siteActivity.record(values);
-      toast({ title: t('crm.activity.recorded'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.activity.recorded'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -85,12 +85,12 @@ function Log() {
 
   const reverse = async (row) => {
     const agreed = await confirm({
-      tone: 'danger', title: t('crm.activity.reverse'), body: t('crm.activity.reverseExplained'),
-      detail: t(row.activity_name || '-') + '  ·  ' + (row.location_name || ''), confirmLabel: t('crm.activity.reverse')
+      tone: 'danger', title: translate('crm.activity.reverse'), body: translate('crm.activity.reverseExplained'),
+      detail: translate(row.activity_name || '-') + '  ·  ' + (row.service_center_name || ''), confirmLabel: translate('crm.activity.reverse')
     });
     if (!agreed) return;
     try {
-      await crm.siteActivity.reverse(row.location_activity_id);
+      await crm.siteActivity.reverse(row.service_center_activity_id);
       list.reload();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -102,9 +102,9 @@ function Log() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
-          { key: 'service_location_id', label: 'Service location', value: list.params.service_location_id, width: '14rem',
-            options: sites, onChange: (value) => list.setFilter({ service_location_id: value || undefined }) },
+        filters={filtersFor(translate, [
+          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+            options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
           { key: 'activity_type_id', label: 'Activity', value: list.params.activity_type_id, width: '13rem',
             options: optionsFrom(meta.activity_types, 'activity_type_id', 'activity_name'),
             onChange: (value) => list.setFilter({ activity_type_id: value || undefined }) },
@@ -113,7 +113,7 @@ function Log() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.activity.record')}
+            {translate('crm.activity.record')}
           </Button>
         ) : null}
       />
@@ -121,9 +121,9 @@ function Log() {
         <DataTable
           columns={[
             { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-            { key: 'location_name', label: 'Service location', maxW: '14rem' },
-            { key: 'activity_name', label: 'Activity', render: (row) => t(row.activity_name || '-') },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name ? row.party_name + '  ' + row.party_no : '-') },
+            { key: 'service_center_name', label: 'Service location', maxW: '14rem' },
+            { key: 'activity_name', label: 'Activity', render: (row) => translate(row.activity_name || '-') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_id) : '-') },
             { key: 'quantity', label: 'Quantity', isNumeric: true, render: (row) => amount(row.quantity) },
             { key: 'amount', label: 'Amount', isNumeric: true, render: (row) => (row.amount === null || row.amount === undefined ? '-' : money(row.amount, row.currency_code)) },
             { key: 'manager_name', label: 'Recorded by' },
@@ -137,8 +137,8 @@ function Log() {
           total={list.total}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.location_activity_id || row.id}
-          actions={canWrite ? [{ key: 'reverse', label: t('crm.activity.reverse'), hidden: (row) => row.status !== 'COMPLETED', onClick: reverse }] : []}
+          rowKey={(row) => row.service_center_activity_id || row.id}
+          actions={canWrite ? [{ key: 'reverse', label: translate('crm.activity.reverse'), hidden: (row) => row.status !== 'COMPLETED', onClick: reverse }] : []}
           actionsIconOnly={false}
           storageKey={PAGE + '/log'}
         />
@@ -147,12 +147,12 @@ function Log() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.activity.record')}
+        title={translate('crm.activity.record')}
         initial={{ quantity: 1, occurred_at: localInput(new Date()) }}
         onSubmit={record}
         saving={saving}
         fields={[
-          { name: 'service_location_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
+          { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
           { name: 'activity_type_id', label: 'Activity', type: 'select', required: true,
             options: types.map((activityType) => ({ value: activityType.activity_type_id, label: activityType.activity_name })),
             help: 'The service location has to be able to do it - see its capabilities.' },
@@ -169,7 +169,7 @@ function Log() {
 }
 
 function Events() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
   const sites = useSiteOptions();
@@ -183,9 +183,9 @@ function Events() {
   const save = async (values) => {
     setSaving(true);
     try {
-      if (editing) await crm.siteActivity.updateEvent(editing.location_event_id, values);
+      if (editing) await crm.siteActivity.updateEvent(editing.service_center_event_id, values);
       else await crm.siteActivity.createEvent(values);
-      toast({ title: t(editing ? 'Saved' : 'Created'), status: 'success', duration: 2500 });
+      toast({ title: editing ? translate('Saved') : translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -204,17 +204,17 @@ function Events() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'upcoming', label: 'When', value: list.params.upcoming, options: [{ value: '1', label: 'Upcoming and running' }],
             onChange: (value) => list.setFilter({ upcoming: value || undefined }) },
-          { key: 'service_location_id', label: 'Service location', value: list.params.service_location_id, width: '14rem',
-            options: sites, onChange: (value) => list.setFilter({ service_location_id: value || undefined }) },
+          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+            options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
           { key: 'status', label: 'Status', value: list.params.status, options: choices(EVENT_STATUS),
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={() => open(null)}>
-            {t('crm.activity.planEvent')}
+            {translate('crm.activity.planEvent')}
           </Button>
         ) : null}
       />
@@ -223,8 +223,8 @@ function Events() {
           columns={[
             { key: 'planned_start_at', label: 'Starts', render: (row) => dateTime(row.planned_start_at) },
             { key: 'title', label: 'Event', maxW: '16rem' },
-            { key: 'event_type_code', label: 'Kind', render: (row) => word(t, row.event_type_code) },
-            { key: 'location_name', label: 'Service location' },
+            { key: 'event_type_code', label: 'Kind', render: (row) => word(translate, row.event_type_code) },
+            { key: 'service_center_name', label: 'Service location' },
             { key: 'program_name', label: 'Program' },
             { key: 'capacity', label: 'Capacity', isNumeric: true, render: (row) => number(row.capacity) },
             { key: 'attendee_count', label: 'Came', isNumeric: true, render: (row) => number(row.attendee_count) },
@@ -238,8 +238,8 @@ function Events() {
           total={list.total}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.location_event_id || row.id}
-          actions={canWrite ? [{ key: 'edit', label: t('common.edit'), onClick: (row) => open(row) }] : []}
+          rowKey={(row) => row.service_center_event_id || row.id}
+          actions={canWrite ? [{ key: 'edit', label: translate('common.edit'), onClick: (row) => open(row) }] : []}
           actionsIconOnly={false}
         />
       </Box>
@@ -247,7 +247,7 @@ function Events() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t(editing ? 'crm.activity.editEvent' : 'crm.activity.planEvent')}
+        title={translate(editing ? 'crm.activity.editEvent' : 'crm.activity.planEvent')}
         initial={editing ? Object.assign({}, editing, {
           planned_start_at: localInput(editing.planned_start_at), planned_end_at: localInput(editing.planned_end_at),
           actual_start_at: localInput(editing.actual_start_at), actual_end_at: localInput(editing.actual_end_at)
@@ -257,7 +257,7 @@ function Events() {
         size="3xl"
         fields={[
           { name: 'title', label: 'Event', required: true, colSpan: 'full' },
-          { name: 'service_location_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
+          { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
           { name: 'event_type_code', label: 'Kind', type: 'select', required: true, isClearable: false, options: choices(EVENT_TYPES) },
           { name: 'planned_start_at', label: 'Starts', type: 'datetime-local', required: true },
           { name: 'planned_end_at', label: 'Ends', type: 'datetime-local', required: true },
@@ -276,7 +276,7 @@ function Events() {
 }
 
 function Targets() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const meta = useCrmMeta();
@@ -291,9 +291,9 @@ function Targets() {
   const save = async (values) => {
     setSaving(true);
     try {
-      if (editing) await crm.siteActivity.updateTarget(editing.location_activity_target_id, values);
+      if (editing) await crm.siteActivity.updateTarget(editing.service_center_activity_target_id, values);
       else await crm.siteActivity.createTarget(values);
-      toast({ title: t(editing ? 'Saved' : 'Created'), status: 'success', duration: 2500 });
+      toast({ title: editing ? translate('Saved') : translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -307,12 +307,12 @@ function Targets() {
 
   const remove = async (row) => {
     const agreed = await confirm({
-      tone: 'danger', title: t('crm.activity.removeTarget'), body: t('crm.activity.removeTargetExplained'),
-      detail: row.location_name, confirmLabel: t('common.remove')
+      tone: 'danger', title: translate('crm.activity.removeTarget'), body: translate('crm.activity.removeTargetExplained'),
+      detail: row.service_center_name, confirmLabel: translate('common.remove')
     });
     if (!agreed) return;
     try {
-      await crm.siteActivity.removeTarget(row.location_activity_target_id);
+      await crm.siteActivity.removeTarget(row.service_center_activity_target_id);
       list.reload();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -326,26 +326,26 @@ function Targets() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'current', label: 'Period', value: list.params.current, options: [{ value: '1', label: 'Running now' }],
             onChange: (value) => list.setFilter({ current: value || undefined }) },
-          { key: 'service_location_id', label: 'Service location', value: list.params.service_location_id, width: '14rem',
-            options: sites, onChange: (value) => list.setFilter({ service_location_id: value || undefined }) },
+          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+            options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
           { key: 'activity_type_id', label: 'Activity', value: list.params.activity_type_id, width: '13rem',
             options: optionsFrom(meta.activity_types, 'activity_type_id', 'activity_name'),
             onChange: (value) => list.setFilter({ activity_type_id: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={() => open(null)}>
-            {t('crm.activity.setTarget')}
+            {translate('crm.activity.setTarget')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'location_name', label: 'Service location', maxW: '14rem' },
-            { key: 'activity_name', label: 'Activity', render: (row) => t(row.activity_name || '-') },
+            { key: 'service_center_name', label: 'Service location', maxW: '14rem' },
+            { key: 'activity_name', label: 'Activity', render: (row) => translate(row.activity_name || '-') },
             { key: 'period_start', label: 'Period', render: (row) => date(row.period_start) + ' - ' + date(row.period_end) },
             { key: 'quantity_pct', label: 'Done', width: '11rem',
               render: (row) => (row.target_quantity ? (
@@ -366,10 +366,10 @@ function Targets() {
           total={list.total}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.location_activity_target_id || row.id}
+          rowKey={(row) => row.service_center_activity_target_id || row.id}
           actions={canWrite ? [
-            { key: 'edit', label: t('common.edit'), onClick: (row) => open(row) },
-            { key: 'remove', label: t('common.remove'), onClick: remove }
+            { key: 'edit', label: translate('common.edit'), onClick: (row) => open(row) },
+            { key: 'remove', label: translate('common.remove'), onClick: remove }
           ] : []}
           actionsIconOnly={false}
         />
@@ -378,14 +378,14 @@ function Targets() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t(editing ? 'crm.activity.editTarget' : 'crm.activity.setTarget')}
+        title={translate(editing ? 'crm.activity.editTarget' : 'crm.activity.setTarget')}
         initial={editing ? Object.assign({}, editing, {
           period_start: dateInput(editing.period_start), period_end: dateInput(editing.period_end)
         }) : {}}
         onSubmit={save}
         saving={saving}
         fields={[
-          { name: 'service_location_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
+          { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
           { name: 'activity_type_id', label: 'Activity', type: 'select', required: true,
             options: optionsFrom(meta.activity_types, 'activity_type_id', 'activity_name') },
           { name: 'period_start', label: 'From', type: 'date', required: true },

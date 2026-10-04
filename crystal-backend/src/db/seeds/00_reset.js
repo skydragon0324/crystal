@@ -145,7 +145,6 @@ async function resetCrm(knex) {
   if (!built.rows[0].found) return;
 
   await knex.raw('TRUNCATE ' + CRM_RECORDS.join(', ') + ' RESTART IDENTITY');
-  await knex.raw('ALTER SEQUENCE crm_party_no_seq RESTART');
 }
 
 /**

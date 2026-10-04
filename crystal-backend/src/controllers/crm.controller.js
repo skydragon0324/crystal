@@ -1,4 +1,5 @@
-const { ok, page } = require('../utils/response');
+const { ok, page, HttpError } = require('../utils/response');
+const personImport = require('../services/crm/personImport.service');
 const { readPaging } = require('../utils/query');
 
 const vocabulary = require('../repositories/crm/vocabulary.repository');
@@ -188,7 +189,7 @@ module.exports = {
   parties: {
     list: lister(parties.search, Object.keys(require('../repositories/crm/parties.repository').SORTABLE), 'party_id'),
     lookup: async function (req, res) {
-      const ids = String(req.query.ids || '').split(',').map(Number).filter(Boolean);
+      const ids = String(req.query.ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
       return ok(res, await parties.lookup(req.query.q, ids));
     },
     detail: async function (req, res) { return ok(res, await parties.detail(req.params.id)); },
@@ -220,6 +221,24 @@ module.exports = {
       return page(res, await parties.pendingCandidates(paging), paging);
     },
     scanDuplicates: async function (req, res) { return ok(res, await parties.scanDuplicates(req.actor)); },
+    /* People already on file who look like the one being typed into the "new customer" form. */
+    similar: async function (req, res) { return ok(res, await parties.similarTo(req.query)); },
+    setChecked: async function (req, res) {
+      return ok(res, await parties.setChecked(req.params.id, req.body.is_checked_manually !== false, req.actor), 'common.updated');
+    },
+    /* An Excel sheet of people: ?dry_run=1 only reports what would happen. */
+    importPeople: async function (req, res) {
+      if (!req.file) throw new HttpError(400, 'crm.chooseAFile');
+      const dryRun = String(req.query.dry_run || '') === '1' || req.query.dry_run === 'true';
+      if (dryRun) return ok(res, await personImport.preview(req.file.buffer));
+      return ok(res, await personImport.importPeople(req.file.buffer, req.actor), 'common.imported');
+    },
+    importTemplate: async function (req, res) {
+      const buffer = await personImport.template();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="crm-customers-template.xlsx"');
+      return res.send(Buffer.from(buffer));
+    },
     acceptDuplicate: async function (req, res) {
       return ok(res, await parties.decideCandidate(req.params.id, true, req.actor), 'crm.merged');
     },
@@ -248,10 +267,11 @@ module.exports = {
     },
     catalogLookup: async function (req, res) {
       const db = require('../config/db');
-      const qb = db('crm_product_catalog as c').join('crm_project as j', 'j.project_id', 'c.project_id')
-        .whereNot('c.status', 'DISCONTINUED').orderBy('c.product_name').limit(1000)
-        .select('c.product_id', 'c.product_code', 'c.product_name', 'c.product_kind', 'c.project_id', 'j.project_code');
-      if (req.query.project_id) qb.where('c.project_id', req.query.project_id);
+      const qb = db('crm_product_catalog as catalog').join('crm_project as project', 'project.project_id', 'catalog.project_id')
+        .whereNot('catalog.status', 'DISCONTINUED').orderBy('catalog.product_name').limit(1000)
+        .select('catalog.product_id', 'catalog.product_code', 'catalog.product_name', 'catalog.product_kind', 'catalog.project_id',
+          'project.project_code');
+      if (req.query.project_id) qb.where('catalog.project_id', req.query.project_id);
       return ok(res, await qb);
     },
     transfers: lister(products.searchTransfers, ['requested_at', 'completed_at'], 'requested_at'),
@@ -352,7 +372,7 @@ module.exports = {
 
   /* ---- sites and what happens at them ---- */
   sites: {
-    list: lister(sites.searchSites, ['location_code', 'location_name', 'rating'], 'location_name', 'asc'),
+    list: lister(sites.searchSites, ['service_center_code', 'service_center_name', 'rating'], 'service_center_name', 'asc'),
     options: async function (req, res) { return ok(res, await sites.siteOptions()); },
     detail: async function (req, res) { return ok(res, await sites.siteDetail(req.params.id)); },
     create: async function (req, res) { return ok(res, await sites.saveSite(null, req.body, req.actor), 'common.created'); },

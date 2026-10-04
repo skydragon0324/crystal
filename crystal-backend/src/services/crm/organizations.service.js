@@ -27,31 +27,31 @@ async function requireType(partyId, type) {
 /** Everything organizational about one party, from either side. */
 async function forParty(partyId) {
   const [types, industries, people, employers] = await Promise.all([
-    db('crm_organization_type_assignment as a').join('crm_organization_type as t', 't.organization_type_id', 'a.organization_type_id')
-      .leftJoin('crm_project as j', 'j.project_id', 'a.project_id')
-      .where('a.organization_party_id', partyId).orderBy('a.assigned_at', 'desc')
-      .select('a.*', 't.type_code', 't.type_name', 'j.project_code'),
-    db('crm_organization_industry as oi').join('crm_industry as i', 'i.industry_id', 'oi.industry_id')
-      .where('oi.organization_party_id', partyId).select('oi.*', 'i.industry_code', 'i.industry_name'),
-    relationships().where('r.organization_party_id', partyId),
-    relationships().where('r.person_party_id', partyId)
+    db('crm_organization_type_assignment as assignment').join('crm_organization_type as org_type', 'org_type.organization_type_id', 'assignment.organization_type_id')
+      .leftJoin('crm_project as project', 'project.project_id', 'assignment.project_id')
+      .where('assignment.organization_party_id', partyId).orderBy('assignment.assigned_at', 'desc')
+      .select('assignment.*', 'org_type.type_code', 'org_type.type_name', 'project.project_code'),
+    db('crm_organization_industry as oi').join('crm_industry as industry', 'industry.industry_id', 'oi.industry_id')
+      .where('oi.organization_party_id', partyId).select('oi.*', 'industry.industry_code', 'industry.industry_name'),
+    relationships().where('relationship.organization_party_id', partyId),
+    relationships().where('relationship.person_party_id', partyId)
   ]);
   return { types: types, industries: industries, people: people, employers: employers };
 }
 
 function relationships() {
-  return db('crm_organization_person_relationship as r')
-    .join('crm_party as o', 'o.party_id', 'r.organization_party_id')
-    .join('crm_party as p', 'p.party_id', 'r.person_party_id')
-    .leftJoin('crm_project as j', 'j.project_id', 'r.project_id')
-    .orderBy([{ column: 'r.relationship_status' }, { column: 'r.created_at', order: 'desc' }])
-    .select('r.*', 'o.display_name as organization_name', 'o.party_no as organization_party_no',
-      'p.display_name as person_name', 'p.party_no as person_party_no', 'j.project_code',
-      db.raw(`(SELECT json_agg(json_build_object('role_code', cr.role_code, 'role_name', cr.role_name,
-                                                 'department_name', x.department_name, 'is_primary', x.is_primary))
-                 FROM crm_organization_person_role x JOIN crm_org_contact_role cr ON cr.contact_role_id = x.contact_role_id
-                WHERE x.org_person_relationship_id = r.org_person_relationship_id
-                  AND (x.valid_to IS NULL OR x.valid_to >= CURRENT_DATE)) AS roles`));
+  return db('crm_organization_person_relationship as relationship')
+    .join('crm_party as organization', 'organization.party_id', 'relationship.organization_party_id')
+    .join('crm_party as person', 'person.party_id', 'relationship.person_party_id')
+    .leftJoin('crm_project as project', 'project.project_id', 'relationship.project_id')
+    .orderBy([{ column: 'relationship.relationship_status' }, { column: 'relationship.created_at', order: 'desc' }])
+    .select('relationship.*', 'organization.display_name as organization_name',
+      'person.display_name as person_name', 'project.project_code',
+      db.raw(`(SELECT json_agg(json_build_object('role_code', contact_role.role_code, 'role_name', contact_role.role_name,
+                                                 'department_name', person_role.department_name, 'is_primary', person_role.is_primary))
+                 FROM crm_organization_person_role person_role JOIN crm_org_contact_role contact_role ON contact_role.contact_role_id = person_role.contact_role_id
+                WHERE person_role.org_person_relationship_id = relationship.org_person_relationship_id
+                  AND (person_role.valid_to IS NULL OR person_role.valid_to >= CURRENT_DATE)) AS roles`));
 }
 
 async function assignType(partyId, body, actor) {

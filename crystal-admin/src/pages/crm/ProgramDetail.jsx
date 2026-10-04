@@ -18,7 +18,7 @@ import { useT } from '../../i18n';
 import { dateTime, number } from '../../utils/format';
 import {
   Fact, Facts, InstancePicker, PartyPicker, Pending, RecordHeader, Status, amount, choices, localInput,
-  optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, useSiteOptions, word, filtersFor } from './shared';
+  optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, useSiteOptions, word, filtersFor, partyIdLabel } from './shared';
 import { useProgramFields } from './programFields';
 
 const PAGE = '/admin/crm/programs';
@@ -59,7 +59,7 @@ const MOVE_EXPLAINED = {
  * not the rule.
  */
 export default function ProgramDetail() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const history = useHistory();
@@ -99,7 +99,7 @@ export default function ProgramDetail() {
   const inSetup = SETUP.indexOf(status) !== -1;
   const live = LIVE.indexOf(status) !== -1;
   const tierOptions = tiers.map((tier) => ({ value: tier.program_tier_id, label: tier.tier_name }));
-  const programSites = (record.locations || []).map((programLocation) => ({ value: programLocation.service_location_id, label: programLocation.location_name }));
+  const programSites = (record.locations || []).map((programLocation) => ({ value: programLocation.service_center_id, label: programLocation.service_center_name }));
 
   const ask = (title, fields, initial, submit) => { setDialog({ title: title, fields: fields, initial: initial || {}, submit: submit }); modal.onOpen(); };
 
@@ -107,7 +107,7 @@ export default function ProgramDetail() {
     setSaving(true);
     try {
       const result = await work();
-      toast({ title: t(done || 'Saved'), status: 'success', duration: 2500 });
+      toast({ title: done ? translate(done) : translate('Saved'), status: 'success', duration: 2500 });
       modal.onClose();
       load();
       setTick(tick + 1);
@@ -123,15 +123,15 @@ export default function ProgramDetail() {
   const move = async (next, verb) => {
     const agreed = await confirm({
       tone: next === 'CANCELLED' ? 'danger' : 'info',
-      title: t(verb),
-      body: t(MOVE_EXPLAINED[next]),
-      confirmLabel: t(verb)
+      title: translate(verb),
+      body: translate(MOVE_EXPLAINED[next]),
+      confirmLabel: translate(verb)
     });
     if (agreed) run(() => crm.programs.transition(program.activity_program_id, next));
   };
 
   const remove = async (title, detailText, work) => {
-    const agreed = await confirm({ tone: 'danger', title: t(title), body: t('crm.program.removeExplained'), detail: detailText, confirmLabel: t('common.remove') });
+    const agreed = await confirm({ tone: 'danger', title: translate(title), body: translate('crm.program.removeExplained'), detail: detailText, confirmLabel: translate('common.remove') });
     if (agreed) run(work);
   };
 
@@ -145,13 +145,13 @@ export default function ProgramDetail() {
       <RecordHeader
         onBack={() => history.push(PAGE)}
         title={program.program_name}
-        subtitle={program.program_code + '  ·  ' + word(t, program.program_type) + '  ·  ' +
-          t('crm.program.chosenBy', { basis: word(t, program.eligibility_basis) })}
+        subtitle={program.program_code + '  ·  ' + word(translate, program.program_type) + '  ·  ' +
+          translate('crm.program.chosenBy', { basis: word(translate, program.eligibility_basis) })}
         badges={<Status value={status} />}
         actions={canWrite ? (
           <>
             {status === 'DRAFT' || live ? (
-              <Button size="sm" variant="subtle" onClick={() => ask(t('crm.program.editProgram'), editFields,
+              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.program.editProgram'), editFields,
                 Object.assign({}, program, {
                   eligibility_rule: program.eligibility_rule ? JSON.stringify(program.eligibility_rule) : '',
                   display_at: localInput(program.display_at),
@@ -162,14 +162,14 @@ export default function ProgramDetail() {
                 }),
                 (values) => run(() => crm.programs.update(pid, values)))}
               >
-                {t('common.edit')}
+                {translate('common.edit')}
               </Button>
             ) : null}
             {moves.map((transition) => (
               <Button key={transition[0]} size="sm" variant={transition[0] === 'CANCELLED' || transition[0] === 'DRAFT' ? 'ghost' : 'brand'}
                 colorScheme={transition[0] === 'CANCELLED' ? 'red' : undefined}
                 onClick={() => move(transition[0], transition[1])}>
-                {t(transition[1])}
+                {translate(transition[1])}
               </Button>
             ))}
           </>
@@ -177,7 +177,7 @@ export default function ProgramDetail() {
       />
 
       {status === 'DRAFT' && mine && canWrite ? (
-        <Card mb={4}><Text fontSize="sm">{t('crm.program.needsAnotherApprover')}</Text></Card>
+        <Card mb={4}><Text fontSize="sm">{translate('crm.program.needsAnotherApprover')}</Text></Card>
       ) : null}
 
       <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={4} mb={4}>
@@ -192,10 +192,10 @@ export default function ProgramDetail() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{t('crm.program.setup')}</Tab>
-            <Tab fontSize="sm">{t('crm.program.targets')}</Tab>
-            <Tab fontSize="sm">{t('crm.program.entries')}</Tab>
-            <Tab fontSize="sm">{t('crm.program.awards')}</Tab>
+            <Tab fontSize="sm">{translate('crm.program.setup')}</Tab>
+            <Tab fontSize="sm">{translate('crm.program.targets')}</Tab>
+            <Tab fontSize="sm">{translate('crm.program.entries')}</Tab>
+            <Tab fontSize="sm">{translate('crm.program.awards')}</Tab>
           </TabList>
           <TabPanels>
             {/* ---- setup ---- */}
@@ -221,9 +221,9 @@ export default function ProgramDetail() {
                 {program.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{program.description}</Text> : null}
 
                 <Block
-                  title={t('crm.program.tiers')}
-                  hint={t('crm.program.tiersExplained')}
-                  add={canWrite && inSetup ? () => ask(t('crm.program.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
+                  title={translate('crm.program.tiers')}
+                  hint={translate('crm.program.tiersExplained')}
+                  add={canWrite && inSetup ? () => ask(translate('crm.program.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
                     (values) => run(() => crm.programs.saveTier(pid, null, values))) : null}
                 >
                   <DataTable
@@ -240,9 +240,9 @@ export default function ProgramDetail() {
                       { key: 'number_range_start', label: 'Numbers', render: (row) => (row.number_range_start === null ? '-' : row.number_range_start + ' - ' + (row.number_range_end === null ? '' : row.number_range_end)) }
                     ]}
                     actions={canWrite && inSetup ? [
-                      { key: 'edit', label: t('common.edit'), onClick: (row) => ask(t('crm.program.editTier'), tierFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editTier'), tierFields(), row,
                         (values) => run(() => crm.programs.saveTier(pid, row.program_tier_id, values))) },
-                      { key: 'remove', label: t('common.remove'), onClick: (row) => remove('crm.program.removeTier', row.tier_name,
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.program.removeTier', row.tier_name,
                         () => crm.programs.removeTier(pid, row.program_tier_id)) }
                     ] : []}
                     actionsIconOnly={false}
@@ -250,35 +250,35 @@ export default function ProgramDetail() {
                 </Block>
 
                 <Block
-                  title={t('crm.program.sites')}
-                  hint={t('crm.program.sitesExplained')}
-                  add={canWrite && live ? () => ask(t('crm.program.addSite'), [
-                    { name: 'service_location_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
-                    { name: 'location_role', label: 'Role', type: 'select', required: true, isClearable: false,
+                  title={translate('crm.program.sites')}
+                  hint={translate('crm.program.sitesExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.program.addSite'), [
+                    { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
+                    { name: 'service_center_role', label: 'Role', type: 'select', required: true, isClearable: false,
                       options: choices(['PICKUP', 'SALE', 'EVENT_VENUE', 'DELIVERY_HUB']) }
-                  ], { location_role: 'PICKUP' }, (values) => run(() => crm.programs.addLocation(pid, values))) : null}
+                  ], { service_center_role: 'PICKUP' }, (values) => run(() => crm.programs.addLocation(pid, values))) : null}
                 >
                   <DataTable
                     hidePagination
                     rows={record.locations || []}
-                    rowKey={(row) => row.program_location_id}
+                    rowKey={(row) => row.program_service_center_id}
                     columns={[
-                      { key: 'location_code', label: 'Code' },
-                      { key: 'location_name', label: 'Service location' },
-                      { key: 'location_role', label: 'Role', render: (row) => word(t, row.location_role) }
+                      { key: 'service_center_code', label: 'Code' },
+                      { key: 'service_center_name', label: 'Service location' },
+                      { key: 'service_center_role', label: 'Role', render: (row) => word(translate, row.service_center_role) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'remove', label: t('common.remove'), onClick: (row) => remove('crm.program.removeSite', row.location_name,
-                        () => crm.programs.removeLocation(pid, row.program_location_id)) }
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.program.removeSite', row.service_center_name,
+                        () => crm.programs.removeLocation(pid, row.program_service_center_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={t('crm.program.quotas')}
-                  hint={t('crm.program.quotasExplained')}
-                  add={canWrite && live ? () => ask(t('crm.program.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
+                  title={translate('crm.program.quotas')}
+                  hint={translate('crm.program.quotasExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.program.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
                     (values) => run(() => crm.programs.saveQuota(pid, null, values))) : null}
                 >
                   <DataTable
@@ -286,24 +286,24 @@ export default function ProgramDetail() {
                     rows={record.quotas || []}
                     rowKey={(row) => row.program_quota_id}
                     columns={[
-                      { key: 'entry_type', label: 'Entry', render: (row) => word(t, row.entry_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || t('crm.program.everyTier') },
-                      { key: 'location_name', label: 'Service location', render: (row) => row.location_name || t('crm.program.everySite') },
+                      { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.program.everyTier') },
+                      { key: 'service_center_name', label: 'Service location', render: (row) => row.service_center_name || translate('crm.program.everySite') },
                       { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.quota_count) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'edit', label: t('common.edit'), onClick: (row) => ask(t('crm.program.editQuota'), quotaFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editQuota'), quotaFields(), row,
                         (values) => run(() => crm.programs.saveQuota(pid, row.program_quota_id, values))) },
-                      { key: 'remove', label: t('common.remove'), hidden: (row) => row.used_count > 0,
-                        onClick: (row) => remove('crm.program.removeQuota', word(t, row.entry_type), () => crm.programs.removeQuota(pid, row.program_quota_id)) }
+                      { key: 'remove', label: translate('common.remove'), hidden: (row) => row.used_count > 0,
+                        onClick: (row) => remove('crm.program.removeQuota', word(translate, row.entry_type), () => crm.programs.removeQuota(pid, row.program_quota_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={t('crm.program.rewards')}
-                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(t('crm.program.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
+                  title={translate('crm.program.rewards')}
+                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(translate('crm.program.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
                     (values) => run(() => crm.programs.saveReward(pid, null, values))) : null}
                 >
                   <DataTable
@@ -312,16 +312,16 @@ export default function ProgramDetail() {
                     rowKey={(row) => row.reward_id}
                     columns={[
                       { key: 'reward_name', label: 'Reward' },
-                      { key: 'reward_type', label: 'Kind', render: (row) => word(t, row.reward_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || t('crm.program.everyTier') },
+                      { key: 'reward_type', label: 'Kind', render: (row) => word(translate, row.reward_type) },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.program.everyTier') },
                       { key: 'points', label: 'Points', render: (row) => (row.points ? amount(row.points) + ' ' + (row.point_type_code || '') : '-') },
                       { key: 'product_name', label: 'Product' },
                       { key: 'quantity_awarded', label: 'Awarded', isNumeric: true, render: (row) => number(row.quantity_awarded) + ' / ' + number(row.quantity_total) }
                     ]}
                     actions={canWrite ? [
-                      { key: 'edit', label: t('common.edit'), onClick: (row) => ask(t('crm.program.editReward'), rewardFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editReward'), rewardFields(), row,
                         (values) => run(() => crm.programs.saveReward(pid, row.reward_id, values))) },
-                      { key: 'remove', label: t('common.remove'), hidden: (row) => row.quantity_awarded > 0,
+                      { key: 'remove', label: translate('common.remove'), hidden: (row) => row.quantity_awarded > 0,
                         onClick: (row) => remove('crm.program.removeReward', row.reward_name, () => crm.programs.removeReward(pid, row.reward_id)) }
                     ] : []}
                     actionsIconOnly={false}
@@ -376,7 +376,7 @@ export default function ProgramDetail() {
       { name: 'entry_type', label: 'Entry', type: 'select', required: true, isClearable: false, options: choices(['NORMAL', 'REWARD']) },
       { name: 'quota_count', label: 'How many', type: 'number', required: true },
       { name: 'program_tier_id', label: 'Only for tier', type: 'select', options: tierOptions },
-      { name: 'service_location_id', label: 'Only at service location', type: 'select', options: programSites.length ? programSites : sites, isSearchable: true }
+      { name: 'service_center_id', label: 'Only at service location', type: 'select', options: programSites.length ? programSites : sites, isSearchable: true }
     ];
   }
 
@@ -399,7 +399,7 @@ export default function ProgramDetail() {
 
 /** A titled table on the setup tab, with its add button. */
 function Block({ title, hint, add, children }) {
-  const t = useT();
+  const translate = useT();
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="flex-end" mb={2}>
@@ -407,7 +407,7 @@ function Block({ title, hint, add, children }) {
           <Text fontSize="sm" fontWeight="600">{title}</Text>
           {hint ? <Text fontSize="xs">{hint}</Text> : null}
         </Box>
-        {add ? <Button size="xs" variant="subtle" onClick={add}>{t('crm.program.add')}</Button> : null}
+        {add ? <Button size="xs" variant="subtle" onClick={add}>{translate('crm.program.add')}</Button> : null}
       </Box>
       {children}
     </Box>
@@ -415,7 +415,7 @@ function Block({ title, hint, add, children }) {
 }
 
 function Targets({ program, tierOptions, ask, run, tick }) {
-  const t = useT();
+  const translate = useT();
   const { canWrite } = usePermission(PAGE);
   const pid = program.activity_program_id;
   const inSetup = SETUP.indexOf(program.status) !== -1;
@@ -431,7 +431,7 @@ function Targets({ program, tierOptions, ask, run, tick }) {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status, options: choices(['ELIGIBLE', 'NOTIFIED', 'EXHAUSTED', 'REVOKED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) },
           { key: 'entry_type', label: 'Entry', value: list.params.entry_type, options: choices(['NORMAL', 'REWARD']),
@@ -444,10 +444,10 @@ function Targets({ program, tierOptions, ask, run, tick }) {
                 list.reload();
                 return data;
               }), 'crm.program.targetsBuilt')}>
-                {t('crm.program.buildFromRule')}
+                {translate('crm.program.buildFromRule')}
               </Button>
             ) : null}
-            <Button size="sm" variant="brand" onClick={() => ask(t('crm.program.addTarget'), [
+            <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.addTarget'), [
               { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
                 render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
               { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
@@ -457,7 +457,7 @@ function Targets({ program, tierOptions, ask, run, tick }) {
               { name: 'note', label: 'Why', colSpan: 'full' }
             ], { entry_type: 'NORMAL', allowed_count: 1 }, (values) => run(() => crm.programs.addTarget(pid, values).then(() => list.reload())))}
             >
-              {t('crm.program.addTarget')}
+              {translate('crm.program.addTarget')}
             </Button>
           </>
         ) : null}
@@ -465,13 +465,13 @@ function Targets({ program, tierOptions, ask, run, tick }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'tier_name', label: 'Tier' },
-            { key: 'entry_type', label: 'Entry', render: (row) => word(t, row.entry_type) },
+            { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
             { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.allowed_count) },
             { key: 'qualification_value', label: 'Qualifying value', isNumeric: true, render: (row) => amount(row.qualification_value) },
             { key: 'qualification_rank', label: 'Rank', isNumeric: true },
-            { key: 'source', label: 'Chosen by', render: (row) => word(t, row.source) },
+            { key: 'source', label: 'Chosen by', render: (row) => word(translate, row.source) },
             { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
           ]}
           rows={list.rows}
@@ -483,7 +483,7 @@ function Targets({ program, tierOptions, ask, run, tick }) {
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.activity_target_id || row.id}
           actions={canWrite && program.status !== 'FULFILLED' && program.status !== 'CANCELLED' ? [
-            { key: 'revoke', label: t('crm.program.revoke'), hidden: (row) => row.status === 'REVOKED',
+            { key: 'revoke', label: translate('crm.program.revoke'), hidden: (row) => row.status === 'REVOKED',
               onClick: (row) => run(() => crm.programs.revokeTarget(pid, row.activity_target_id).then(() => list.reload())) }
           ] : []}
           actionsIconOnly={false}
@@ -505,7 +505,7 @@ const ENTRY_VERBS = {
 };
 
 function Entries({ program, programSites, ask, run, tick }) {
-  const t = useT();
+  const translate = useT();
   const { canWrite } = usePermission(PAGE);
   const pid = program.activity_program_id;
   const list = useList((params) => crm.programs.reservations(pid, params), { page: 1, limit: 20, dir: 'asc' });
@@ -516,18 +516,18 @@ function Entries({ program, programSites, ask, run, tick }) {
   const moveEntry = (row, status) => {
     const fields = [];
     if (status === 'FULFILLED') {
-      fields.push({ name: 'service_location_id', label: 'Collected at', type: 'select', options: programSites, isSearchable: true });
+      fields.push({ name: 'service_center_id', label: 'Collected at', type: 'select', options: programSites, isSearchable: true });
       fields.push({ name: 'product_instance_id', label: 'The unit handed over', type: 'custom', colSpan: 'full',
         render: (values, set) => <InstancePicker value={values.product_instance_id} onChange={(value) => set('product_instance_id', value)} /> });
     }
     fields.push({ name: 'note', label: 'Note', type: 'textarea', colSpan: 'full', required: status === 'CANCELLED' });
-    ask(t(ENTRY_VERBS[status]) + '  ' + row.reservation_code, fields, { service_location_id: row.service_location_id },
+    ask(translate(ENTRY_VERBS[status]) + '  ' + row.reservation_code, fields, { service_center_id: row.service_center_id },
       (values) => run(() => crm.programs.moveReservation(row.reservation_id, Object.assign({ status: status }, values)).then(() => list.reload())));
   };
 
   const actions = canWrite ? Object.keys(ENTRY_VERBS).map((status) => ({
     key: status,
-    label: t(ENTRY_VERBS[status]),
+    label: translate(ENTRY_VERBS[status]),
     hidden: (row) => (ENTRY_MOVES[row.status] || []).indexOf(status) === -1,
     onClick: (row) => moveEntry(row, status)
   })) : [];
@@ -537,26 +537,26 @@ function Entries({ program, programSites, ask, run, tick }) {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status,
             options: choices(['PENDING', 'RESERVED', 'PAID', 'FULFILLED', 'CANCELLED', 'EXPIRED', 'FAILED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) },
-          { key: 'service_location_id', label: 'Service location', value: list.params.service_location_id, width: '14rem',
-            options: programSites, onChange: (value) => list.setFilter({ service_location_id: value || undefined }) }
+          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+            options: programSites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) }
         ])}
         actions={canWrite && program.status === 'OPEN' ? (
-          <Button size="sm" variant="brand" onClick={() => ask(t('crm.program.takeAnEntry'), [
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.takeAnEntry'), [
             { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
               render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
             { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
-            { name: 'service_location_id', label: 'Collect at', type: 'select', options: programSites, isSearchable: true },
+            { name: 'service_center_id', label: 'Collect at', type: 'select', options: programSites, isSearchable: true },
             { name: 'holder_name', label: 'Name on the entry' },
             { name: 'holder_phone', label: 'Phone' },
             { name: 'holder_id_card', label: 'ID card number',
               help: 'Kept only as a fingerprint and a masked copy. One ID card, one entry per program.' }
           ], { entry_type: 'NORMAL' }, (values) => run(() => crm.programs.reserve(pid, values).then(() => list.reload()), 'crm.program.entryTaken'))}
           >
-            {t('crm.program.takeAnEntry')}
+            {translate('crm.program.takeAnEntry')}
           </Button>
         ) : null}
       />
@@ -564,12 +564,12 @@ function Entries({ program, programSites, ask, run, tick }) {
         <DataTable
           columns={[
             { key: 'reservation_code', label: 'Number' },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'holder_name', label: 'Name on the entry' },
             { key: 'holder_id_card_masked', label: 'ID card' },
             { key: 'tier_name', label: 'Tier' },
-            { key: 'entry_type', label: 'Entry', render: (row) => word(t, row.entry_type) },
-            { key: 'location_name', label: 'Service location' },
+            { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
+            { key: 'service_center_name', label: 'Service location' },
             { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
             { key: 'reserved_at', label: 'Taken', render: (row) => dateTime(row.reserved_at) },
             { key: 'fulfilled_at', label: 'Collected', render: (row) => dateTime(row.fulfilled_at) }
@@ -592,7 +592,7 @@ function Entries({ program, programSites, ask, run, tick }) {
 }
 
 function EntryHistory({ reservationId }) {
-  const t = useT();
+  const translate = useT();
   const [rows, setRows] = useState([]);
   useEffect(() => {
     if (!reservationId) return;
@@ -605,9 +605,9 @@ function EntryHistory({ reservationId }) {
       rowKey={(row) => row.reservation_event_id}
       columns={[
         { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-        { key: 'new_status', label: 'Status', render: (row) => word(t, row.new_status) },
+        { key: 'new_status', label: 'Status', render: (row) => word(translate, row.new_status) },
         { key: 'manager_name', label: 'By' },
-        { key: 'location_name', label: 'Service location' },
+        { key: 'service_center_name', label: 'Service location' },
         { key: 'note', label: 'Note' }
       ]}
     />
@@ -627,7 +627,7 @@ const AWARD_VERBS = {
 };
 
 function Awards({ program, rewards, sites, ask, run, tick }) {
-  const t = useT();
+  const translate = useT();
   const { canWrite } = usePermission(PAGE);
   const pid = program.activity_program_id;
   const list = useList((params) => crm.programs.awards(pid, params), { page: 1, limit: 20, dir: 'desc' });
@@ -642,7 +642,7 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
     if (!fields.length) {
       return run(() => crm.programs.moveAward(row.award_id, { status: status }).then(() => list.reload()));
     }
-    return ask(t(AWARD_VERBS[status]), fields, { delivery_address: row.delivery_address },
+    return ask(translate(AWARD_VERBS[status]), fields, { delivery_address: row.delivery_address },
       (values) => run(() => crm.programs.moveAward(row.award_id, Object.assign({ status: status }, values)).then(() => list.reload())));
   };
 
@@ -651,37 +651,37 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status,
             options: choices(['PENDING', 'READY', 'DISPATCHED', 'DELIVERED', 'PICKED_UP', 'CREDITED', 'FAILED', 'CANCELLED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
         actions={canWrite && (program.status === 'OPEN' || program.status === 'CLOSED') ? (
-          <Button size="sm" variant="brand" onClick={() => ask(t('crm.program.giveAReward'), [
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.giveAReward'), [
             { name: 'reward_id', label: 'Reward', type: 'select', required: true,
               options: rewards.map((reward) => ({ value: reward.reward_id, label: reward.reward_name + '  (' + number(reward.quantity_total - reward.quantity_awarded) + ')' })) },
             { name: 'party_id', label: 'Customer', type: 'custom', colSpan: 'full',
               render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
             { name: 'fulfilment_method', label: 'How it reaches them', type: 'select', isClearable: false,
               options: choices(['PICKUP', 'DELIVERY']), help: 'Points and wallet credit ignore this.' },
-            { name: 'pickup_location_id', label: 'Collect at', type: 'select', options: sites, isSearchable: true },
+            { name: 'pickup_service_center_id', label: 'Collect at', type: 'select', options: sites, isSearchable: true },
             { name: 'recipient_name', label: 'Recipient' },
             { name: 'recipient_phone', label: 'Phone' },
             { name: 'delivery_address', label: 'Delivery address', colSpan: 'full' }
           ], { fulfilment_method: 'PICKUP' }, (values) => run(() => crm.programs.award(pid, values).then(() => list.reload())))}
           >
-            {t('crm.program.giveAReward')}
+            {translate('crm.program.giveAReward')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'reward_name', label: 'Reward' },
-            { key: 'reward_type', label: 'Kind', render: (row) => word(t, row.reward_type) },
+            { key: 'reward_type', label: 'Kind', render: (row) => word(translate, row.reward_type) },
             { key: 'reservation_code', label: 'Entry' },
-            { key: 'fulfilment_method', label: 'How', render: (row) => word(t, row.fulfilment_method) },
+            { key: 'fulfilment_method', label: 'How', render: (row) => word(translate, row.fulfilment_method) },
             { key: 'pickup_location_name', label: 'Collect at' },
             { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
             { key: 'awarded_at', label: 'Awarded', render: (row) => dateTime(row.awarded_at) },
@@ -697,7 +697,7 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
           rowKey={(row) => row.award_id || row.id}
           actions={canWrite ? Object.keys(AWARD_VERBS).map((status) => ({
             key: status,
-            label: t(AWARD_VERBS[status]),
+            label: translate(AWARD_VERBS[status]),
             hidden: (row) => (AWARD_MOVES[row.status] || []).indexOf(status) === -1 ||
               (status === 'CREDITED' && row.fulfilment_method !== 'WALLET') ||
               (status === 'PICKED_UP' && row.fulfilment_method !== 'PICKUP') ||

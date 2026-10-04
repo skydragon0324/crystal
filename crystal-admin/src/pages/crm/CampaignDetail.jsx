@@ -34,7 +34,7 @@ const MOVES = {
  * they may not. The counts beside each action are that decision, summed.
  */
 export default function CampaignDetail() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
   const history = useHistory();
@@ -81,7 +81,7 @@ export default function CampaignDetail() {
     setSaving(true);
     try {
       const result = await work();
-      toast({ title: t(done || 'Saved'), status: 'success', duration: 2500 });
+      toast({ title: done ? translate(done) : translate('Saved'), status: 'success', duration: 2500 });
       modal.onClose();
       load();
       return result || true;
@@ -95,24 +95,24 @@ export default function CampaignDetail() {
 
   const move = async (next, verb) => {
     const agreed = await confirm({
-      tone: next === 'CANCELLED' ? 'danger' : 'info', title: t(verb),
-      body: t(next === 'APPROVED' ? 'crm.campaign.approveExplained' : 'crm.campaign.moveExplained'),
-      confirmLabel: t(verb)
+      tone: next === 'CANCELLED' ? 'danger' : 'info', title: translate(verb),
+      body: translate(next === 'APPROVED' ? 'crm.campaign.approveExplained' : 'crm.campaign.moveExplained'),
+      confirmLabel: translate(verb)
     });
     if (agreed) run(() => crm.campaigns.transition(campaign.campaign_id, next));
   };
 
   const prepare = async (row) => {
     const agreed = await confirm({
-      tone: 'info', title: t('crm.campaign.prepare'), body: t('crm.campaign.prepareExplained'),
-      detail: row.action_name || word(t, row.channel_code), confirmLabel: t('crm.campaign.prepare')
+      tone: 'info', title: translate('crm.campaign.prepare'), body: translate('crm.campaign.prepareExplained'),
+      detail: row.action_name || word(translate, row.channel_code), confirmLabel: translate('crm.campaign.prepare')
     });
     if (agreed) run(() => crm.campaigns.prepareAction(campaign.campaign_id, row.action_id), 'crm.campaign.prepared');
   };
 
   const audienceForm = () => {
     setRule({ all: [] });
-    ask(t('crm.campaign.addAudience'), [
+    ask(translate('crm.campaign.addAudience'), [
       { name: 'audience_name', label: 'Audience', required: true, colSpan: 'full' },
       { name: 'audience_type', label: 'Taken from', type: 'select', required: true, isClearable: false,
         options: choices(['SEGMENT', 'PROGRAM_TARGETS', 'RULE', 'MANUAL']) },
@@ -148,12 +148,12 @@ export default function CampaignDetail() {
       <RecordHeader
         onBack={() => history.push(PAGE)}
         title={campaign.campaign_name}
-        subtitle={campaign.campaign_code + '  ·  ' + word(t, campaign.campaign_type) + (campaign.project_code ? '  ·  ' + campaign.project_code : '')}
+        subtitle={campaign.campaign_code + '  ·  ' + word(translate, campaign.campaign_type) + (campaign.project_code ? '  ·  ' + campaign.project_code : '')}
         badges={<Status value={campaign.campaign_status} />}
         actions={canWrite ? (
           <>
             {open ? (
-              <Button size="sm" variant="subtle" onClick={() => ask(t('crm.campaign.editCampaign'), [
+              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.campaign.editCampaign'), [
                 { name: 'campaign_name', label: 'Campaign', required: true },
                 { name: 'campaign_type', label: 'Type', type: 'select', isClearable: false, options: choices(CAMPAIGN_TYPES) },
                 { name: 'start_at', label: 'Starts', type: 'datetime-local' },
@@ -162,13 +162,13 @@ export default function CampaignDetail() {
               ], Object.assign({}, campaign, { start_at: localInput(campaign.start_at), end_at: localInput(campaign.end_at) }),
               (values) => run(() => crm.campaigns.update(campaign.campaign_id, values)))}
               >
-                {t('common.edit')}
+                {translate('common.edit')}
               </Button>
             ) : null}
             {(MOVES[campaign.campaign_status] || []).filter((transition) => !(transition[0] === 'APPROVED' && mine)).map((transition) => (
               <Button key={transition[0]} size="sm" variant={transition[0] === 'CANCELLED' || transition[0] === 'DRAFT' ? 'ghost' : 'brand'}
                 colorScheme={transition[0] === 'CANCELLED' ? 'red' : undefined} onClick={() => move(transition[0], transition[1])}>
-                {t(transition[1])}
+                {translate(transition[1])}
               </Button>
             ))}
           </>
@@ -195,13 +195,13 @@ export default function CampaignDetail() {
           </Facts>
           {campaign.description ? <Text fontSize="sm" mt={4} whiteSpace="pre-wrap">{campaign.description}</Text> : null}
           {campaign.campaign_status === 'DRAFT' && mine && canWrite ? (
-            <Text fontSize="sm" mt={4}>{t('crm.campaign.needsAnotherApprover')}</Text>
+            <Text fontSize="sm" mt={4}>{translate('crm.campaign.needsAnotherApprover')}</Text>
           ) : null}
         </Card>
 
         <Card
-          title={t('crm.campaign.audiences')}
-          actions={canWrite && open ? <Button size="xs" variant="subtle" onClick={audienceForm}>{t('crm.campaign.addAudience')}</Button> : null}
+          title={translate('crm.campaign.audiences')}
+          actions={canWrite && open ? <Button size="xs" variant="subtle" onClick={audienceForm}>{translate('crm.campaign.addAudience')}</Button> : null}
         >
           <DataTable
             hidePagination
@@ -209,7 +209,7 @@ export default function CampaignDetail() {
             rowKey={(row) => row.audience_id}
             columns={[
               { key: 'audience_name', label: 'Audience' },
-              { key: 'audience_type', label: 'Taken from', render: (row) => word(t, row.audience_type) },
+              { key: 'audience_type', label: 'Taken from', render: (row) => word(translate, row.audience_type) },
               { key: 'segment_name', label: 'Source', render: (row) => row.segment_name || row.program_name || '-' },
               { key: 'member_count', label: 'Members', isNumeric: true, render: (row) => number(row.member_count) },
               { key: 'snapshot_at', label: 'Frozen', render: (row) => dateTime(row.snapshot_at) }
@@ -218,15 +218,15 @@ export default function CampaignDetail() {
         </Card>
 
         <Card
-          title={t('crm.campaign.messages')}
+          title={translate('crm.campaign.messages')}
           actions={canWrite && open && audiences.length ? (
-            <Button size="xs" variant="subtle" onClick={() => ask(t('crm.campaign.addMessage'), actionFields, { attribution_window_days: 14 },
+            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaign.addMessage'), actionFields, { attribution_window_days: 14 },
               (values) => run(() => crm.campaigns.saveAction(campaign.campaign_id, null, values)))}>
-              {t('crm.campaign.addMessage')}
+              {translate('crm.campaign.addMessage')}
             </Button>
           ) : null}
         >
-          <Text fontSize="xs" mb={3}>{t('crm.campaign.noGateway')}</Text>
+          <Text fontSize="xs" mb={3}>{translate('crm.campaign.noGateway')}</Text>
           <DataTable
             hidePagination
             rows={record.actions || []}
@@ -234,24 +234,24 @@ export default function CampaignDetail() {
             columns={[
               { key: 'action_name', label: 'Message' },
               { key: 'audience_name', label: 'Audience' },
-              { key: 'channel_name', label: 'Channel', render: (row) => t(row.channel_name || '-') },
-              { key: 'purpose_name', label: 'About', render: (row) => t(row.purpose_name || '-') },
+              { key: 'channel_name', label: 'Channel', render: (row) => translate(row.channel_name || '-') },
+              { key: 'purpose_name', label: 'About', render: (row) => translate(row.purpose_name || '-') },
               { key: 'scheduled_at', label: 'Send at', render: (row) => dateTime(row.scheduled_at) },
-              { key: 'recipients', label: 'Prepared', render: (row) => tally(t, row.recipients) },
-              { key: 'skipped', label: 'Skipped because', render: (row) => tally(t, row.skipped) },
+              { key: 'recipients', label: 'Prepared', render: (row) => tally(translate, row.recipients) },
+              { key: 'skipped', label: 'Skipped because', render: (row) => tally(translate, row.skipped) },
               { key: 'action_status', label: 'Status', render: (row) => <Status value={row.action_status} /> }
             ]}
             actions={canWrite && open ? [
-              { key: 'edit', label: t('common.edit'), hidden: (row) => row.action_status !== 'DRAFT',
-                onClick: (row) => ask(t('crm.campaign.editMessage'), actionFields,
+              { key: 'edit', label: translate('common.edit'), hidden: (row) => row.action_status !== 'DRAFT',
+                onClick: (row) => ask(translate('crm.campaign.editMessage'), actionFields,
                   Object.assign({}, row, { content_title: row.content_title, content_body: row.content_body, scheduled_at: localInput(row.scheduled_at) }),
                   (values) => run(() => crm.campaigns.saveAction(campaign.campaign_id, row.action_id, values))) },
-              { key: 'prepare', label: t('crm.campaign.prepare'), hidden: (row) => row.action_status !== 'DRAFT', onClick: prepare },
-              { key: 'running', label: t('crm.campaign.markSending'), hidden: (row) => row.action_status !== 'READY',
+              { key: 'prepare', label: translate('crm.campaign.prepare'), hidden: (row) => row.action_status !== 'DRAFT', onClick: prepare },
+              { key: 'running', label: translate('crm.campaign.markSending'), hidden: (row) => row.action_status !== 'READY',
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'RUNNING')) },
-              { key: 'complete', label: t('crm.campaign.markSent'), hidden: (row) => row.action_status !== 'RUNNING',
+              { key: 'complete', label: translate('crm.campaign.markSent'), hidden: (row) => row.action_status !== 'RUNNING',
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'COMPLETE')) },
-              { key: 'cancel', label: t('common.cancel'), hidden: (row) => ['COMPLETE', 'CANCELLED'].indexOf(row.action_status) !== -1,
+              { key: 'cancel', label: translate('common.cancel'), hidden: (row) => ['COMPLETE', 'CANCELLED'].indexOf(row.action_status) !== -1,
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'CANCELLED')) }
             ] : []}
             actionsMode="menu"
@@ -259,9 +259,9 @@ export default function CampaignDetail() {
         </Card>
 
         <Card
-          title={t('crm.campaign.costs')}
+          title={translate('crm.campaign.costs')}
           actions={canWrite ? (
-            <Button size="xs" variant="subtle" onClick={() => ask(t('crm.campaign.addCost'), [
+            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaign.addCost'), [
               { name: 'cost_type', label: 'Kind', type: 'select', required: true, isClearable: false,
                 options: choices(['MEDIA', 'SMS', 'EMAIL_PROVIDER', 'COUPON', 'AGENCY', 'PRIZE', 'OTHER']) },
               { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true },
@@ -271,7 +271,7 @@ export default function CampaignDetail() {
                 options: (record.actions || []).map((action) => ({ value: action.action_id, label: action.action_name || String(action.action_id) })) }
             ], { cost_type: 'MEDIA', currency_code: 'USD' }, (values) => run(() => crm.campaigns.addCost(campaign.campaign_id, values)))}
             >
-              {t('crm.campaign.addCost')}
+              {translate('crm.campaign.addCost')}
             </Button>
           ) : null}
         >
@@ -280,13 +280,13 @@ export default function CampaignDetail() {
             rows={record.costs || []}
             rowKey={(row) => row.campaign_cost_id}
             columns={[
-              { key: 'cost_type', label: 'Kind', render: (row) => word(t, row.cost_type) },
+              { key: 'cost_type', label: 'Kind', render: (row) => word(translate, row.cost_type) },
               { key: 'amount', label: 'Amount', isNumeric: true, render: (row) => money(row.amount, row.currency_code) },
               { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
               { key: 'created_by_name', label: 'By' }
             ]}
             actions={canWrite ? [
-              { key: 'remove', label: t('common.remove'),
+              { key: 'remove', label: translate('common.remove'),
                 onClick: (row) => run(() => crm.campaigns.removeCost(campaign.campaign_id, row.campaign_cost_id), 'Deleted') }
             ] : []}
             actionsIconOnly={false}
@@ -311,8 +311,8 @@ export default function CampaignDetail() {
 }
 
 /** { ELIGIBLE: 40, SKIPPED: 3 } as "Eligible 40, Skipped 3". */
-function tally(t, counts) {
+function tally(translate, counts) {
   const keys = Object.keys(counts || {});
   if (!keys.length) return '-';
-  return keys.map((key) => word(t, key) + ' ' + number(counts[key])).join(', ');
+  return keys.map((key) => word(translate, key) + ' ' + number(counts[key])).join(', ');
 }

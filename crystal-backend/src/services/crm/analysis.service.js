@@ -27,7 +27,7 @@ async function recalculateClassStats(options) {
 
   return connection.transaction(async function (trx) {
     const scope = partyIds && partyIds.length
-      ? 'AND r.party_id IN (' + partyIds.map(function () { return '?'; }).join(', ') + ')'
+      ? 'AND registration.party_id IN (' + partyIds.map(function () { return '?'; }).join(', ') + ')'
       : '';
     const bindings = partyIds && partyIds.length ? partyIds : [];
 
@@ -42,33 +42,33 @@ async function recalculateClassStats(options) {
         SELECT product_class_id AS class_id, product_class_id AS ancestor_id
           FROM crm_product_class
         UNION ALL
-        SELECT l.class_id, k.parent_product_class_id
-          FROM lineage l
-          JOIN crm_product_class k ON k.product_class_id = l.ancestor_id
-         WHERE k.parent_product_class_id IS NOT NULL
+        SELECT lineage.class_id, product_class.parent_product_class_id
+          FROM lineage
+          JOIN crm_product_class product_class ON product_class.product_class_id = lineage.ancestor_id
+         WHERE product_class.parent_product_class_id IS NOT NULL
       ),
       held AS (
-        SELECT r.party_id, c.product_class_id, r.valid_to, r.registered_at
-          FROM crm_product_registration r
-          JOIN crm_product_instance i ON i.product_instance_id = r.product_instance_id
-          JOIN crm_product_catalog  c ON c.product_id = i.product_id
-          JOIN crm_party            p ON p.party_id = r.party_id
-         WHERE r.relationship_code IN ('OWNER', 'LICENSEE')
-           AND r.registration_status <> 'CANCELLED'
-           AND c.product_class_id IS NOT NULL
-           AND p.party_status IN ('ACTIVE', 'INACTIVE')
+        SELECT registration.party_id, catalog.product_class_id, registration.valid_to, registration.registered_at
+          FROM crm_product_registration registration
+          JOIN crm_product_instance instance ON instance.product_instance_id = registration.product_instance_id
+          JOIN crm_product_catalog  catalog  ON catalog.product_id = instance.product_id
+          JOIN crm_party            party    ON party.party_id = registration.party_id
+         WHERE registration.relationship_code IN ('OWNER', 'LICENSEE')
+           AND registration.registration_status <> 'CANCELLED'
+           AND catalog.product_class_id IS NOT NULL
+           AND party.party_status IN ('ACTIVE', 'INACTIVE')
            ${scope}
       )
       INSERT INTO crm_party_product_class_stat
         (party_id, product_class_id, active_owned_count, lifetime_registered_count, last_registered_at, calculated_at)
-      SELECT h.party_id, l.ancestor_id,
-             COUNT(*) FILTER (WHERE h.valid_to IS NULL),
+      SELECT held.party_id, lineage.ancestor_id,
+             COUNT(*) FILTER (WHERE held.valid_to IS NULL),
              COUNT(*),
-             MAX(h.registered_at),
+             MAX(held.registered_at),
              now()
-        FROM held h
-        JOIN lineage l ON l.class_id = h.product_class_id
-       GROUP BY h.party_id, l.ancestor_id
+        FROM held
+        JOIN lineage ON lineage.class_id = held.product_class_id
+       GROUP BY held.party_id, lineage.ancestor_id
     `, bindings);
 
     return { rows: result.rowCount };
@@ -94,10 +94,10 @@ async function overview() {
                 (SELECT COUNT(*) FROM crm_product_transfer WHERE status IN ('REQUESTED', 'ACCEPTED'))::int AS open_transfers
            FROM crm_product_registration`),
     one(`SELECT COUNT(*) FILTER (WHERE NOT st.is_terminal)::int AS open,
-                COUNT(*) FILTER (WHERE NOT st.is_terminal AND s.due_at < now())::int AS overdue,
-                COUNT(*) FILTER (WHERE s.received_at >= now() - interval '30 days')::int AS new_30d,
-                ROUND(AVG(s.satisfaction_rating) FILTER (WHERE s.received_at >= now() - interval '90 days'), 2) AS csat_90d
-           FROM crm_service_case s JOIN crm_service_status st ON st.service_status_id = s.service_status_id`),
+                COUNT(*) FILTER (WHERE NOT st.is_terminal AND service_case.due_at < now())::int AS overdue,
+                COUNT(*) FILTER (WHERE service_case.received_at >= now() - interval '30 days')::int AS new_30d,
+                ROUND(AVG(service_case.satisfaction_rating) FILTER (WHERE service_case.received_at >= now() - interval '90 days'), 2) AS csat_90d
+           FROM crm_service_case service_case JOIN crm_service_status st ON st.service_status_id = service_case.service_status_id`),
     one(`SELECT COALESCE(SUM(balance), 0) AS outstanding,
                 (SELECT COALESCE(SUM(points_delta), 0) FROM crm_point_event
                   WHERE points_delta > 0 AND occurred_at >= now() - interval '30 days') AS earned_30d,
@@ -111,30 +111,30 @@ async function overview() {
                 (SELECT COUNT(*) FROM crm_activity_award WHERE status IN ('PENDING', 'READY', 'DISPATCHED'))::int AS awards_open
            FROM crm_activity_program`),
     one(`SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active,
-                (SELECT COUNT(*) FROM crm_location_activity
+                (SELECT COUNT(*) FROM crm_service_center_activity
                   WHERE status = 'COMPLETED' AND occurred_at >= now() - interval '30 days')::int AS activities_30d,
-                (SELECT COUNT(*) FROM crm_location_event
+                (SELECT COUNT(*) FROM crm_service_center_event
                   WHERE status IN ('PLANNED', 'CONFIRMED') AND planned_start_at >= now())::int AS events_ahead
-           FROM crm_service_location`),
+           FROM crm_service_center`),
     one(`SELECT (SELECT COUNT(*) FROM crm_segment WHERE status = 'ACTIVE')::int AS segments,
                 (SELECT COUNT(*) FROM crm_campaign WHERE campaign_status IN ('APPROVED', 'ACTIVE'))::int AS campaigns_live`),
-    db.raw(`SELECT j.project_code, j.project_name,
-                   COUNT(DISTINCT a.party_id) FILTER (WHERE a.unlinked_at IS NULL)::int AS parties
-              FROM crm_project j
-              LEFT JOIN crm_project_account a ON a.project_id = j.project_id
-             GROUP BY j.project_id ORDER BY j.project_id`).then(function (result) { return result.rows; }),
-    db.raw(`SELECT k.class_code, k.class_name, k.product_domain,
-                   COALESCE(SUM(s.active_owned_count), 0)::int AS owned,
-                   COUNT(s.party_id) FILTER (WHERE s.active_owned_count > 0)::int AS owners
-              FROM crm_product_class k
-              LEFT JOIN crm_party_product_class_stat s ON s.product_class_id = k.product_class_id
-             WHERE k.parent_product_class_id IS NULL
-             GROUP BY k.product_class_id ORDER BY k.product_class_id`).then(function (result) { return result.rows; }),
-    db.raw(`SELECT t.activity_code, t.activity_name, COUNT(*)::int AS cnt
-              FROM crm_location_activity a
-              JOIN crm_location_activity_type t ON t.activity_type_id = a.activity_type_id
-             WHERE a.status = 'COMPLETED' AND a.occurred_at >= now() - interval '30 days'
-             GROUP BY t.activity_type_id ORDER BY cnt DESC LIMIT 8`).then(function (result) { return result.rows; })
+    db.raw(`SELECT project.project_code, project.project_name,
+                   COUNT(DISTINCT account.party_id) FILTER (WHERE account.unlinked_at IS NULL)::int AS parties
+              FROM crm_project project
+              LEFT JOIN crm_project_account account ON account.project_id = project.project_id
+             GROUP BY project.project_id ORDER BY project.project_id`).then(function (result) { return result.rows; }),
+    db.raw(`SELECT product_class.class_code, product_class.class_name, product_class.product_domain,
+                   COALESCE(SUM(class_stat.active_owned_count), 0)::int AS owned,
+                   COUNT(class_stat.party_id) FILTER (WHERE class_stat.active_owned_count > 0)::int AS owners
+              FROM crm_product_class product_class
+              LEFT JOIN crm_party_product_class_stat class_stat ON class_stat.product_class_id = product_class.product_class_id
+             WHERE product_class.parent_product_class_id IS NULL
+             GROUP BY product_class.product_class_id ORDER BY product_class.product_class_id`).then(function (result) { return result.rows; }),
+    db.raw(`SELECT activity_type.activity_code, activity_type.activity_name, COUNT(*)::int AS cnt
+              FROM crm_service_center_activity activity
+              JOIN crm_service_center_activity_type activity_type ON activity_type.activity_type_id = activity.activity_type_id
+             WHERE activity.status = 'COMPLETED' AND activity.occurred_at >= now() - interval '30 days'
+             GROUP BY activity_type.activity_type_id ORDER BY cnt DESC LIMIT 8`).then(function (result) { return result.rows; })
   ]);
 
   return {

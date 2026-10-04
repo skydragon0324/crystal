@@ -13,7 +13,7 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime } from '../../utils/format';
-import { PartyPicker, Status, amount, choices, optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, word, filtersFor } from './shared';
+import { PartyPicker, Status, amount, choices, optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, word, filtersFor, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/points';
 
@@ -33,7 +33,7 @@ const TRIGGERS = ['PRODUCT_REGISTRATION', 'DAILY_LOGIN', 'DUTY', 'PURCHASE', 'LI
  * that should never happen, and seeing it is how it would be noticed.
  */
 export default function Points() {
-  const t = useT();
+  const translate = useT();
   const [drift, setDrift] = useState([]);
 
   useEffect(() => {
@@ -45,15 +45,15 @@ export default function Points() {
       {drift.length ? (
         <Alert status="error" mb={4} borderRadius="md" fontSize="sm">
           <AlertIcon />
-          {t('crm.points.drifted', { n: drift.length })}
+          {translate('crm.points.drifted', { n: drift.length })}
         </Alert>
       ) : null}
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{t('crm.points.balances')}</Tab>
-            <Tab fontSize="sm">{t('crm.points.ledger')}</Tab>
-            <Tab fontSize="sm">{t('crm.points.earningRules')}</Tab>
+            <Tab fontSize="sm">{translate('crm.points.balances')}</Tab>
+            <Tab fontSize="sm">{translate('crm.points.ledger')}</Tab>
+            <Tab fontSize="sm">{translate('crm.points.earningRules')}</Tab>
           </TabList>
           <TabPanels>
             <TabPanel px={0}><Balances /></TabPanel>
@@ -67,7 +67,7 @@ export default function Points() {
 }
 
 function Balances() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
   const form = useDisclosure();
@@ -81,7 +81,7 @@ function Balances() {
     setSaving(true);
     try {
       await crm.points.adjust(values);
-      toast({ title: t('crm.points.adjusted'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.points.adjusted'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -98,7 +98,7 @@ function Balances() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'point_type_id', label: 'Point type', value: list.params.point_type_id, width: '14rem',
             options: optionsFrom(meta.point_types, 'point_type_id', 'point_type_name'),
             onChange: (value) => list.setFilter({ point_type_id: value || undefined }) },
@@ -107,12 +107,12 @@ function Balances() {
             onChange: (value) => list.setFilter({ nonzero: value || undefined }) }
         ])}
         actions={canWrite ? (
-          <Button size="sm" variant="brand" onClick={form.onOpen}>{t('crm.points.adjust')}</Button>
+          <Button size="sm" variant="brand" onClick={form.onOpen}>{translate('crm.points.adjust')}</Button>
         ) : null}
       />
       {list.params.point_type_id ? (
         <Box px={5} pb={2} fontSize="sm">
-          {t('crm.points.totals', {
+          {translate('crm.points.totals', {
             balance: amount(summary.balance, 0), earned: amount(summary.earned, 0), spent: amount(summary.spent, 0)
           })}
         </Box>
@@ -121,8 +121,8 @@ function Balances() {
         <DataTable
           columns={[
             { key: 'party_name', label: 'Customer', sortable: false,
-              render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
-            { key: 'point_type_name', label: 'Point type', sortable: false, render: (row) => t(row.point_type_name || '-') },
+              render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'point_type_name', label: 'Point type', sortable: false, render: (row) => translate(row.point_type_name || '-') },
             { key: 'balance', label: 'Balance', isNumeric: true, render: (row) => amount(row.balance, row.decimal_places) },
             { key: 'lifetime_earned', label: 'Earned', isNumeric: true, render: (row) => amount(row.lifetime_earned) },
             { key: 'lifetime_spent', label: 'Spent', isNumeric: true, sortable: false, render: (row) => amount(row.lifetime_spent) },
@@ -147,7 +147,7 @@ function Balances() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.points.adjust')}
+        title={translate('crm.points.adjust')}
         onSubmit={adjust}
         saving={saving}
         fields={[
@@ -165,7 +165,7 @@ function Balances() {
 }
 
 function AccountLedger({ accountId }) {
-  const t = useT();
+  const translate = useT();
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
@@ -181,7 +181,7 @@ function AccountLedger({ accountId }) {
       rowKey={(row) => row.point_event_id}
       columns={[
         { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-        { key: 'event_code', label: 'Movement', render: (row) => word(t, row.event_code) },
+        { key: 'event_code', label: 'Movement', render: (row) => word(translate, row.event_code) },
         { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => amount(row.points_delta) },
         { key: 'points_balance_after', label: 'Balance', isNumeric: true, render: (row) => amount(row.points_balance_after) },
         { key: 'description', label: 'Note', maxW: '18rem' }
@@ -191,7 +191,7 @@ function AccountLedger({ accountId }) {
 }
 
 function Ledger() {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const list = useList((params) => crm.points.events(params), { page: 1, limit: 30, dir: 'desc' });
 
@@ -200,12 +200,12 @@ function Ledger() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'point_type_id', label: 'Point type', value: list.params.point_type_id, width: '14rem',
             options: optionsFrom(meta.point_types, 'point_type_id', 'point_type_name'),
             onChange: (value) => list.setFilter({ point_type_id: value || undefined }) },
           { key: 'point_event_type_id', label: 'Movement', value: list.params.point_event_type_id,
-            options: (meta.point_event_types || []).map((eventType) => ({ value: eventType.point_event_type_id, label: word(t, eventType.event_code) })),
+            options: (meta.point_event_types || []).map((eventType) => ({ value: eventType.point_event_type_id, label: word(translate, eventType.event_code) })),
             onChange: (value) => list.setFilter({ point_event_type_id: value || undefined }) },
           { key: 'project_id', label: 'Project', value: list.params.project_id,
             options: optionsFrom(meta.projects, 'project_id', 'project_code'),
@@ -216,9 +216,9 @@ function Ledger() {
         <DataTable
           columns={[
             { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
             { key: 'point_type_code', label: 'Point type' },
-            { key: 'event_code', label: 'Movement', render: (row) => word(t, row.event_code) },
+            { key: 'event_code', label: 'Movement', render: (row) => word(translate, row.event_code) },
             { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => amount(row.points_delta) },
             { key: 'points_balance_after', label: 'Balance', isNumeric: true, render: (row) => amount(row.points_balance_after) },
             { key: 'rule_name', label: 'Rule' },
@@ -242,7 +242,7 @@ function Ledger() {
 }
 
 function Rules() {
-  const t = useT();
+  const translate = useT();
   const meta = useCrmMeta();
   const catalog = useCatalogOptions();
 
@@ -253,11 +253,11 @@ function Rules() {
       pkField="point_rule_id"
       canRestore={false}
       defaultSort="rule_code"
-      subtitle={t('crm.points.rulesExplained')}
+      subtitle={translate('crm.points.rulesExplained')}
       columns={[
         { key: 'rule_code', label: 'Code' },
         { key: 'rule_name', label: 'Rule', maxW: '16rem' },
-        { key: 'trigger_code', label: 'When', render: (row) => word(t, row.trigger_code) },
+        { key: 'trigger_code', label: 'When', render: (row) => word(translate, row.trigger_code) },
         { key: 'point_type_code', label: 'Point type', sortable: false },
         { key: 'points', label: 'Points', isNumeric: true, render: (row) => amount(row.points) },
         { key: 'class_code', label: 'For class', sortable: false },

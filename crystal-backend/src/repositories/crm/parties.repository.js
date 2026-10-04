@@ -1,5 +1,7 @@
 const db = require('../../config/db');
 const contact = require('../../services/crm/contact');
+const locations = require('../../services/crm/locations');
+const { searchId } = require('../../services/crm/partyId');
 
 /**
  * Parties: the reads.
@@ -13,13 +15,12 @@ const contact = require('../../services/crm/contact');
  */
 
 const SORTABLE = {
-  party_id: 'p.party_id',
-  party_no: 'p.party_no',
-  display_name: 'p.display_name',
-  last_seen_at: 'p.last_seen_at',
-  created_at: 'p.created_at',
-  corporate_score: 's.corporate_score',
-  purchase_amount_12m: 's.purchase_amount_12m'
+  party_id: 'party.party_pk',
+  display_name: 'party.display_name',
+  last_seen_at: 'party.last_seen_at',
+  created_at: 'party.created_at',
+  corporate_score: 'snapshot.corporate_score',
+  purchase_amount_12m: 'snapshot.purchase_amount_12m'
 };
 
 /*
@@ -28,31 +29,40 @@ const SORTABLE = {
  * the analysis for each row.
  */
 const LATEST = `LEFT JOIN LATERAL (
-    SELECT x.corporate_score, x.corporate_grade_id, x.purchase_amount_12m, x.activity_status,
-           x.transaction_count_12m, x.reference_date
-      FROM crm_party_analysis_snapshot x
-     WHERE x.party_id = p.party_id AND x.project_id IS NULL
-     ORDER BY x.reference_date DESC LIMIT 1) s ON true`;
+    SELECT analysis.corporate_score, analysis.corporate_grade_id, analysis.purchase_amount_12m, analysis.activity_status,
+           analysis.transaction_count_12m, analysis.reference_date
+      FROM crm_party_analysis_snapshot analysis
+     WHERE analysis.party_id = party.party_id AND analysis.project_id IS NULL
+     ORDER BY analysis.reference_date DESC LIMIT 1) snapshot ON true`;
 
 /** The filters the list and the lookup share. */
 function narrowed(filters) {
-  const qb = db('crm_party as p').joinRaw(LATEST);
+  const qb = db('crm_party as party').joinRaw(LATEST);
 
-  if (filters.corporate_grade_id) qb.where('s.corporate_grade_id', filters.corporate_grade_id);
-  if (filters.activity_status) qb.where('s.activity_status', filters.activity_status);
+  if (filters.corporate_grade_id) qb.where('snapshot.corporate_grade_id', filters.corporate_grade_id);
+  if (filters.activity_status) qb.where('snapshot.activity_status', filters.activity_status);
 
-  if (filters.party_status) qb.where('p.party_status', filters.party_status);
+  if (filters.party_status) qb.where('party.party_status', filters.party_status);
   // Merged and deleted parties are history, not customers: out of the way unless asked for.
-  else qb.whereIn('p.party_status', ['ACTIVE', 'INACTIVE']);
+  else qb.whereIn('party.party_status', ['ACTIVE', 'INACTIVE']);
 
-  if (filters.party_type) qb.where('p.party_type', filters.party_type);
+  if (filters.party_type) qb.where('party.party_type', filters.party_type);
+
+  /* People a manager has not looked at by hand yet ('0'), or has ('1'). */
+  if (filters.is_checked_manually === '0' || filters.is_checked_manually === '1') {
+    qb.whereExists(function () {
+      this.select(db.raw(1)).from('crm_person as person')
+        .whereRaw('person.party_id = party.party_id')
+        .where('person.is_checked_manually', filters.is_checked_manually === '1');
+    });
+  }
 
   if (filters.project_id) {
     qb.whereExists(function () {
-      this.select(db.raw(1)).from('crm_project_account as a')
-        .whereRaw('a.party_id = p.party_id')
-        .where('a.project_id', filters.project_id)
-        .whereNull('a.unlinked_at');
+      this.select(db.raw(1)).from('crm_project_account as account')
+        .whereRaw('account.party_id = party.party_id')
+        .where('account.project_id', filters.project_id)
+        .whereNull('account.unlinked_at');
     });
   }
 
@@ -61,23 +71,23 @@ function narrowed(filters) {
     const forms = contact.searchForms(term);
 
     qb.where(function () {
-      this.where('p.party_no', 'ilike', '%' + term + '%')
-        .orWhere('p.display_name', 'ilike', '%' + term + '%');
+      this.where('party.party_id', 'ilike', searchId(term))
+        .orWhere('party.display_name', 'ilike', '%' + term + '%');
 
       forms.forEach((form) => {
         this.orWhereExists(function () {
-          this.select(db.raw(1)).from('crm_contact_point as c')
-            .whereRaw('c.party_id = p.party_id')
-            .where('c.normalized_value', 'like', '%' + form + '%');
+          this.select(db.raw(1)).from('crm_contact_point as contact')
+            .whereRaw('contact.party_id = party.party_id')
+            .where('contact.normalized_value', 'like', '%' + form + '%');
         });
       });
 
       /* An account number another project gave them - a platform login, an Eshop id. */
       this.orWhereExists(function () {
-        this.select(db.raw(1)).from('crm_project_account as a')
-          .whereRaw('a.party_id = p.party_id')
+        this.select(db.raw(1)).from('crm_project_account as account')
+          .whereRaw('account.party_id = party.party_id')
           .where(function () {
-            this.where('a.external_account_id', term).orWhere('a.external_login', 'ilike', term);
+            this.where('account.external_account_id', term).orWhere('account.external_login', 'ilike', term);
           });
       });
     });
@@ -89,51 +99,51 @@ function narrowed(filters) {
 /** The first active contact of a kind, primary first - as a correlated subquery. */
 function firstContact(type, alias) {
   return db.raw(
-    `(SELECT c.contact_value FROM crm_contact_point c
-       WHERE c.party_id = p.party_id AND c.contact_type = ? AND c.status = 'ACTIVE'
-       ORDER BY c.is_primary DESC, c.contact_point_id LIMIT 1) AS ??`,
+    `(SELECT contact.contact_value FROM crm_contact_point contact
+       WHERE contact.party_id = party.party_id AND contact.contact_type = ? AND contact.status = 'ACTIVE'
+       ORDER BY contact.is_primary DESC, contact.contact_point_id LIMIT 1) AS ??`,
     [type, alias]
   );
 }
 
 async function search(filters, paging) {
-  const count = await narrowed(filters).count({ c: '*' }).first();
+  const count = await narrowed(filters).count({ total: '*' }).first();
 
   const rows = await narrowed(filters)
-    .leftJoin('crm_project as o', 'o.project_id', 'p.origin_project_id')
+    .leftJoin('crm_project as origin_project', 'origin_project.project_id', 'party.origin_project_id')
     .select(
-      'p.party_id', 'p.party_no', 'p.party_type', 'p.party_status', 'p.display_name',
-      'p.origin_project_id', 'o.project_code as origin_project_code',
-      'p.first_seen_at', 'p.last_seen_at', 'p.created_at',
+      'party.party_id', 'party.party_id', 'party.party_type', 'party.party_status', 'party.display_name',
+      'party.origin_project_id', 'origin_project.project_code as origin_project_code',
+      'party.first_seen_at', 'party.last_seen_at', 'party.created_at',
       firstContact('MOBILE', 'mobile'),
       firstContact('EMAIL', 'email'),
       db.raw(`(SELECT string_agg(DISTINCT pj.project_code, ',')
-                 FROM crm_project_account a JOIN crm_project pj ON pj.project_id = a.project_id
-                WHERE a.party_id = p.party_id AND a.unlinked_at IS NULL) AS projects`),
-      db.raw(`(SELECT COUNT(*) FROM crm_product_registration r
-                WHERE r.party_id = p.party_id AND r.valid_to IS NULL)::int AS holding_cnt`),
+                 FROM crm_project_account account JOIN crm_project pj ON pj.project_id = account.project_id
+                WHERE account.party_id = party.party_id AND account.unlinked_at IS NULL) AS projects`),
+      db.raw(`(SELECT COUNT(*) FROM crm_product_registration registration
+                WHERE registration.party_id = party.party_id AND registration.valid_to IS NULL)::int AS holding_cnt`),
       db.raw(`(SELECT COUNT(*) FROM crm_service_case sc
-                WHERE sc.party_id = p.party_id)::int AS case_cnt`),
-      's.corporate_score', 's.purchase_amount_12m', 's.activity_status', 's.transaction_count_12m',
-      db.raw('(SELECT g.grade_code FROM crm_corporate_grade g WHERE g.corporate_grade_id = s.corporate_grade_id) AS grade_code')
+                WHERE sc.party_id = party.party_id)::int AS case_cnt`),
+      'snapshot.corporate_score', 'snapshot.purchase_amount_12m', 'snapshot.activity_status', 'snapshot.transaction_count_12m',
+      db.raw('(SELECT grade.grade_code FROM crm_corporate_grade grade WHERE grade.corporate_grade_id = snapshot.corporate_grade_id) AS grade_code')
     )
-    .orderByRaw((SORTABLE[paging.sort] || 'p.party_id') + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')
+    .orderByRaw((SORTABLE[paging.sort] || 'party.party_id') + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')
     .limit(paging.limit)
     .offset(paging.offset);
 
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 /** Twenty matches for a picker: enough to choose from, few enough to be quick. */
 function lookup(term, ids) {
   const qb = narrowed({ q: term })
-    .select('p.party_id', 'p.party_no', 'p.party_type', 'p.display_name', firstContact('MOBILE', 'mobile'))
-    .orderBy('p.party_id', 'desc')
+    .select('party.party_id', 'party.party_id', 'party.party_type', 'party.display_name', firstContact('MOBILE', 'mobile'))
+    .orderBy('party.party_pk', 'desc')
     .limit(20);
 
   if (ids && ids.length) {
-    return db('crm_party as p').whereIn('p.party_id', ids)
-      .select('p.party_id', 'p.party_no', 'p.party_type', 'p.display_name', firstContact('MOBILE', 'mobile'));
+    return db('crm_party as party').whereIn('party.party_id', ids)
+      .select('party.party_id', 'party.party_id', 'party.party_type', 'party.display_name', firstContact('MOBILE', 'mobile'));
   }
   return qb;
 }
@@ -154,125 +164,127 @@ function lockParty(id, trx) {
  * should not take the page down with them.
  */
 async function detail(id) {
-  const party = await db('crm_party as p')
-    .leftJoin('crm_project as o', 'o.project_id', 'p.origin_project_id')
-    .leftJoin('crm_party as m', 'm.party_id', 'p.merged_into_party_id')
-    .where('p.party_id', id)
-    .first('p.*', 'o.project_code as origin_project_code', 'o.project_name as origin_project_name',
-      'm.party_no as merged_into_party_no');
+  const party = await db('crm_party as party')
+    .leftJoin('crm_project as origin_project', 'origin_project.project_id', 'party.origin_project_id')
+    .where('party.party_id', id)
+    .first('party.*', 'origin_project.project_code as origin_project_code', 'origin_project.project_name as origin_project_name');
   if (!party) return null;
+  delete party.party_pk; // the internal key never leaves the server
 
   const [
     person, organization, contacts, accounts, memberships, holdings, transfers, cases,
     pointAccounts, pointEvents, targets, reservations, awards, activities, consents,
     segments, classStats, merges, snapshot
   ] = await Promise.all([
-    db('crm_person as x').leftJoin('crm_location as l', 'l.location_id', 'x.home_location_id')
-      .where('x.party_id', id).first('x.*', 'l.location_name as home_location_name'),
-    db('crm_organization').where('party_id', id).first(),
-    db('crm_contact_point as c').leftJoin('crm_project as j', 'j.project_id', 'c.source_project_id')
-      .where('c.party_id', id)
-      .orderBy([{ column: 'c.status' }, { column: 'c.contact_type' }, { column: 'c.is_primary', order: 'desc' }])
-      .select('c.*', 'j.project_code as source_project_code'),
-    db('crm_project_account as a').join('crm_project as j', 'j.project_id', 'a.project_id')
-      .where('a.party_id', id).orderBy([{ column: 'a.unlinked_at', order: 'desc' }, { column: 'j.project_id' }])
-      .select('a.*', 'j.project_code', 'j.project_name'),
-    db('crm_membership as m').join('crm_project as j', 'j.project_id', 'm.project_id')
-      .leftJoin('crm_project_tier as t', 't.project_tier_id', 'm.current_tier_id')
-      .where('m.party_id', id).orderBy('j.project_id')
-      .select('m.*', 'j.project_code', 't.tier_code', 't.tier_name'),
-    db('crm_product_registration as r')
-      .join('crm_product_instance as i', 'i.product_instance_id', 'r.product_instance_id')
-      .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-      .join('crm_project as j', 'j.project_id', 'r.project_id')
-      .leftJoin('crm_product_class as k', 'k.product_class_id', 'c.product_class_id')
-      .leftJoin('crm_product_relationship_type as t', 't.relationship_type_id', 'r.relationship_type_id')
-      .where('r.party_id', id)
-      .orderByRaw('r.valid_to IS NULL DESC, r.valid_from DESC')
+    db('crm_person as person')
+      .leftJoin('crm_job_title as jt', 'jt.job_title_id', 'person.job_title_id')
+      .where('person.party_id', id)
+      .first('person.*', db.raw(locations.fullNameOf('person.home_location_pk') + ' AS home_location_name'), 'jt.job_name as job_title_name'),
+    db('crm_organization as organization').leftJoin('crm_location as place', 'place.location_pk', 'organization.location_pk')
+      .where('organization.party_id', id)
+      .first('organization.*', 'place.location_name', db.raw(locations.fullNameOf('organization.location_pk') + ' AS location_full_name')),
+    db('crm_contact_point as contact').leftJoin('crm_project as project', 'project.project_id', 'contact.source_project_id')
+      .where('contact.party_id', id)
+      .orderBy([{ column: 'contact.status' }, { column: 'contact.contact_type' }, { column: 'contact.is_primary', order: 'desc' }])
+      .select('contact.*', 'project.project_code as source_project_code'),
+    db('crm_project_account as account').join('crm_project as project', 'project.project_id', 'account.project_id')
+      .where('account.party_id', id).orderBy([{ column: 'account.unlinked_at', order: 'desc' }, { column: 'project.project_id' }])
+      .select('account.*', 'project.project_code', 'project.project_name'),
+    db('crm_membership as membership').join('crm_project as project', 'project.project_id', 'membership.project_id')
+      .leftJoin('crm_project_tier as tier', 'tier.project_tier_id', 'membership.current_tier_id')
+      .where('membership.party_id', id).orderBy('project.project_id')
+      .select('membership.*', 'project.project_code', 'tier.tier_code', 'tier.tier_name'),
+    db('crm_product_registration as registration')
+      .join('crm_product_instance as instance', 'instance.product_instance_id', 'registration.product_instance_id')
+      .join('crm_product_catalog as catalog', 'catalog.product_id', 'instance.product_id')
+      .join('crm_project as project', 'project.project_id', 'registration.project_id')
+      .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'catalog.product_class_id')
+      .leftJoin('crm_product_relationship_type as relationship_type', 'relationship_type.relationship_type_id', 'registration.relationship_type_id')
+      .where('registration.party_id', id)
+      .orderByRaw('registration.valid_to IS NULL DESC, registration.valid_from DESC')
       .limit(100)
-      .select('r.*', 'i.external_product_instance_id', 'i.serial_number', 'i.imei', 'i.instance_kind',
-        'i.status as instance_status', 'c.product_name', 'c.product_code', 'k.class_code', 'k.class_name',
-        't.relationship_name', 'j.project_code'),
-    db('crm_product_transfer as x')
-      .join('crm_product_instance as i', 'i.product_instance_id', 'x.product_instance_id')
-      .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-      .leftJoin('crm_party as f', 'f.party_id', 'x.from_party_id')
-      .leftJoin('crm_party as t', 't.party_id', 'x.to_party_id')
-      .where(function () { this.where('x.from_party_id', id).orWhere('x.to_party_id', id); })
-      .orderBy('x.requested_at', 'desc').limit(50)
-      .select('x.*', 'c.product_name', 'i.external_product_instance_id',
-        'f.display_name as from_name', 't.display_name as to_name'),
-    db('crm_service_case as s')
-      .join('crm_service_case_type as ct', 'ct.case_type_id', 's.case_type_id')
-      .join('crm_service_status as st', 'st.service_status_id', 's.service_status_id')
-      .join('crm_project as j', 'j.project_id', 's.project_id')
-      .leftJoin('crm_service_location as l', 'l.service_location_id', 's.service_location_id')
-      .where('s.party_id', id).orderBy('s.received_at', 'desc').limit(50)
-      .select('s.case_id', 's.external_case_id', 's.title', 's.received_at', 's.closed_at', 's.is_warranty',
-        's.crystal_repair_ticket_id', 'ct.case_type_code', 'ct.display_name as case_type_name',
-        'st.status_code', 'st.display_name as status_name', 'st.is_terminal', 'j.project_code',
-        'l.location_name'),
-    db('crm_point_account as a').join('crm_point_type as t', 't.point_type_id', 'a.point_type_id')
-      .where('a.party_id', id).orderBy('t.point_type_id')
-      .select('a.*', 't.point_type_code', 't.point_type_name', 't.decimal_places'),
-    db('crm_point_event as e')
-      .join('crm_point_account as a', 'a.point_account_id', 'e.point_account_id')
-      .join('crm_point_type as t', 't.point_type_id', 'a.point_type_id')
-      .join('crm_point_event_type as et', 'et.point_event_type_id', 'e.point_event_type_id')
-      .join('crm_project as j', 'j.project_id', 'e.project_id')
-      .where('a.party_id', id).orderBy([{ column: 'e.occurred_at', order: 'desc' }, { column: 'e.point_event_id', order: 'desc' }]).limit(30)
-      .select('e.*', 't.point_type_code', 'et.event_code', 'j.project_code'),
-    db('crm_activity_target as x').join('crm_activity_program as g', 'g.activity_program_id', 'x.activity_program_id')
-      .leftJoin('crm_activity_program_tier as t', 't.program_tier_id', 'x.program_tier_id')
-      .where('x.party_id', id).orderBy('x.created_at', 'desc').limit(50)
-      .select('x.*', 'g.program_code', 'g.program_name', 'g.program_type', 'g.status as program_status', 't.tier_name'),
-    db('crm_activity_reservation as r').join('crm_activity_program as g', 'g.activity_program_id', 'r.activity_program_id')
-      .leftJoin('crm_service_location as l', 'l.service_location_id', 'r.service_location_id')
-      .where('r.party_id', id).orderBy('r.created_at', 'desc').limit(50)
-      .select('r.reservation_id', 'r.reservation_code', 'r.entry_type', 'r.status', 'r.reserved_at',
-        'r.fulfilled_at', 'g.program_name', 'g.program_code', 'l.location_name'),
-    db('crm_activity_award as w').join('crm_activity_reward as rw', 'rw.reward_id', 'w.reward_id')
-      .join('crm_activity_program as g', 'g.activity_program_id', 'w.activity_program_id')
-      .where('w.party_id', id).orderBy('w.awarded_at', 'desc').limit(50)
-      .select('w.award_id', 'w.status', 'w.fulfilment_method', 'w.awarded_at', 'w.fulfilled_at',
-        'rw.reward_name', 'rw.reward_type', 'g.program_name'),
-    db('crm_location_activity as x')
-      .join('crm_location_activity_type as t', 't.activity_type_id', 'x.activity_type_id')
-      .join('crm_service_location as l', 'l.service_location_id', 'x.service_location_id')
-      .where('x.party_id', id).orderBy('x.occurred_at', 'desc').limit(30)
-      .select('x.location_activity_id', 'x.occurred_at', 'x.quantity', 'x.amount', 'x.status',
-        't.activity_code', 't.activity_name', 'l.location_name'),
-    db('crm_project_communication_option as o')
-      .join('crm_project as j', 'j.project_id', 'o.project_id')
-      .join('crm_communication_purpose as pp', 'pp.purpose_id', 'o.purpose_id')
-      .join('crm_communication_channel as ch', 'ch.channel_id', 'o.channel_id')
-      .leftJoin('crm_party_communication_consent as c', function () {
-        this.on('c.project_communication_option_id', 'o.project_communication_option_id')
-          .andOn('c.party_id', db.raw('?', [id]));
+      .select('registration.*', 'instance.external_product_instance_id', 'instance.serial_number', 'instance.imei', 'instance.instance_kind',
+        'instance.status as instance_status', 'catalog.product_name', 'catalog.product_code', 'product_class.class_code', 'product_class.class_name',
+        'relationship_type.relationship_name', 'project.project_code'),
+    db('crm_product_transfer as transfer')
+      .join('crm_product_instance as instance', 'instance.product_instance_id', 'transfer.product_instance_id')
+      .join('crm_product_catalog as catalog', 'catalog.product_id', 'instance.product_id')
+      .leftJoin('crm_party as from_party', 'from_party.party_id', 'transfer.from_party_id')
+      .leftJoin('crm_party as to_party', 'to_party.party_id', 'transfer.to_party_id')
+      .where(function () { this.where('transfer.from_party_id', id).orWhere('transfer.to_party_id', id); })
+      .orderBy('transfer.requested_at', 'desc').limit(50)
+      .select('transfer.*', 'catalog.product_name', 'instance.external_product_instance_id',
+        'from_party.display_name as from_name', 'to_party.display_name as to_name'),
+    db('crm_service_case as service_case')
+      .join('crm_service_case_type as ct', 'ct.case_type_id', 'service_case.case_type_id')
+      .join('crm_service_status as st', 'st.service_status_id', 'service_case.service_status_id')
+      .join('crm_project as project', 'project.project_id', 'service_case.project_id')
+      .leftJoin('crm_service_center as center', 'center.service_center_id', 'service_case.service_center_id')
+      .where('service_case.party_id', id).orderBy('service_case.received_at', 'desc').limit(50)
+      .select('service_case.case_id', 'service_case.external_case_id', 'service_case.title', 'service_case.received_at',
+        'service_case.closed_at', 'service_case.is_warranty',
+        'service_case.crystal_repair_ticket_id', 'ct.case_type_code', 'ct.display_name as case_type_name',
+        'st.status_code', 'st.display_name as status_name', 'st.is_terminal', 'project.project_code',
+        'center.service_center_name'),
+    db('crm_point_account as account').join('crm_point_type as point_type', 'point_type.point_type_id', 'account.point_type_id')
+      .where('account.party_id', id).orderBy('point_type.point_type_id')
+      .select('account.*', 'point_type.point_type_code', 'point_type.point_type_name', 'point_type.decimal_places'),
+    db('crm_point_event as point_event')
+      .join('crm_point_account as account', 'account.point_account_id', 'point_event.point_account_id')
+      .join('crm_point_type as point_type', 'point_type.point_type_id', 'account.point_type_id')
+      .join('crm_point_event_type as et', 'et.point_event_type_id', 'point_event.point_event_type_id')
+      .join('crm_project as project', 'project.project_id', 'point_event.project_id')
+      .where('account.party_id', id).orderBy([{ column: 'point_event.occurred_at', order: 'desc' }, { column: 'point_event.point_event_id', order: 'desc' }]).limit(30)
+      .select('point_event.*', 'point_type.point_type_code', 'et.event_code', 'project.project_code'),
+    db('crm_activity_target as target').join('crm_activity_program as program', 'program.activity_program_id', 'target.activity_program_id')
+      .leftJoin('crm_activity_program_tier as tier', 'tier.program_tier_id', 'target.program_tier_id')
+      .where('target.party_id', id).orderBy('target.created_at', 'desc').limit(50)
+      .select('target.*', 'program.program_code', 'program.program_name', 'program.program_type', 'program.status as program_status', 'tier.tier_name'),
+    db('crm_activity_reservation as reservation').join('crm_activity_program as program', 'program.activity_program_id', 'reservation.activity_program_id')
+      .leftJoin('crm_service_center as center', 'center.service_center_id', 'reservation.service_center_id')
+      .where('reservation.party_id', id).orderBy('reservation.created_at', 'desc').limit(50)
+      .select('reservation.reservation_id', 'reservation.reservation_code', 'reservation.entry_type', 'reservation.status', 'reservation.reserved_at',
+        'reservation.fulfilled_at', 'program.program_name', 'program.program_code', 'center.service_center_name'),
+    db('crm_activity_award as award').join('crm_activity_reward as rw', 'rw.reward_id', 'award.reward_id')
+      .join('crm_activity_program as program', 'program.activity_program_id', 'award.activity_program_id')
+      .where('award.party_id', id).orderBy('award.awarded_at', 'desc').limit(50)
+      .select('award.award_id', 'award.status', 'award.fulfilment_method', 'award.awarded_at', 'award.fulfilled_at',
+        'rw.reward_name', 'rw.reward_type', 'program.program_name'),
+    db('crm_service_center_activity as activity')
+      .join('crm_service_center_activity_type as activity_type', 'activity_type.activity_type_id', 'activity.activity_type_id')
+      .join('crm_service_center as center', 'center.service_center_id', 'activity.service_center_id')
+      .where('activity.party_id', id).orderBy('activity.occurred_at', 'desc').limit(30)
+      .select('activity.service_center_activity_id', 'activity.occurred_at', 'activity.quantity', 'activity.amount', 'activity.status',
+        'activity_type.activity_code', 'activity_type.activity_name', 'center.service_center_name'),
+    db('crm_project_communication_option as communication_option')
+      .join('crm_project as project', 'project.project_id', 'communication_option.project_id')
+      .join('crm_communication_purpose as pp', 'pp.purpose_id', 'communication_option.purpose_id')
+      .join('crm_communication_channel as ch', 'ch.channel_id', 'communication_option.channel_id')
+      .leftJoin('crm_party_communication_consent as consent', function () {
+        this.on('consent.project_communication_option_id', 'communication_option.project_communication_option_id')
+          .andOn('consent.party_id', db.raw('?', [id]));
       })
-      .leftJoin('crm_contact_point as cp', 'cp.contact_point_id', 'c.contact_point_id')
-      .where('o.is_enabled', true)
-      .orderBy([{ column: 'j.project_id' }, { column: 'pp.purpose_id' }, { column: 'ch.channel_id' }])
-      .select('o.project_communication_option_id', 'o.consent_required', 'j.project_code',
+      .leftJoin('crm_contact_point as cp', 'cp.contact_point_id', 'consent.contact_point_id')
+      .where('communication_option.is_enabled', true)
+      .orderBy([{ column: 'project.project_id' }, { column: 'pp.purpose_id' }, { column: 'ch.channel_id' }])
+      .select('communication_option.project_communication_option_id', 'communication_option.consent_required', 'project.project_code',
         'pp.purpose_code', 'pp.purpose_name', 'ch.channel_code', 'ch.channel_name',
-        'c.party_communication_consent_id', 'c.consent_status', 'c.captured_at', 'c.captured_via',
-        'c.contact_point_id', 'cp.contact_value'),
-    db('crm_segment_membership as m').join('crm_segment as s', 's.segment_id', 'm.segment_id')
-      .where('m.party_id', id).whereNull('m.unmatched_at')
-      .select('s.segment_id', 's.segment_code', 's.segment_name', 'm.matched_at'),
-    db('crm_party_product_class_stat as s').join('crm_product_class as k', 'k.product_class_id', 's.product_class_id')
-      .where('s.party_id', id).orderBy([{ column: 'k.product_domain' }, { column: 'k.class_code' }])
-      .select('s.*', 'k.class_code', 'k.class_name', 'k.parent_product_class_id'),
-    db('crm_party_merge_history as h')
-      .leftJoin('crm_party as s', 's.party_id', 'h.surviving_party_id')
-      .leftJoin('crm_party as m', 'm.party_id', 'h.merged_party_id')
-      .where('h.surviving_party_id', id).orWhere('h.merged_party_id', id)
-      .orderBy('h.merged_at', 'desc')
-      .select('h.merge_id', 'h.surviving_party_id', 'h.merged_party_id', 'h.merge_reason', 'h.merge_method',
-        'h.merged_at', 'h.moved_rows', 's.party_no as surviving_party_no', 'm.party_no as merged_party_no'),
-    db('crm_party_analysis_snapshot as s').leftJoin('crm_corporate_grade as g', 'g.corporate_grade_id', 's.corporate_grade_id')
-      .where('s.party_id', id).whereNull('s.project_id').orderBy('s.reference_date', 'desc')
-      .first('s.*', 'g.grade_code', 'g.grade_name')
+        'consent.party_communication_consent_id', 'consent.consent_status', 'consent.captured_at', 'consent.captured_via',
+        'consent.contact_point_id', 'cp.contact_value'),
+    db('crm_segment_membership as membership').join('crm_segment as segment', 'segment.segment_id', 'membership.segment_id')
+      .where('membership.party_id', id).whereNull('membership.unmatched_at')
+      .select('segment.segment_id', 'segment.segment_code', 'segment.segment_name', 'membership.matched_at'),
+    db('crm_party_product_class_stat as class_stat').join('crm_product_class as product_class', 'product_class.product_class_id', 'class_stat.product_class_id')
+      .where('class_stat.party_id', id).orderBy([{ column: 'product_class.product_domain' }, { column: 'product_class.class_code' }])
+      .select('class_stat.*', 'product_class.class_code', 'product_class.class_name', 'product_class.parent_product_class_id'),
+    db('crm_party_merge_history as merge_history')
+      .where('merge_history.surviving_party_id', id).orWhere('merge_history.merged_party_id', id)
+      .orderBy('merge_history.merged_at', 'desc')
+      .select('merge_history.merge_id', 'merge_history.surviving_party_id', 'merge_history.merged_party_id', 'merge_history.merge_reason',
+        'merge_history.merge_method', 'merge_history.merged_at', 'merge_history.moved_rows'),
+    db('crm_party_analysis_snapshot as snapshot').leftJoin('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
+      .where('snapshot.party_id', id).whereNull('snapshot.project_id').orderBy('snapshot.reference_date', 'desc')
+      .first('snapshot.*', 'grade.grade_code', 'grade.grade_name')
   ]);
 
   return {
@@ -301,20 +313,20 @@ async function detail(id) {
 
 /** Parties sharing an active contact value, for the duplicate queue. */
 function pendingCandidates(paging) {
-  const base = db('crm_identity_match_candidate as m').where('m.match_status', 'PENDING');
+  const base = db('crm_identity_match_candidate as candidate').where('candidate.match_status', 'PENDING');
 
   return Promise.all([
-    base.clone().count({ c: '*' }).first(),
+    base.clone().count({ total: '*' }).first(),
     base.clone()
-      .join('crm_party as i', 'i.party_id', 'm.incoming_party_id')
-      .join('crm_party as c', 'c.party_id', 'm.candidate_party_id')
-      .join('crm_project as j', 'j.project_id', 'm.incoming_project_id')
-      .orderBy('m.created_at', 'desc')
+      .join('crm_party as incoming_party', 'incoming_party.party_id', 'candidate.incoming_party_id')
+      .join('crm_party as candidate_party', 'candidate_party.party_id', 'candidate.candidate_party_id')
+      .join('crm_project as project', 'project.project_id', 'candidate.incoming_project_id')
+      .orderBy('candidate.created_at', 'desc')
       .limit(paging.limit).offset(paging.offset)
-      .select('m.*', 'j.project_code as incoming_project_code',
-        'i.party_no as incoming_party_no', 'i.display_name as incoming_name', 'i.party_status as incoming_status',
-        'c.party_no as candidate_party_no', 'c.display_name as candidate_name', 'c.party_status as candidate_status')
-  ]).then(function (res) { return { rows: res[1], total: Number(res[0].c) }; });
+      .select('candidate.*', 'project.project_code as incoming_project_code',
+        'incoming_party.display_name as incoming_name', 'incoming_party.party_status as incoming_status',
+        'candidate_party.display_name as candidate_name', 'candidate_party.party_status as candidate_status')
+  ]).then(function (res) { return { rows: res[1], total: Number(res[0].total) }; });
 }
 
 module.exports = {

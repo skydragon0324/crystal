@@ -29,7 +29,7 @@ export const STATUSES = ['DRAFT', 'APPROVED', 'TARGETS_FROZEN', 'OPEN', 'CLOSED'
  * setup, its targets, the numbered entries taken, and what was awarded.
  */
 export default function Programs() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const form = useDisclosure();
@@ -43,7 +43,7 @@ export default function Programs() {
     setSaving(true);
     try {
       const { data } = await crm.programs.create(values);
-      toast({ title: t('Created'), status: 'success', duration: 2500 });
+      toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       if (data && data.activity_program_id) history.push(PAGE + '/' + data.activity_program_id);
       else list.reload();
@@ -61,7 +61,7 @@ export default function Programs() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status, options: choices(STATUSES),
             onChange: (value) => list.setFilter({ status: value || undefined }) },
           { key: 'program_type', label: 'Type', value: list.params.program_type, options: choices(TYPES),
@@ -69,7 +69,7 @@ export default function Programs() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.programs.newProgram')}
+            {translate('crm.programs.newProgram')}
           </Button>
         ) : null}
       />
@@ -78,8 +78,8 @@ export default function Programs() {
           columns={[
             { key: 'program_code', label: 'Code' },
             { key: 'program_name', label: 'Program', maxW: '16rem' },
-            { key: 'program_type', label: 'Type', sortable: false, render: (row) => word(t, row.program_type) },
-            { key: 'eligibility_basis', label: 'Who may take part', sortable: false, render: (row) => word(t, row.eligibility_basis) },
+            { key: 'program_type', label: 'Type', sortable: false, render: (row) => word(translate, row.program_type) },
+            { key: 'eligibility_basis', label: 'Who may take part', sortable: false, render: (row) => word(translate, row.eligibility_basis) },
             { key: 'status', label: 'Status', sortable: false, render: (row) => <Status value={row.status} /> },
             { key: 'target_cnt', label: 'Targets', sortable: false, isNumeric: true, render: (row) => number(row.target_cnt) },
             { key: 'reservation_cnt', label: 'Entries', sortable: false, isNumeric: true, render: (row) => number(row.reservation_cnt) },
@@ -106,7 +106,7 @@ export default function Programs() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.programs.newProgram')}
+        title={translate('crm.programs.newProgram')}
         initial={{ program_type: 'RESERVATION', eligibility_basis: 'MANUAL', number_start: 1 }}
         onSubmit={create}
         saving={saving}

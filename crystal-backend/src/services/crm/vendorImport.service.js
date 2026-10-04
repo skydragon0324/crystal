@@ -48,13 +48,13 @@ function money(value) { return Math.round((Number(value) || 0) * 100) / 100; }
 async function context(connection) {
   const [projects, tiers, rate, reporting] = await Promise.all([
     vocabulary.mapOf('crm_project', connection),
-    connection('crm_project_tier as t').join('crm_project as p', 'p.project_id', 't.project_id')
-      .where('p.project_code', 'ESHOP').select('t.project_tier_id', 't.source_code'),
+    connection('crm_project_tier as tier').join('crm_project as project', 'project.project_id', 'tier.project_id')
+      .where('project.project_code', 'ESHOP').select('tier.project_tier_id', 'tier.source_code'),
     connection('system_settings').where('setting_key', 'company.native_currency_rate').first('setting_val'),
     connection('crm_currency').where('is_reporting', true).first('currency_code')
   ]);
   const tierBySource = {};
-  tiers.forEach(function (t) { tierBySource[t.source_code] = t.project_tier_id; });
+  tiers.forEach(function (tier) { tierBySource[tier.source_code] = tier.project_tier_id; });
   return {
     project: projects,
     tierBySource: tierBySource,
@@ -145,7 +145,7 @@ async function eshopMember(connection, ctx, member, keys, result) {
     for (let index = 0; index < orders.rows.length; index += 1) {
       const order = orders.rows[index];
       const tender = { FOREIGN: 0, NATIVE: 0, POINT: 0 };
-      (order.tenders || []).forEach(function (t) { tender[t.kind] = (tender[t.kind] || 0) + t.price; });
+      (order.tenders || []).forEach(function (tenderLine) { tender[tenderLine.kind] = (tender[tenderLine.kind] || 0) + tenderLine.price; });
       const amount = amountOf(tender.FOREIGN, tender.NATIVE, ctx);
 
       const lines = details[order.order_id] || [];
@@ -297,10 +297,10 @@ async function run(options) {
   const ctx = await context(connection);
   if (!ctx.project.ESHOP || !ctx.project.APPSTORE) throw new Error('the ESHOP or APPSTORE project is missing from crm_project');
 
-  const members = await connection('crm_project_account as a').join('crm_party as p', 'p.party_id', 'a.party_id')
-    .join('users as u', 'u.id', 'a.crystal_user_id')
-    .where('a.project_id', ctx.project.CRYSTAL).whereNull('a.unlinked_at').whereIn('p.party_status', ['ACTIVE', 'INACTIVE'])
-    .select('a.party_id', 'a.crystal_user_id', 'p.first_seen_at', 'u.login', 'u.email');
+  const members = await connection('crm_project_account as account').join('crm_party as party', 'party.party_id', 'account.party_id')
+    .join('users as crystal_user', 'crystal_user.id', 'account.crystal_user_id')
+    .where('account.project_id', ctx.project.CRYSTAL).whereNull('account.unlinked_at').whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
+    .select('account.party_id', 'account.crystal_user_id', 'party.first_seen_at', 'crystal_user.login', 'crystal_user.email');
 
   const result = { members: members.length, accounts: 0, memberships: 0, tier_changes: 0, transactions: 0, entitlements: 0, unavailable: 0, not_on_platform: 0 };
 

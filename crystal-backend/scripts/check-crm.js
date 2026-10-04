@@ -98,11 +98,151 @@ async function main() {
   console.log('\ncustomers');
   const mobile = '+86 139 ' + String(Date.now()).slice(-8);
   const personAda = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile }));
-  const personAdaDuplicate = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada (dup)', mobile: mobile.replace(/ /g, '') }));
+
+  await check('a person who looks like an existing customer is not created without confirmation', async function () {
+    try {
+      await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada (dup)', mobile: mobile.replace(/ /g, '') });
+      return 'created';
+    } catch (err) {
+      const body = err.response && err.response.data;
+      if (!err.response || err.response.status !== 409) return 'status ' + (err.response && err.response.status);
+      const similar = (body && body.detail) || [];
+      return similar.some(function (row) { return row.party_id === personAda.party_id && row.rule_code === 'SAME_MOBILE'; })
+        ? true : 'look-alike not named';
+    }
+  });
+  const personAdaDuplicate = data(await admin.post('/crm/parties', {
+    party_type: 'PERSON', full_name: RUN + ' Ada (dup)', mobile: mobile.replace(/ /g, ''), confirm_not_duplicate: true
+  }));
   const personBo = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Bo', email: RUN.toLowerCase() + '@example.com' }));
 
-  await check('a new customer is numbered by the database', function () {
-    return /^P\d{9}$/.test(personAda.party_no) ? true : 'party_no ' + personAda.party_no;
+  await check('a person is given a job from the job list and marked as checked by hand', async function () {
+    const meta = data(await admin.get('/crm/meta'));
+    const teacher = (meta.job_titles || []).filter(function (job) { return job.job_code === 'TEACHER'; })[0];
+    if (!teacher) return 'no TEACHER on the job list';
+    await admin.put('/crm/parties/' + personBo.party_id, { job_title_id: teacher.job_title_id, birth_date: '1990-02-14' });
+    await admin.post('/crm/parties/' + personBo.party_id + '/checked', { is_checked_manually: true });
+    const record = data(await admin.get('/crm/parties/' + personBo.party_id));
+    const person = record.person || {};
+    if (person.job_title_name !== teacher.job_name) return 'job ' + person.job_title_name;
+    if (person.birth_year !== 1990) return 'birth year ' + person.birth_year;
+    return person.is_checked_manually === true ? true : 'not checked';
+  });
+
+  await check('an Excel sheet of people is previewed, then loaded, skipping the duplicates', async function () {
+    const ExcelJS = require('exceljs');
+    const FormData = require('form-data');
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Customers');
+    sheet.addRow(['Full name *', 'Gender', 'Birthday', 'Mobile *', 'Location ID', 'Job title ID', 'Address', 'Email']);
+    const fresh = '+86 137 ' + String(Date.now() + 7).slice(-8);
+    /* The sheet takes IDs: any location and any job title on their lists. */
+    const lists = data(await admin.get('/crm/meta'));
+    const placeId = (lists.areas || []).length ? lists.areas[0].location_pk : '';
+    const jobId = (lists.job_titles || []).filter(function (job) { return job.is_active; })[0].job_title_id;
+    sheet.addRow([RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, jobId, '1 Test Road', '']);
+    sheet.addRow([RUN + ' Sheet Two', 'M', '1985-01-20', mobile, placeId, jobId, '', '']);
+    sheet.addRow([RUN + ' Sheet Three', 'F', '1992-06-01', fresh.replace(/ /g, ''), '', '', '', '']);
+    const buffer = await book.xlsx.writeBuffer();
+    const send = function (dryRun) {
+      const form = new FormData();
+      form.append('file', Buffer.from(buffer), { filename: 'people.xlsx' });
+      return admin.post('/crm/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: form.getHeaders() });
+    };
+
+    const preview = data(await send(true));
+    const statuses = preview.rows.map(function (row) { return row.status; }).join(',');
+    if (statuses !== 'NEW,DUPLICATE,DUPLICATE') return 'preview ' + statuses;
+
+    const done = data(await send(false));
+    if (done.summary.created !== 1 || done.summary.duplicate !== 2) return 'import ' + JSON.stringify(done.summary);
+    const found = data(await admin.get('/crm/parties', { params: { q: RUN + ' Sheet One' } }));
+    return found.rows.length === 1 ? true : 'created row not found';
+  });
+
+  await check('a User ID in the sheet becomes the party_id; on file already it is a duplicate, twice in a sheet an error', async function () {
+    const ExcelJS = require('exceljs');
+    const FormData = require('form-data');
+    const userId = 'CHK-' + RUN;
+    const sheetOf = function (rows) {
+      const book = new ExcelJS.Workbook();
+      const sheet = book.addWorksheet('Customers');
+      sheet.addRow(['User ID', 'Full name *', 'Mobile *']);
+      rows.forEach(function (row) { sheet.addRow(row); });
+      return book.xlsx.writeBuffer();
+    };
+    const send = async function (rows, dryRun) {
+      const form = new FormData();
+      form.append('file', Buffer.from(await sheetOf(rows)), { filename: 'ids.xlsx' });
+      return data(await admin.post('/crm/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: form.getHeaders() }));
+    };
+    const freshMobile = function (offset) { return '+86 136 ' + String(Date.now() + offset).slice(-8); };
+
+    const done = await send([[userId, RUN + ' Id Person', freshMobile(11)]], false);
+    if (done.summary.created !== 1) return 'import ' + JSON.stringify(done.summary);
+    const record = data(await admin.get('/crm/parties/' + userId));
+    if (record.party.party_id !== userId) return 'party_id ' + record.party.party_id;
+
+    const again = await send([[userId, 'Someone Else', freshMobile(12)]], true);
+    if (again.rows[0].status !== 'DUPLICATE' || again.rows[0].similar[0].rule_code !== 'SAME_USER_ID') return 'again ' + JSON.stringify(again.rows[0]);
+
+    const twice = await send([['CHK2-' + RUN, 'Twin One', freshMobile(13)], ['CHK2-' + RUN, 'Twin Two', freshMobile(14)]], true);
+    const statuses = twice.rows.map(function (row) { return row.status; }).join(',');
+    return statuses === 'NEW,ERROR' ? true : 'twice ' + statuses;
+  });
+
+  /* What the forms may not save: each refusal is a 400 naming the field. */
+  const refusedField = async function (request, field) {
+    try {
+      await request;
+      return 'saved';
+    } catch (err) {
+      const problems = (err.response && err.response.data && err.response.data.detail) || [];
+      if (!err.response || err.response.status !== 400) return 'status ' + (err.response && err.response.status);
+      return problems.some(function (problem) { return problem.field === field; }) ? true : 'no problem on ' + field + ': ' + JSON.stringify(problems);
+    }
+  };
+  await check('a new customer needs a name', function () {
+    return refusedField(admin.post('/crm/parties', { party_type: 'PERSON', display_name: '  ', mobile: '+86 135 0000 0001' }), 'display_name');
+  });
+  await check('a mobile that is not a phone number is refused', function () {
+    return refusedField(admin.post('/crm/parties', { party_type: 'PERSON', display_name: RUN + ' Bad Mobile', mobile: 'call me' }), 'mobile');
+  });
+  await check('a birthday in the future is refused', function () {
+    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { birth_date: '2999-01-01' }), 'birth_date');
+  });
+  await check('a job title that is not on the job list is refused', function () {
+    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { job_title_id: 999999 }), 'job_title_id');
+  });
+  await check('a location that is not on the location list is refused', function () {
+    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { home_location_pk: 987654321 }), 'home_location_pk');
+  });
+  await check('an email contact that is not an email is refused', function () {
+    return refusedField(admin.post('/crm/parties/' + personBo.party_id + '/contacts', { contact_type: 'EMAIL', contact_value: 'not-an-email' }), 'contact_value');
+  });
+
+  await check('a sheet with a bad row is refused as a whole, every bad row listed', async function () {
+    const ExcelJS = require('exceljs');
+    const FormData = require('form-data');
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Customers');
+    sheet.addRow(['Full name', 'Mobile', 'Gender', 'Job title ID']);
+    sheet.addRow([RUN + ' Bad One', '+86 136 ' + String(Date.now() + 11).slice(-8), 'X', 999999]);
+    sheet.addRow(['', '123', '', '']);
+    const form = new FormData();
+    form.append('file', Buffer.from(await book.xlsx.writeBuffer()), { filename: 'bad.xlsx' });
+    try {
+      await admin.post('/crm/parties/import', form, { headers: form.getHeaders() });
+      return 'accepted';
+    } catch (err) {
+      const rows = (err.response && err.response.data && err.response.data.detail) || [];
+      return err.response && err.response.status === 400 && rows.length === 2 ? true : 'got ' + JSON.stringify(rows);
+    }
+  });
+
+  await check('a new customer gets a 12-character party_id, and its internal number is not sent', function () {
+    const generated = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{12}$/.test(personAda.party_id);
+    return generated && personAda.party_pk === undefined && personAda.party_no === undefined ? true : 'party ' + JSON.stringify(personAda);
   });
   await check('a phone typed with spaces is found typed without', async function () {
     const found = data(await admin.get('/crm/parties', { params: { q: mobile.replace(/\D/g, '').slice(-8) } }));
@@ -147,34 +287,34 @@ async function main() {
       });
       return 'accepted';
     } catch (err) {
-      return err.response.status === 409 && err.response.data.message.indexOf(personAda.party_no) !== -1 ? true : err.response.data.message;
+      return err.response.status === 409 && err.response.data.message.indexOf(personAda.party_id) !== -1 ? true : err.response.data.message;
     }
   });
   await check('an ownership transfer ends one registration and starts the next', async function () {
-    const t = data(await admin.post('/crm/transfers', {
+    const transfer = data(await admin.post('/crm/transfers', {
       product_instance_id: registration.instance.product_instance_id, transfer_kind: 'OWNERSHIP_TRANSFER', to_party_id: personBo.party_id
     }));
-    if (t.from_party_id !== personAda.party_id) return 'from was not worked out';
-    const done = data(await admin.post('/crm/transfers/' + t.product_transfer_id + '/status', { status: 'COMPLETED' }));
+    if (transfer.from_party_id !== personAda.party_id) return 'from was not worked out';
+    const done = data(await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' }));
     const history = data(await admin.get('/crm/instances/' + registration.instance.product_instance_id));
     const current = history.registrations.filter(function (row) { return !row.valid_to; });
     return done.closed_registration_id && done.created_registration_id && current.length === 1 && current[0].party_id === personBo.party_id
       ? true : 'holders ' + JSON.stringify(current.map(function (row) { return row.party_id; }));
   });
   await check('assigning a user keeps the owner', async function () {
-    const t = data(await admin.post('/crm/transfers', {
+    const transfer = data(await admin.post('/crm/transfers', {
       product_instance_id: registration.instance.product_instance_id, transfer_kind: 'ASSIGN_USER', to_party_id: personAda.party_id
     }));
-    await admin.post('/crm/transfers/' + t.product_transfer_id + '/status', { status: 'COMPLETED' });
+    await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' });
     const history = data(await admin.get('/crm/instances/' + registration.instance.product_instance_id));
     const codes = history.registrations.filter(function (row) { return !row.valid_to; }).map(function (row) { return row.relationship_code; }).sort();
     return codes.join(',') === 'OWNER,USER' ? true : codes.join(',');
   });
   await check('re-registering the same device does not pay twice', async function () {
-    const t = data(await admin.post('/crm/transfers', {
+    const transfer = data(await admin.post('/crm/transfers', {
       product_instance_id: registration.instance.product_instance_id, transfer_kind: 'END_ASSIGNMENT'
     }));
-    await admin.post('/crm/transfers/' + t.product_transfer_id + '/status', { status: 'COMPLETED' });
+    await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' });
     const owner = data(await admin.get('/crm/registrations', { params: { q: serial, current: 1 } })).rows[0];
     await admin.post('/crm/registrations/' + owner.product_registration_id + '/end', { end_reason_code: 'RETURNED' });
     const again = data(await admin.post('/crm/registrations', {
@@ -224,7 +364,7 @@ async function main() {
   await admin.post('/crm/programs/' + pid + '/targets', { party_id: personAda.party_id, allowed_count: 1 });
   await admin.post('/crm/programs/' + pid + '/targets', { party_id: personBo.party_id, allowed_count: 3 });
   await admin.post('/crm/programs/' + pid + '/quotas', { entry_type: 'NORMAL', quota_count: 2 });
-  await admin.post('/crm/programs/' + pid + '/locations', { service_location_id: site.service_location_id, location_role: 'PICKUP' });
+  await admin.post('/crm/programs/' + pid + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
   await admin.post('/crm/point-adjustments', {
     party_id: personBo.party_id, point_type_id: activityPoints.point_type_id, points_delta: 200, description: RUN
   });
@@ -239,7 +379,7 @@ async function main() {
   await check('an entry is numbered and costs its points', async function () {
     const before = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
     first = data(await admin.post('/crm/programs/' + pid + '/reservations', {
-      party_id: personAda.party_id, holder_id_card: 'ID-' + RUN + '-A', service_location_id: site.service_location_id
+      party_id: personAda.party_id, holder_id_card: 'ID-' + RUN + '-A', service_center_id: site.service_center_id
     }));
     const after = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
     return first.reservation_code === RUN.slice(-7) + '-0001' && Number(before.balance) - Number(after.balance) === 30
@@ -265,8 +405,8 @@ async function main() {
   });
   await check('collecting an entry at a site is recorded as site activity', async function () {
     const open = data(await admin.get('/crm/programs/' + pid + '/reservations', { params: { status: 'RESERVED' } })).rows[0];
-    await admin.post('/crm/reservations/' + open.reservation_id + '/status', { status: 'FULFILLED', service_location_id: site.service_location_id });
-    const log = data(await admin.get('/crm/site-activities', { params: { service_location_id: site.service_location_id, limit: 5 } }));
+    await admin.post('/crm/reservations/' + open.reservation_id + '/status', { status: 'FULFILLED', service_center_id: site.service_center_id });
+    const log = data(await admin.get('/crm/site-activities', { params: { service_center_id: site.service_center_id, limit: 5 } }));
     return log.rows.some(function (row) { return row.related_reservation_id === open.reservation_id && row.activity_code === 'RESERVATION_PICKUP'; })
       ? true : 'no activity';
   });
@@ -285,27 +425,27 @@ async function main() {
 
   console.log('\nsites');
   const types = {};
-  meta.activity_types.forEach(function (t) { types[t.activity_code] = t; });
-  const bare = data(await admin.post('/crm/sites', { location_code: RUN + '-SITE', location_name: RUN + ' kiosk', location_kind: 'PARTNER_SHOP' }));
+  meta.activity_types.forEach(function (activityType) { types[activityType.activity_code] = activityType; });
+  const bare = data(await admin.post('/crm/sites', { service_center_code: RUN + '-SITE', service_center_name: RUN + ' kiosk', service_center_kind: 'PARTNER_SHOP' }));
   await check('a site cannot record what it is not equipped for', function () {
     return refused(branch.post('/crm/site-activities', {
-      service_location_id: bare.service_location_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99
+      service_center_id: bare.service_center_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99
     }), 409);
   });
   await check('once it is, the centre manager can record it', async function () {
-    await admin.post('/crm/sites/' + bare.service_location_id + '/capabilities', { capability_code: 'DEVICE_SALE' });
+    await admin.post('/crm/sites/' + bare.service_center_id + '/capabilities', { capability_code: 'DEVICE_SALE' });
     const row = data(await branch.post('/crm/site-activities', {
-      service_location_id: bare.service_location_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99, party_id: personAda.party_id
+      service_center_id: bare.service_center_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99, party_id: personAda.party_id
     }));
-    return row.location_activity_id && Number(row.amount) === 99 ? true : 'not recorded';
+    return row.service_center_activity_id && Number(row.amount) === 99 ? true : 'not recorded';
   });
   await check('a target is read against the log', async function () {
     const today = new Date().toISOString().slice(0, 10);
     await admin.post('/crm/site-targets', {
-      service_location_id: bare.service_location_id, activity_type_id: types.DEVICE_SALE.activity_type_id,
+      service_center_id: bare.service_center_id, activity_type_id: types.DEVICE_SALE.activity_type_id,
       period_start: today, period_end: today, target_quantity: 4
     });
-    const progress = data(await admin.get('/crm/site-targets', { params: { service_location_id: bare.service_location_id } })).rows[0];
+    const progress = data(await admin.get('/crm/site-targets', { params: { service_center_id: bare.service_center_id } })).rows[0];
     return Number(progress.actual_quantity) === 1 && Number(progress.quantity_pct) === 25 ? true : JSON.stringify(progress);
   });
 
@@ -525,7 +665,7 @@ async function main() {
     }), 400);
   });
   await check('the search finds a customer by number', async function () {
-    const found = data(await admin.get('/crm/search', { params: { q: personAda.party_no } }));
+    const found = data(await admin.get('/crm/search', { params: { q: personAda.party_id.toLowerCase() } }));
     return found.customers.some(function (row) { return row.party_id === personAda.party_id; }) ? true : JSON.stringify(found.customers);
   });
 

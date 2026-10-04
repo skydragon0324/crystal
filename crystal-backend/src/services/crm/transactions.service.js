@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { HttpError } = require('../../utils/response');
+const { searchId } = require('./partyId');
 
 /**
  * TRANSACTIONS - design section 3.5 / 7.
@@ -59,7 +60,7 @@ async function upsert(trx, txn, reporting) {
     reporting_net_amount: round4(reportingNet),
     points_used: txn.points_used ? round4(txn.points_used) : null,
     sales_channel_code: txn.sales_channel_code || null,
-    service_location_id: txn.service_location_id || null,
+    service_center_id: txn.service_center_id || null,
     transaction_at: txn.transaction_at,
     source_created_at: txn.source_created_at || txn.transaction_at,
     source_updated_at: txn.source_updated_at || null,
@@ -110,66 +111,71 @@ async function upsert(trx, txn, reporting) {
 /* ------------------------------------------------------------ reads */
 
 function query(filters) {
-  const qb = db('crm_transaction as x')
-    .join('crm_project as j', 'j.project_id', 'x.project_id')
+  const qb = db('crm_transaction as txn')
+    .join('crm_project as project', 'project.project_id', 'txn.project_id')
     .leftJoin('crm_transaction_party as tp', function () {
-      this.on('tp.transaction_id', 'x.transaction_id').andOn('tp.party_role_code', db.raw("'BUYER'"));
+      this.on('tp.transaction_id', 'txn.transaction_id').andOn('tp.party_role_code', db.raw("'BUYER'"));
     })
-    .leftJoin('crm_party as p', 'p.party_id', 'tp.party_id')
-    .leftJoin('crm_service_location as l', 'l.service_location_id', 'x.service_location_id');
+    .leftJoin('crm_party as party', 'party.party_id', 'tp.party_id')
+    .leftJoin('crm_service_center as center', 'center.service_center_id', 'txn.service_center_id');
 
-  if (filters.project_id) qb.where('x.project_id', filters.project_id);
-  if (filters.transaction_type_code) qb.where('x.transaction_type_code', filters.transaction_type_code);
+  if (filters.project_id) qb.where('txn.project_id', filters.project_id);
+  if (filters.transaction_type_code) qb.where('txn.transaction_type_code', filters.transaction_type_code);
   if (filters.party_id) qb.where('tp.party_id', filters.party_id);
-  if (filters.from) qb.where('x.transaction_at', '>=', filters.from);
-  if (filters.to) qb.where('x.transaction_at', '<', db.raw('?::date + 1', [filters.to]));
-  if (filters.counted === '1') qb.whereIn('x.transaction_status', COUNTED_STATUSES);
+  if (filters.from) qb.where('txn.transaction_at', '>=', filters.from);
+  if (filters.to) qb.where('txn.transaction_at', '<', db.raw('?::date + 1', [filters.to]));
+  if (filters.counted === '1') qb.whereIn('txn.transaction_status', COUNTED_STATUSES);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('x.external_transaction_id', 'ilike', like).orWhere('p.display_name', 'ilike', like)
-        .orWhere('p.party_no', 'ilike', like);
+      this.where('txn.external_transaction_id', 'ilike', like).orWhere('party.display_name', 'ilike', like)
+        .orWhere('party.party_id', 'ilike', searchId(like));
     });
   }
   return qb;
 }
 
 async function search(filters, paging) {
-  const count = await query(filters).countDistinct({ c: 'x.transaction_id' }).first();
-  const totals = await query(filters).whereIn('x.transaction_status', COUNTED_STATUSES)
-    .select(db.raw('COALESCE(SUM(x.reporting_net_amount), 0) AS reporting_net, COUNT(*)::int AS counted'))
+  const count = await query(filters).countDistinct({ total: 'txn.transaction_id' }).first();
+  const totals = await query(filters).whereIn('txn.transaction_status', COUNTED_STATUSES)
+    .select(db.raw('COALESCE(SUM(txn.reporting_net_amount), 0) AS reporting_net, COUNT(*)::int AS counted'))
     .first();
-  const sort = { transaction_at: 'x.transaction_at', net_amount: 'x.net_amount', reporting_net_amount: 'x.reporting_net_amount' }[paging.sort]
-    || 'x.transaction_at';
+  const sort = {
+    transaction_at: 'txn.transaction_at', net_amount: 'txn.net_amount', reporting_net_amount: 'txn.reporting_net_amount'
+  }[paging.sort] || 'txn.transaction_at';
   const rows = await query(filters)
-    .select('x.*', 'j.project_code', 'p.party_id', 'p.party_no', 'p.display_name as party_name', 'l.location_name',
-      db.raw('(x.transaction_status IN (' + COUNTED_STATUSES.map(function () { return '?'; }).join(', ') + ')) AS is_counted', COUNTED_STATUSES),
-      db.raw('(SELECT COUNT(*) FROM crm_transaction_item i WHERE i.transaction_id = x.transaction_id)::int AS item_cnt'),
-      db.raw('(SELECT COUNT(*) FROM crm_transaction r WHERE r.original_transaction_id = x.transaction_id)::int AS refund_cnt'))
+    .select('txn.*', 'project.project_code', 'party.party_id', 'party.party_id', 'party.display_name as party_name',
+      'center.service_center_name',
+      db.raw('(txn.transaction_status IN (' + COUNTED_STATUSES.map(function () { return '?'; }).join(', ') + ')) AS is_counted', COUNTED_STATUSES),
+      db.raw('(SELECT COUNT(*) FROM crm_transaction_item item WHERE item.transaction_id = txn.transaction_id)::int AS item_cnt'),
+      db.raw('(SELECT COUNT(*) FROM crm_transaction refund WHERE refund.original_transaction_id = txn.transaction_id)::int AS refund_cnt'))
     .orderBy(sort, paging.dir).limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c), summary: totals };
+  return { rows: rows, total: Number(count.total), summary: totals };
 }
 
 async function detail(id) {
-  const txn = await query({}).where('x.transaction_id', id)
-    .leftJoin('crm_transaction as o', 'o.transaction_id', 'x.original_transaction_id')
-    .first('x.*', 'j.project_code', 'j.project_name', 'l.location_name', 'o.external_transaction_id as original_external_id');
+  const txn = await query({}).where('txn.transaction_id', id)
+    .leftJoin('crm_transaction as original_txn', 'original_txn.transaction_id', 'txn.original_transaction_id')
+    .first('txn.*', 'project.project_code', 'project.project_name', 'center.service_center_name',
+      'original_txn.external_transaction_id as original_external_id');
   if (!txn) throw new HttpError(404, 'common.notFound');
 
   const [parties, items, refunds, cases, points] = await Promise.all([
-    db('crm_transaction_party as tp').join('crm_party as p', 'p.party_id', 'tp.party_id')
-      .where('tp.transaction_id', id).select('tp.*', 'p.party_no', 'p.display_name as party_name'),
-    db('crm_transaction_item as i')
-      .leftJoin('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-      .leftJoin('crm_product_instance as pi', 'pi.product_instance_id', 'i.product_instance_id')
-      .where('i.transaction_id', id).orderBy('i.transaction_item_id')
-      .select('i.*', 'c.product_name', 'c.product_code', 'pi.external_product_instance_id'),
+    db('crm_transaction_party as tp').join('crm_party as party', 'party.party_id', 'tp.party_id')
+      .where('tp.transaction_id', id).select('tp.*', 'party.party_id', 'party.display_name as party_name'),
+    db('crm_transaction_item as item')
+      .leftJoin('crm_product_catalog as product', 'product.product_id', 'item.product_id')
+      .leftJoin('crm_product_instance as pi', 'pi.product_instance_id', 'item.product_instance_id')
+      .where('item.transaction_id', id).orderBy('item.transaction_item_id')
+      .select('item.*', 'product.product_name', 'product.product_code', 'pi.external_product_instance_id'),
     db('crm_transaction').where('original_transaction_id', id).orderBy('transaction_at')
       .select('transaction_id', 'external_transaction_id', 'transaction_type_code', 'transaction_status', 'net_amount',
         'currency_code', 'transaction_at'),
     db('crm_service_case').where('related_transaction_id', id).select('case_id', 'external_case_id', 'received_at'),
-    db('crm_point_event as e').join('crm_point_event_type as t', 't.point_event_type_id', 'e.point_event_type_id')
-      .where('e.related_transaction_id', id).select('e.point_event_id', 'e.points_delta', 'e.occurred_at', 't.event_code')
+    db('crm_point_event as point_event')
+      .join('crm_point_event_type as event_type', 'event_type.point_event_type_id', 'point_event.point_event_type_id')
+      .where('point_event.related_transaction_id', id)
+      .select('point_event.point_event_id', 'point_event.points_delta', 'point_event.occurred_at', 'event_type.event_code')
   ]);
 
   return { transaction: txn, parties: parties, items: items, refunds: refunds, cases: cases, points: points };

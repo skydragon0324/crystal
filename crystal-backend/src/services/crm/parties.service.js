@@ -2,7 +2,10 @@ const db = require('../../config/db');
 const repo = require('../../repositories/crm/parties.repository');
 const vocabulary = require('../../repositories/crm/vocabulary.repository');
 const contact = require('./contact');
+const duplicates = require('./personDuplicates');
+const rules = require('./personRules');
 const ledger = require('./ledger');
+const partyIds = require('./partyId');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
@@ -11,11 +14,11 @@ const PAGE = '/admin/crm/customers';
 
 const CONTACT_TYPES = ['EMAIL', 'MOBILE', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP', 'PUSH_TOKEN'];
 const CONSENT = ['GRANTED', 'DENIED', 'WITHDRAWN', 'NOT_REQUIRED'];
-const PERSON_COLUMNS = ['full_name', 'gender_code', 'birth_date', 'birth_year', 'job_title',
-  'preferred_language', 'nationality_code', 'home_location_id', 'address_line'];
+const PERSON_COLUMNS = ['full_name', 'gender_code', 'birth_date', 'birth_year', 'job_title_id',
+  'home_location_pk', 'address_line'];
 const ORG_COLUMNS = ['legal_name', 'trading_name', 'registration_number', 'website_url',
   'founded_date', 'organization_status', 'local_name', 'employee_count_band', 'description',
-  'headquarters_location_id', 'headquarters_address'];
+  'location_id', 'headquarters_address'];
 
 function pickFrom(body, columns) {
   const out = {};
@@ -23,6 +26,13 @@ function pickFrom(body, columns) {
     if (body && body[column] !== undefined) out[column] = body[column] === '' ? null : body[column];
   });
   return out;
+}
+
+/** A person's columns, with the birth year following the birthday whenever a birthday is given. */
+function personRow(body) {
+  const row = pickFrom(body, PERSON_COLUMNS);
+  if (row.birth_date) row.birth_year = Number(String(row.birth_date).slice(0, 4));
+  return row;
 }
 
 /* ------------------------------------------------------------ creating */
@@ -41,20 +51,28 @@ async function createParty(trx, data) {
     || (type === 'PERSON' ? data.full_name : (data.trading_name || data.legal_name))
     || null;
 
-  const [party] = await trx('crm_party').insert({
+  // A party_id given by the caller (the User ID of an imported customer) is kept; otherwise the database makes one.
+  let givenId = null;
+  if (data.party_id !== undefined && data.party_id !== null && String(data.party_id).trim() !== '') {
+    givenId = String(data.party_id).trim();
+    if (!partyIds.isPartyId(givenId)) throw new HttpError(400, 'crm.checkTheDetails', [{ field: 'party_id', message: 'User ID must be 1-32 letters, digits, "-" or "_"' }]);
+    const taken = await trx('crm_party').where('party_id', givenId).first('party_id');
+    if (taken) throw new HttpError(409, 'crm.thatUserIdIsTaken', null, { party_id: givenId });
+  }
+
+  const [party] = await trx('crm_party').insert(Object.assign(givenId ? { party_id: givenId } : {}, {
     party_type: type,
     party_status: 'ACTIVE',
     display_name: name ? String(name).slice(0, 250) : null,
     origin_project_id: data.origin_project_id || null,
     first_seen_at: data.first_seen_at || trx.fn.now(),
     last_seen_at: data.last_seen_at || null
-  }).returning('*');
+  })).returning('*');
 
   if (type === 'PERSON') {
     await trx('crm_person').insert(Object.assign(
       { party_id: party.party_id },
-      pickFrom(Object.assign({ full_name: name }, data), PERSON_COLUMNS),
-      data.id_card_hash ? { id_card_hash: data.id_card_hash, id_card_masked: data.id_card_masked || null } : {}
+      personRow(Object.assign({ full_name: name }, data))
     ));
   } else {
     await trx('crm_organization').insert(Object.assign(
@@ -103,22 +121,79 @@ async function insertContact(trx, partyId, data) {
   return row;
 }
 
+/**
+ * A NEW CUSTOMER from the console.
+ *
+ * A person is checked against the customers already on file first
+ * (personDuplicates.js). If any look like the same human, nothing is created
+ * and the answer is 409 with the look-alikes in `detail`, so the form can show
+ * them. The manager can still go ahead - `confirm_not_duplicate: true` - and
+ * then each look-alike pair goes into the duplicate review queue, so the
+ * decision is seen again by whoever works that queue.
+ */
 async function create(body, actor) {
   const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
+  const isPerson = body.party_type !== 'ORGANIZATION';
+
+  rules.assert(await rules.check(body, 'create', isPerson ? 'PERSON' : 'ORGANIZATION'));
+
+  const similar = isPerson ? await duplicates.findSimilar(body) : [];
+  if (similar.length && !body.confirm_not_duplicate) {
+    throw new HttpError(409, 'crm.similarCustomersExist', similar);
+  }
 
   const contacts = [];
   if (body.mobile) contacts.push({ contact_type: 'MOBILE', contact_value: body.mobile, source_project_id: crystal });
   if (body.email) contacts.push({ contact_type: 'EMAIL', contact_value: body.email, source_project_id: crystal });
 
-  const party = await transaction(function (trx) {
-    return createParty(trx, Object.assign({}, body, {
+  const party = await transaction(async function (trx) {
+    const created = await createParty(trx, Object.assign({}, body, {
       origin_project_id: body.origin_project_id || crystal,
       contacts: contacts
     }));
+    await queueLookAlikes(trx, created, similar, crystal);
+    return created;
   });
 
   audit.created(actor, 'crm_party', party.party_id, party, PAGE);
-  return party;
+  return partyIds.publicParty(party);
+}
+
+/** Look-alikes a manager chose to create anyway, into the duplicate review queue. */
+async function queueLookAlikes(trx, party, similar, projectId) {
+  for (let index = 0; index < similar.length; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await trx('crm_identity_match_candidate').insert({
+      incoming_project_id: projectId,
+      incoming_external_record_id: String(party.party_id),
+      incoming_party_id: party.party_id,
+      candidate_party_id: similar[index].party_id,
+      match_rule_code: similar[index].rule_code,
+      match_score: similar[index].score,
+      explanation_json: JSON.stringify({ reason: similar[index].reason, created_anyway: true })
+    }).onConflict(['incoming_project_id', 'incoming_external_record_id', 'candidate_party_id']).ignore();
+  }
+}
+
+/** The look-alikes of a person not yet saved, for the form to show while it is being filled in. */
+function similarTo(query) {
+  return duplicates.findSimilar(query, { excludePartyId: query.exclude_party_id });
+}
+
+/**
+ * A MANAGER HAS LOOKED AT THIS PERSON BY HAND - or takes that back.
+ *
+ * Only a flag on the person; who set it and when is in the audit trail, which
+ * is where the customer record reads it from.
+ */
+async function setChecked(id, checked, actor) {
+  const before = await db('crm_person').where('party_id', id).first();
+  if (!before) throw new HttpError(404, 'common.notFound');
+
+  const [after] = await db('crm_person').where('party_id', id)
+    .update({ is_checked_manually: !!checked }).returning('*');
+  audit.updated(actor, 'crm_person', id, before, after, PAGE);
+  return after;
 }
 
 /* ------------------------------------------------------------ editing */
@@ -128,13 +203,16 @@ async function update(id, body, actor) {
   if (!before) throw new HttpError(404, 'common.notFound');
   if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
 
+  const currentPerson = before.party_type === 'PERSON' ? await db('crm_person').where('party_id', id).first() : null;
+  rules.assert(await rules.check(body, 'update', before.party_type, currentPerson));
+
   const after = await transaction(async function (trx) {
     const patch = {};
     if (body.display_name !== undefined) patch.display_name = body.display_name || null;
     if (Object.keys(patch).length) await trx('crm_party').where('party_id', id).update(patch);
 
     if (before.party_type === 'PERSON') {
-      const person = pickFrom(body, PERSON_COLUMNS);
+      const person = personRow(body);
       if (Object.keys(person).length) await trx('crm_person').where('party_id', id).update(person);
     } else {
       const org = pickFrom(body, ORG_COLUMNS);
@@ -157,12 +235,15 @@ async function setStatus(id, status, actor) {
 
   const [after] = await db('crm_party').where('party_id', id).update({ party_status: status }).returning('*');
   audit.updated(actor, 'crm_party', id, before, after, PAGE);
-  return after;
+  return partyIds.publicParty(after);
 }
 
 async function addContact(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
+
+  const problem = rules.contactProblem(body.contact_type, body.contact_value);
+  rules.assert(problem ? [{ field: 'contact_value', message: problem }] : []);
 
   const row = await transaction(async function (trx) {
     if (body.is_primary) {
@@ -181,6 +262,11 @@ async function addContact(partyId, body, actor) {
 async function updateContact(partyId, contactId, body, actor) {
   const before = await db('crm_contact_point').where({ party_id: partyId, contact_point_id: contactId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
+
+  if (body.contact_value !== undefined) {
+    const problem = rules.contactProblem(before.contact_type, body.contact_value);
+    rules.assert(problem ? [{ field: 'contact_value', message: problem }] : []);
+  }
 
   const after = await transaction(async function (trx) {
     const patch = {};
@@ -334,14 +420,15 @@ async function setConsent(partyId, body, actor) {
  * MERGE_CARRY_OVER events, so each ledger still sums to its own balance.
  */
 async function merge(survivorId, mergedId, reason, method, actor) {
-  survivorId = Number(survivorId);
-  mergedId = Number(mergedId);
+  survivorId = String(survivorId || '');
+  mergedId = String(mergedId || '');
   if (!mergedId || survivorId === mergedId) throw new HttpError(400, 'crm.chooseAnotherPartyToMerge');
 
   const result = await transaction(async function (trx) {
     // Lock in id order, so two merges touching the same pair cannot deadlock.
-    const first = await repo.lockParty(Math.min(survivorId, mergedId), trx);
-    const second = await repo.lockParty(Math.max(survivorId, mergedId), trx);
+    const lockOrder = survivorId < mergedId ? [survivorId, mergedId] : [mergedId, survivorId];
+    const first = await repo.lockParty(lockOrder[0], trx);
+    const second = await repo.lockParty(lockOrder[1], trx);
     const survivor = first && first.party_id === survivorId ? first : second;
     const merged = first && first.party_id === mergedId ? first : second;
 
@@ -359,28 +446,28 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     count('crm_project_account', await trx('crm_project_account').where('party_id', mergedPartyId).update({ party_id: survivorPartyId, is_primary: false }));
 
     count('crm_contact_point', await trx.raw(
-      `UPDATE crm_contact_point c SET party_id = ?, is_primary = false
-        WHERE c.party_id = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_contact_point s
-           WHERE s.party_id = ? AND s.contact_type = c.contact_type AND s.normalized_value = c.normalized_value)`,
+      `UPDATE crm_contact_point moved_row SET party_id = ?, is_primary = false
+        WHERE moved_row.party_id = ? AND NOT EXISTS (
+          SELECT 1 FROM crm_contact_point survivor_row
+           WHERE survivor_row.party_id = ? AND survivor_row.contact_type = moved_row.contact_type AND survivor_row.normalized_value = moved_row.normalized_value)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     count('crm_party_communication_consent', await trx.raw(
-      `UPDATE crm_party_communication_consent c SET party_id = ?, contact_point_id = NULL
-        WHERE c.party_id = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_party_communication_consent s
-           WHERE s.party_id = ? AND s.project_communication_option_id = c.project_communication_option_id)`,
+      `UPDATE crm_party_communication_consent moved_row SET party_id = ?, contact_point_id = NULL
+        WHERE moved_row.party_id = ? AND NOT EXISTS (
+          SELECT 1 FROM crm_party_communication_consent survivor_row
+           WHERE survivor_row.party_id = ? AND survivor_row.project_communication_option_id = moved_row.project_communication_option_id)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     /* A device both parties hold the same way today: the merged party's copy ends. */
     await trx.raw(
-      `UPDATE crm_product_registration r
+      `UPDATE crm_product_registration moved_row
           SET valid_to = now(), registration_status = 'ENDED', end_reason_code = 'MERGE'
-        WHERE r.party_id = ? AND r.valid_to IS NULL AND EXISTS (
-          SELECT 1 FROM crm_product_registration s
-           WHERE s.party_id = ? AND s.valid_to IS NULL
-             AND s.product_instance_id = r.product_instance_id
-             AND s.relationship_type_id = r.relationship_type_id)`,
+        WHERE moved_row.party_id = ? AND moved_row.valid_to IS NULL AND EXISTS (
+          SELECT 1 FROM crm_product_registration survivor_row
+           WHERE survivor_row.party_id = ? AND survivor_row.valid_to IS NULL
+             AND survivor_row.product_instance_id = moved_row.product_instance_id
+             AND survivor_row.relationship_type_id = moved_row.relationship_type_id)`,
       [mergedPartyId, survivorPartyId]);
     count('crm_product_registration', await trx('crm_product_registration').where('party_id', mergedPartyId)
       .update({
@@ -399,20 +486,20 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     await trx('crm_product_transfer').where('requested_by_party_id', mergedPartyId).update({ requested_by_party_id: survivorPartyId });
 
     count('crm_service_case', await trx('crm_service_case').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
-    count('crm_location_activity', await trx('crm_location_activity').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
-    await trx('crm_location_activity').where('performed_by_party_id', mergedPartyId).update({ performed_by_party_id: survivorPartyId });
+    count('crm_service_center_activity', await trx('crm_service_center_activity').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
+    await trx('crm_service_center_activity').where('performed_by_party_id', mergedPartyId).update({ performed_by_party_id: survivorPartyId });
 
     count('crm_transaction_party', await trx.raw(
-      `UPDATE crm_transaction_party t SET party_id = ?
-        WHERE t.party_id = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_transaction_party s
-           WHERE s.party_id = ? AND s.transaction_id = t.transaction_id AND s.party_role_code = t.party_role_code)`,
+      `UPDATE crm_transaction_party moved_row SET party_id = ?
+        WHERE moved_row.party_id = ? AND NOT EXISTS (
+          SELECT 1 FROM crm_transaction_party survivor_row
+           WHERE survivor_row.party_id = ? AND survivor_row.transaction_id = moved_row.transaction_id AND survivor_row.party_role_code = moved_row.party_role_code)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     count('crm_membership', await trx.raw(
-      `UPDATE crm_membership m SET party_id = ?
-        WHERE m.party_id = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_membership s WHERE s.party_id = ? AND s.project_id = m.project_id)`,
+      `UPDATE crm_membership moved_row SET party_id = ?
+        WHERE moved_row.party_id = ? AND NOT EXISTS (
+          SELECT 1 FROM crm_membership survivor_row WHERE survivor_row.party_id = ? AND survivor_row.project_id = moved_row.project_id)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     /* Points: re-point where the survivor has no account in that currency, carry over where it does. */
@@ -453,12 +540,12 @@ async function merge(survivorId, mergedId, reason, method, actor) {
      * party), so the pair has to move together: the reservations let go of
      * their target, the target moves, the reservations follow and take it back.
      */
-    const targets = await trx('crm_activity_target as t').where('t.party_id', mergedPartyId)
+    const targets = await trx('crm_activity_target as moved_row').where('moved_row.party_id', mergedPartyId)
       .whereNotExists(function () {
-        this.select(trx.raw(1)).from('crm_activity_target as s')
-          .whereRaw('s.party_id = ? AND s.activity_program_id = t.activity_program_id AND s.entry_type = t.entry_type', [survivorPartyId]);
-      }).select('t.activity_target_id');
-    const targetIds = targets.map(function (t) { return t.activity_target_id; });
+        this.select(trx.raw(1)).from('crm_activity_target as survivor_row')
+          .whereRaw('survivor_row.party_id = ? AND survivor_row.activity_program_id = moved_row.activity_program_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
+      }).select('moved_row.activity_target_id');
+    const targetIds = targets.map(function (target) { return target.activity_target_id; });
 
     if (targetIds.length) {
       const held = await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds)
@@ -484,7 +571,7 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       const survivorPerson = await trx('crm_person').where('party_id', survivorPartyId).first();
       if (mergedPerson && survivorPerson) {
         const fill = {};
-        PERSON_COLUMNS.concat(['id_card_hash', 'id_card_masked']).forEach(function (column) {
+        PERSON_COLUMNS.forEach(function (column) {
           if ((survivorPerson[column] === null || survivorPerson[column] === undefined) && mergedPerson[column] !== null && mergedPerson[column] !== undefined) fill[column] = mergedPerson[column];
         });
         if (Object.keys(fill).length) await trx('crm_person').where('party_id', survivorPartyId).update(fill);
@@ -492,7 +579,7 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     } else {
       count('crm_organization_person_relationship', await trx('crm_organization_person_relationship')
         .where('organization_party_id', mergedPartyId).update({ organization_party_id: survivorPartyId }));
-      await trx('crm_service_location').where('operator_party_id', mergedPartyId).update({ operator_party_id: survivorPartyId });
+      await trx('crm_service_center').where('operator_party_id', mergedPartyId).update({ operator_party_id: survivorPartyId });
     }
 
     /* Derived rows are rebuilt rather than moved. */
@@ -552,23 +639,24 @@ async function scanDuplicates(actor) {
     INSERT INTO crm_identity_match_candidate
       (incoming_project_id, incoming_external_record_id, incoming_party_id, candidate_party_id,
        match_rule_code, match_score, explanation_json)
-    SELECT DISTINCT ON (n.party_id, o.party_id)
-           COALESCE(n.origin_project_id, ?), n.party_no, n.party_id, o.party_id,
-           'SAME_' || c1.contact_type,
-           CASE c1.contact_type WHEN 'MOBILE' THEN 0.9 ELSE 0.85 END,
-           json_build_object('contact_type', c1.contact_type, 'value', c1.normalized_value)
-      FROM crm_contact_point c1
-      JOIN crm_contact_point c2
-        ON c2.contact_type = c1.contact_type
-       AND c2.normalized_value = c1.normalized_value
-       AND c2.party_id < c1.party_id
-      JOIN crm_party n ON n.party_id = c1.party_id
-      JOIN crm_party o ON o.party_id = c2.party_id
-     WHERE c1.contact_type IN ('MOBILE', 'EMAIL')
-       AND c1.status = 'ACTIVE' AND c2.status = 'ACTIVE'
-       AND n.party_status = 'ACTIVE' AND o.party_status = 'ACTIVE'
-       AND n.party_type = o.party_type
-     ORDER BY n.party_id, o.party_id, c1.contact_type DESC
+    SELECT DISTINCT ON (newer_party.party_id, older_party.party_id)
+           COALESCE(newer_party.origin_project_id, ?), newer_party.party_id, newer_party.party_id, older_party.party_id,
+           'SAME_' || newer_contact.contact_type,
+           CASE newer_contact.contact_type WHEN 'MOBILE' THEN 0.9 ELSE 0.85 END,
+           json_build_object('contact_type', newer_contact.contact_type, 'value', newer_contact.normalized_value)
+      FROM crm_contact_point newer_contact
+      JOIN crm_contact_point older_contact
+        ON older_contact.contact_type = newer_contact.contact_type
+       AND older_contact.normalized_value = newer_contact.normalized_value
+       AND older_contact.party_id <> newer_contact.party_id
+      JOIN crm_party newer_party ON newer_party.party_id = newer_contact.party_id
+      JOIN crm_party older_party ON older_party.party_id = older_contact.party_id
+     WHERE newer_contact.contact_type IN ('MOBILE', 'EMAIL')
+       AND newer_contact.status = 'ACTIVE' AND older_contact.status = 'ACTIVE'
+       AND newer_party.party_status = 'ACTIVE' AND older_party.party_status = 'ACTIVE'
+       AND newer_party.party_type = older_party.party_type
+       AND older_party.party_pk < newer_party.party_pk
+     ORDER BY newer_party.party_id, older_party.party_id, newer_contact.contact_type DESC
     ON CONFLICT (incoming_project_id, incoming_external_record_id, candidate_party_id) DO NOTHING
   `, [platform]);
 
@@ -625,19 +713,19 @@ async function detail(id) {
   const [analysis, orgs, transactions, tierHistory, auditTrail] = await Promise.all([
     analysisRead.forParty(id),
     organizations.forParty(id),
-    db('crm_transaction as x').join('crm_transaction_party as tp', 'tp.transaction_id', 'x.transaction_id')
-      .join('crm_project as j', 'j.project_id', 'x.project_id')
+    db('crm_transaction as txn').join('crm_transaction_party as tp', 'tp.transaction_id', 'txn.transaction_id')
+      .join('crm_project as project', 'project.project_id', 'txn.project_id')
       .where('tp.party_id', id).where('tp.party_role_code', 'BUYER')
-      .orderBy('x.transaction_at', 'desc').limit(50)
-      .select('x.transaction_id', 'x.external_transaction_id', 'x.transaction_type_code', 'x.transaction_status',
-        'x.currency_code', 'x.net_amount', 'x.reporting_net_amount', 'x.points_used', 'x.transaction_at',
-        'x.original_transaction_id', 'j.project_code'),
-    db('crm_membership_tier_history as h').join('crm_membership as m', 'm.membership_id', 'h.membership_id')
-      .join('crm_project as j', 'j.project_id', 'm.project_id')
-      .leftJoin('crm_project_tier as o', 'o.project_tier_id', 'h.old_tier_id')
-      .join('crm_project_tier as n', 'n.project_tier_id', 'h.new_tier_id')
-      .where('m.party_id', id).orderBy('h.changed_at', 'desc').limit(30)
-      .select('h.*', 'j.project_code', 'o.tier_name as old_tier_name', 'n.tier_name as new_tier_name'),
+      .orderBy('txn.transaction_at', 'desc').limit(50)
+      .select('txn.transaction_id', 'txn.external_transaction_id', 'txn.transaction_type_code', 'txn.transaction_status',
+        'txn.currency_code', 'txn.net_amount', 'txn.reporting_net_amount', 'txn.points_used', 'txn.transaction_at',
+        'txn.original_transaction_id', 'project.project_code'),
+    db('crm_membership_tier_history as tier_history').join('crm_membership as membership', 'membership.membership_id', 'tier_history.membership_id')
+      .join('crm_project as project', 'project.project_id', 'membership.project_id')
+      .leftJoin('crm_project_tier as old_tier', 'old_tier.project_tier_id', 'tier_history.old_tier_id')
+      .join('crm_project_tier as new_tier', 'new_tier.project_tier_id', 'tier_history.new_tier_id')
+      .where('membership.party_id', id).orderBy('tier_history.changed_at', 'desc').limit(30)
+      .select('tier_history.*', 'project.project_code', 'old_tier.tier_name as old_tier_name', 'new_tier.tier_name as new_tier_name'),
     db('audit_log').where(function () {
       audited.forEach((pair) => {
         if (pair[1].length) this.orWhere(function () { this.where('entity', pair[0]).whereIn('entity_pk', pair[1]); });
@@ -664,6 +752,9 @@ module.exports = {
   lookup: repo.lookup,
   detail: detail,
   create: create,
+  similarTo: similarTo,
+  setChecked: setChecked,
+  queueLookAlikes: queueLookAlikes,
   update: update,
   setStatus: setStatus,
   addContact: addContact,

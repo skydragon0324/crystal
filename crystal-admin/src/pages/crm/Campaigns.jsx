@@ -28,7 +28,7 @@ export const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LA
  * against the campaign so what it achieved can be read against what it cost.
  */
 export default function Campaigns() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const meta = useCrmMeta();
@@ -42,7 +42,7 @@ export default function Campaigns() {
     setSaving(true);
     try {
       const { data } = await crm.campaigns.create(values);
-      toast({ title: t('Created'), status: 'success', duration: 2500 });
+      toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       if (data && data.campaign_id) history.push(PAGE + '/' + data.campaign_id);
       else list.reload();
@@ -60,7 +60,7 @@ export default function Campaigns() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'campaign_status', label: 'Status', value: list.params.campaign_status,
             options: choices(['DRAFT', 'APPROVED', 'ACTIVE', 'COMPLETED', 'CANCELLED']),
             onChange: (value) => list.setFilter({ campaign_status: value || undefined }) },
@@ -69,7 +69,7 @@ export default function Campaigns() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.campaigns.newCampaign')}
+            {translate('crm.campaigns.newCampaign')}
           </Button>
         ) : null}
       />
@@ -78,7 +78,7 @@ export default function Campaigns() {
           columns={[
             { key: 'campaign_code', label: 'Code' },
             { key: 'campaign_name', label: 'Campaign', maxW: '16rem' },
-            { key: 'campaign_type', label: 'Type', render: (row) => word(t, row.campaign_type) },
+            { key: 'campaign_type', label: 'Type', render: (row) => word(translate, row.campaign_type) },
             { key: 'project_code', label: 'Project' },
             { key: 'owner_name', label: 'Owner' },
             { key: 'audience_cnt', label: 'Audience', isNumeric: true, render: (row) => number(row.audience_cnt) },
@@ -102,7 +102,7 @@ export default function Campaigns() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.campaigns.newCampaign')}
+        title={translate('crm.campaigns.newCampaign')}
         initial={{ campaign_type: 'PROMOTION' }}
         onSubmit={create}
         saving={saving}

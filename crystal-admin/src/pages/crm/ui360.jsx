@@ -17,7 +17,7 @@ import { word } from './shared';
 
 /** A titled block of the record: icon, title, an action, and a "View all" that opens the matching tab. */
 export function Card360({ icon, title, action, onViewAll, children, padded }) {
-  const t = useT();
+  const translate = useT();
   const surface = useSurface();
   return (
     <Box borderWidth="1px" borderColor={surface.border} borderRadius="xl" bg={surface.card} overflow="hidden" minW={0} h="100%">
@@ -29,7 +29,7 @@ export function Card360({ icon, title, action, onViewAll, children, padded }) {
         <HStack spacing={2} flexShrink={0}>
           {action}
           {onViewAll ? (
-            <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onViewAll}>{t('crm.c360.viewAll')}</Button>
+            <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onViewAll}>{translate('crm.c360.viewAll')}</Button>
           ) : null}
         </HStack>
       </Flex>
@@ -54,23 +54,23 @@ export function toneOf(code) {
 
 /** A status as a soft coloured pill, coloured by what the code means. */
 export function Pill({ code, tone, children }) {
-  const t = useT();
+  const translate = useT();
   const scheme = tone || toneOf(code);
   return (
     <Tag size="sm" variant="subtle" colorScheme={scheme} borderRadius="md" fontWeight="600" whiteSpace="nowrap">
-      {children || word(t, code)}
+      {children || word(translate, code)}
     </Tag>
   );
 }
 
 /** A label staff put on the customer, in its own colour. */
 export function TagChip({ tag, onRemove }) {
-  const t = useT();
+  const translate = useT();
   return (
     <Tag size="sm" variant="subtle" colorScheme={tag.color_scheme || 'gray'} borderRadius="md" fontWeight="600">
-      {t(tag.tag_name)}
+      {translate(tag.tag_name)}
       {onRemove ? (
-        <Icon as={Md.MdClose} ml={1} boxSize="0.8rem" cursor="pointer" aria-label={t('common.remove')} onClick={onRemove} />
+        <Icon as={Md.MdClose} ml={1} boxSize="0.8rem" cursor="pointer" aria-label={translate('common.remove')} onClick={onRemove} />
       ) : null}
     </Tag>
   );
@@ -97,9 +97,9 @@ export function Sparkline({ values, height }) {
   const bottom = Math.min.apply(null, list);
   const span = top - bottom || 1;
   const points = list.map((value, position) => {
-    const x = (position / (list.length - 1)) * 100;
-    const y = 28 - ((value - bottom) / span) * 24;
-    return x.toFixed(1) + ',' + y.toFixed(1);
+    const pointX = (position / (list.length - 1)) * 100;
+    const pointY = 28 - ((value - bottom) / span) * 24;
+    return pointX.toFixed(1) + ',' + pointY.toFixed(1);
   }).join(' ');
   return (
     <Box as="svg" viewBox="0 0 100 30" preserveAspectRatio="none" w="100%" h={height || '2rem'} aria-hidden="true">
@@ -182,12 +182,12 @@ export function Tile({ label, value, trend, chart, tone }) {
 /** label - value rows, the label in a fixed column. */
 export function Facts360({ rows }) {
   const surface = useSurface();
-  const t = useT();
+  const translate = useT();
   return (
     <Stack spacing={2}>
       {rows.filter(Boolean).map((row) => (
         <Flex key={row.label} fontSize="sm" align="flex-start">
-          <Text color={surface.muted} w="9.5rem" flexShrink={0} pr={2}>{t(row.label)}</Text>
+          <Text color={surface.muted} w="9.5rem" flexShrink={0} pr={2}>{translate(row.label)}</Text>
           <Box minW={0} flex="1" wordBreak="break-word">{row.value === null || row.value === undefined || row.value === '' ? '-' : row.value}</Box>
         </Flex>
       ))}

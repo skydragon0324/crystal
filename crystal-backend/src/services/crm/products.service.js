@@ -6,6 +6,7 @@ const analysis = require('./analysis.service');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
+const { searchId } = require('./partyId');
 
 /**
  * PRODUCTS AS THE CRM SEES THEM: a thing, and who holds it how.
@@ -31,62 +32,66 @@ const INSTANCE_STATUS = ['ACTIVE', 'LOST', 'STOLEN', 'SCRAPPED', 'VOID', 'EXPIRE
 /* ------------------------------------------------------------ instances */
 
 function instanceQuery(filters) {
-  const qb = db('crm_product_instance as i')
-    .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-    .join('crm_project as j', 'j.project_id', 'i.project_id')
-    .leftJoin('crm_product_class as k', 'k.product_class_id', 'c.product_class_id');
+  const qb = db('crm_product_instance as instance')
+    .join('crm_product_catalog as product', 'product.product_id', 'instance.product_id')
+    .join('crm_project as project', 'project.project_id', 'instance.project_id')
+    .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'product.product_class_id');
 
-  if (filters.project_id) qb.where('i.project_id', filters.project_id);
-  if (filters.instance_kind) qb.where('i.instance_kind', filters.instance_kind);
-  if (filters.status) qb.where('i.status', filters.status);
-  if (filters.product_class_id) qb.where('c.product_class_id', filters.product_class_id);
+  if (filters.project_id) qb.where('instance.project_id', filters.project_id);
+  if (filters.instance_kind) qb.where('instance.instance_kind', filters.instance_kind);
+  if (filters.status) qb.where('instance.status', filters.status);
+  if (filters.product_class_id) qb.where('product.product_class_id', filters.product_class_id);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('i.external_product_instance_id', 'ilike', like)
-        .orWhere('i.serial_number', 'ilike', like)
-        .orWhere('i.imei', 'ilike', like)
-        .orWhere('c.product_name', 'ilike', like);
+      this.where('instance.external_product_instance_id', 'ilike', like)
+        .orWhere('instance.serial_number', 'ilike', like)
+        .orWhere('instance.imei', 'ilike', like)
+        .orWhere('product.product_name', 'ilike', like);
     });
   }
   return qb;
 }
 
 async function searchInstances(filters, paging) {
-  const count = await instanceQuery(filters).count({ c: '*' }).first();
+  const count = await instanceQuery(filters).count({ total: '*' }).first();
   const rows = await instanceQuery(filters)
-    .select('i.*', 'c.product_name', 'c.product_code', 'j.project_code', 'k.class_code', 'k.class_name',
-      db.raw(`(SELECT p.display_name FROM crm_product_registration r JOIN crm_party p ON p.party_id = r.party_id
-                WHERE r.product_instance_id = i.product_instance_id AND r.valid_to IS NULL
-                  AND r.relationship_code IN ('OWNER', 'LICENSEE') LIMIT 1) AS holder_name`),
-      db.raw(`(SELECT COUNT(*) FROM crm_product_registration r
-                WHERE r.product_instance_id = i.product_instance_id)::int AS registration_cnt`))
-    .orderBy(paging.sort === 'created_at' ? 'i.created_at' : 'i.product_instance_id', paging.dir)
+    .select('instance.*', 'product.product_name', 'product.product_code', 'project.project_code',
+      'product_class.class_code', 'product_class.class_name',
+      db.raw(`(SELECT holder.display_name FROM crm_product_registration registration
+                 JOIN crm_party holder ON holder.party_id = registration.party_id
+                WHERE registration.product_instance_id = instance.product_instance_id AND registration.valid_to IS NULL
+                  AND registration.relationship_code IN ('OWNER', 'LICENSEE') LIMIT 1) AS holder_name`),
+      db.raw(`(SELECT COUNT(*) FROM crm_product_registration registration
+                WHERE registration.product_instance_id = instance.product_instance_id)::int AS registration_cnt`))
+    .orderBy(paging.sort === 'created_at' ? 'instance.created_at' : 'instance.product_instance_id', paging.dir)
     .limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 /** One instance, its whole holding history, the requests against it, and its service record. */
 async function instanceDetail(id) {
-  const instance = await instanceQuery({}).where('i.product_instance_id', id)
-    .leftJoin('crm_product_instance as b', 'b.product_instance_id', 'i.bound_instance_id')
-    .first('i.*', 'c.product_name', 'c.product_code', 'j.project_code', 'k.class_code', 'k.class_name',
-      'b.external_product_instance_id as bound_external_id');
+  const instance = await instanceQuery({}).where('instance.product_instance_id', id)
+    .leftJoin('crm_product_instance as bound_instance', 'bound_instance.product_instance_id', 'instance.bound_instance_id')
+    .first('instance.*', 'product.product_name', 'product.product_code', 'project.project_code',
+      'product_class.class_code', 'product_class.class_name', 'bound_instance.external_product_instance_id as bound_external_id');
   if (!instance) throw new HttpError(404, 'common.notFound');
 
   const [registrations, transfers, cases, licences] = await Promise.all([
-    registrationQuery({}).where('r.product_instance_id', id).orderBy('r.valid_from', 'desc')
+    registrationQuery({}).where('registration.product_instance_id', id).orderBy('registration.valid_from', 'desc')
       .select(REGISTRATION_COLUMNS),
-    transferQuery({}).where('x.product_instance_id', id).orderBy('x.requested_at', 'desc').select(TRANSFER_COLUMNS),
-    db('crm_service_case as s')
-      .join('crm_service_status as st', 'st.service_status_id', 's.service_status_id')
-      .join('crm_service_case_type as ct', 'ct.case_type_id', 's.case_type_id')
-      .where('s.related_product_instance_id', id).orderBy('s.received_at', 'desc').limit(50)
-      .select('s.case_id', 's.external_case_id', 's.received_at', 's.closed_at',
+    transferQuery({}).where('transfer.product_instance_id', id).orderBy('transfer.requested_at', 'desc').select(TRANSFER_COLUMNS),
+    db('crm_service_case as service_case')
+      .join('crm_service_status as st', 'st.service_status_id', 'service_case.service_status_id')
+      .join('crm_service_case_type as ct', 'ct.case_type_id', 'service_case.case_type_id')
+      .where('service_case.related_product_instance_id', id).orderBy('service_case.received_at', 'desc').limit(50)
+      .select('service_case.case_id', 'service_case.external_case_id', 'service_case.received_at', 'service_case.closed_at',
         'st.display_name as status_name', 'st.is_terminal', 'ct.display_name as case_type_name'),
-    db('crm_product_instance as l').join('crm_product_catalog as c', 'c.product_id', 'l.product_id')
-      .where('l.bound_instance_id', id)
-      .select('l.product_instance_id', 'l.external_product_instance_id', 'l.status', 'l.valid_until', 'c.product_name')
+    db('crm_product_instance as licence_instance')
+      .join('crm_product_catalog as product', 'product.product_id', 'licence_instance.product_id')
+      .where('licence_instance.bound_instance_id', id)
+      .select('licence_instance.product_instance_id', 'licence_instance.external_product_instance_id',
+        'licence_instance.status', 'licence_instance.valid_until', 'product.product_name')
   ]);
 
   return { instance: instance, registrations: registrations, transfers: transfers, cases: cases, licences: licences };
@@ -114,50 +119,53 @@ async function updateInstance(id, body, actor) {
 /* ------------------------------------------------------------ registrations */
 
 const REGISTRATION_COLUMNS = [
-  'r.*', 'p.party_no', 'p.display_name as party_name', 'i.external_product_instance_id', 'i.serial_number',
-  'i.imei', 'i.instance_kind', 'c.product_name', 'c.product_code', 'k.class_code', 'k.class_name',
-  'j.project_code', 't.relationship_name', 'l.location_name as registered_at_location_name',
+  'registration.*', 'party.party_id', 'party.display_name as party_name',
+  'instance.external_product_instance_id', 'instance.serial_number', 'instance.imei', 'instance.instance_kind',
+  'product.product_name', 'product.product_code', 'product_class.class_code', 'product_class.class_name',
+  'project.project_code', 'relationship_type.relationship_name', 'center.service_center_name as registered_at_location_name',
   'pv.display_name as previous_owner_name'
 ];
 
 function registrationQuery(filters) {
-  const qb = db('crm_product_registration as r')
-    .join('crm_party as p', 'p.party_id', 'r.party_id')
-    .join('crm_product_instance as i', 'i.product_instance_id', 'r.product_instance_id')
-    .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-    .join('crm_project as j', 'j.project_id', 'r.project_id')
-    .leftJoin('crm_product_class as k', 'k.product_class_id', 'c.product_class_id')
-    .leftJoin('crm_product_relationship_type as t', 't.relationship_type_id', 'r.relationship_type_id')
-    .leftJoin('crm_service_location as l', 'l.service_location_id', 'r.registered_at_location_id')
-    .leftJoin('crm_party as pv', 'pv.party_id', 'r.previous_owner_party_id');
+  const qb = db('crm_product_registration as registration')
+    .join('crm_party as party', 'party.party_id', 'registration.party_id')
+    .join('crm_product_instance as instance', 'instance.product_instance_id', 'registration.product_instance_id')
+    .join('crm_product_catalog as product', 'product.product_id', 'instance.product_id')
+    .join('crm_project as project', 'project.project_id', 'registration.project_id')
+    .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'product.product_class_id')
+    .leftJoin('crm_product_relationship_type as relationship_type',
+      'relationship_type.relationship_type_id', 'registration.relationship_type_id')
+    .leftJoin('crm_service_center as center', 'center.service_center_id', 'registration.registered_at_service_center_id')
+    .leftJoin('crm_party as pv', 'pv.party_id', 'registration.previous_owner_party_id');
 
-  if (filters.project_id) qb.where('r.project_id', filters.project_id);
-  if (filters.relationship_code) qb.where('r.relationship_code', filters.relationship_code);
-  if (filters.registration_status) qb.where('r.registration_status', filters.registration_status);
-  if (filters.product_class_id) qb.where('c.product_class_id', filters.product_class_id);
-  if (filters.party_id) qb.where('r.party_id', filters.party_id);
-  if (filters.current === '1' || filters.current === 1 || filters.current === true) qb.whereNull('r.valid_to');
+  if (filters.project_id) qb.where('registration.project_id', filters.project_id);
+  if (filters.relationship_code) qb.where('registration.relationship_code', filters.relationship_code);
+  if (filters.registration_status) qb.where('registration.registration_status', filters.registration_status);
+  if (filters.product_class_id) qb.where('product.product_class_id', filters.product_class_id);
+  if (filters.party_id) qb.where('registration.party_id', filters.party_id);
+  if (filters.current === '1' || filters.current === 1 || filters.current === true) qb.whereNull('registration.valid_to');
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('i.external_product_instance_id', 'ilike', like)
-        .orWhere('i.serial_number', 'ilike', like)
-        .orWhere('i.imei', 'ilike', like)
-        .orWhere('p.display_name', 'ilike', like)
-        .orWhere('p.party_no', 'ilike', like)
-        .orWhere('c.product_name', 'ilike', like);
+      this.where('instance.external_product_instance_id', 'ilike', like)
+        .orWhere('instance.serial_number', 'ilike', like)
+        .orWhere('instance.imei', 'ilike', like)
+        .orWhere('party.display_name', 'ilike', like)
+        .orWhere('party.party_id', 'ilike', searchId(like))
+        .orWhere('product.product_name', 'ilike', like);
     });
   }
   return qb;
 }
 
 async function searchRegistrations(filters, paging) {
-  const count = await registrationQuery(filters).count({ c: '*' }).first();
-  const sort = { registered_at: 'r.registered_at', valid_from: 'r.valid_from', valid_to: 'r.valid_to' }[paging.sort]
-    || 'r.product_registration_id';
+  const count = await registrationQuery(filters).count({ total: '*' }).first();
+  const sort = {
+    registered_at: 'registration.registered_at', valid_from: 'registration.valid_from', valid_to: 'registration.valid_to'
+  }[paging.sort] || 'registration.product_registration_id';
   const rows = await registrationQuery(filters).select(REGISTRATION_COLUMNS)
     .orderBy(sort, paging.dir).limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 /**
@@ -237,15 +245,15 @@ async function register(body, actor, options) {
     const product = await trx('crm_product_catalog').where('product_id', instance.product_id).first();
 
     if (relationship.is_exclusive) {
-      const holder = await trx('crm_product_registration as r')
-        .join('crm_party as p', 'p.party_id', 'r.party_id')
-        .where('r.product_instance_id', instance.product_instance_id)
-        .whereIn('r.relationship_code', ['OWNER', 'LICENSEE'])
-        .whereNull('r.valid_to')
-        .first('p.party_no', 'p.display_name');
+      const holder = await trx('crm_product_registration as registration')
+        .join('crm_party as party', 'party.party_id', 'registration.party_id')
+        .where('registration.product_instance_id', instance.product_instance_id)
+        .whereIn('registration.relationship_code', ['OWNER', 'LICENSEE'])
+        .whereNull('registration.valid_to')
+        .first('party.party_id', 'party.display_name');
       if (holder) {
         throw new HttpError(409, 'crm.thisProductAlreadyHasAnOwner', null, {
-          holder: (holder.display_name || '') + ' (' + holder.party_no + ')'
+          holder: (holder.display_name || '') + ' (' + holder.party_id + ')'
         });
       }
     }
@@ -258,7 +266,7 @@ async function register(body, actor, options) {
       relationship_code: relationship.relationship_code,
       project_id: body.project_id || instance.project_id,
       registration_channel: channel,
-      registered_at_location_id: body.registered_at_location_id || null,
+      registered_at_service_center_id: body.registered_at_service_center_id || null,
       purchase_purpose_id: body.purchase_purpose_id || null,
       usage_type_id: body.usage_type_id || null,
       acquisition_type_id: body.acquisition_type_id || null,
@@ -280,11 +288,11 @@ async function register(body, actor, options) {
     }
 
     /* Registering at a counter is something the counter did - site activity counts it. */
-    if (registration.registered_at_location_id && channel === 'AGENCY') {
-      const typeId = await vocabulary.idOf('crm_location_activity_type', 'REGISTRATION_ASSIST', trx);
+    if (registration.registered_at_service_center_id && channel === 'AGENCY') {
+      const typeId = await vocabulary.idOf('crm_service_center_activity_type', 'REGISTRATION_ASSIST', trx);
       if (typeId) {
-        await trx('crm_location_activity').insert({
-          service_location_id: registration.registered_at_location_id,
+        await trx('crm_service_center_activity').insert({
+          service_center_id: registration.registered_at_service_center_id,
           activity_type_id: typeId,
           project_id: registration.project_id,
           occurred_at: registration.registered_at,
@@ -299,7 +307,7 @@ async function register(body, actor, options) {
     return { registration: registration, instance: instance, point_event: pointEvent };
   });
 
-  if (!opts.skipStats) await analysis.recalculateClassStats({ partyIds: [Number(body.party_id)] });
+  if (!opts.skipStats) await analysis.recalculateClassStats({ partyIds: [body.party_id] });
   audit.created(actor, 'crm_product_registration', result.registration.product_registration_id, result.registration, PAGE);
   return result;
 }
@@ -308,11 +316,12 @@ async function payRegistrationPoints(trx, registration, instance, product, actor
   const rule = await registrationRule(trx, product, registration.project_id);
   if (!rule) return null;
 
-  const paid = await trx('crm_point_event as e')
-    .join('crm_product_registration as r', 'r.product_registration_id', 'e.related_product_registration_id')
-    .where('e.point_rule_id', rule.point_rule_id)
-    .where('r.product_instance_id', instance.product_instance_id)
-    .first('e.point_event_id');
+  const paid = await trx('crm_point_event as point_event')
+    .join('crm_product_registration as registration',
+      'registration.product_registration_id', 'point_event.related_product_registration_id')
+    .where('point_event.point_rule_id', rule.point_rule_id)
+    .where('registration.product_instance_id', instance.product_instance_id)
+    .first('point_event.point_event_id');
   if (paid) return null;
 
   return ledger.post(trx, {
@@ -323,7 +332,7 @@ async function payRegistrationPoints(trx, registration, instance, product, actor
     point_rule_id: rule.point_rule_id,
     project_id: registration.project_id,
     related_product_registration_id: registration.product_registration_id,
-    performed_by_location_id: registration.registered_at_location_id,
+    performed_by_service_center_id: registration.registered_at_service_center_id,
     performed_by_manager_id: actor ? actor.manager_id : null,
     description: rule.rule_name,
     occurred_at: registration.registered_at
@@ -414,46 +423,46 @@ const TRANSFER_FLOW = {
 };
 
 const TRANSFER_COLUMNS = [
-  'x.*', 'i.external_product_instance_id', 'i.serial_number', 'i.instance_kind', 'c.product_name',
-  'f.party_no as from_party_no', 'f.display_name as from_name',
-  't.party_no as to_party_no', 't.display_name as to_name',
+  'transfer.*', 'instance.external_product_instance_id', 'instance.serial_number', 'instance.instance_kind', 'product.product_name',
+  'from_party.display_name as from_name',
+  'to_party.display_name as to_name',
   'ti.external_product_instance_id as to_instance_external_id',
-  'l.location_name as handled_at_location_name', 'm.name as requested_by_manager_name'
+  'center.service_center_name as handled_at_location_name', 'manager.name as requested_by_manager_name'
 ];
 
 function transferQuery(filters) {
-  const qb = db('crm_product_transfer as x')
-    .join('crm_product_instance as i', 'i.product_instance_id', 'x.product_instance_id')
-    .join('crm_product_catalog as c', 'c.product_id', 'i.product_id')
-    .leftJoin('crm_party as f', 'f.party_id', 'x.from_party_id')
-    .leftJoin('crm_party as t', 't.party_id', 'x.to_party_id')
-    .leftJoin('crm_product_instance as ti', 'ti.product_instance_id', 'x.to_instance_id')
-    .leftJoin('crm_service_location as l', 'l.service_location_id', 'x.handled_at_location_id')
-    .leftJoin('managers as m', 'm.id', 'x.requested_by_manager_id');
+  const qb = db('crm_product_transfer as transfer')
+    .join('crm_product_instance as instance', 'instance.product_instance_id', 'transfer.product_instance_id')
+    .join('crm_product_catalog as product', 'product.product_id', 'instance.product_id')
+    .leftJoin('crm_party as from_party', 'from_party.party_id', 'transfer.from_party_id')
+    .leftJoin('crm_party as to_party', 'to_party.party_id', 'transfer.to_party_id')
+    .leftJoin('crm_product_instance as ti', 'ti.product_instance_id', 'transfer.to_instance_id')
+    .leftJoin('crm_service_center as center', 'center.service_center_id', 'transfer.handled_at_service_center_id')
+    .leftJoin('managers as manager', 'manager.id', 'transfer.requested_by_manager_id');
 
-  if (filters.status) qb.where('x.status', filters.status);
-  if (filters.transfer_kind) qb.where('x.transfer_kind', filters.transfer_kind);
-  if (filters.open === '1') qb.whereIn('x.status', ['REQUESTED', 'ACCEPTED']);
+  if (filters.status) qb.where('transfer.status', filters.status);
+  if (filters.transfer_kind) qb.where('transfer.transfer_kind', filters.transfer_kind);
+  if (filters.open === '1') qb.whereIn('transfer.status', ['REQUESTED', 'ACCEPTED']);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('i.external_product_instance_id', 'ilike', like)
-        .orWhere('i.serial_number', 'ilike', like)
-        .orWhere('f.display_name', 'ilike', like)
-        .orWhere('t.display_name', 'ilike', like)
-        .orWhere('f.party_no', 'ilike', like)
-        .orWhere('t.party_no', 'ilike', like);
+      this.where('instance.external_product_instance_id', 'ilike', like)
+        .orWhere('instance.serial_number', 'ilike', like)
+        .orWhere('from_party.display_name', 'ilike', like)
+        .orWhere('to_party.display_name', 'ilike', like)
+        .orWhere('from_party.party_id', 'ilike', searchId(like))
+        .orWhere('to_party.party_id', 'ilike', searchId(like));
     });
   }
   return qb;
 }
 
 async function searchTransfers(filters, paging) {
-  const count = await transferQuery(filters).count({ c: '*' }).first();
+  const count = await transferQuery(filters).count({ total: '*' }).first();
   const rows = await transferQuery(filters).select(TRANSFER_COLUMNS)
-    .orderBy(paging.sort === 'completed_at' ? 'x.completed_at' : 'x.requested_at', paging.dir)
+    .orderBy(paging.sort === 'completed_at' ? 'transfer.completed_at' : 'transfer.requested_at', paging.dir)
     .limit(paging.limit).offset(paging.offset);
-  return { rows: rows, total: Number(count.c) };
+  return { rows: rows, total: Number(count.total) };
 }
 
 /**
@@ -499,7 +508,7 @@ async function requestTransfer(body, actor) {
     acquisition_type_id: body.acquisition_type_id || null,
     requested_by_type: 'MANAGER',
     requested_by_manager_id: actor.manager_id,
-    handled_at_location_id: body.handled_at_location_id || null,
+    handled_at_service_center_id: body.handled_at_service_center_id || null,
     status: 'REQUESTED',
     reason: body.reason ? String(body.reason).slice(0, 500) : null,
     expires_at: body.expires_at || null
@@ -556,7 +565,7 @@ async function transitionTransfer(id, status, note, actor) {
           relationship_code: relationship.relationship_code,
           project_id: instance.project_id,
           registration_channel: 'TRANSFER',
-          registered_at_location_id: transfer.handled_at_location_id,
+          registered_at_service_center_id: transfer.handled_at_service_center_id,
           acquisition_type_id: acquisition,
           previous_owner_party_id: effect.open === 'OWNER' ? transfer.from_party_id : null,
           transfer_id: transfer.product_transfer_id,

@@ -46,12 +46,12 @@ const write = function (page) { return requirePermission(page, LEVEL.WRITE); };
 
 /** At least READ on some page under /admin/crm. */
 async function anyCrm(req, res, next) {
-  const row = await db('manager_permissions as x')
-    .join('manager_pages as p', 'p.id', 'x.page_id')
-    .where('x.role_id', req.admin.role_id)
-    .where('x.permission', '>=', LEVEL.READ)
-    .where('p.page_url', 'like', '/admin/crm/%')
-    .first('x.page_id');
+  const row = await db('manager_permissions as permission_row')
+    .join('manager_pages as manager_page', 'manager_page.id', 'permission_row.page_id')
+    .where('permission_row.role_id', req.admin.role_id)
+    .where('permission_row.permission', '>=', LEVEL.READ)
+    .where('manager_page.page_url', 'like', '/admin/crm/%')
+    .first('permission_row.page_id');
   if (!row) return next(new HttpError(403, 'common.permissionDenied'));
   return next();
 }
@@ -100,6 +100,19 @@ router.put('/departments/roles/:roleId', write(PAGES.SETTINGS), crmController.de
 /* ---- customers ---- */
 router.get('/parties', read(PAGES.CUSTOMERS), crmController.parties.list);
 router.post('/parties', write(PAGES.CUSTOMERS), crmController.parties.create);
+
+/* People from an Excel sheet. Held in memory: the sheet is read, never stored. */
+const sheetUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: config.storage.maxUploadBytes, files: 1 },
+  fileFilter: function (req, file, done) {
+    if (!/\.xlsx$/i.test(file.originalname || '')) return done(new HttpError(400, 'crm.thisIsNotAnExcelFile'));
+    return done(null, true);
+  }
+});
+router.get('/parties/similar', read(PAGES.CUSTOMERS), crmController.parties.similar);
+router.get('/parties/import/template', read(PAGES.CUSTOMERS), crmController.parties.importTemplate);
+router.post('/parties/import', write(PAGES.CUSTOMERS), sheetUpload.single('file'), crmController.parties.importPeople);
 router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicates);
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
 router.post('/duplicates/:id/accept', write(PAGES.CUSTOMERS), crmController.parties.acceptDuplicate);
@@ -107,6 +120,7 @@ router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.part
 router.get('/parties/:id', read(PAGES.CUSTOMERS), crmController.parties.detail);
 router.put('/parties/:id', write(PAGES.CUSTOMERS), crmController.parties.update);
 router.post('/parties/:id/status', write(PAGES.CUSTOMERS), crmController.parties.setStatus);
+router.post('/parties/:id/checked', write(PAGES.CUSTOMERS), crmController.parties.setChecked);
 router.post('/parties/:id/contacts', write(PAGES.CUSTOMERS), crmController.parties.addContact);
 router.put('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.updateContact);
 router.post('/parties/:id/accounts', write(PAGES.CUSTOMERS), crmController.parties.linkAccount);
@@ -165,11 +179,12 @@ router.use('/catalog', crudFactory({
   filterable: ['project_id', 'product_class_id', 'product_kind', 'status'],
   defaultSort: 'product_name',
   decorate: function (qb) {
-    qb.leftJoin('crm_project as j', 'j.project_id', 'crm_product_catalog.project_id')
-      .leftJoin('crm_product_class as k', 'k.product_class_id', 'crm_product_catalog.product_class_id')
-      .leftJoin('products as p', 'p.id', 'crm_product_catalog.crystal_product_id')
-      .select('crm_product_catalog.*', 'j.project_code', 'k.class_code', 'k.class_name', 'p.name as crystal_product_name',
-        db.raw('(SELECT COUNT(*) FROM crm_product_instance i WHERE i.product_id = crm_product_catalog.product_id)::int AS instance_cnt'));
+    qb.leftJoin('crm_project as project', 'project.project_id', 'crm_product_catalog.project_id')
+      .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'crm_product_catalog.product_class_id')
+      .leftJoin('products as crystal_product', 'crystal_product.id', 'crm_product_catalog.crystal_product_id')
+      .select('crm_product_catalog.*', 'project.project_code', 'product_class.class_code', 'product_class.class_name',
+        'crystal_product.name as crystal_product_name',
+        db.raw('(SELECT COUNT(*) FROM crm_product_instance instance WHERE instance.product_id = crm_product_catalog.product_id)::int AS instance_cnt'));
   }
 }));
 
@@ -220,7 +235,7 @@ router.get('/programs/:id/awards', read(PAGES.PROGRAMS), crmController.programs.
 router.post('/programs/:id/awards', write(PAGES.PROGRAMS), crmController.programs.award);
 router.post('/awards/:awardId/status', write(PAGES.PROGRAMS), crmController.programs.transitionAward);
 
-/* ---- service locations ---- */
+/* ---- service centres ---- */
 router.get('/sites', read(PAGES.SITES), crmController.sites.list);
 router.post('/sites', write(PAGES.SITES), crmController.sites.create);
 router.get('/sites/:id', read(PAGES.SITES), crmController.sites.detail);
@@ -310,7 +325,7 @@ const VOCABULARIES = [
   { path: 'point-types', table: 'crm_point_type', pk: 'point_type_id', code: 'point_type_code',
     columns: ['point_type_code', 'point_type_name', 'owner_project_id', 'is_dream_managed', 'decimal_places', 'expires_after_days', 'is_active'],
     system: ['CRYSTAL'] },
-  { path: 'activity-types', table: 'crm_location_activity_type', pk: 'activity_type_id', code: 'activity_code',
+  { path: 'activity-types', table: 'crm_service_center_activity_type', pk: 'activity_type_id', code: 'activity_code',
     columns: ['activity_code', 'activity_name', 'activity_group', 'required_capability_code', 'counts_quantity', 'counts_amount', 'is_active'],
     system: ['REPAIR_INTAKE', 'REPAIR_DELIVERY', 'RESERVATION_PICKUP', 'PRIZE_HANDOVER', 'REGISTRATION_ASSIST'] },
   { path: 'case-types', table: 'crm_service_case_type', pk: 'case_type_id', code: 'case_type_code',
@@ -345,10 +360,10 @@ const VOCABULARIES = [
   { path: 'communication-options', table: 'crm_project_communication_option', pk: 'project_communication_option_id',
     columns: ['project_id', 'purpose_id', 'channel_id', 'consent_required', 'is_enabled'], filterable: ['project_id'],
     decorate: function (qb) {
-      qb.join('crm_project as j', 'j.project_id', 'crm_project_communication_option.project_id')
+      qb.join('crm_project as project', 'project.project_id', 'crm_project_communication_option.project_id')
         .join('crm_communication_purpose as pp', 'pp.purpose_id', 'crm_project_communication_option.purpose_id')
         .join('crm_communication_channel as ch', 'ch.channel_id', 'crm_project_communication_option.channel_id')
-        .select('crm_project_communication_option.*', 'j.project_code', 'pp.purpose_code', 'ch.channel_code');
+        .select('crm_project_communication_option.*', 'project.project_code', 'pp.purpose_code', 'ch.channel_code');
     } },
   { path: 'organization-types', table: 'crm_organization_type', pk: 'organization_type_id', code: 'type_code',
     columns: ['type_code', 'type_name'] },
@@ -356,13 +371,16 @@ const VOCABULARIES = [
     columns: ['role_code', 'role_name'] },
   { path: 'currencies', table: 'crm_currency', pk: 'currency_code', code: 'currency_code',
     columns: ['currency_code', 'currency_name', 'decimal_places', 'is_reporting', 'is_active'], system: ['USD'] },
+  { path: 'job-titles', table: 'crm_job_title', pk: 'job_title_id', code: 'job_code',
+    columns: ['job_code', 'job_name', 'sort_order', 'is_active'], sort: 'sort_order' },
   { path: 'departments', table: 'crm_department', pk: 'department_id', code: 'department_code',
     columns: ['department_code', 'department_name', 'is_active'] },
   { path: 'industries', table: 'crm_industry', pk: 'industry_id', code: 'industry_code',
     columns: ['industry_code', 'industry_name', 'parent_industry_id', 'is_active'] },
-  { path: 'locations', table: 'crm_location', pk: 'location_id', code: 'location_code', filterable: ['location_type', 'parent_location_id'],
-    columns: ['parent_location_id', 'location_type', 'location_code', 'location_name', 'country_code', 'full_name', 'is_active'],
-    sort: 'location_name' },
+  /* The vendor's list; edits here are overwritten by the next import's "locations" step. */
+  { path: 'locations', table: 'crm_location', pk: 'location_pk', code: 'location_code', filterable: ['parent_code'],
+    columns: ['location_pk', 'location_name', 'location_code', 'parent_code', 'position'],
+    sort: 'position' },
   { path: 'metric-definitions', table: 'crm_metric_definition', pk: 'metric_definition_id', code: 'metric_code',
     columns: ['metric_code', 'metric_name', 'value_type', 'unit_code', 'description', 'is_active'],
     system: ['DAYS_SINCE_LAST_PURCHASE', 'CROSS_PROJECT_COUNT', 'PRODUCT_OWNERSHIP_COUNT', 'CHURN_RISK',
@@ -413,12 +431,12 @@ router.use('/point-rules', crudFactory({
   filterable: ['point_type_id', 'trigger_code', 'is_active'],
   defaultSort: 'rule_code',
   decorate: function (qb) {
-    qb.join('crm_point_type as t', 't.point_type_id', 'crm_point_rule.point_type_id')
-      .leftJoin('crm_project as j', 'j.project_id', 'crm_point_rule.project_id')
-      .leftJoin('crm_product_class as k', 'k.product_class_id', 'crm_point_rule.product_class_id')
-      .leftJoin('crm_product_catalog as c', 'c.product_id', 'crm_point_rule.product_id')
-      .select('crm_point_rule.*', 't.point_type_code', 'j.project_code', 'k.class_code', 'c.product_name',
-        db.raw('(SELECT COUNT(*) FROM crm_point_event e WHERE e.point_rule_id = crm_point_rule.point_rule_id)::int AS event_cnt'));
+    qb.join('crm_point_type as point_type', 'point_type.point_type_id', 'crm_point_rule.point_type_id')
+      .leftJoin('crm_project as project', 'project.project_id', 'crm_point_rule.project_id')
+      .leftJoin('crm_product_class as product_class', 'product_class.product_class_id', 'crm_point_rule.product_class_id')
+      .leftJoin('crm_product_catalog as catalog', 'catalog.product_id', 'crm_point_rule.product_id')
+      .select('crm_point_rule.*', 'point_type.point_type_code', 'project.project_code', 'product_class.class_code', 'catalog.product_name',
+        db.raw('(SELECT COUNT(*) FROM crm_point_event point_event WHERE point_event.point_rule_id = crm_point_rule.point_rule_id)::int AS event_cnt'));
   }
 }));
 
@@ -427,11 +445,11 @@ router.use('/point-rules', crudFactory({
  * so not the factory: the whole map for one project is read and replaced.
  */
 router.get('/settings/status-map', read(PAGES.SETTINGS), async function (req, res) {
-  const rows = await db('crm_service_status_map as m')
-    .join('crm_project as j', 'j.project_id', 'm.project_id')
-    .join('crm_service_status as s', 's.service_status_id', 'm.service_status_id')
-    .orderBy([{ column: 'j.project_id' }, { column: 'm.source_status_code' }])
-    .select('m.*', 'j.project_code', 's.status_code', 's.display_name');
+  const rows = await db('crm_service_status_map as status_map')
+    .join('crm_project as project', 'project.project_id', 'status_map.project_id')
+    .join('crm_service_status as service_status', 'service_status.service_status_id', 'status_map.service_status_id')
+    .orderBy([{ column: 'project.project_id' }, { column: 'status_map.source_status_code' }])
+    .select('status_map.*', 'project.project_code', 'service_status.status_code', 'service_status.display_name');
   return require('../utils/response').ok(res, rows);
 });
 

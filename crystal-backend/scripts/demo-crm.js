@@ -47,6 +47,15 @@ function daysAhead(days) { return new Date(Date.now() + days * DAY).toISOString(
 function data(response) { return response.data.data; }
 function rowsOf(payload) { return Array.isArray(payload) ? payload : ((payload && payload.rows) || []); }
 
+/** A job title's id, adding the title to the job list when the demo uses one it does not have. */
+async function jobTitleId(name) {
+  const found = await db('crm_job_title').whereRaw('lower(job_name) = lower(?)', [name]).first('job_title_id');
+  if (found) return found.job_title_id;
+  const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 30);
+  const [row] = await db('crm_job_title').insert({ job_code: code, job_name: name, sort_order: 100 }).returning('job_title_id');
+  return typeof row === 'object' ? row.job_title_id : row;
+}
+
 /** Who signs in, what the CRM's vocabularies are, and the customers the demo works with. */
 async function buildContext(signIn) {
   const admin = await signIn('admin');
@@ -58,9 +67,9 @@ async function buildContext(signIn) {
   const byCode = function (listName, field, code) {
     return (meta[listName] || []).filter(function (row) { return row[field] === code; })[0] || {};
   };
-  const people = await db('crm_party as p').join('crm_person as n', 'n.party_id', 'p.party_id')
-    .where('p.party_status', 'ACTIVE').whereNot('p.display_name', 'like', 'CHK%')
-    .orderBy('p.party_id').select('p.party_id', 'p.display_name');
+  const people = await db('crm_party as party').join('crm_person as person', 'person.party_id', 'party.party_id')
+    .where('party.party_status', 'ACTIVE').whereNot('party.display_name', 'like', 'CHK%')
+    .orderBy('party.party_pk').select('party.party_id', 'party.display_name');
   return {
     admin: admin, ops: ops, branch: branch, random: random, pick: pick, meta: meta, byCode: byCode, people: people,
     projectId: function (code) { return byCode('projects', 'project_code', code).project_id; },
@@ -267,12 +276,12 @@ async function run(options) {
       if (party) createdOrganizations.push(party);
     }
     /* The partner shops are run by the first two organizations. */
-    const partnerShops = await db('crm_service_location').where('location_kind', 'PARTNER_SHOP').orderBy('service_location_id').select('service_location_id');
+    const partnerShops = await db('crm_service_center').where('service_center_kind', 'PARTNER_SHOP').orderBy('service_center_id').select('service_center_id');
     for (let position = 0; position < partnerShops.length && createdOrganizations.length; position += 1) {
       const operator = createdOrganizations[position % Math.min(2, createdOrganizations.length)];
       // eslint-disable-next-line no-await-in-loop
       await attempt('site operator', function () {
-        return admin.put('/crm/sites/' + partnerShops[position].service_location_id, { operator_party_id: operator.party_id });
+        return admin.put('/crm/sites/' + partnerShops[position].service_center_id, { operator_party_id: operator.party_id });
       });
     }
     summary.organizations = createdOrganizations.length;
@@ -286,10 +295,10 @@ async function run(options) {
      * which is what lets a campaign show every reason it skips somebody.
      */
     const consentCount = await attempt('consents', async function () {
-      const options = await db('crm_project_communication_option as o')
-        .join('crm_communication_channel as c', 'c.channel_id', 'o.channel_id')
-        .where('o.consent_required', true).where('o.is_enabled', true)
-        .select('o.project_communication_option_id', 'o.project_id', 'c.channel_code');
+      const options = await db('crm_project_communication_option as option')
+        .join('crm_communication_channel as channel', 'channel.channel_id', 'option.channel_id')
+        .where('option.consent_required', true).where('option.is_enabled', true)
+        .select('option.project_communication_option_id', 'option.project_id', 'channel.channel_code');
       const platformId = projectId('PLATFORM');
       const accounts = await db('crm_project_account').whereNull('unlinked_at').select('party_id', 'project_id');
       const projectsOf = {};
@@ -341,11 +350,14 @@ async function run(options) {
     /* ---------------------------------------------------------------- customers: a likely duplicate */
 
     await attempt('possible duplicate', async function () {
-      const withMobile = await db('crm_contact_point as c').join('crm_party as p', 'p.party_id', 'c.party_id')
-        .where({ 'c.contact_type': 'MOBILE', 'c.status': 'ACTIVE', 'p.party_status': 'ACTIVE', 'p.party_type': 'PERSON' })
-        .whereNot('p.display_name', 'like', 'CHK%').orderBy('p.party_id', 'desc').first('c.contact_value', 'p.display_name');
+      const withMobile = await db('crm_contact_point as contact').join('crm_party as party', 'party.party_id', 'contact.party_id')
+        .where({ 'contact.contact_type': 'MOBILE', 'contact.status': 'ACTIVE', 'party.party_status': 'ACTIVE', 'party.party_type': 'PERSON' })
+        .whereNot('party.display_name', 'like', 'CHK%').orderBy('party.party_pk', 'desc').first('contact.contact_value', 'party.display_name');
       if (!withMobile) return;
-      await admin.post('/crm/parties', { party_type: 'PERSON', full_name: withMobile.display_name + ' (walk-in)', mobile: withMobile.contact_value });
+      // The look-alike check would stop this; the demo wants the pair in the review queue, so it confirms.
+      await admin.post('/crm/parties', {
+        party_type: 'PERSON', full_name: withMobile.display_name + ' (walk-in)', mobile: withMobile.contact_value, confirm_not_duplicate: true
+      });
       await admin.post('/crm/duplicates/scan');
     });
 
@@ -372,8 +384,8 @@ async function run(options) {
     const caseType = function (code) { return byCode('case_types', 'case_type_code', code).case_type_id; };
     const statusId = function (code) { return byCode('service_statuses', 'status_code', code).service_status_id; };
     const priorityId = function (code) { return byCode('priorities', 'priority_code', code).service_priority_id; };
-    const serviceCentres = await db('crm_service_location').where({ location_kind: 'SERVICE_CENTER', status: 'ACTIVE' })
-      .orderBy('service_location_id').limit(12).select('service_location_id', 'location_name');
+    const serviceCentres = await db('crm_service_center').where({ service_center_kind: 'SERVICE_CENTER', status: 'ACTIVE' })
+      .orderBy('service_center_id').limit(12).select('service_center_id', 'service_center_name');
     const newCases = [
       ['COMPLAINT', 'CRYSTAL', 'HIGH', 'DIAGNOSING', 'PHONE', 'Repair took three weeks and the screen still flickers', 'DELAY'],
       ['COMPLAINT', 'CRYSTAL', 'URGENT', 'RECEIVED', 'WALK_IN', 'Staff refused a warranty repair at the counter', 'STAFF'],
@@ -391,7 +403,7 @@ async function run(options) {
         const caseRow = data(await admin.post('/crm/cases', {
           party_id: pick(people).party_id, project_id: projectId(projectCode), case_type_id: caseType(typeCode),
           service_priority_id: priorityId(priorityCode), reception_channel_code: channelCode, title: title,
-          service_location_id: projectCode === 'CRYSTAL' && serviceCentres.length ? pick(serviceCentres).service_location_id : null,
+          service_center_id: projectCode === 'CRYSTAL' && serviceCentres.length ? pick(serviceCentres).service_center_id : null,
           received_at: daysAgo(2 + Math.floor(random() * 40))
         }));
         if (statusCode !== 'RECEIVED') await admin.put('/crm/cases/' + caseRow.case_id, { service_status_id: statusId(statusCode) });
@@ -472,7 +484,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       const recorded = await attempt('customer visit', function () {
         return branch.post('/crm/site-activities', {
-          service_location_id: pick(serviceCentres).service_location_id, activity_type_id: visitType.activity_type_id,
+          service_center_id: pick(serviceCentres).service_center_id, activity_type_id: visitType.activity_type_id,
           party_id: pick(people).party_id, quantity: 1, note: pick(['Asked about trade-in', 'Collected a brochure', 'Tried the new Phone 9'])
         });
       });
@@ -486,7 +498,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       await attempt('site target', function () {
         return admin.post('/crm/site-targets', {
-          service_location_id: centre.service_location_id, activity_type_id: intakeType.activity_type_id,
+          service_center_id: centre.service_center_id, activity_type_id: intakeType.activity_type_id,
           period_start: isoDate(monthStart), period_end: isoDate(monthEnd), target_quantity: 20 + Math.floor(random() * 30),
           note: 'Monthly repair intake goal'
         });
@@ -494,7 +506,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       await attempt('site target', function () {
         return admin.post('/crm/site-targets', {
-          service_location_id: centre.service_location_id, activity_type_id: visitType.activity_type_id,
+          service_center_id: centre.service_center_id, activity_type_id: visitType.activity_type_id,
           period_start: isoDate(monthStart), period_end: isoDate(monthEnd), target_quantity: 10, note: 'Walk-in visitors'
         });
       });
@@ -525,14 +537,14 @@ async function run(options) {
           mobile: '+86 137 ' + String(20260000 + position * 7919).slice(-8), email: fullName.toLowerCase().replace(' ', '.') + '@mail.example'
         }));
         await admin.post('/crm/parties/' + party.party_id + '/accounts', {
-          project_id: projectId('ESHOP'), external_account_id: 'demo-eshop-' + party.party_no, external_login: fullName.split(' ')[0].toLowerCase()
+          project_id: projectId('ESHOP'), external_account_id: 'demo-eshop-' + party.party_id, external_login: fullName.split(' ')[0].toLowerCase()
         });
         await db.transaction(async function (trx) {
           for (let order = 0; order < 2 + (position % 3); order += 1) {
             const amount = 40 + Math.round(random() * 360);
             // eslint-disable-next-line no-await-in-loop
             await transactionService.upsert(trx, {
-              project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + party.party_no + '-' + order,
+              project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + party.party_id + '-' + order,
               transaction_type_code: 'SALE', transaction_status: 'DELIVERED', currency_code: reporting.currency_code,
               net_amount: amount, sales_channel_code: 'ESHOP', transaction_at: daysAgo(lastOrderDaysAgo + order * 60),
               parties: [{ party_id: party.party_id, party_role_code: 'BUYER' }]
@@ -596,27 +608,27 @@ async function run(options) {
 
     /* ---------------------------------------------------------------- activity programs */
 
-    let pickupSites = await db('crm_service_location_capability as c').join('crm_service_location as s', 's.service_location_id', 'c.service_location_id')
-      .where({ 'c.capability_code': 'RESERVATION_PICKUP', 'c.is_active': true, 's.status': 'ACTIVE' })
-      .distinct('s.service_location_id').orderBy('s.service_location_id').limit(3);
+    let pickupSites = await db('crm_service_center_capability as capability').join('crm_service_center as center', 'center.service_center_id', 'capability.service_center_id')
+      .where({ 'capability.capability_code': 'RESERVATION_PICKUP', 'capability.is_active': true, 'center.status': 'ACTIVE' })
+      .distinct('center.service_center_id').orderBy('center.service_center_id').limit(3);
     /* No centre takes reservation pickups yet: equip two, as a manager would on the Service network screen. */
     if (!pickupSites.length) {
       for (const centre of serviceCentres.slice(0, 2)) {
         // eslint-disable-next-line no-await-in-loop
         await attempt('reservation pickup capability', function () {
-          return admin.post('/crm/sites/' + centre.service_location_id + '/capabilities', { capability_code: 'RESERVATION_PICKUP', project_id: projectId('CRYSTAL') });
+          return admin.post('/crm/sites/' + centre.service_center_id + '/capabilities', { capability_code: 'RESERVATION_PICKUP', project_id: projectId('CRYSTAL') });
         });
       }
-      pickupSites = serviceCentres.slice(0, 2).map(function (centre) { return { service_location_id: centre.service_location_id }; });
+      pickupSites = serviceCentres.slice(0, 2).map(function (centre) { return { service_center_id: centre.service_center_id }; });
     }
-    let prizeSites = await db('crm_service_location_capability').where({ capability_code: 'PRIZE_PICKUP', is_active: true })
-      .distinct('service_location_id').orderBy('service_location_id').limit(2);
+    let prizeSites = await db('crm_service_center_capability').where({ capability_code: 'PRIZE_PICKUP', is_active: true })
+      .distinct('service_center_id').orderBy('service_center_id').limit(2);
     /* No centre hands out prizes yet: equip the first pickup centre for it, as a manager would on the Service network screen. */
     if (!prizeSites.length && pickupSites.length) {
       await attempt('prize pickup capability', function () {
-        return admin.post('/crm/sites/' + pickupSites[0].service_location_id + '/capabilities', { capability_code: 'PRIZE_PICKUP', project_id: projectId('CRYSTAL') });
+        return admin.post('/crm/sites/' + pickupSites[0].service_center_id + '/capabilities', { capability_code: 'PRIZE_PICKUP', project_id: projectId('CRYSTAL') });
       });
-      prizeSites = [{ service_location_id: pickupSites[0].service_location_id }];
+      prizeSites = [{ service_center_id: pickupSites[0].service_center_id }];
     }
 
     /* 1. A launch reservation: owners of a smartphone reserve the new model, collect it at a centre, and get a gift. */
@@ -633,7 +645,7 @@ async function run(options) {
       await admin.post('/crm/programs/' + programId + '/tiers', { tier_code: 'LOYAL', tier_name: 'Loyal owner', rank_no: 2, min_value: 2, entries_per_target: 2 });
       for (const site of pickupSites) {
         // eslint-disable-next-line no-await-in-loop
-        await admin.post('/crm/programs/' + programId + '/locations', { service_location_id: site.service_location_id, location_role: 'PICKUP' });
+        await admin.post('/crm/programs/' + programId + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
       }
       await admin.post('/crm/programs/' + programId + '/quotas', { entry_type: 'NORMAL', quota_count: 40 });
       await admin.post('/crm/programs/' + programId + '/rewards', {
@@ -660,7 +672,7 @@ async function run(options) {
         const reservation = await attempt('reservation', async function () {
           return data(await admin.post('/crm/programs/' + programId + '/reservations', {
             party_id: target.party_id, holder_id_card: 'DEMO-ID-' + target.party_id,
-            service_location_id: pickupSites.length ? pickupSites[position % pickupSites.length].service_location_id : null
+            service_center_id: pickupSites.length ? pickupSites[position % pickupSites.length].service_center_id : null
           }));
         });
         if (!reservation) continue;
@@ -668,7 +680,7 @@ async function run(options) {
           // eslint-disable-next-line no-await-in-loop
           await attempt('collect reservation', function () {
             return admin.post('/crm/reservations/' + reservation.reservation_id + '/status', {
-              status: 'FULFILLED', service_location_id: reservation.service_location_id, note: 'Collected with ID'
+              status: 'FULFILLED', service_center_id: reservation.service_center_id, note: 'Collected with ID'
             });
           });
           if (reward) {
@@ -676,7 +688,7 @@ async function run(options) {
             await attempt('gift', async function () {
               const awarded = data(await admin.post('/crm/programs/' + programId + '/awards', {
                 reward_id: reward.reward_id, party_id: target.party_id, reservation_id: reservation.reservation_id,
-                fulfilment_method: 'PICKUP', pickup_location_id: prizeSites.length ? prizeSites[0].service_location_id : null
+                fulfilment_method: 'PICKUP', pickup_service_center_id: prizeSites.length ? prizeSites[0].service_center_id : null
               }));
               await admin.post('/crm/awards/' + awarded.award_id + '/status', { status: 'READY' });
               await admin.post('/crm/awards/' + awarded.award_id + '/status', { status: 'PICKED_UP' });
@@ -763,11 +775,11 @@ async function run(options) {
         if (position % 4 !== 0) continue;
         /* The purchase they came back for arrives from the Eshop like any other order. */
         // eslint-disable-next-line no-await-in-loop
-        const buyer = await db('crm_party').where('party_id', recipient.party_id).first('party_no');
+        const buyer = await db('crm_party').where('party_id', recipient.party_id).first('party_id');
         // eslint-disable-next-line no-await-in-loop
         const sale = await db.transaction(function (trx) {
           return transactionService.upsert(trx, {
-            project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + buyer.party_no + '-' + label, transaction_type_code: 'SALE',
+            project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + buyer.party_id + '-' + label, transaction_type_code: 'SALE',
             transaction_status: 'DELIVERED', currency_code: reporting.currency_code, net_amount: 89, sales_channel_code: 'ESHOP',
             transaction_at: daysAgo(9), parties: [{ party_id: recipient.party_id, party_role_code: 'BUYER' }]
           }, reporting.currency_code);
@@ -862,7 +874,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       const created = await attempt('event ' + title, function () {
         return admin.post('/crm/site-events', Object.assign({
-          service_location_id: centre.service_location_id, event_type_code: typeCode, title: title, status: status,
+          service_center_id: centre.service_center_id, event_type_code: typeCode, title: title, status: status,
           project_id: projectId('CRYSTAL'), planned_start_at: startAt.toISOString(), planned_end_at: endAt.toISOString(),
           actual_start_at: status === 'COMPLETED' ? startAt.toISOString() : null, actual_end_at: status === 'COMPLETED' ? endAt.toISOString() : null,
           capacity: capacity, attendee_count: attendees,
@@ -922,8 +934,8 @@ async function customer360Demo(context, attempt) {
     const patch = {};
     if (!person.gender_code) patch.gender_code = position % 2 ? 'F' : 'M';
     if (!person.birth_date) patch.birth_date = (1970 + (position * 7) % 33) + '-' + String(1 + position % 12).padStart(2, '0') + '-' + String(1 + (position * 3) % 27).padStart(2, '0');
-    if (!person.nationality_code) patch.nationality_code = 'CN';
-    if (!person.job_title) patch.job_title = titles[position % titles.length];
+    // eslint-disable-next-line no-await-in-loop
+    if (!person.job_title_id) patch.job_title_id = await jobTitleId(titles[position % titles.length]);
     if (!person.address_line) patch.address_line = streets[position % streets.length];
     if (!Object.keys(patch).length) continue;
     // eslint-disable-next-line no-await-in-loop
@@ -932,10 +944,10 @@ async function customer360Demo(context, attempt) {
   added.profiles = profiles;
 
   /* ---- tags, from what the CRM already knows about each customer ---- */
-  const graded = await db('crm_party_analysis_snapshot as s').join('crm_corporate_grade as g', 'g.corporate_grade_id', 's.corporate_grade_id')
-    .whereNull('s.project_id').where('s.reference_date', db('crm_party_analysis_snapshot').max('reference_date'))
-    .whereIn('s.party_id', people.map(function (person) { return person.party_id; }))
-    .orderBy('s.corporate_score', 'desc').select('s.party_id', 'g.grade_code', 's.purchase_amount_12m', 's.registered_device_count', 's.complaint_count_12m');
+  const graded = await db('crm_party_analysis_snapshot as snapshot').join('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
+    .whereNull('snapshot.project_id').where('snapshot.reference_date', db('crm_party_analysis_snapshot').max('reference_date'))
+    .whereIn('snapshot.party_id', people.map(function (person) { return person.party_id; }))
+    .orderBy('snapshot.corporate_score', 'desc').select('snapshot.party_id', 'grade.grade_code', 'snapshot.purchase_amount_12m', 'snapshot.registered_device_count', 'snapshot.complaint_count_12m');
   const tagPlan = [];
   graded.forEach(function (row, position) {
     if (row.grade_code === 'AAA') tagPlan.push([row.party_id, 'VIP']);
@@ -971,8 +983,8 @@ async function customer360Demo(context, attempt) {
   }
 
   /* ---- the organizations: profile, group, people, team, contract, purchases, products, cases ---- */
-  const organizations = await db('crm_party as p').join('crm_organization as o', 'o.party_id', 'p.party_id')
-    .where('p.party_status', 'ACTIVE').orderBy('p.party_id').select('p.party_id', 'p.display_name');
+  const organizations = await db('crm_party as party').join('crm_organization as organization', 'organization.party_id', 'party.party_id')
+    .where('party.party_status', 'ACTIVE').orderBy('party.party_pk').select('party.party_id', 'party.display_name');
   const profileOf = {
     'Harbor Electronics': { local_name: '海港电子贸易有限公司', employee_count_band: '201-1000', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
       description: 'Regional distributor and retailer of smartphones, set-top boxes and accessories, with eleven stores and an online shop. A Dream partner since 2018 and one of the largest resellers of Crystal phones in the east.' },
@@ -1031,7 +1043,9 @@ async function customer360Demo(context, attempt) {
     const person = people[index % people.length];
     if (!organization || !person) continue;
     // eslint-disable-next-line no-await-in-loop
-    await attempt('contact title', function () { return admin.put('/crm/parties/' + person.party_id, { job_title: title }); });
+    const jobId = await jobTitleId(title);
+    // eslint-disable-next-line no-await-in-loop
+    await attempt('contact title', function () { return admin.put('/crm/parties/' + person.party_id, { job_title_id: jobId }); });
     // eslint-disable-next-line no-await-in-loop
     if (await attempt('key contact', function () {
       return admin.post('/crm/parties/' + organization.party_id + '/people', {
@@ -1086,13 +1100,13 @@ async function customer360Demo(context, attempt) {
   let businessOrders = 0;
   for (const [party, count, size] of [[harbor, 26, 9000], [northwind, 8, 2400], [school, 6, 5200], [cityRepair, 10, 1500], [online, 5, 900]]) {
     if (!party) continue;
-    const buyer = await db('crm_party').where('party_id', party.party_id).first('party_no');
+    const buyer = await db('crm_party').where('party_id', party.party_id).first('party_id');
     await db.transaction(async function (trx) {
       for (let order = 0; order < count; order += 1) {
         const daysBack = Math.round((order / count) * 700) + 3;
         // eslint-disable-next-line no-await-in-loop
         await transactionService.upsert(trx, {
-          project_id: projectId('ESHOP'), external_transaction_id: 'B2B-' + buyer.party_no + '-' + order, transaction_type_code: 'SALE',
+          project_id: projectId('ESHOP'), external_transaction_id: 'B2B-' + buyer.party_id + '-' + order, transaction_type_code: 'SALE',
           transaction_status: order === 3 ? 'CANCELLED' : 'DELIVERED', currency_code: reporting.currency_code,
           net_amount: Math.round(size * (0.6 + random() * 0.8)), sales_channel_code: 'ESHOP', transaction_at: new Date(today.getTime() - daysBack * DAY).toISOString(),
           parties: [{ party_id: party.party_id, party_role_code: 'BUYER' }]
@@ -1107,10 +1121,10 @@ async function customer360Demo(context, attempt) {
   for (const [party, tagCodes] of [[harbor, ['KEY_ACCOUNT', 'STRATEGIC_ACCOUNT']], [holdings, ['STRATEGIC_ACCOUNT']],
     [northwind, ['KEY_ACCOUNT']], [school, ['PRICE_SENSITIVE']], [online, []], [cityRepair, []]]) {
     if (!party) continue;
-    const owner = await db('crm_party').where('party_id', party.party_id).first('party_no');
+    const owner = await db('crm_party').where('party_id', party.party_id).first('party_id');
     await attempt('business account', function () {
       return admin.post('/crm/parties/' + party.party_id + '/accounts', {
-        project_id: projectId('ESHOP'), external_account_id: 'B2B-' + owner.party_no, external_login: 'b2b-' + owner.party_no.toLowerCase()
+        project_id: projectId('ESHOP'), external_account_id: 'B2B-' + owner.party_id, external_login: 'b2b-' + owner.party_id
       });
     });
     for (const code of tagCodes) {
@@ -1207,10 +1221,10 @@ async function customer360Demo(context, attempt) {
 
   /* ---- the channel each customer said they prefer, in the app ---- */
   const preferred = await db.raw(`
-    UPDATE crm_party_communication_consent c SET is_preferred = true
+    UPDATE crm_party_communication_consent consent SET is_preferred = true
       FROM (SELECT DISTINCT ON (party_id) party_communication_consent_id FROM crm_party_communication_consent
              WHERE consent_status = 'GRANTED' ORDER BY party_id, party_communication_consent_id DESC) chosen
-     WHERE c.party_communication_consent_id = chosen.party_communication_consent_id AND c.party_id % 3 <> 0`);
+     WHERE consent.party_communication_consent_id = chosen.party_communication_consent_id AND consent.party_id % 3 <> 0`);
   added.preferredChannels = preferred.rowCount;
 
   /* ---- notes and documents ---- */

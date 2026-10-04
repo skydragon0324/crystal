@@ -28,10 +28,10 @@ async function requireParty(id) {
 }
 
 function team(partyId) {
-  return db('crm_party_team_member as t').join('managers as m', 'm.id', 't.manager_id')
-    .leftJoin('managers as b', 'b.id', 't.assigned_by_manager_id')
-    .where('t.party_id', partyId).orderBy([{ column: 't.ended_at', order: 'desc' }, { column: 't.assigned_at', order: 'desc' }])
-    .select('t.*', 'm.name as manager_name', 'm.username', 'b.name as assigned_by_name');
+  return db('crm_party_team_member as team_member').join('managers as manager', 'manager.id', 'team_member.manager_id')
+    .leftJoin('managers as assigned_by', 'assigned_by.id', 'team_member.assigned_by_manager_id')
+    .where('team_member.party_id', partyId).orderBy([{ column: 'team_member.ended_at', order: 'desc' }, { column: 'team_member.assigned_at', order: 'desc' }])
+    .select('team_member.*', 'manager.name as manager_name', 'manager.username', 'assigned_by.name as assigned_by_name');
 }
 
 async function assign(partyId, body, actor) {
@@ -64,8 +64,8 @@ async function endAssignment(partyId, teamMemberId, actor) {
 /* ------------------------------------------------------------ agreements */
 
 function agreements(partyId) {
-  return db('crm_party_agreement as a').leftJoin('managers as m', 'm.id', 'a.created_by_manager_id')
-    .where('a.party_id', partyId).orderBy('a.start_date', 'desc').select('a.*', 'm.name as created_by_name');
+  return db('crm_party_agreement as agreement').leftJoin('managers as manager', 'manager.id', 'agreement.created_by_manager_id')
+    .where('agreement.party_id', partyId).orderBy('agreement.start_date', 'desc').select('agreement.*', 'manager.name as created_by_name');
 }
 
 async function saveAgreement(partyId, agreementId, body, actor) {

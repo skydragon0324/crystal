@@ -10,6 +10,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date } from '../../utils/format';
+import { partyIdLabel } from './shared';
 
 /**
  * ONE SEARCH FOR THE WHOLE CRM: customers, orders, products, cases and
@@ -18,7 +19,7 @@ import { date } from '../../utils/format';
  * belongs to, or the record itself when it belongs to nobody.
  */
 export default function CrmSearch() {
-  const t = useT();
+  const translate = useT();
   const history = useHistory();
   const surface = useSurface();
   const field = useRef(null);
@@ -49,19 +50,19 @@ export default function CrmSearch() {
   const customerOr = (partyId, fallback) => (partyId ? '/admin/crm/customers/' + partyId : fallback);
 
   const groups = found ? [
-    { key: 'customers', groupName: t('crm.c360.searchCustomers'), icon: Md.MdPersonOutline,
-      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_id, title: row.display_name || row.party_no, detail: row.party_no, path: customerOr(row.party_id) })) },
-    { key: 'orders', groupName: t('crm.c360.searchOrders'), icon: Md.MdReceipt,
+    { key: 'customers', groupName: translate('crm.c360.searchCustomers'), icon: Md.MdPersonOutline,
+      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_id, title: row.display_name || partyIdLabel(row.party_id), detail: partyIdLabel(row.party_id), path: customerOr(row.party_id) })) },
+    { key: 'orders', groupName: translate('crm.c360.searchOrders'), icon: Md.MdReceipt,
       rows: (found.orders || []).map((row) => ({ id: 'o' + row.transaction_id, title: row.external_transaction_id,
         detail: [row.project_code, date(row.transaction_at), row.party_name].filter(Boolean).join('  ·  '),
         path: '/admin/crm/transactions?txn=' + row.transaction_id })) },
-    { key: 'products', groupName: t('crm.c360.searchProducts'), icon: Md.MdDevicesOther,
+    { key: 'products', groupName: translate('crm.c360.searchProducts'), icon: Md.MdDevicesOther,
       rows: (found.products || []).map((row) => ({ id: 'i' + row.product_instance_id, title: row.serial_number || row.imei || row.external_product_instance_id,
         detail: [row.product_name, row.party_name].filter(Boolean).join('  ·  '), path: '/admin/crm/products?instance=' + row.product_instance_id })) },
-    { key: 'cases', groupName: t('crm.c360.searchCases'), icon: Md.MdBuild,
+    { key: 'cases', groupName: translate('crm.c360.searchCases'), icon: Md.MdBuild,
       rows: (found.cases || []).map((row) => ({ id: 'c' + row.case_id, title: row.external_case_id || '#' + row.case_id,
         detail: [row.title, row.party_name].filter(Boolean).join('  ·  '), path: '/admin/crm/service-cases?case=' + row.case_id })) },
-    { key: 'campaigns', groupName: t('crm.c360.searchCampaigns'), icon: Md.MdRecordVoiceOver,
+    { key: 'campaigns', groupName: translate('crm.c360.searchCampaigns'), icon: Md.MdRecordVoiceOver,
       rows: (found.campaigns || []).map((row) => ({ id: 'g' + row.campaign_id, title: row.campaign_name, detail: row.campaign_code, path: '/admin/crm/campaigns/' + row.campaign_id })) }
   ].filter((group) => group.rows.length) : [];
 
@@ -71,9 +72,9 @@ export default function CrmSearch() {
         <Box w={{ base: '100%', md: '26rem' }}>
           <InputGroup size="sm">
             <InputLeftElement pointerEvents="none"><Icon as={Md.MdSearch} color={surface.muted} /></InputLeftElement>
-            <Input ref={field} borderRadius="lg" bg={surface.card} value={text} placeholder={t('crm.c360.searchPlaceholder')}
+            <Input ref={field} borderRadius="lg" bg={surface.card} value={text} placeholder={translate('crm.c360.searchPlaceholder')}
               onChange={(event) => setText(event.target.value)} onFocus={() => { if (found) setOpen(true); }} />
-            <InputRightElement width="3.2rem" pointerEvents="none"><Kbd fontSize="0.65rem">{t('crm.c360.searchShortcut')}</Kbd></InputRightElement>
+            <InputRightElement width="3.2rem" pointerEvents="none"><Kbd fontSize="0.65rem">{translate('crm.c360.searchShortcut')}</Kbd></InputRightElement>
           </InputGroup>
         </Box>
       </PopoverTrigger>
@@ -94,7 +95,7 @@ export default function CrmSearch() {
                 ))}
               </Stack>
             </Box>
-          )) : <Text fontSize="sm" color={surface.muted} p={2}>{t('crm.c360.nothingFound')}</Text>}
+          )) : <Text fontSize="sm" color={surface.muted} p={2}>{translate('crm.c360.nothingFound')}</Text>}
         </PopoverBody>
       </PopoverContent>
     </Popover>

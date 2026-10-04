@@ -16,7 +16,7 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime, money } from '../../utils/format';
-import { Fact, Facts, PartyPicker, choices, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor, translateOptions } from './shared';
+import { Fact, Facts, PartyPicker, choices, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor, translateOptions, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/service-cases';
 
@@ -33,7 +33,7 @@ export const PAGE = '/admin/crm/service-cases';
  * Complaints, enquiries and other non-repair cases are opened here.
  */
 export default function ServiceCases() {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const location = useLocation();
@@ -50,7 +50,7 @@ export default function ServiceCases() {
     setSaving(true);
     try {
       const { data } = await crm.cases.create(values);
-      toast({ title: t('Created'), status: 'success', duration: 2500 });
+      toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       if (data && data.case_id) history.push(PAGE + '?case=' + data.case_id);
@@ -70,7 +70,7 @@ export default function ServiceCases() {
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(t, [
+        filters={filtersFor(translate, [
           { key: 'open', label: 'Open or all', value: list.params.open,
             options: [{ value: '1', label: 'Open only' }],
             onChange: (value) => list.setFilter({ open: value || undefined }) },
@@ -83,15 +83,15 @@ export default function ServiceCases() {
           { key: 'project_id', label: 'Project', value: list.params.project_id,
             options: optionsFrom(meta.projects, 'project_id', 'project_code'),
             onChange: (value) => list.setFilter({ project_id: value || undefined }) },
-          { key: 'service_location_id', label: 'Service location', value: list.params.service_location_id, width: '14rem',
-            options: sites, onChange: (value) => list.setFilter({ service_location_id: value || undefined }) },
+          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+            options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
           { key: 'unclassified', label: 'Classification', value: list.params.unclassified,
             options: [{ value: '1', label: 'Not classified yet' }],
             onChange: (value) => list.setFilter({ unclassified: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {t('crm.cases.newCase')}
+            {translate('crm.cases.newCase')}
           </Button>
         ) : null}
       />
@@ -99,12 +99,12 @@ export default function ServiceCases() {
         <DataTable
           columns={[
             { key: 'external_case_id', label: 'Case', render: (row) => row.external_case_id || ('#' + row.case_id) },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + (row.party_no || '') },
-            { key: 'case_type_name', label: 'Type', render: (row) => t(row.case_type_name || '-') },
-            { key: 'status_name', label: 'Status', render: (row) => t(row.status_name || '-') },
-            { key: 'location_name', label: 'Service location', maxW: '12rem' },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'case_type_name', label: 'Type', render: (row) => translate(row.case_type_name || '-') },
+            { key: 'status_name', label: 'Status', render: (row) => translate(row.status_name || '-') },
+            { key: 'service_center_name', label: 'Service location', maxW: '12rem' },
             { key: 'product_name', label: 'Product' },
-            { key: 'is_classified', label: 'Classified', render: (row) => (row.is_classified ? t('common.yes') : '-') },
+            { key: 'is_classified', label: 'Classified', render: (row) => (row.is_classified ? translate('common.yes') : '-') },
             { key: 'received_at', label: 'Received', render: (row) => dateTime(row.received_at) },
             { key: 'due_at', label: 'Due', render: (row) => dateTime(row.due_at) }
           ]}
@@ -127,7 +127,7 @@ export default function ServiceCases() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={t('crm.cases.newCase')}
+        title={translate('crm.cases.newCase')}
         initial={{ project_id: crystal ? crystal.project_id : null, reception_channel_code: 'PHONE' }}
         onSubmit={create}
         saving={saving}
@@ -142,7 +142,7 @@ export default function ServiceCases() {
             options: choices(['PHONE', 'WALK_IN', 'MAIL_IN', 'ON_SITE', 'COURIER', 'APP', 'WEB', 'AGENCY']) },
           { name: 'service_priority_id', label: 'Priority', type: 'select',
             options: optionsFrom(meta.priorities, 'service_priority_id', 'priority_name') },
-          { name: 'service_location_id', label: 'Service location', type: 'select', options: sites, isSearchable: true },
+          { name: 'service_center_id', label: 'Service location', type: 'select', options: sites, isSearchable: true },
           { name: 'due_at', label: 'Due', type: 'datetime-local' },
           { name: 'title', label: 'Title', colSpan: 'full' },
           { name: 'description', label: 'What the customer said', type: 'textarea', colSpan: 'full' }
@@ -155,7 +155,7 @@ export default function ServiceCases() {
 }
 
 function CaseDetail({ id, onClose }) {
-  const t = useT();
+  const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
   const { canWrite } = usePermission(PAGE);
@@ -189,7 +189,7 @@ function CaseDetail({ id, onClose }) {
     setBusy(true);
     try {
       await work();
-      toast({ title: t('Saved'), status: 'success', duration: 2500 });
+      toast({ title: translate('Saved'), status: 'success', duration: 2500 });
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -202,10 +202,10 @@ function CaseDetail({ id, onClose }) {
 
   const picker = (name, label, list, idKey) => (
     <Box>
-      <Text fontSize="xs" mb={1}>{t(label)}</Text>
+      <Text fontSize="xs" mb={1}>{translate(label)}</Text>
       <SelectField
         size="sm"
-        options={translateOptions(t, optionsFrom(list, idKey, 'display_name'))}
+        options={translateOptions(translate, optionsFrom(list, idKey, 'display_name'))}
         value={draft[name] || null}
         isDisabled={!canWrite}
         onChange={(value) => set(name, value)}
@@ -217,19 +217,19 @@ function CaseDetail({ id, onClose }) {
     <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{serviceCase.external_case_id || serviceCase.title || t('crm.cases.case')}</ModalHeader>
+        <ModalHeader>{serviceCase.external_case_id || serviceCase.title || translate('crm.cases.case')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={5}>
             <Facts>
-              <Fact label="Customer">{serviceCase.party_name ? serviceCase.party_name + '  ' + serviceCase.party_no : null}</Fact>
-              <Fact label="Type">{serviceCase.case_type_name ? t(serviceCase.case_type_name) : null}</Fact>
-              <Fact label="Status">{serviceCase.status_name ? t(serviceCase.status_name) : null}</Fact>
+              <Fact label="Customer">{serviceCase.party_name ? serviceCase.party_name + '  ' + partyIdLabel(serviceCase.party_id) : null}</Fact>
+              <Fact label="Type">{serviceCase.case_type_name ? translate(serviceCase.case_type_name) : null}</Fact>
+              <Fact label="Status">{serviceCase.status_name ? translate(serviceCase.status_name) : null}</Fact>
               <Fact label="Project">{serviceCase.project_code}</Fact>
-              <Fact label="Site">{serviceCase.location_name}</Fact>
-              <Fact label="Came in by">{serviceCase.reception_channel_code ? word(t, serviceCase.reception_channel_code) : null}</Fact>
+              <Fact label="Site">{serviceCase.service_center_name}</Fact>
+              <Fact label="Came in by">{serviceCase.reception_channel_code ? word(translate, serviceCase.reception_channel_code) : null}</Fact>
               <Fact label="Product">{serviceCase.product_name ? serviceCase.product_name + '  ' + (serviceCase.external_product_instance_id || '') : null}</Fact>
-              <Fact label="Warranty">{serviceCase.is_warranty ? t('common.yes') : null}</Fact>
+              <Fact label="Warranty">{serviceCase.is_warranty ? translate('common.yes') : null}</Fact>
               <Fact label="Received">{dateTime(serviceCase.received_at)}</Fact>
               <Fact label="Due">{dateTime(serviceCase.due_at)}</Fact>
               <Fact label="Completed">{dateTime(serviceCase.completed_at)}</Fact>
@@ -242,13 +242,13 @@ function CaseDetail({ id, onClose }) {
             {serviceCase.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{serviceCase.description}</Text> : null}
 
             {fromTicket ? (
-              <Text fontSize="sm">{t('crm.cases.followsTicket')}</Text>
+              <Text fontSize="sm">{translate('crm.cases.followsTicket')}</Text>
             ) : (canWrite && serviceCase.case_id ? (
               <Box>
-                <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.cases.moveTo')}</Text>
+                <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.moveTo')}</Text>
                 <SelectField
                   size="sm"
-                  options={translateOptions(t, optionsFrom(meta.service_statuses, 'service_status_id', 'display_name'))}
+                  options={translateOptions(translate, optionsFrom(meta.service_statuses, 'service_status_id', 'display_name'))}
                   value={serviceCase.service_status_id || null}
                   isClearable={false}
                   onChange={(value) => value && save(() => crm.cases.update(serviceCase.case_id, { service_status_id: value }))}
@@ -257,7 +257,7 @@ function CaseDetail({ id, onClose }) {
             ) : null)}
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.cases.classification')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.classification')}</Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                 {picker('issue_category_id', 'What the customer reported', meta.issue_categories, 'issue_category_id')}
                 {picker('fault_category_id', 'What was actually wrong', meta.fault_categories, 'fault_category_id')}
@@ -268,32 +268,32 @@ function CaseDetail({ id, onClose }) {
                 mt={3} size="sm" rows={3}
                 value={draft.resolution_text || ''}
                 isReadOnly={!canWrite}
-                placeholder={t('crm.cases.resolutionNotes')}
+                placeholder={translate('crm.cases.resolutionNotes')}
                 onChange={(event) => set('resolution_text', event.target.value)}
               />
               {canWrite && serviceCase.case_id ? (
                 <Button mt={3} size="sm" variant="brand" isLoading={busy}
                   onClick={() => save(() => crm.cases.classify(serviceCase.case_id, draft))}>
-                  {t('crm.cases.saveClassification')}
+                  {translate('crm.cases.saveClassification')}
                 </Button>
               ) : null}
               {record.classification && record.classification.classified_by_name ? (
                 <Text fontSize="xs" mt={2}>
-                  {t('crm.cases.classifiedBy', { name: record.classification.classified_by_name, when: dateTime(record.classification.classified_at) })}
+                  {translate('crm.cases.classifiedBy', { name: record.classification.classified_by_name, when: dateTime(record.classification.classified_at) })}
                 </Text>
               ) : null}
             </Box>
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{t('crm.cases.atTheSite')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.atTheSite')}</Text>
               <DataTable
                 hidePagination
                 rows={record.activities || []}
-                rowKey={(row) => row.location_activity_id}
+                rowKey={(row) => row.service_center_activity_id}
                 columns={[
                   { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-                  { key: 'activity_name', label: 'Activity', render: (row) => t(row.activity_name || '-') },
-                  { key: 'location_name', label: 'Service location' }
+                  { key: 'activity_name', label: 'Activity', render: (row) => translate(row.activity_name || '-') },
+                  { key: 'service_center_name', label: 'Service location' }
                 ]}
               />
             </Box>
