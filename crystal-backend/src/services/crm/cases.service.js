@@ -29,7 +29,7 @@ const EDITABLE = ['service_center_id', 'service_priority_id', 'reception_channel
 
 function caseQuery(filters) {
   const qb = db('crm_service_case as service_case')
-    .join('crm_party as party', 'party.party_id', 'service_case.party_id')
+    .join('crm_party as party', 'party.party_pk', 'service_case.party_pk')
     .join('crm_project as project', 'project.project_id', 'service_case.project_id')
     .join('crm_service_case_type as ct', 'ct.case_type_id', 'service_case.case_type_id')
     .join('crm_service_status as st', 'st.service_status_id', 'service_case.service_status_id')
@@ -39,7 +39,7 @@ function caseQuery(filters) {
     .leftJoin('crm_product_catalog as product', 'product.product_id', 'instance.product_id')
     .leftJoin('crm_service_case_classification as classification', 'classification.case_id', 'service_case.case_id');
 
-  ['project_id', 'case_type_id', 'service_status_id', 'service_center_id', 'party_id'].forEach(function (col) {
+  ['project_id', 'case_type_id', 'service_status_id', 'service_center_id', 'party_pk'].forEach(function (col) {
     if (filters[col]) qb.where('service_case.' + col, filters[col]);
   });
   if (filters.open === '1') qb.where('st.is_terminal', false);
@@ -51,7 +51,7 @@ function caseQuery(filters) {
       this.where('service_case.external_case_id', 'ilike', like)
         .orWhere('service_case.title', 'ilike', like)
         .orWhere('party.display_name', 'ilike', like)
-        .orWhere('party.party_id', 'ilike', searchId(like))
+        .orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)])
         .orWhere('instance.serial_number', 'ilike', like);
     });
   }
@@ -59,13 +59,13 @@ function caseQuery(filters) {
 }
 
 const LIST_COLUMNS = [
-  'service_case.case_id', 'service_case.party_id', 'service_case.project_id', 'service_case.external_case_id',
+  'service_case.case_id', 'service_case.party_pk', 'service_case.project_id', 'service_case.external_case_id',
   'service_case.crystal_repair_ticket_id', 'service_case.title',
   'service_case.received_at', 'service_case.due_at', 'service_case.completed_at', 'service_case.closed_at',
   'service_case.is_warranty', 'service_case.satisfaction_rating',
   'service_case.total_cost', 'service_case.customer_paid_amount', 'service_case.currency_code', 'service_case.reception_channel_code',
   'service_case.service_center_id', 'service_case.case_type_id', 'service_case.service_status_id', 'service_case.service_priority_id',
-  'party.party_id', 'party.display_name as party_name', 'project.project_code',
+  'party.party_pk', 'party.display_name as party_name', 'project.project_code',
   'ct.case_type_code', 'ct.display_name as case_type_name',
   'st.status_code', 'st.display_name as status_name', 'st.is_terminal',
   'pr.priority_code', 'pr.priority_name', 'center.service_center_name',
@@ -114,7 +114,7 @@ async function detail(id) {
 }
 
 async function create(body, actor) {
-  if (!body.party_id || !body.case_type_id) throw new HttpError(400, 'crm.customerAndCaseTypeAreRequired');
+  if (!body.party_pk || !body.case_type_id) throw new HttpError(400, 'crm.customerAndCaseTypeAreRequired');
   if (body.reception_channel_code && CHANNELS.indexOf(body.reception_channel_code) === -1) {
     throw new HttpError(400, 'crm.unknownChannel');
   }
@@ -124,7 +124,7 @@ async function create(body, actor) {
     : await db('crm_service_status').orderBy('sequence_no').first();
 
   const insert = {
-    party_id: body.party_id,
+    party_pk: body.party_pk,
     project_id: body.project_id,
     case_type_id: body.case_type_id,
     service_status_id: status.service_status_id,

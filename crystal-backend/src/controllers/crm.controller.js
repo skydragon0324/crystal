@@ -187,9 +187,9 @@ module.exports = {
 
   /* ---- customers ---- */
   parties: {
-    list: lister(parties.search, Object.keys(require('../repositories/crm/parties.repository').SORTABLE), 'party_id'),
+    list: lister(parties.search, Object.keys(require('../repositories/crm/parties.repository').SORTABLE), 'party_pk'),
     lookup: async function (req, res) {
-      const ids = String(req.query.ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+      const ids = String(req.query.ids || '').split(',').map(function (id) { return id.trim(); }).filter(function (id) { return /^[1-9][0-9]*$/.test(id); });
       return ok(res, await parties.lookup(req.query.q, ids));
     },
     detail: async function (req, res) { return ok(res, await parties.detail(req.params.id)); },
@@ -214,7 +214,7 @@ module.exports = {
       return ok(res, await parties.setConsent(req.params.id, req.body, req.actor), 'common.updated');
     },
     merge: async function (req, res) {
-      return ok(res, await parties.merge(req.params.id, req.body.merged_party_id, req.body.merge_reason, 'MANUAL', req.actor), 'crm.merged');
+      return ok(res, await parties.merge(req.params.id, req.body.merged_party_pk, req.body.merge_reason, 'MANUAL', req.actor), 'crm.merged');
     },
     duplicates: async function (req, res) {
       const paging = readPaging(req.query, [], 'id');

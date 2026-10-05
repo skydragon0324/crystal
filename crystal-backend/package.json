@@ -28,6 +28,7 @@
     "content-keys": "node scripts/content-keys.js",
     "sign:audit": "node scripts/sign-audit.js",
     "sign:backfill": "node scripts/sign-backfill.js",
+    "test:identity": "node test/identity-matching.test.js && node test/registration-workflow.test.js",
     "test:signing": "node test/signing.test.js"
   },
   "keywords": [],

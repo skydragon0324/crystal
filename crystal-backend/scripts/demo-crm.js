@@ -67,9 +67,9 @@ async function buildContext(signIn) {
   const byCode = function (listName, field, code) {
     return (meta[listName] || []).filter(function (row) { return row[field] === code; })[0] || {};
   };
-  const people = await db('crm_party as party').join('crm_person as person', 'person.party_id', 'party.party_id')
+  const people = await db('crm_party as party').join('crm_person as person', 'person.party_pk', 'party.party_pk')
     .where('party.party_status', 'ACTIVE').whereNot('party.display_name', 'like', 'CHK%')
-    .orderBy('party.party_pk').select('party.party_id', 'party.display_name');
+    .orderBy('party.party_pk').select('party.party_pk', 'party.display_name');
   return {
     admin: admin, ops: ops, branch: branch, random: random, pick: pick, meta: meta, byCode: byCode, people: people,
     projectId: function (code) { return byCode('projects', 'project_code', code).project_id; },
@@ -256,18 +256,18 @@ async function run(options) {
         }));
         for (const [typeCode, projectCode] of organization.types) {
           // eslint-disable-next-line no-await-in-loop
-          await admin.post('/crm/parties/' + created.party_id + '/org-types', {
+          await admin.post('/crm/parties/' + created.party_pk + '/org-types', {
             organization_type_id: byCode('organization_types', 'type_code', typeCode).organization_type_id,
             project_id: projectCode ? projectId(projectCode) : null
           });
         }
         if (industryRows[organization.industry]) {
-          await admin.put('/crm/parties/' + created.party_id + '/industries', { industry_id: industryRows[organization.industry].industry_id, is_primary: true });
+          await admin.put('/crm/parties/' + created.party_pk + '/industries', { industry_id: industryRows[organization.industry].industry_id, is_primary: true });
         }
         for (const [roleCode, departmentName] of organization.roles) {
           // eslint-disable-next-line no-await-in-loop
-          await admin.post('/crm/parties/' + created.party_id + '/people', {
-            person_party_id: pick(people).party_id, department_name: departmentName,
+          await admin.post('/crm/parties/' + created.party_pk + '/people', {
+            person_party_pk: pick(people).party_pk, department_name: departmentName,
             contact_role_ids: [byCode('contact_roles', 'role_code', roleCode).contact_role_id]
           });
         }
@@ -281,7 +281,7 @@ async function run(options) {
       const operator = createdOrganizations[position % Math.min(2, createdOrganizations.length)];
       // eslint-disable-next-line no-await-in-loop
       await attempt('site operator', function () {
-        return admin.put('/crm/sites/' + partnerShops[position].service_center_id, { operator_party_id: operator.party_id });
+        return admin.put('/crm/sites/' + partnerShops[position].service_center_id, { operator_party_pk: operator.party_pk });
       });
     }
     summary.organizations = createdOrganizations.length;
@@ -300,17 +300,17 @@ async function run(options) {
         .where('option.consent_required', true).where('option.is_enabled', true)
         .select('option.project_communication_option_id', 'option.project_id', 'channel.channel_code');
       const platformId = projectId('PLATFORM');
-      const accounts = await db('crm_project_account').whereNull('unlinked_at').select('party_id', 'project_id');
+      const accounts = await db('crm_project_account').whereNull('unlinked_at').select('party_pk', 'project_id');
       const projectsOf = {};
-      accounts.forEach(function (account) { (projectsOf[account.party_id] = projectsOf[account.party_id] || {})[account.project_id] = true; });
-      const contacts = await db('crm_contact_point').where('status', 'ACTIVE').select('contact_point_id', 'party_id', 'contact_type');
+      accounts.forEach(function (account) { (projectsOf[account.party_pk] = projectsOf[account.party_pk] || {})[account.project_id] = true; });
+      const contacts = await db('crm_contact_point').where('status', 'ACTIVE').select('contact_point_id', 'party_pk', 'contact_type');
       const contactOf = {};
-      contacts.forEach(function (contact) { contactOf[contact.party_id + ':' + contact.contact_type] = contactOf[contact.party_id + ':' + contact.contact_type] || contact.contact_point_id; });
+      contacts.forEach(function (contact) { contactOf[contact.party_pk + ':' + contact.contact_type] = contactOf[contact.party_pk + ':' + contact.contact_type] || contact.contact_point_id; });
 
       let written = 0;
       for (const person of people) {
         for (const option of options) {
-          const inProject = option.project_id === platformId || (projectsOf[person.party_id] || {})[option.project_id];
+          const inProject = option.project_id === platformId || (projectsOf[person.party_pk] || {})[option.project_id];
           if (!inProject || random() < 0.2) continue;
           const contactType = { EMAIL: 'EMAIL', SMS: 'MOBILE' }[option.channel_code];
           const roll = random();
@@ -318,10 +318,10 @@ async function run(options) {
           const capturedAt = daysAgo(20 + Math.floor(random() * 380));
           // eslint-disable-next-line no-await-in-loop
           const [consent] = await db('crm_party_communication_consent').insert({
-            party_id: person.party_id, project_communication_option_id: option.project_communication_option_id,
-            contact_point_id: contactType ? (contactOf[person.party_id + ':' + contactType] || null) : null,
+            party_pk: person.party_pk, project_communication_option_id: option.project_communication_option_id,
+            contact_point_id: contactType ? (contactOf[person.party_pk + ':' + contactType] || null) : null,
             consent_status: finalStatus, captured_via: pick(['APP', 'WEB', 'APP', 'IMPORT']), captured_at: capturedAt, effective_from: capturedAt
-          }).onConflict(['party_id', 'project_communication_option_id']).ignore().returning('*');
+          }).onConflict(['party_pk', 'project_communication_option_id']).ignore().returning('*');
           if (!consent) continue;
           const events = finalStatus === 'WITHDRAWN'
             ? [{ old_status: null, new_status: 'GRANTED', occurred_at: daysAgo(400) }, { old_status: 'GRANTED', new_status: 'WITHDRAWN', occurred_at: capturedAt }]
@@ -340,7 +340,7 @@ async function run(options) {
       const crystalMarketingEmail = await db('crm_project_communication_option')
         .where({ project_id: projectId('CRYSTAL'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
       if (!crystalMarketingEmail) return null;
-      return admin.put('/crm/parties/' + people[0].party_id + '/consents', {
+      return admin.put('/crm/parties/' + people[0].party_pk + '/consents', {
         project_communication_option_id: crystalMarketingEmail.project_communication_option_id,
         consent_status: 'WITHDRAWN', reason: 'Customer called the hotline and asked to stop marketing emails'
       });
@@ -350,15 +350,14 @@ async function run(options) {
     /* ---------------------------------------------------------------- customers: a likely duplicate */
 
     await attempt('possible duplicate', async function () {
-      const withMobile = await db('crm_contact_point as contact').join('crm_party as party', 'party.party_id', 'contact.party_id')
+      const withMobile = await db('crm_contact_point as contact').join('crm_party as party', 'party.party_pk', 'contact.party_pk')
         .where({ 'contact.contact_type': 'MOBILE', 'contact.status': 'ACTIVE', 'party.party_status': 'ACTIVE', 'party.party_type': 'PERSON' })
         .whereNot('party.display_name', 'like', 'CHK%').orderBy('party.party_pk', 'desc').first('contact.contact_value', 'party.display_name');
       if (!withMobile) return;
-      // The look-alike check would stop this; the demo wants the pair in the review queue, so it confirms.
+      // A 65-point match waits in intake without creating a second party.
       await admin.post('/crm/parties', {
-        party_type: 'PERSON', full_name: withMobile.display_name + ' (walk-in)', mobile: withMobile.contact_value, confirm_not_duplicate: true
+        party_type: 'PERSON', full_name: withMobile.display_name, mobile: withMobile.contact_value
       });
-      await admin.post('/crm/duplicates/scan');
     });
 
     /* ---------------------------------------------------------------- service cases */
@@ -401,7 +400,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       const created = await attempt('case ' + title, async function () {
         const caseRow = data(await admin.post('/crm/cases', {
-          party_id: pick(people).party_id, project_id: projectId(projectCode), case_type_id: caseType(typeCode),
+          party_pk: pick(people).party_pk, project_id: projectId(projectCode), case_type_id: caseType(typeCode),
           service_priority_id: priorityId(priorityCode), reception_channel_code: channelCode, title: title,
           service_center_id: projectCode === 'CRYSTAL' && serviceCentres.length ? pick(serviceCentres).service_center_id : null,
           received_at: daysAgo(2 + Math.floor(random() * 40))
@@ -428,7 +427,7 @@ async function run(options) {
       [people[3], 500, 'Store opening promotion'], [people[4], 200, 'Referred a friend'], [people[5], 100, 'Birthday gift']]) {
       // eslint-disable-next-line no-await-in-loop
       const adjusted = await attempt('points for ' + partyRow.display_name, function () {
-        return admin.post('/crm/point-adjustments', { party_id: partyRow.party_id, point_type_id: activityPoints.point_type_id, points_delta: delta, description: reason });
+        return admin.post('/crm/point-adjustments', { party_pk: partyRow.party_pk, point_type_id: activityPoints.point_type_id, points_delta: delta, description: reason });
       });
       if (adjusted) adjustments += 1;
     }
@@ -440,12 +439,12 @@ async function run(options) {
     let transfers = 0;
     for (let position = 0; position < Math.min(4, owned.length); position += 1) {
       const registration = owned[position];
-      const receiver = people.filter(function (person) { return person.party_id !== registration.party_id; })[position * 3 % (people.length - 1)];
+      const receiver = people.filter(function (person) { return person.party_pk !== registration.party_pk; })[position * 3 % (people.length - 1)];
       const kind = position < 2 ? 'OWNERSHIP_TRANSFER' : 'ASSIGN_USER';
       // eslint-disable-next-line no-await-in-loop
       const requested = await attempt('transfer ' + registration.product_registration_id, async function () {
         const transfer = data(await admin.post('/crm/transfers', {
-          product_instance_id: registration.product_instance_id, transfer_kind: kind, to_party_id: receiver.party_id,
+          product_instance_id: registration.product_instance_id, transfer_kind: kind, to_party_pk: receiver.party_pk,
           note: kind === 'OWNERSHIP_TRANSFER' ? 'Sold to a family member' : 'Phone given to a child'
         }));
         if (position % 2 === 1) await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' });
@@ -485,7 +484,7 @@ async function run(options) {
       const recorded = await attempt('customer visit', function () {
         return branch.post('/crm/site-activities', {
           service_center_id: pick(serviceCentres).service_center_id, activity_type_id: visitType.activity_type_id,
-          party_id: pick(people).party_id, quantity: 1, note: pick(['Asked about trade-in', 'Collected a brochure', 'Tried the new Phone 9'])
+          party_pk: pick(people).party_pk, quantity: 1, note: pick(['Asked about trade-in', 'Collected a brochure', 'Tried the new Phone 9'])
         });
       });
       if (recorded) visits += 1;
@@ -536,18 +535,18 @@ async function run(options) {
           party_type: 'PERSON', full_name: fullName, origin_project_id: projectId('ESHOP'),
           mobile: '+86 137 ' + String(20260000 + position * 7919).slice(-8), email: fullName.toLowerCase().replace(' ', '.') + '@mail.example'
         }));
-        await admin.post('/crm/parties/' + party.party_id + '/accounts', {
-          project_id: projectId('ESHOP'), external_account_id: 'demo-eshop-' + party.party_id, external_login: fullName.split(' ')[0].toLowerCase()
+        await admin.post('/crm/parties/' + party.party_pk + '/accounts', {
+          project_id: projectId('ESHOP'), external_account_id: 'demo-eshop-' + party.party_pk, external_login: fullName.split(' ')[0].toLowerCase()
         });
         await db.transaction(async function (trx) {
           for (let order = 0; order < 2 + (position % 3); order += 1) {
             const amount = 40 + Math.round(random() * 360);
             // eslint-disable-next-line no-await-in-loop
             await transactionService.upsert(trx, {
-              project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + party.party_id + '-' + order,
+              project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + party.party_pk + '-' + order,
               transaction_type_code: 'SALE', transaction_status: 'DELIVERED', currency_code: reporting.currency_code,
               net_amount: amount, sales_channel_code: 'ESHOP', transaction_at: daysAgo(lastOrderDaysAgo + order * 60),
-              parties: [{ party_id: party.party_id, party_role_code: 'BUYER' }]
+              parties: [{ party_pk: party.party_pk, party_role_code: 'BUYER' }]
             }, reporting.currency_code);
           }
         });
@@ -555,11 +554,11 @@ async function run(options) {
         if (position % 4 !== 3) {
           const platformEmail = await db('crm_project_communication_option')
             .where({ project_id: projectId('PLATFORM'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
-          const emailContact = await db('crm_contact_point').where({ party_id: party.party_id, contact_type: 'EMAIL' }).first();
+          const emailContact = await db('crm_contact_point').where({ party_pk: party.party_pk, contact_type: 'EMAIL' }).first();
           if (platformEmail) {
             const agreedAt = daysAgo(lastOrderDaysAgo + 200);
             const [consent] = await db('crm_party_communication_consent').insert({
-              party_id: party.party_id, project_communication_option_id: platformEmail.project_communication_option_id,
+              party_pk: party.party_pk, project_communication_option_id: platformEmail.project_communication_option_id,
               contact_point_id: emailContact ? emailContact.contact_point_id : null, consent_status: 'GRANTED',
               captured_via: 'APP', captured_at: agreedAt, effective_from: agreedAt
             }).returning('*');
@@ -657,7 +656,7 @@ async function run(options) {
       if (targets.length < 6) {
         for (const person of people.slice(0, 10)) {
           // eslint-disable-next-line no-await-in-loop
-          await attempt('launch target', function () { return admin.post('/crm/programs/' + programId + '/targets', { party_id: person.party_id, allowed_count: 1 }); });
+          await attempt('launch target', function () { return admin.post('/crm/programs/' + programId + '/targets', { party_pk: person.party_pk, allowed_count: 1 }); });
         }
         targets = rowsOf(data(await admin.get('/crm/programs/' + programId + '/targets', { params: { limit: 100 } })));
       }
@@ -671,7 +670,7 @@ async function run(options) {
         // eslint-disable-next-line no-await-in-loop
         const reservation = await attempt('reservation', async function () {
           return data(await admin.post('/crm/programs/' + programId + '/reservations', {
-            party_id: target.party_id, holder_id_card: 'DEMO-ID-' + target.party_id,
+            party_pk: target.party_pk, holder_id_card: 'DEMO-ID-' + target.party_pk,
             service_center_id: pickupSites.length ? pickupSites[position % pickupSites.length].service_center_id : null
           }));
         });
@@ -687,7 +686,7 @@ async function run(options) {
             // eslint-disable-next-line no-await-in-loop
             await attempt('gift', async function () {
               const awarded = data(await admin.post('/crm/programs/' + programId + '/awards', {
-                reward_id: reward.reward_id, party_id: target.party_id, reservation_id: reservation.reservation_id,
+                reward_id: reward.reward_id, party_pk: target.party_pk, reservation_id: reservation.reservation_id,
                 fulfilment_method: 'PICKUP', pickup_service_center_id: prizeSites.length ? prizeSites[0].service_center_id : null
               }));
               await admin.post('/crm/awards/' + awarded.award_id + '/status', { status: 'READY' });
@@ -724,7 +723,7 @@ async function run(options) {
       const winners = rowsOf(data(await admin.get('/crm/programs/' + programId + '/targets', { params: { limit: 100 } })));
       for (const winner of winners.slice(0, 6)) {
         // eslint-disable-next-line no-await-in-loop
-        await attempt('draw prize', function () { return admin.post('/crm/programs/' + programId + '/awards', { reward_id: reward.reward_id, party_id: winner.party_id }); });
+        await attempt('draw prize', function () { return admin.post('/crm/programs/' + programId + '/awards', { reward_id: reward.reward_id, party_pk: winner.party_pk }); });
       }
       await admin.post('/crm/programs/' + programId + '/status', { status: 'CLOSED' });
       await admin.post('/crm/programs/' + programId + '/status', { status: 'FULFILLED' });
@@ -764,7 +763,7 @@ async function run(options) {
           : { recipient_status: 'DELIVERED', queued_at: sentAt, sent_at: sentAt, delivered_at: sentAt, provider_message_id: 'demo-' + recipient.recipient_id });
         /* About two in three open it, half of those click, and one in four comes back and buys. */
         if (failed || position % 3 === 2) continue;
-        const touch = { campaign_id: campaignId, action_id: actionId, recipient_id: recipient.recipient_id, party_id: recipient.party_id,
+        const touch = { campaign_id: campaignId, action_id: actionId, recipient_id: recipient.recipient_id, party_pk: recipient.party_pk,
           utm_source: 'crm', utm_medium: 'email', utm_campaign: label };
         // eslint-disable-next-line no-await-in-loop
         await db('crm_campaign_interaction').insert([
@@ -775,18 +774,18 @@ async function run(options) {
         if (position % 4 !== 0) continue;
         /* The purchase they came back for arrives from the Eshop like any other order. */
         // eslint-disable-next-line no-await-in-loop
-        const buyer = await db('crm_party').where('party_id', recipient.party_id).first('party_id');
+        const buyer = await db('crm_party').where('party_pk', recipient.party_pk).first('party_pk');
         // eslint-disable-next-line no-await-in-loop
         const sale = await db.transaction(function (trx) {
           return transactionService.upsert(trx, {
-            project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + buyer.party_id + '-' + label, transaction_type_code: 'SALE',
+            project_id: projectId('ESHOP'), external_transaction_id: 'DEMO-' + buyer.party_pk + '-' + label, transaction_type_code: 'SALE',
             transaction_status: 'DELIVERED', currency_code: reporting.currency_code, net_amount: 89, sales_channel_code: 'ESHOP',
-            transaction_at: daysAgo(9), parties: [{ party_id: recipient.party_id, party_role_code: 'BUYER' }]
+            transaction_at: daysAgo(9), parties: [{ party_pk: recipient.party_pk, party_role_code: 'BUYER' }]
           }, reporting.currency_code);
         });
         // eslint-disable-next-line no-await-in-loop
         await db('crm_campaign_conversion').insert({
-          campaign_id: campaignId, action_id: actionId, recipient_id: recipient.recipient_id, party_id: recipient.party_id,
+          campaign_id: campaignId, action_id: actionId, recipient_id: recipient.recipient_id, party_pk: recipient.party_pk,
           conversion_type: 'PURCHASE', source_project_id: projectId('ESHOP'), related_transaction_id: sale.transaction_id,
           conversion_value: 89, currency_code: reporting.currency_code,
           attribution_model: 'LAST_TOUCH', attribution_window_days: 14, attribution_score: 1, occurred_at: daysAgo(9)
@@ -929,7 +928,7 @@ async function customer360Demo(context, attempt) {
     '17 Jianguo Road, Chaoyang', '46 Dongfeng Road, Futian'];
   let profiles = 0;
   for (let position = 0; position < Math.min(30, people.length); position += 1) {
-    const person = await db('crm_person').where('party_id', people[position].party_id).first();
+    const person = await db('crm_person').where('party_pk', people[position].party_pk).first();
     if (!person) continue;
     const patch = {};
     if (!person.gender_code) patch.gender_code = position % 2 ? 'F' : 'M';
@@ -939,24 +938,24 @@ async function customer360Demo(context, attempt) {
     if (!person.address_line) patch.address_line = streets[position % streets.length];
     if (!Object.keys(patch).length) continue;
     // eslint-disable-next-line no-await-in-loop
-    if (await attempt('profile', function () { return admin.put('/crm/parties/' + person.party_id, patch); })) profiles += 1;
+    if (await attempt('profile', function () { return admin.put('/crm/parties/' + person.party_pk, patch); })) profiles += 1;
   }
   added.profiles = profiles;
 
   /* ---- tags, from what the CRM already knows about each customer ---- */
   const graded = await db('crm_party_analysis_snapshot as snapshot').join('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
     .whereNull('snapshot.project_id').where('snapshot.reference_date', db('crm_party_analysis_snapshot').max('reference_date'))
-    .whereIn('snapshot.party_id', people.map(function (person) { return person.party_id; }))
-    .orderBy('snapshot.corporate_score', 'desc').select('snapshot.party_id', 'grade.grade_code', 'snapshot.purchase_amount_12m', 'snapshot.registered_device_count', 'snapshot.complaint_count_12m');
+    .whereIn('snapshot.party_pk', people.map(function (person) { return person.party_pk; }))
+    .orderBy('snapshot.corporate_score', 'desc').select('snapshot.party_pk', 'grade.grade_code', 'snapshot.purchase_amount_12m', 'snapshot.registered_device_count', 'snapshot.complaint_count_12m');
   const tagPlan = [];
   graded.forEach(function (row, position) {
-    if (row.grade_code === 'AAA') tagPlan.push([row.party_id, 'VIP']);
-    if (position < 12) tagPlan.push([row.party_id, 'HIGH_VALUE']);
-    if (Number(row.registered_device_count) >= 3) tagPlan.push([row.party_id, 'TECH_ENTHUSIAST']);
-    if (Number(row.complaint_count_12m) > 0) tagPlan.push([row.party_id, 'NEEDS_ATTENTION']);
-    if (position % 9 === 4) tagPlan.push([row.party_id, 'PRICE_SENSITIVE']);
+    if (row.grade_code === 'AAA') tagPlan.push([row.party_pk, 'VIP']);
+    if (position < 12) tagPlan.push([row.party_pk, 'HIGH_VALUE']);
+    if (Number(row.registered_device_count) >= 3) tagPlan.push([row.party_pk, 'TECH_ENTHUSIAST']);
+    if (Number(row.complaint_count_12m) > 0) tagPlan.push([row.party_pk, 'NEEDS_ATTENTION']);
+    if (position % 9 === 4) tagPlan.push([row.party_pk, 'PRICE_SENSITIVE']);
   });
-  (await db('crm_activity_reservation').distinct('party_id').limit(8)).forEach(function (row) { tagPlan.push([row.party_id, 'EARLY_ADOPTER']); });
+  (await db('crm_activity_reservation').distinct('party_pk').limit(8)).forEach(function (row) { tagPlan.push([row.party_pk, 'EARLY_ADOPTER']); });
   let tagged = 0;
   for (const [partyId, code] of tagPlan) {
     if (!tagId(code)) continue;
@@ -969,22 +968,22 @@ async function customer360Demo(context, attempt) {
   let relationships = 0;
   const relate = async function (partyId, relatedId, code, note) {
     if (await attempt('relationship ' + code, function () {
-      return admin.post('/crm/parties/' + partyId + '/relationships', { related_party_id: relatedId, relationship_type_code: code, note: note || null });
+      return admin.post('/crm/parties/' + partyId + '/relationships', { related_party_pk: relatedId, relationship_type_code: code, note: note || null });
     })) relationships += 1;
   };
   for (let position = 0; position + 1 < Math.min(12, people.length); position += 4) {
     // eslint-disable-next-line no-await-in-loop
-    await relate(people[position].party_id, people[position + 1].party_id, 'SPOUSE', 'Same household address');
+    await relate(people[position].party_pk, people[position + 1].party_pk, 'SPOUSE', 'Same household address');
   }
   if (people.length > 14) {
-    await relate(people[13].party_id, people[14].party_id, 'CHILD', 'Registered the phone for their son');
-    await relate(people[2].party_id, people[9].party_id, 'REFERRER', 'Came in with a referral code');
-    await relate(people[3].party_id, people[10].party_id, 'REFERRER', 'Came in with a referral code');
+    await relate(people[13].party_pk, people[14].party_pk, 'CHILD', 'Registered the phone for their son');
+    await relate(people[2].party_pk, people[9].party_pk, 'REFERRER', 'Came in with a referral code');
+    await relate(people[3].party_pk, people[10].party_pk, 'REFERRER', 'Came in with a referral code');
   }
 
   /* ---- the organizations: profile, group, people, team, contract, purchases, products, cases ---- */
-  const organizations = await db('crm_party as party').join('crm_organization as organization', 'organization.party_id', 'party.party_id')
-    .where('party.party_status', 'ACTIVE').orderBy('party.party_pk').select('party.party_id', 'party.display_name');
+  const organizations = await db('crm_party as party').join('crm_organization as organization', 'organization.party_pk', 'party.party_pk')
+    .where('party.party_status', 'ACTIVE').orderBy('party.party_pk').select('party.party_pk', 'party.display_name');
   const profileOf = {
     'Harbor Electronics': { local_name: '海港电子贸易有限公司', employee_count_band: '201-1000', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
       description: 'Regional distributor and retailer of smartphones, set-top boxes and accessories, with eleven stores and an online shop. A Dream partner since 2018 and one of the largest resellers of Crystal phones in the east.' },
@@ -998,7 +997,7 @@ async function customer360Demo(context, attempt) {
   for (const organization of organizations) {
     if (!profileOf[organization.display_name]) continue;
     // eslint-disable-next-line no-await-in-loop
-    await attempt('organization profile', function () { return admin.put('/crm/parties/' + organization.party_id, profileOf[organization.display_name]); });
+    await attempt('organization profile', function () { return admin.put('/crm/parties/' + organization.party_pk, profileOf[organization.display_name]); });
   }
   const harbor = organizations.filter(function (row) { return row.display_name === 'Harbor Electronics'; })[0];
   const northwind = organizations.filter(function (row) { return row.display_name === 'Northwind Logistics'; })[0];
@@ -1021,10 +1020,10 @@ async function customer360Demo(context, attempt) {
       description: 'The group\'s web shop; resells Eshop accessories.', email: 'shop@harbor-online.example'
     }));
   });
-  if (holdings && harbor) await relate(harbor.party_id, holdings.party_id, 'PARENT_COMPANY', 'Wholly owned');
-  if (holdings && online) await relate(holdings.party_id, online.party_id, 'SUBSIDIARY', 'Wholly owned');
-  if (harbor && northwind) await relate(harbor.party_id, northwind.party_id, 'AFFILIATE', 'Shared logistics contract');
-  if (harbor && cityRepair) await relate(harbor.party_id, cityRepair.party_id, 'PARTNER', 'Repairs devices sold in Harbor stores');
+  if (holdings && harbor) await relate(harbor.party_pk, holdings.party_pk, 'PARENT_COMPANY', 'Wholly owned');
+  if (holdings && online) await relate(holdings.party_pk, online.party_pk, 'SUBSIDIARY', 'Wholly owned');
+  if (harbor && northwind) await relate(harbor.party_pk, northwind.party_pk, 'AFFILIATE', 'Shared logistics contract');
+  if (harbor && cityRepair) await relate(harbor.party_pk, cityRepair.party_pk, 'PARTNER', 'Repairs devices sold in Harbor stores');
   added.relationships = relationships;
 
   /* People who decide and buy for the organizations, with their titles. */
@@ -1045,11 +1044,11 @@ async function customer360Demo(context, attempt) {
     // eslint-disable-next-line no-await-in-loop
     const jobId = await jobTitleId(title);
     // eslint-disable-next-line no-await-in-loop
-    await attempt('contact title', function () { return admin.put('/crm/parties/' + person.party_id, { job_title_id: jobId }); });
+    await attempt('contact title', function () { return admin.put('/crm/parties/' + person.party_pk, { job_title_id: jobId }); });
     // eslint-disable-next-line no-await-in-loop
     if (await attempt('key contact', function () {
-      return admin.post('/crm/parties/' + organization.party_id + '/people', {
-        person_party_id: person.party_id, department_name: department, contact_role_ids: roles.map(roleId).filter(Boolean)
+      return admin.post('/crm/parties/' + organization.party_pk + '/people', {
+        person_party_pk: person.party_pk, department_name: department, contact_role_ids: roles.map(roleId).filter(Boolean)
       });
     })) linked += 1;
   }
@@ -1059,7 +1058,7 @@ async function customer360Demo(context, attempt) {
   let teams = 0;
   const assign = async function (party, role, username) {
     if (!party || !managerId(username)) return;
-    if (await attempt('team', function () { return admin.post('/crm/parties/' + party.party_id + '/team', { team_role: role, manager_id: managerId(username) }); })) teams += 1;
+    if (await attempt('team', function () { return admin.post('/crm/parties/' + party.party_pk + '/team', { team_role: role, manager_id: managerId(username) }); })) teams += 1;
   };
   for (const organization of [harbor, holdings, northwind, school, cityRepair]) {
     // eslint-disable-next-line no-await-in-loop
@@ -1071,7 +1070,7 @@ async function customer360Demo(context, attempt) {
   }
   for (const row of graded.slice(0, 3)) {
     // eslint-disable-next-line no-await-in-loop
-    await assign({ party_id: row.party_id }, 'ACCOUNT_MANAGER', 'ops');
+    await assign({ party_pk: row.party_pk }, 'ACCOUNT_MANAGER', 'ops');
   }
   added.teamMembers = teams;
 
@@ -1090,7 +1089,7 @@ async function customer360Demo(context, attempt) {
   for (const [party, body] of contracts) {
     if (!party) continue;
     // eslint-disable-next-line no-await-in-loop
-    if (await attempt('agreement', function () { return admin.post('/crm/parties/' + party.party_id + '/agreements', body); })) agreements += 1;
+    if (await attempt('agreement', function () { return admin.post('/crm/parties/' + party.party_pk + '/agreements', body); })) agreements += 1;
   }
   added.agreements = agreements;
 
@@ -1100,16 +1099,16 @@ async function customer360Demo(context, attempt) {
   let businessOrders = 0;
   for (const [party, count, size] of [[harbor, 26, 9000], [northwind, 8, 2400], [school, 6, 5200], [cityRepair, 10, 1500], [online, 5, 900]]) {
     if (!party) continue;
-    const buyer = await db('crm_party').where('party_id', party.party_id).first('party_id');
+    const buyer = await db('crm_party').where('party_pk', party.party_pk).first('party_pk');
     await db.transaction(async function (trx) {
       for (let order = 0; order < count; order += 1) {
         const daysBack = Math.round((order / count) * 700) + 3;
         // eslint-disable-next-line no-await-in-loop
         await transactionService.upsert(trx, {
-          project_id: projectId('ESHOP'), external_transaction_id: 'B2B-' + buyer.party_id + '-' + order, transaction_type_code: 'SALE',
+          project_id: projectId('ESHOP'), external_transaction_id: 'B2B-' + buyer.party_pk + '-' + order, transaction_type_code: 'SALE',
           transaction_status: order === 3 ? 'CANCELLED' : 'DELIVERED', currency_code: reporting.currency_code,
           net_amount: Math.round(size * (0.6 + random() * 0.8)), sales_channel_code: 'ESHOP', transaction_at: new Date(today.getTime() - daysBack * DAY).toISOString(),
-          parties: [{ party_id: party.party_id, party_role_code: 'BUYER' }]
+          parties: [{ party_pk: party.party_pk, party_role_code: 'BUYER' }]
         }, reporting.currency_code);
         businessOrders += 1;
       }
@@ -1121,15 +1120,15 @@ async function customer360Demo(context, attempt) {
   for (const [party, tagCodes] of [[harbor, ['KEY_ACCOUNT', 'STRATEGIC_ACCOUNT']], [holdings, ['STRATEGIC_ACCOUNT']],
     [northwind, ['KEY_ACCOUNT']], [school, ['PRICE_SENSITIVE']], [online, []], [cityRepair, []]]) {
     if (!party) continue;
-    const owner = await db('crm_party').where('party_id', party.party_id).first('party_id');
+    const owner = await db('crm_party').where('party_pk', party.party_pk).first('party_pk');
     await attempt('business account', function () {
-      return admin.post('/crm/parties/' + party.party_id + '/accounts', {
-        project_id: projectId('ESHOP'), external_account_id: 'B2B-' + owner.party_id, external_login: 'b2b-' + owner.party_id
+      return admin.post('/crm/parties/' + party.party_pk + '/accounts', {
+        project_id: projectId('ESHOP'), external_account_id: 'B2B-' + owner.party_pk, external_login: 'b2b-' + owner.party_pk
       });
     });
     for (const code of tagCodes) {
       // eslint-disable-next-line no-await-in-loop
-      await attempt('organization tag', function () { return admin.post('/crm/parties/' + party.party_id + '/tags', { tag_id: tagId(code) }); });
+      await attempt('organization tag', function () { return admin.post('/crm/parties/' + party.party_pk + '/tags', { tag_id: tagId(code) }); });
     }
   }
 
@@ -1143,7 +1142,7 @@ async function customer360Demo(context, attempt) {
       // eslint-disable-next-line no-await-in-loop
       if (await attempt('organization asset', function () {
         return admin.post('/crm/registrations', {
-          party_id: party.party_id, product_id: catalogue[unit % catalogue.length].product_id,
+          party_pk: party.party_pk, product_id: catalogue[unit % catalogue.length].product_id,
           serial_number: 'DEMO-' + prefix + '-' + String(1001 + unit), relationship_code: 'OWNER'
         });
       })) assets += 1;
@@ -1165,7 +1164,7 @@ async function customer360Demo(context, attempt) {
     // eslint-disable-next-line no-await-in-loop
     const created = await attempt('organization case', async function () {
       const serviceCase = data(await admin.post('/crm/cases', {
-        party_id: party.party_id, project_id: projectId('CRYSTAL'), case_type_id: caseType(typeCode), title: title,
+        party_pk: party.party_pk, project_id: projectId('CRYSTAL'), case_type_id: caseType(typeCode), title: title,
         reception_channel_code: 'PHONE', received_at: new Date(today.getTime() - (5 + organizationCases * 9) * DAY).toISOString()
       }));
       if (statusCode !== 'RECEIVED') await admin.put('/crm/cases/' + serviceCase.case_id, { service_status_id: statusId(statusCode) });
@@ -1191,13 +1190,13 @@ async function customer360Demo(context, attempt) {
   const callers = people.slice(0, 24).concat([harbor, school].filter(Boolean));
   for (let position = 0; position < callers.length; position += 1) {
     const caller = callers[position];
-    const cases = await db('crm_service_case').where('party_id', caller.party_id).orderBy('received_at', 'desc').limit(2).select('case_id');
+    const cases = await db('crm_service_case').where('party_pk', caller.party_pk).orderBy('received_at', 'desc').limit(2).select('case_id');
     const count = 1 + (position % 4);
     for (let call = 0; call < count; call += 1) {
       const script = scripts[(position + call * 3) % scripts.length];
       // eslint-disable-next-line no-await-in-loop
       if (await attempt('interaction', function () {
-        return agents[(position + call) % agents.length].post('/crm/parties/' + caller.party_id + '/interactions', {
+        return agents[(position + call) % agents.length].post('/crm/parties/' + caller.party_pk + '/interactions', {
           direction: 'INBOUND', channel_code: script[0], interaction_type: script[1], subject: script[2], outcome_code: script[3],
           body: 'Logged by the agent during the conversation.',
           case_id: script[1] === 'PRODUCT_SUPPORT' && cases[call % Math.max(1, cases.length)] ? cases[call % cases.length].case_id : null,
@@ -1211,7 +1210,7 @@ async function customer360Demo(context, attempt) {
   for (const person of people.slice(0, 6)) {
     // eslint-disable-next-line no-await-in-loop
     if (await attempt('message', function () {
-      return admin.post('/crm/parties/' + person.party_id + '/messages', {
+      return admin.post('/crm/parties/' + person.party_pk + '/messages', {
         project_id: projectId('CRYSTAL'), channel_id: channelId('SMS'), purpose_id: purposeId('SERVICE_NOTICE'),
         subject: 'Your device is ready', body: 'Your repaired device is ready for collection at the service centre.'
       });
@@ -1222,9 +1221,9 @@ async function customer360Demo(context, attempt) {
   /* ---- the channel each customer said they prefer, in the app ---- */
   const preferred = await db.raw(`
     UPDATE crm_party_communication_consent consent SET is_preferred = true
-      FROM (SELECT DISTINCT ON (party_id) party_communication_consent_id FROM crm_party_communication_consent
-             WHERE consent_status = 'GRANTED' ORDER BY party_id, party_communication_consent_id DESC) chosen
-     WHERE consent.party_communication_consent_id = chosen.party_communication_consent_id AND consent.party_id % 3 <> 0`);
+      FROM (SELECT DISTINCT ON (party_pk) party_communication_consent_id FROM crm_party_communication_consent
+             WHERE consent_status = 'GRANTED' ORDER BY party_pk, party_communication_consent_id DESC) chosen
+     WHERE consent.party_communication_consent_id = chosen.party_communication_consent_id AND consent.party_pk % 3 <> 0`);
   added.preferredChannels = preferred.rowCount;
 
   /* ---- notes and documents ---- */
@@ -1234,7 +1233,7 @@ async function customer360Demo(context, attempt) {
     ['Had a bad experience with the first repair; handle with care.', false]
   ];
   let notes = 0;
-  const noted = graded.slice(0, 10).map(function (row) { return row.party_id; }).concat([harbor, school, northwind].filter(Boolean).map(function (party) { return party.party_id; }));
+  const noted = graded.slice(0, 10).map(function (row) { return row.party_pk; }).concat([harbor, school, northwind].filter(Boolean).map(function (party) { return party.party_pk; }));
   for (let position = 0; position < noted.length; position += 1) {
     for (let note = 0; note < 1 + (position % 3); note += 1) {
       const text = noteTexts[(position + note) % noteTexts.length];
@@ -1252,13 +1251,13 @@ async function customer360Demo(context, attempt) {
   let files = 0;
   for (const [party, name, description] of [[harbor, 'enterprise-agreement-2025.pdf', 'Signed enterprise agreement'],
     [school, 'purchase-order-2024.pdf', 'Purchase order for 120 tablets'],
-    [graded[0] ? { party_id: graded[0].party_id } : null, 'warranty-card.pdf', 'Scanned warranty card']]) {
+    [graded[0] ? { party_pk: graded[0].party_pk } : null, 'warranty-card.pdf', 'Scanned warranty card']]) {
     if (!party) continue;
     const form = new FormData();
     form.append('file', pdf, { filename: name, contentType: 'application/pdf' });
     form.append('description', description);
     // eslint-disable-next-line no-await-in-loop
-    if (await attempt('file', function () { return admin.post('/crm/parties/' + party.party_id + '/files', form, { headers: form.getHeaders() }); })) files += 1;
+    if (await attempt('file', function () { return admin.post('/crm/parties/' + party.party_pk + '/files', form, { headers: form.getHeaders() }); })) files += 1;
   }
   added.files = files;
 

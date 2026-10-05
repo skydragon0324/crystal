@@ -87,6 +87,16 @@ function amountOf(foreign, native, ctx) {
 /* ------------------------------------------------------------ the Eshop */
 
 async function eshopMember(connection, ctx, member, keys, result) {
+  const resolved = await connection.transaction(trx => identity.resolveAccount(trx, {
+      project_id: ctx.project.ESHOP,
+      external_account_id: keys.eshop_pk,
+      external_login: keys.eshop_id,
+      external_account_type: 'ESHOP_CUSTOMER',
+      known_party_pk: member.party_pk
+  }));
+    if (!resolved.party_pk) { result.pending = (result.pending || 0) + 1; return; }
+    if (resolved.outcome !== 'EXISTING') result.accounts += 1;
+
   const card = await eshopApi.cardInfo(keys.eshop_pk);
   const orders = await eshopApi.orders(keys.eshop_pk, 0, ORDER_PAGE);
   const details = {};
@@ -96,19 +106,10 @@ async function eshopMember(connection, ctx, member, keys, result) {
   }
 
   await connection.transaction(async function (trx) {
-    const resolved = await identity.resolveAccount(trx, {
-      project_id: ctx.project.ESHOP,
-      external_account_id: keys.eshop_pk,
-      external_login: keys.eshop_id,
-      external_account_type: 'ESHOP_CUSTOMER',
-      known_party_id: member.party_id
-    });
-    if (resolved.outcome !== 'EXISTING') result.accounts += 1;
-
     /* the membership, and the card level as its tier */
     if (card) {
       const tierId = ctx.tierBySource[String(card.card_level)] || null;
-      const current = await trx('crm_membership').where({ party_id: member.party_id, project_id: ctx.project.ESHOP }).first();
+      const current = await trx('crm_membership').where({ party_pk: resolved.party_pk, project_id: ctx.project.ESHOP }).first();
       const values = {
         external_member_id: card.vip_no || card.customer_no || String(keys.eshop_pk),
         current_tier_id: tierId,
@@ -129,7 +130,7 @@ async function eshopMember(connection, ctx, member, keys, result) {
         }
       } else {
         const rows = await trx('crm_membership').insert(Object.assign({
-          party_id: member.party_id, project_id: ctx.project.ESHOP, joined_at: member.first_seen_at
+          party_pk: resolved.party_pk, project_id: ctx.project.ESHOP, joined_at: member.first_seen_at
         }, values)).returning('membership_id');
         const membershipId = typeof rows[0] === 'object' ? rows[0].membership_id : rows[0];
         if (tierId) {
@@ -170,7 +171,7 @@ async function eshopMember(connection, ctx, member, keys, result) {
         points_used: tender.POINT || null,
         sales_channel_code: 'ESHOP',
         transaction_at: order.at,
-        parties: [{ party_id: member.party_id, party_role_code: 'BUYER' }],
+        parties: [{ party_pk: resolved.party_pk, party_role_code: 'BUYER' }],
         items: items
       }, amount), ctx.reporting);
       if (sale.created) result.transactions += 1;
@@ -188,7 +189,7 @@ async function eshopMember(connection, ctx, member, keys, result) {
           reporting_net_amount: amount.reporting_net_amount === null ? null : -amount.reporting_net_amount,
           sales_channel_code: 'ESHOP',
           transaction_at: order.at,
-          parties: [{ party_id: member.party_id, party_role_code: 'BUYER' }]
+          parties: [{ party_pk: resolved.party_pk, party_role_code: 'BUYER' }]
         }, ctx.reporting);
         if (refund.created) result.transactions += 1;
       }
@@ -208,8 +209,9 @@ async function appstoreMember(connection, ctx, member, keys, result) {
       project_id: ctx.project.APPSTORE,
       external_account_id: keys.appstore_customer_id,
       external_account_type: 'APPSTORE_CUSTOMER',
-      known_party_id: member.party_id
+      known_party_pk: member.party_pk
     });
+    if (!resolved.party_pk) { result.pending = (result.pending || 0) + 1; return; }
     if (resolved.outcome !== 'EXISTING') result.accounts += 1;
 
     for (let index = 0; index < (purchases.rows || []).length; index += 1) {
@@ -239,7 +241,7 @@ async function appstoreMember(connection, ctx, member, keys, result) {
         if (!held && purchase.licence_state !== 'REFUND') {
           // eslint-disable-next-line no-await-in-loop
           await trx('crm_product_registration').insert({
-            party_id: member.party_id, product_instance_id: instanceId,
+            party_pk: resolved.party_pk, product_instance_id: instanceId,
             relationship_type_id: ctx.relationship.LICENSEE, relationship_code: 'LICENSEE',
             project_id: ctx.project.APPSTORE, registration_channel: 'APP',
             acquisition_type_id: ctx.acquisition.PURCHASED || null,
@@ -259,7 +261,7 @@ async function appstoreMember(connection, ctx, member, keys, result) {
         points_used: purchase.currency === 'IMMATERIAL' ? purchase.price : null,
         sales_channel_code: 'APPSTORE',
         transaction_at: purchase.at,
-        parties: [{ party_id: member.party_id, party_role_code: 'BUYER' }],
+        parties: [{ party_pk: resolved.party_pk, party_role_code: 'BUYER' }],
         items: [{ product_id: productId, product_instance_id: instanceId, external_item_id: purchase.id, quantity: 1, net_amount: paid.net_amount }]
       }, paid), ctx.reporting);
       if (sale.created) result.transactions += 1;
@@ -277,7 +279,7 @@ async function appstoreMember(connection, ctx, member, keys, result) {
           reporting_net_amount: paid.reporting_net_amount === null ? null : -paid.reporting_net_amount,
           sales_channel_code: 'APPSTORE',
           transaction_at: purchase.at,
-          parties: [{ party_id: member.party_id, party_role_code: 'BUYER' }]
+          parties: [{ party_pk: resolved.party_pk, party_role_code: 'BUYER' }]
         }, ctx.reporting);
       }
     }
@@ -297,10 +299,10 @@ async function run(options) {
   const ctx = await context(connection);
   if (!ctx.project.ESHOP || !ctx.project.APPSTORE) throw new Error('the ESHOP or APPSTORE project is missing from crm_project');
 
-  const members = await connection('crm_project_account as account').join('crm_party as party', 'party.party_id', 'account.party_id')
+  const members = await connection('crm_project_account as account').join('crm_party as party', 'party.party_pk', 'account.party_pk')
     .join('users as crystal_user', 'crystal_user.id', 'account.crystal_user_id')
     .where('account.project_id', ctx.project.CRYSTAL).whereNull('account.unlinked_at').whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
-    .select('account.party_id', 'account.crystal_user_id', 'party.first_seen_at', 'crystal_user.login', 'crystal_user.email');
+    .select('account.party_pk', 'account.crystal_user_id', 'party.first_seen_at', 'crystal_user.login', 'crystal_user.email');
 
   const result = { members: members.length, accounts: 0, memberships: 0, tier_changes: 0, transactions: 0, entitlements: 0, unavailable: 0, not_on_platform: 0 };
 
@@ -322,7 +324,7 @@ async function run(options) {
       // eslint-disable-next-line no-await-in-loop
       if (keys.appstore_customer_id) await appstoreMember(connection, ctx, member, keys, result);
     } catch (err) {
-      console.warn('[crm] vendor import for party ' + member.party_id + ' failed - ' + err.message);
+      console.warn('[crm] vendor import for party ' + member.party_pk + ' failed - ' + err.message);
       result.unavailable += 1;
     }
   }

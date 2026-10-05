@@ -99,37 +99,29 @@ async function main() {
   const mobile = '+86 139 ' + String(Date.now()).slice(-8);
   const personAda = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile }));
 
-  await check('a person who looks like an existing customer is not created without confirmation', async function () {
-    try {
-      await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada (dup)', mobile: mobile.replace(/ /g, '') });
-      return 'created';
-    } catch (err) {
-      const body = err.response && err.response.data;
-      if (!err.response || err.response.status !== 409) return 'status ' + (err.response && err.response.status);
-      const similar = (body && body.detail) || [];
-      return similar.some(function (row) { return row.party_id === personAda.party_id && row.rule_code === 'SAME_MOBILE'; })
-        ? true : 'look-alike not named';
-    }
+  let review;
+  await check('a 65-point match is staged without creating a party', async function () {
+    review = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile.replace(/ /g, ''), confirm_not_duplicate: true }));
+    return review.outcome === 'QUEUED' && !review.party_pk && !!review.intake_id;
   });
-  const personAdaDuplicate = data(await admin.post('/crm/parties', {
-    party_type: 'PERSON', full_name: RUN + ' Ada (dup)', mobile: mobile.replace(/ /g, ''), confirm_not_duplicate: true
-  }));
+  // Explicit reviewed registration creates a second record for the legacy merge test below.
+  const personAdaDuplicate = data(await admin.post('/crm/registrations/' + review.intake_id + '/decide', { action: 'NEW' }));
   const personBo = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Bo', email: RUN.toLowerCase() + '@example.com' }));
 
   await check('a person is given a job from the job list and marked as checked by hand', async function () {
     const meta = data(await admin.get('/crm/meta'));
     const teacher = (meta.job_titles || []).filter(function (job) { return job.job_code === 'TEACHER'; })[0];
     if (!teacher) return 'no TEACHER on the job list';
-    await admin.put('/crm/parties/' + personBo.party_id, { job_title_id: teacher.job_title_id, birth_date: '1990-02-14' });
-    await admin.post('/crm/parties/' + personBo.party_id + '/checked', { is_checked_manually: true });
-    const record = data(await admin.get('/crm/parties/' + personBo.party_id));
+    await admin.put('/crm/parties/' + personBo.party_pk, { job_title_id: teacher.job_title_id, birth_date: '1990-02-14' });
+    await admin.post('/crm/parties/' + personBo.party_pk + '/checked', { is_checked_manually: true });
+    const record = data(await admin.get('/crm/parties/' + personBo.party_pk));
     const person = record.person || {};
     if (person.job_title_name !== teacher.job_name) return 'job ' + person.job_title_name;
     if (person.birth_year !== 1990) return 'birth year ' + person.birth_year;
     return person.is_checked_manually === true ? true : 'not checked';
   });
 
-  await check('an Excel sheet of people is previewed, then loaded, skipping the duplicates', async function () {
+  await check('an Excel sheet checks matching rows and stages uncertain matches', async function () {
     const ExcelJS = require('exceljs');
     const FormData = require('form-data');
     const book = new ExcelJS.Workbook();
@@ -141,8 +133,8 @@ async function main() {
     const placeId = (lists.areas || []).length ? lists.areas[0].location_pk : '';
     const jobId = (lists.job_titles || []).filter(function (job) { return job.is_active; })[0].job_title_id;
     sheet.addRow([RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, jobId, '1 Test Road', '']);
-    sheet.addRow([RUN + ' Sheet Two', 'M', '1985-01-20', mobile, placeId, jobId, '', '']);
-    sheet.addRow([RUN + ' Sheet Three', 'F', '1992-06-01', fresh.replace(/ /g, ''), '', '', '', '']);
+    sheet.addRow([RUN + ' Ada', 'M', '1985-01-20', mobile, placeId, jobId, '', '']);
+    sheet.addRow([RUN + ' Sheet One', 'F', '1992-06-01', fresh.replace(/ /g, ''), '', '', '', '']);
     const buffer = await book.xlsx.writeBuffer();
     const send = function (dryRun) {
       const form = new FormData();
@@ -152,43 +144,25 @@ async function main() {
 
     const preview = data(await send(true));
     const statuses = preview.rows.map(function (row) { return row.status; }).join(',');
-    if (statuses !== 'NEW,DUPLICATE,DUPLICATE') return 'preview ' + statuses;
+    if (statuses !== 'NEW,REVIEW,DUPLICATE') return 'preview ' + statuses;
 
     const done = data(await send(false));
-    if (done.summary.created !== 1 || done.summary.duplicate !== 2) return 'import ' + JSON.stringify(done.summary);
+    if (done.summary.created !== 1 || done.summary.duplicate !== 1 || done.summary.review !== 1) return 'import ' + JSON.stringify(done.summary);
     const found = data(await admin.get('/crm/parties', { params: { q: RUN + ' Sheet One' } }));
     return found.rows.length === 1 ? true : 'created row not found';
   });
 
-  await check('a User ID in the sheet becomes the party_id; on file already it is a duplicate, twice in a sheet an error', async function () {
+  await check('an imported source User ID is retained without becoming a party key', async function () {
     const ExcelJS = require('exceljs');
     const FormData = require('form-data');
-    const userId = 'CHK-' + RUN;
-    const sheetOf = function (rows) {
-      const book = new ExcelJS.Workbook();
-      const sheet = book.addWorksheet('Customers');
-      sheet.addRow(['User ID', 'Full name *', 'Mobile *']);
-      rows.forEach(function (row) { sheet.addRow(row); });
-      return book.xlsx.writeBuffer();
-    };
-    const send = async function (rows, dryRun) {
-      const form = new FormData();
-      form.append('file', Buffer.from(await sheetOf(rows)), { filename: 'ids.xlsx' });
-      return data(await admin.post('/crm/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: form.getHeaders() }));
-    };
-    const freshMobile = function (offset) { return '+86 136 ' + String(Date.now() + offset).slice(-8); };
-
-    const done = await send([[userId, RUN + ' Id Person', freshMobile(11)]], false);
-    if (done.summary.created !== 1) return 'import ' + JSON.stringify(done.summary);
-    const record = data(await admin.get('/crm/parties/' + userId));
-    if (record.party.party_id !== userId) return 'party_id ' + record.party.party_id;
-
-    const again = await send([[userId, 'Someone Else', freshMobile(12)]], true);
-    if (again.rows[0].status !== 'DUPLICATE' || again.rows[0].similar[0].rule_code !== 'SAME_USER_ID') return 'again ' + JSON.stringify(again.rows[0]);
-
-    const twice = await send([['CHK2-' + RUN, 'Twin One', freshMobile(13)], ['CHK2-' + RUN, 'Twin Two', freshMobile(14)]], true);
-    const statuses = twice.rows.map(function (row) { return row.status; }).join(',');
-    return statuses === 'NEW,ERROR' ? true : 'twice ' + statuses;
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Customers');
+    sheet.addRow(['User ID', 'Full name *', 'Mobile *']);
+    sheet.addRow(['SOURCE-' + RUN, RUN + ' Source Person', '+86136' + String(Date.now()).slice(-8)]);
+    const form = new FormData();
+    form.append('file', Buffer.from(await book.xlsx.writeBuffer()), { filename: 'source.xlsx' });
+    const result = data(await admin.post('/crm/parties/import', form, { headers: form.getHeaders() }));
+    return /^[1-9][0-9]*$/.test(result.rows[0].party_pk) && result.rows[0].values.source_user_id === 'SOURCE-' + RUN;
   });
 
   /* What the forms may not save: each refusal is a 400 naming the field. */
@@ -209,16 +183,16 @@ async function main() {
     return refusedField(admin.post('/crm/parties', { party_type: 'PERSON', display_name: RUN + ' Bad Mobile', mobile: 'call me' }), 'mobile');
   });
   await check('a birthday in the future is refused', function () {
-    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { birth_date: '2999-01-01' }), 'birth_date');
+    return refusedField(admin.put('/crm/parties/' + personBo.party_pk, { birth_date: '2999-01-01' }), 'birth_date');
   });
   await check('a job title that is not on the job list is refused', function () {
-    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { job_title_id: 999999 }), 'job_title_id');
+    return refusedField(admin.put('/crm/parties/' + personBo.party_pk, { job_title_id: 999999 }), 'job_title_id');
   });
   await check('a location that is not on the location list is refused', function () {
-    return refusedField(admin.put('/crm/parties/' + personBo.party_id, { home_location_pk: 987654321 }), 'home_location_pk');
+    return refusedField(admin.put('/crm/parties/' + personBo.party_pk, { home_location_pk: 987654321 }), 'home_location_pk');
   });
   await check('an email contact that is not an email is refused', function () {
-    return refusedField(admin.post('/crm/parties/' + personBo.party_id + '/contacts', { contact_type: 'EMAIL', contact_value: 'not-an-email' }), 'contact_value');
+    return refusedField(admin.post('/crm/parties/' + personBo.party_pk + '/contacts', { contact_type: 'EMAIL', contact_value: 'not-an-email' }), 'contact_value');
   });
 
   await check('a sheet with a bad row is refused as a whole, every bad row listed', async function () {
@@ -240,25 +214,24 @@ async function main() {
     }
   });
 
-  await check('a new customer gets a 12-character party_id, and its internal number is not sent', function () {
-    const generated = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{12}$/.test(personAda.party_id);
-    return generated && personAda.party_pk === undefined && personAda.party_no === undefined ? true : 'party ' + JSON.stringify(personAda);
+  await check('a new customer exposes its numeric party_pk', function () {
+    return /^[1-9][0-9]*$/.test(personAda.party_pk) && personAda.party_id === undefined;
   });
   await check('a phone typed with spaces is found typed without', async function () {
     const found = data(await admin.get('/crm/parties', { params: { q: mobile.replace(/\D/g, '').slice(-8) } }));
-    return found.rows.some(function (row) { return row.party_id === personAda.party_id; }) ? true : 'not found';
+    return found.rows.some(function (row) { return row.party_pk === personAda.party_pk; }) ? true : 'not found';
   });
-  await check('the duplicate scan queues the two parties sharing a mobile', async function () {
+  await check('the duplicate scan queues the reviewed 65-point pair', async function () {
     await admin.post('/crm/duplicates/scan');
     const queue = data(await admin.get('/crm/duplicates', { params: { limit: 200 } }));
-    const hit = queue.rows.filter(function (row) { return row.incoming_party_id === personAdaDuplicate.party_id && row.candidate_party_id === personAda.party_id; })[0];
+    const hit = queue.rows.filter(function (row) { return row.incoming_party_pk === personAdaDuplicate.party_pk && row.candidate_party_pk === personAda.party_pk; })[0];
     if (!hit) return 'not queued';
     await admin.post('/crm/duplicates/' + hit.match_candidate_id + '/accept');
-    const merged = data(await admin.get('/crm/parties/' + personAdaDuplicate.party_id));
-    return merged.party.party_status === 'MERGED' && merged.party.merged_into_party_id === personAda.party_id ? true : 'not merged';
+    const merged = data(await admin.get('/crm/parties/' + personAdaDuplicate.party_pk));
+    return merged.party.party_status === 'MERGED' && merged.party.merged_into_party_pk === personAda.party_pk ? true : 'not merged';
   });
   await check('a consent change needs a reason', function () {
-    return refused(admin.put('/crm/parties/' + personAda.party_id + '/consents', { project_communication_option_id: 1, consent_status: 'GRANTED' }), 400);
+    return refused(admin.put('/crm/parties/' + personAda.party_pk + '/consents', { project_communication_option_id: 1, consent_status: 'GRANTED' }), 400);
   });
 
   console.log('\nproducts, registrations and transfers');
@@ -276,34 +249,34 @@ async function main() {
 
   await check('registering pays the rule that covers the product', async function () {
     registration = data(await admin.post('/crm/registrations', {
-      party_id: personAda.party_id, product_id: product.product_id, serial_number: serial, relationship_code: 'OWNER'
+      party_pk: personAda.party_pk, product_id: product.product_id, serial_number: serial, relationship_code: 'OWNER'
     }));
     return registration.point_event && Number(registration.point_event.points_delta) === 100 ? true : 'no points';
   });
   await check('a second owner is refused, naming the first', async function () {
     try {
       await admin.post('/crm/registrations', {
-        party_id: personBo.party_id, product_instance_id: registration.instance.product_instance_id, relationship_code: 'OWNER'
+        party_pk: personBo.party_pk, product_instance_id: registration.instance.product_instance_id, relationship_code: 'OWNER'
       });
       return 'accepted';
     } catch (err) {
-      return err.response.status === 409 && err.response.data.message.indexOf(personAda.party_id) !== -1 ? true : err.response.data.message;
+      return err.response.status === 409 && err.response.data.message.indexOf(personAda.party_pk) !== -1 ? true : err.response.data.message;
     }
   });
   await check('an ownership transfer ends one registration and starts the next', async function () {
     const transfer = data(await admin.post('/crm/transfers', {
-      product_instance_id: registration.instance.product_instance_id, transfer_kind: 'OWNERSHIP_TRANSFER', to_party_id: personBo.party_id
+      product_instance_id: registration.instance.product_instance_id, transfer_kind: 'OWNERSHIP_TRANSFER', to_party_pk: personBo.party_pk
     }));
-    if (transfer.from_party_id !== personAda.party_id) return 'from was not worked out';
+    if (transfer.from_party_pk !== personAda.party_pk) return 'from was not worked out';
     const done = data(await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' }));
     const history = data(await admin.get('/crm/instances/' + registration.instance.product_instance_id));
     const current = history.registrations.filter(function (row) { return !row.valid_to; });
-    return done.closed_registration_id && done.created_registration_id && current.length === 1 && current[0].party_id === personBo.party_id
-      ? true : 'holders ' + JSON.stringify(current.map(function (row) { return row.party_id; }));
+    return done.closed_registration_id && done.created_registration_id && current.length === 1 && current[0].party_pk === personBo.party_pk
+      ? true : 'holders ' + JSON.stringify(current.map(function (row) { return row.party_pk; }));
   });
   await check('assigning a user keeps the owner', async function () {
     const transfer = data(await admin.post('/crm/transfers', {
-      product_instance_id: registration.instance.product_instance_id, transfer_kind: 'ASSIGN_USER', to_party_id: personAda.party_id
+      product_instance_id: registration.instance.product_instance_id, transfer_kind: 'ASSIGN_USER', to_party_pk: personAda.party_pk
     }));
     await admin.post('/crm/transfers/' + transfer.product_transfer_id + '/status', { status: 'COMPLETED' });
     const history = data(await admin.get('/crm/instances/' + registration.instance.product_instance_id));
@@ -318,7 +291,7 @@ async function main() {
     const owner = data(await admin.get('/crm/registrations', { params: { q: serial, current: 1 } })).rows[0];
     await admin.post('/crm/registrations/' + owner.product_registration_id + '/end', { end_reason_code: 'RETURNED' });
     const again = data(await admin.post('/crm/registrations', {
-      party_id: personAda.party_id, product_instance_id: registration.instance.product_instance_id, relationship_code: 'OWNER'
+      party_pk: personAda.party_pk, product_instance_id: registration.instance.product_instance_id, relationship_code: 'OWNER'
     }));
     return again.point_event === null ? true : 'paid again';
   });
@@ -326,17 +299,17 @@ async function main() {
   console.log('\npoints');
   await check('a debit larger than the balance is refused', function () {
     return refused(admin.post('/crm/point-adjustments', {
-      party_id: personAda.party_id, point_type_id: activityPoints.point_type_id, points_delta: -999999, description: 'check'
+      party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id, points_delta: -999999, description: 'check'
     }), 409);
   });
   await check('an adjustment needs a reason', function () {
     return refused(admin.post('/crm/point-adjustments', {
-      party_id: personAda.party_id, point_type_id: activityPoints.point_type_id, points_delta: 5
+      party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id, points_delta: 5
     }), 400);
   });
   await check('an adjustment moves the balance and the ledger together', async function () {
     await admin.post('/crm/point-adjustments', {
-      party_id: personAda.party_id, point_type_id: activityPoints.point_type_id, points_delta: 50, description: RUN
+      party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id, points_delta: 50, description: RUN
     });
     const drift = data(await admin.get('/crm/point-drift'));
     return drift.length === 0 ? true : drift.length + ' accounts drifted';
@@ -361,46 +334,46 @@ async function main() {
     return approved.status === 'APPROVED' ? true : approved.status;
   });
 
-  await admin.post('/crm/programs/' + pid + '/targets', { party_id: personAda.party_id, allowed_count: 1 });
-  await admin.post('/crm/programs/' + pid + '/targets', { party_id: personBo.party_id, allowed_count: 3 });
+  await admin.post('/crm/programs/' + pid + '/targets', { party_pk: personAda.party_pk, allowed_count: 1 });
+  await admin.post('/crm/programs/' + pid + '/targets', { party_pk: personBo.party_pk, allowed_count: 3 });
   await admin.post('/crm/programs/' + pid + '/quotas', { entry_type: 'NORMAL', quota_count: 2 });
   await admin.post('/crm/programs/' + pid + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
   await admin.post('/crm/point-adjustments', {
-    party_id: personBo.party_id, point_type_id: activityPoints.point_type_id, points_delta: 200, description: RUN
+    party_pk: personBo.party_pk, point_type_id: activityPoints.point_type_id, points_delta: 200, description: RUN
   });
   await admin.post('/crm/programs/' + pid + '/status', { status: 'TARGETS_FROZEN' });
   await admin.post('/crm/programs/' + pid + '/status', { status: 'OPEN' });
 
   await check('a frozen list takes no new targets', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/targets', { party_id: personAdaDuplicate.party_id }), 409);
+    return refused(admin.post('/crm/programs/' + pid + '/targets', { party_pk: personAdaDuplicate.party_pk }), 409);
   });
 
   let first;
   await check('an entry is numbered and costs its points', async function () {
-    const before = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
+    const before = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     first = data(await admin.post('/crm/programs/' + pid + '/reservations', {
-      party_id: personAda.party_id, holder_id_card: 'ID-' + RUN + '-A', service_center_id: site.service_center_id
+      party_pk: personAda.party_pk, holder_id_card: 'ID-' + RUN + '-A', service_center_id: site.service_center_id
     }));
-    const after = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
+    const after = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     return first.reservation_code === RUN.slice(-7) + '-0001' && Number(before.balance) - Number(after.balance) === 30
       ? true : first.reservation_code + ' / ' + before.balance + ' -> ' + after.balance;
   });
   await check('a target with no entries left is refused', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_id: personAda.party_id }), 409);
+    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personAda.party_pk }), 409);
   });
   await check('one ID card, one entry', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_id: personBo.party_id, holder_id_card: 'id-' + RUN + '-a' }), 409);
+    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'id-' + RUN + '-a' }), 409);
   });
   await check('the quota cannot be overbooked', async function () {
-    await admin.post('/crm/programs/' + pid + '/reservations', { party_id: personBo.party_id, holder_id_card: 'ID-' + RUN + '-B' });
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_id: personBo.party_id, holder_id_card: 'ID-' + RUN + '-C' }), 409);
+    await admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-B' });
+    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }), 409);
   });
   await check('cancelling gives back the entry, the quota and the points', async function () {
-    const before = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
+    const before = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     await admin.post('/crm/reservations/' + first.reservation_id + '/status', { status: 'CANCELLED', note: 'check' });
-    const after = data(await admin.get('/crm/point-accounts', { params: { party_id: personAda.party_id, point_type_id: activityPoints.point_type_id } })).rows[0];
+    const after = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     if (Number(after.balance) - Number(before.balance) !== 30) return 'no refund';
-    const third = data(await admin.post('/crm/programs/' + pid + '/reservations', { party_id: personBo.party_id, holder_id_card: 'ID-' + RUN + '-C' }));
+    const third = data(await admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }));
     return third.reservation_no === 3 ? true : 'number ' + third.reservation_no;
   });
   await check('collecting an entry at a site is recorded as site activity', async function () {
@@ -414,9 +387,9 @@ async function main() {
     const reward = data(await admin.post('/crm/programs/' + pid + '/rewards', {
       reward_name: RUN + ' bonus', reward_type: 'POINTS', point_type_id: activityPoints.point_type_id, points: 10, quantity_total: 1
     }));
-    const awarded = data(await admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_id: personAda.party_id }));
+    const awarded = data(await admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personAda.party_pk }));
     if (awarded.status !== 'CREDITED' || !awarded.point_event_id) return 'not credited';
-    return refused(admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_id: personBo.party_id }), 409);
+    return refused(admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personBo.party_pk }), 409);
   });
   await check('a program with open entries cannot be marked fulfilled', async function () {
     await admin.post('/crm/programs/' + pid + '/status', { status: 'CLOSED' });
@@ -435,7 +408,7 @@ async function main() {
   await check('once it is, the centre manager can record it', async function () {
     await admin.post('/crm/sites/' + bare.service_center_id + '/capabilities', { capability_code: 'DEVICE_SALE' });
     const row = data(await branch.post('/crm/site-activities', {
-      service_center_id: bare.service_center_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99, party_id: personAda.party_id
+      service_center_id: bare.service_center_id, activity_type_id: types.DEVICE_SALE.activity_type_id, amount: 99, party_pk: personAda.party_pk
     }));
     return row.service_center_activity_id && Number(row.amount) === 99 ? true : 'not recorded';
   });
@@ -466,7 +439,7 @@ async function main() {
     const complaint = byCode('case_types', 'case_type_code', 'COMPLAINT');
     const closed = byCode('service_statuses', 'status_code', 'CLOSED');
     const createdCase = data(await admin.post('/crm/cases', {
-      party_id: personAda.party_id, project_id: crystal.project_id, case_type_id: complaint.case_type_id, title: RUN
+      party_pk: personAda.party_pk, project_id: crystal.project_id, case_type_id: complaint.case_type_id, title: RUN
     }));
     const done = data(await admin.put('/crm/cases/' + createdCase.case_id, { service_status_id: closed.service_status_id }));
     return done.closed_at ? true : 'no closed_at';
@@ -511,7 +484,7 @@ async function main() {
     if (eligibleIds.some(function (consentId) { return !consentId; })) return 'an eligible recipient has no consent';
     const consents = eligibleIds.length
       ? await Promise.all(eligibleIds.map(function (consentId) {
-        return admin.get('/crm/parties/' + recipients.filter(function (recipient) { return recipient.party_communication_consent_id === consentId; })[0].party_id)
+        return admin.get('/crm/parties/' + recipients.filter(function (recipient) { return recipient.party_communication_consent_id === consentId; })[0].party_pk)
           .then(function (response) {
             return data(response).consents.filter(function (consent) { return consent.party_communication_consent_id === consentId; })[0];
           });
@@ -582,39 +555,39 @@ async function main() {
   const parentOrg = data(await admin.post('/crm/parties', { party_type: 'ORGANIZATION', legal_name: RUN + ' Group', trading_name: RUN + ' Group' }));
   const childOrg = data(await admin.post('/crm/parties', { party_type: 'ORGANIZATION', legal_name: RUN + ' Shop', trading_name: RUN + ' Shop' }));
   await check('the record\'s figures answer for a person and an organization', async function () {
-    const personView = data(await admin.get('/crm/parties/' + personAda.party_id + '/360'));
-    const orgView = data(await admin.get('/crm/parties/' + childOrg.party_id + '/360'));
+    const personView = data(await admin.get('/crm/parties/' + personAda.party_pk + '/360'));
+    const orgView = data(await admin.get('/crm/parties/' + childOrg.party_pk + '/360'));
     return personView.header && personView.reach && Array.isArray(personView.accounts) && orgView.hierarchy && Array.isArray(orgView.key_contacts)
       ? true : 'incomplete';
   });
   await check('a relationship reads from both ends', async function () {
-    await admin.post('/crm/parties/' + personAda.party_id + '/relationships', { related_party_id: personBo.party_id, relationship_type_code: 'PARENT' });
-    const fromBo = data(await admin.get('/crm/parties/' + personBo.party_id + '/360')).relationships;
-    return fromBo.some(function (row) { return row.other_party_id === personAda.party_id && row.type_code === 'CHILD'; }) ? true : JSON.stringify(fromBo);
+    await admin.post('/crm/parties/' + personAda.party_pk + '/relationships', { related_party_pk: personBo.party_pk, relationship_type_code: 'PARENT' });
+    const fromBo = data(await admin.get('/crm/parties/' + personBo.party_pk + '/360')).relationships;
+    return fromBo.some(function (row) { return row.other_party_pk === personAda.party_pk && row.type_code === 'CHILD'; }) ? true : JSON.stringify(fromBo);
   });
   await check('a person relationship cannot join an organization', function () {
-    return refused(admin.post('/crm/parties/' + personAda.party_id + '/relationships', { related_party_id: childOrg.party_id, relationship_type_code: 'SPOUSE' }), 409);
+    return refused(admin.post('/crm/parties/' + personAda.party_pk + '/relationships', { related_party_pk: childOrg.party_pk, relationship_type_code: 'SPOUSE' }), 409);
   });
   await check('a company cannot become its own ancestor', async function () {
-    await admin.post('/crm/parties/' + childOrg.party_id + '/relationships', { related_party_id: parentOrg.party_id, relationship_type_code: 'PARENT_COMPANY' });
-    const tree = data(await admin.get('/crm/parties/' + childOrg.party_id + '/360')).hierarchy;
-    if (String(tree.root_party_id) !== String(parentOrg.party_id)) return 'the group root is ' + tree.root_party_id;
-    return refused(admin.post('/crm/parties/' + parentOrg.party_id + '/relationships', { related_party_id: childOrg.party_id, relationship_type_code: 'PARENT_COMPANY' }), 409);
+    await admin.post('/crm/parties/' + childOrg.party_pk + '/relationships', { related_party_pk: parentOrg.party_pk, relationship_type_code: 'PARENT_COMPANY' });
+    const tree = data(await admin.get('/crm/parties/' + childOrg.party_pk + '/360')).hierarchy;
+    if (String(tree.root_party_pk) !== String(parentOrg.party_pk)) return 'the group root is ' + tree.root_party_pk;
+    return refused(admin.post('/crm/parties/' + parentOrg.party_pk + '/relationships', { related_party_pk: childOrg.party_pk, relationship_type_code: 'PARENT_COMPANY' }), 409);
   });
   await check('a tag is put on and taken off', async function () {
     const tag = (meta.tags || [])[0] || data(await admin.get('/crm/meta')).tags[0];
-    await admin.post('/crm/parties/' + personAda.party_id + '/tags', { tag_id: tag.tag_id });
-    const on = data(await admin.get('/crm/parties/' + personAda.party_id + '/360')).tags.some(function (row) { return row.tag_id === tag.tag_id; });
-    await admin.delete('/crm/parties/' + personAda.party_id + '/tags/' + tag.tag_id);
-    const off = !data(await admin.get('/crm/parties/' + personAda.party_id + '/360')).tags.some(function (row) { return row.tag_id === tag.tag_id; });
+    await admin.post('/crm/parties/' + personAda.party_pk + '/tags', { tag_id: tag.tag_id });
+    const on = data(await admin.get('/crm/parties/' + personAda.party_pk + '/360')).tags.some(function (row) { return row.tag_id === tag.tag_id; });
+    await admin.delete('/crm/parties/' + personAda.party_pk + '/tags/' + tag.tag_id);
+    const off = !data(await admin.get('/crm/parties/' + personAda.party_pk + '/360')).tags.some(function (row) { return row.tag_id === tag.tag_id; });
     return on && off ? true : 'on ' + on + ', off ' + off;
   });
   await check('a note is written, pinned and removed', async function () {
-    const note = data(await admin.post('/crm/parties/' + personAda.party_id + '/notes', { note_text: RUN + ' note' }));
-    await admin.put('/crm/parties/' + personAda.party_id + '/notes/' + note.note_id, { is_pinned: true });
-    const pinned = data(await admin.get('/crm/parties/' + personAda.party_id + '/notes')).rows[0];
-    await admin.delete('/crm/parties/' + personAda.party_id + '/notes/' + note.note_id);
-    const left = data(await admin.get('/crm/parties/' + personAda.party_id + '/notes')).rows.filter(function (row) { return row.note_id === note.note_id; });
+    const note = data(await admin.post('/crm/parties/' + personAda.party_pk + '/notes', { note_text: RUN + ' note' }));
+    await admin.put('/crm/parties/' + personAda.party_pk + '/notes/' + note.note_id, { is_pinned: true });
+    const pinned = data(await admin.get('/crm/parties/' + personAda.party_pk + '/notes')).rows[0];
+    await admin.delete('/crm/parties/' + personAda.party_pk + '/notes/' + note.note_id);
+    const left = data(await admin.get('/crm/parties/' + personAda.party_pk + '/notes')).rows.filter(function (row) { return row.note_id === note.note_id; });
     return pinned.note_id === note.note_id && pinned.is_pinned && !left.length ? true : 'pin or removal failed';
   });
   await check('a document comes back as it went in, and other kinds are refused', async function () {
@@ -622,17 +595,17 @@ async function main() {
     const bytes = Buffer.from('%PDF-1.4\n' + RUN + '\n%%EOF\n');
     const form = new FormData();
     form.append('file', bytes, { filename: RUN + '.pdf', contentType: 'application/pdf' });
-    const file = data(await admin.post('/crm/parties/' + personAda.party_id + '/files', form, { headers: form.getHeaders() }));
-    const download = await admin.get('/crm/parties/' + personAda.party_id + '/files/' + file.file_id + '/download', { responseType: 'arraybuffer' });
+    const file = data(await admin.post('/crm/parties/' + personAda.party_pk + '/files', form, { headers: form.getHeaders() }));
+    const download = await admin.get('/crm/parties/' + personAda.party_pk + '/files/' + file.file_id + '/download', { responseType: 'arraybuffer' });
     if (Buffer.compare(Buffer.from(download.data), bytes) !== 0) return 'the bytes changed';
     if (!/attachment/.test(download.headers['content-disposition'] || '')) return 'not sent as an attachment';
-    await admin.delete('/crm/parties/' + personAda.party_id + '/files/' + file.file_id);
+    await admin.delete('/crm/parties/' + personAda.party_pk + '/files/' + file.file_id);
     const script = new FormData();
     script.append('file', Buffer.from('<script>alert(1)</script>'), { filename: 'x.html', contentType: 'text/html' });
-    return refused(admin.post('/crm/parties/' + personAda.party_id + '/files', script, { headers: script.getHeaders() }), 400);
+    return refused(admin.post('/crm/parties/' + personAda.party_pk + '/files', script, { headers: script.getHeaders() }), 400);
   });
   await check('a call is logged with its agent', async function () {
-    const row = data(await admin.post('/crm/parties/' + personAda.party_id + '/interactions', {
+    const row = data(await admin.post('/crm/parties/' + personAda.party_pk + '/interactions', {
       direction: 'INBOUND', channel_code: 'PHONE', interaction_type: 'GENERAL_INQUIRY', subject: RUN + ' call', outcome_code: 'ANSWERED'
     }));
     return row.manager_id && row.outcome_code === 'ANSWERED' ? true : JSON.stringify(row);
@@ -642,31 +615,31 @@ async function main() {
     const sms = byCode('channels', 'channel_code', 'SMS');
     const marketing = byCode('communication_purposes', 'purpose_code', 'MARKETING');
     const notice = byCode('communication_purposes', 'purpose_code', 'SERVICE_NOTICE');
-    const denied = await refused(admin.post('/crm/parties/' + personBo.party_id + '/messages', {
+    const denied = await refused(admin.post('/crm/parties/' + personBo.party_pk + '/messages', {
       project_id: crystal.project_id, channel_id: email.channel_id, purpose_id: marketing.purpose_id, subject: 'Offer', body: 'Buy now'
     }), 409);
     if (denied !== true) return 'marketing without consent: ' + denied;
-    const queued = data(await admin.post('/crm/parties/' + personAda.party_id + '/messages', {
+    const queued = data(await admin.post('/crm/parties/' + personAda.party_pk + '/messages', {
       project_id: crystal.project_id, channel_id: sms.channel_id, purpose_id: notice.purpose_id, subject: 'Ready', body: 'Your device is ready'
     }));
     return queued.outcome_code === 'QUEUED' && queued.destination_snapshot ? true : JSON.stringify(queued);
   });
   await check('a new account manager ends the previous one\'s turn', async function () {
     const staff = data(await admin.get('/crm/meta')).staff;
-    await admin.post('/crm/parties/' + childOrg.party_id + '/team', { team_role: 'ACCOUNT_MANAGER', manager_id: staff[0].manager_id });
-    await admin.post('/crm/parties/' + childOrg.party_id + '/team', { team_role: 'ACCOUNT_MANAGER', manager_id: staff[1].manager_id });
-    const team = data(await admin.get('/crm/parties/' + childOrg.party_id + '/team'));
+    await admin.post('/crm/parties/' + childOrg.party_pk + '/team', { team_role: 'ACCOUNT_MANAGER', manager_id: staff[0].manager_id });
+    await admin.post('/crm/parties/' + childOrg.party_pk + '/team', { team_role: 'ACCOUNT_MANAGER', manager_id: staff[1].manager_id });
+    const team = data(await admin.get('/crm/parties/' + childOrg.party_pk + '/team'));
     const current = team.filter(function (row) { return !row.ended_at; });
     return team.length === 2 && current.length === 1 && current[0].manager_id === staff[1].manager_id ? true : JSON.stringify(team);
   });
   await check('a contract cannot end before it starts', function () {
-    return refused(admin.post('/crm/parties/' + childOrg.party_id + '/agreements', {
+    return refused(admin.post('/crm/parties/' + childOrg.party_pk + '/agreements', {
       agreement_type: 'ENTERPRISE', start_date: '2026-06-01', end_date: '2026-01-01'
     }), 400);
   });
   await check('the search finds a customer by number', async function () {
-    const found = data(await admin.get('/crm/search', { params: { q: personAda.party_id.toLowerCase() } }));
-    return found.customers.some(function (row) { return row.party_id === personAda.party_id; }) ? true : JSON.stringify(found.customers);
+    const found = data(await admin.get('/crm/search', { params: { q: personAda.party_pk.toLowerCase() } }));
+    return found.customers.some(function (row) { return row.party_pk === personAda.party_pk; }) ? true : JSON.stringify(found.customers);
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

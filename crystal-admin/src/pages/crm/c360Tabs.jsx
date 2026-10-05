@@ -54,7 +54,7 @@ export function AccountsTab({ record, view, act }) {
               return (
                 <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer.unlink')}
                   onClick={() => act.ask('crm.customer.unlinkAccount', 'crm.customer.unlinkExplained', account.project_code + '  ' + account.external_account_id,
-                    () => crm.parties.unlinkAccount(record.party.party_id, account.project_account_id))} />
+                    () => crm.parties.unlinkAccount(record.party.party_pk, account.project_account_id))} />
               );
             } }
           ]}
@@ -219,7 +219,7 @@ function useInteractions(partyId, version) {
 export function ServiceTab({ record, view, act }) {
   const translate = useT();
   const history = useHistory();
-  const interactions = useInteractions(record.party && record.party.party_id, act.version);
+  const interactions = useInteractions(record.party && record.party.party_pk, act.version);
   return (
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: '2fr 3fr' }} gridGap={4}>
@@ -533,11 +533,11 @@ export function RelatedTab({ record, view, act }) {
         <MiniTable
           rows={(view.relationships || []).filter((row) => row.side !== 'EMPLOYMENT')}
           rowKey={(row) => String(row.party_relationship_id) + row.side}
-          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_id)}
+          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
           empty="crm.c360.noRelatedParties"
           columns={[
             { key: 'other_name', label: 'Name', render: (row) => <HStack spacing={2}><Initials name={row.other_name} color={row.other_party_type === 'ORGANIZATION' ? 'teal' : 'brand'} /><Text as="span">{row.other_name}</Text></HStack> },
-            { key: 'other_party_id', label: 'Customer number', render: (row) => partyIdLabel(row.other_party_id) },
+            { key: 'other_party_pk', label: 'Customer number', render: (row) => partyIdLabel(row.other_party_pk) },
             { key: 'relationship_name', label: 'Relationship', render: (row) => translate(row.relationship_name) },
             { key: 'other_party_type', label: 'Type', render: (row) => word(translate, row.other_party_type) },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
@@ -546,7 +546,7 @@ export function RelatedTab({ record, view, act }) {
               <Button size="xs" variant="ghost" onClick={(event) => {
                 event.stopPropagation();
                 act.ask('crm.customer.endRelationship', 'crm.c360.endRelationshipExplained', row.other_name,
-                  () => crm.customer360.endRelationship(party.party_id, row.party_relationship_id));
+                  () => crm.customer360.endRelationship(party.party_pk, row.party_relationship_id));
               }}>{translate('crm.customer.endRelationship')}</Button>
             ) : null) }
           ]}
@@ -557,7 +557,7 @@ export function RelatedTab({ record, view, act }) {
           <MiniTable
             rows={links.employers || []}
             rowKey={(row) => row.org_person_relationship_id}
-            onRowClick={(row) => history.push(CUSTOMERS + '/' + row.organization_party_id)}
+            onRowClick={(row) => history.push(CUSTOMERS + '/' + row.organization_party_pk)}
             empty="crm.customer.actsForNobody"
             columns={[
               { key: 'organization_name', label: 'Organization' },
@@ -573,8 +573,8 @@ export function RelatedTab({ record, view, act }) {
           rows={record.merges || []}
           rowKey={(row) => row.merge_id}
           columns={[
-            { key: 'merged_party_id', label: 'Merged customer', render: (row) => partyIdLabel(row.merged_party_id) },
-            { key: 'surviving_party_id', label: 'Into', render: (row) => partyIdLabel(row.surviving_party_id) },
+            { key: 'merged_party_pk', label: 'Merged customer', render: (row) => partyIdLabel(row.merged_party_pk) },
+            { key: 'surviving_party_pk', label: 'Into', render: (row) => partyIdLabel(row.surviving_party_pk) },
             { key: 'merge_reason', label: 'Reason', maxW: '14rem' },
             { key: 'merged_at', label: 'When', render: (row) => date(row.merged_at) }
           ]}
@@ -780,7 +780,7 @@ const ENTITY_WORDS = {
 export function NotesFilesTab({ record, act }) {
   const translate = useT();
   const history = useHistory();
-  const partyId = record.party && record.party.party_id;
+  const partyId = record.party && record.party.party_pk;
   return (
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
@@ -817,10 +817,10 @@ export function OrganizationTab({ record, view, act }) {
   const [team, setTeam] = useState([]);
   const [agreements, setAgreements] = useState([]);
   useEffect(() => {
-    if (!party.party_id) return;
-    crm.customer360.team(party.party_id).then(({ data }) => setTeam(rowsOf(data))).catch(() => setTeam([]));
-    crm.customer360.agreements(party.party_id).then(({ data }) => setAgreements(rowsOf(data))).catch(() => setAgreements([]));
-  }, [party.party_id, act.version]);
+    if (!party.party_pk) return;
+    crm.customer360.team(party.party_pk).then(({ data }) => setTeam(rowsOf(data))).catch(() => setTeam([]));
+    crm.customer360.agreements(party.party_pk).then(({ data }) => setAgreements(rowsOf(data))).catch(() => setAgreements([]));
+  }, [party.party_pk, act.version]);
 
   return (
     <Stack spacing={4}>
@@ -841,7 +841,7 @@ export function OrganizationTab({ record, view, act }) {
               { key: 'assigned_at', label: 'From', render: (row) => date(row.assigned_at) },
               { key: 'ended_at', label: 'Until', render: (row) => (row.ended_at ? date(row.ended_at) : <Pill code="ACTIVE" />) },
               { key: 'end', label: 'Actions', render: (row) => (act.editable && !row.ended_at ? (
-                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.customer360.endTeam(party.party_id, row.team_member_id))}>{translate('crm.sites.end')}</Button>
+                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.customer360.endTeam(party.party_pk, row.team_member_id))}>{translate('crm.sites.end')}</Button>
               ) : null) }
             ]}
           />
@@ -875,7 +875,7 @@ export function OrganizationTab({ record, view, act }) {
               { key: 'project_code', label: 'Project', render: (row) => row.project_code || translate('crm.ui.dreamWide') },
               { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> },
               { key: 'end', label: 'Actions', render: (row) => (act.editable && row.status === 'ACTIVE' ? (
-                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.endType(party.party_id, row.organization_type_assignment_id))}>{translate('crm.sites.end')}</Button>
+                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.endType(party.party_pk, row.organization_type_assignment_id))}>{translate('crm.sites.end')}</Button>
               ) : null) }
             ]}
           />
@@ -889,7 +889,7 @@ export function OrganizationTab({ record, view, act }) {
               { key: 'industry_name', label: 'Industry', render: (row) => translate(row.industry_name) },
               { key: 'is_primary', label: 'Primary', render: (row) => (row.is_primary ? <Pill code="PRIMARY" /> : '-') },
               { key: 'remove', label: 'Actions', render: (row) => (act.editable ? (
-                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.removeIndustry(party.party_id, row.industry_id))}>{translate('common.remove')}</Button>
+                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.removeIndustry(party.party_pk, row.industry_id))}>{translate('common.remove')}</Button>
               ) : null) }
             ]}
           />
@@ -930,16 +930,16 @@ export function ContactsTab({ record, view, act }) {
           rows={links.people || []}
           rowKey={(row) => row.org_person_relationship_id}
           columns={[
-            { key: 'person_name', label: 'Person', render: (row) => row.person_name + '  ' + partyIdLabel(row.person_party_id) },
+            { key: 'person_name', label: 'Person', render: (row) => row.person_name + '  ' + partyIdLabel(row.person_party_pk) },
             { key: 'roles', label: 'Roles', render: (row) => (row.roles || []).map((role) => translate(role.role_name)).join(', ') || '-' },
             { key: 'project_code', label: 'Project', render: (row) => row.project_code || translate('crm.ui.dreamWide') },
             { key: 'relationship_status', label: 'Status', render: (row) => <Pill code={row.relationship_status} /> },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) }
           ]}
-          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.person_party_id)}
+          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.person_party_pk)}
           actions={act.editable ? [{
             key: 'end', label: translate('crm.customer.endRelationship'), hidden: (row) => row.relationship_status !== 'ACTIVE',
-            onClick: (row) => act.run(() => crm.organizations.endPerson(party.party_id, row.org_person_relationship_id))
+            onClick: (row) => act.run(() => crm.organizations.endPerson(party.party_pk, row.org_person_relationship_id))
           }] : []}
           actionsIconOnly={false}
         />

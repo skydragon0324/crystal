@@ -356,7 +356,7 @@ export function RelatedPartiesCard({ view, onViewAll }) {
       <MiniTable
         rows={(view.relationships || []).filter((row) => row.status === 'ACTIVE').slice(0, 5)}
         rowKey={(row) => String(row.party_relationship_id) + row.side}
-        onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_id)}
+        onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
         empty="crm.c360.noRelatedParties"
         columns={[
           { key: 'other_name', label: 'Name',
@@ -406,7 +406,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
   const representative = (view.key_contacts || []).filter((contact) => (contact.roles || []).some((role) => role.role_code === 'REPRESENTATIVE' || role.role_code === 'OWNER'))[0];
   const hierarchy = view.hierarchy || {};
   const root = (hierarchy.nodes || []).filter((node) => node.depth === 0)[0];
-  const groupName = root && String(root.party_id) !== String(view.party_id) ? root : null;
+  const groupName = root && String(root.party_pk) !== String(view.party_pk) ? root : null;
   const history = useHistory();
   const [more, setMore] = useState(false);
   return (
@@ -424,7 +424,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
         { label: 'Main phone', value: reach.phone ? reach.phone.contact_value : null },
         { label: 'Representative', value: representative ? representative.display_name : null },
         { label: 'Corporate group', value: groupName
-          ? <Link color="brand.500" onClick={() => history.push(CUSTOMERS + '/' + groupName.party_id)}>{groupName.display_name}</Link> : null },
+          ? <Link color="brand.500" onClick={() => history.push(CUSTOMERS + '/' + groupName.party_pk)}>{groupName.display_name}</Link> : null },
         { label: 'Business description', value: profile.description ? (
           <Box>
             <Collapse startingHeight="2.6rem" in={more}><Text fontSize="sm">{profile.description}</Text></Collapse>
@@ -506,7 +506,7 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
             <Grid key={contact.org_person_relationship_id} templateColumns="auto minmax(0, 1fr) minmax(0, 1.2fr)" gridGap={3} alignItems="flex-start" fontSize="sm">
               <Initials name={contact.display_name} />
               <Box minW={0}>
-                <Link fontWeight="700" textDecoration="underline" onClick={() => history.push(CUSTOMERS + '/' + contact.person_party_id)}>{contact.display_name}</Link>
+                <Link fontWeight="700" textDecoration="underline" onClick={() => history.push(CUSTOMERS + '/' + contact.person_party_pk)}>{contact.display_name}</Link>
                 <Text fontSize="xs" color={surface.muted} noOfLines={1}>{contact.job_title_name || contact.department_name || ''}</Text>
                 <Wrap spacing={1} mt={1}>
                   {contact.is_primary ? <WrapItem><Pill code="PRIMARY" /></WrapItem> : null}
@@ -536,18 +536,18 @@ export function HierarchyCard({ view, onViewAll }) {
   const root = nodes.filter((node) => node.depth === 0)[0];
 
   const branch = (node, label) => (
-    <Box key={node.party_id + ':' + label}>
+    <Box key={node.party_pk + ':' + label}>
       <Flex align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" mb={1.5}
-        borderColor={String(node.party_id) === String(view.party_id) ? 'brand.300' : surface.border}
-        bg={String(node.party_id) === String(view.party_id) ? 'brand.50' : undefined}
-        cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + node.party_id)}>
+        borderColor={String(node.party_pk) === String(view.party_pk) ? 'brand.300' : surface.border}
+        bg={String(node.party_pk) === String(view.party_pk) ? 'brand.50' : undefined}
+        cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + node.party_pk)}>
         <Icon as={Md.MdBusiness} color="brand.500" mr={2} />
         <Text fontSize="sm" fontWeight="600" flex="1" noOfLines={1}>{node.display_name}</Text>
-        <Pill tone={String(node.party_id) === String(view.party_id) ? 'green' : 'gray'}>
-          {String(node.party_id) === String(view.party_id) ? translate('crm.c360.thisCustomer') : translate(label)}
+        <Pill tone={String(node.party_pk) === String(view.party_pk) ? 'green' : 'gray'}>
+          {String(node.party_pk) === String(view.party_pk) ? translate('crm.c360.thisCustomer') : translate(label)}
         </Pill>
       </Flex>
-      <Box pl={5}>{childrenOf(node.party_id).map((child) => branch(child, 'crm.c360.subsidiary'))}</Box>
+      <Box pl={5}>{childrenOf(node.party_pk).map((child) => branch(child, 'crm.c360.subsidiary'))}</Box>
     </Box>
   );
 
@@ -557,8 +557,8 @@ export function HierarchyCard({ view, onViewAll }) {
         <Box>
           {branch(root, 'crm.c360.groupCompany')}
           {affiliates.map((affiliate) => (
-            <Flex key={'affiliate:' + affiliate.party_id} align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" borderColor={surface.border} mb={1.5}
-              ml={5} cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + affiliate.party_id)}>
+            <Flex key={'affiliate:' + affiliate.party_pk} align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" borderColor={surface.border} mb={1.5}
+              ml={5} cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + affiliate.party_pk)}>
               <Icon as={Md.MdBusiness} color="gray.500" mr={2} />
               <Text fontSize="sm" flex="1" noOfLines={1}>{affiliate.display_name}</Text>
               <Pill tone="gray">{translate('crm.c360.affiliate')}</Pill>

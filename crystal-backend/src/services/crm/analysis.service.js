@@ -27,12 +27,12 @@ async function recalculateClassStats(options) {
 
   return connection.transaction(async function (trx) {
     const scope = partyIds && partyIds.length
-      ? 'AND registration.party_id IN (' + partyIds.map(function () { return '?'; }).join(', ') + ')'
+      ? 'AND registration.party_pk IN (' + partyIds.map(function () { return '?'; }).join(', ') + ')'
       : '';
     const bindings = partyIds && partyIds.length ? partyIds : [];
 
     if (partyIds && partyIds.length) {
-      await trx('crm_party_product_class_stat').whereIn('party_id', partyIds).del();
+      await trx('crm_party_product_class_stat').whereIn('party_pk', partyIds).del();
     } else {
       await trx('crm_party_product_class_stat').del();
     }
@@ -48,11 +48,11 @@ async function recalculateClassStats(options) {
          WHERE product_class.parent_product_class_id IS NOT NULL
       ),
       held AS (
-        SELECT registration.party_id, catalog.product_class_id, registration.valid_to, registration.registered_at
+        SELECT registration.party_pk, catalog.product_class_id, registration.valid_to, registration.registered_at
           FROM crm_product_registration registration
           JOIN crm_product_instance instance ON instance.product_instance_id = registration.product_instance_id
           JOIN crm_product_catalog  catalog  ON catalog.product_id = instance.product_id
-          JOIN crm_party            party    ON party.party_id = registration.party_id
+          JOIN crm_party            party    ON party.party_pk = registration.party_pk
          WHERE registration.relationship_code IN ('OWNER', 'LICENSEE')
            AND registration.registration_status <> 'CANCELLED'
            AND catalog.product_class_id IS NOT NULL
@@ -60,15 +60,15 @@ async function recalculateClassStats(options) {
            ${scope}
       )
       INSERT INTO crm_party_product_class_stat
-        (party_id, product_class_id, active_owned_count, lifetime_registered_count, last_registered_at, calculated_at)
-      SELECT held.party_id, lineage.ancestor_id,
+        (party_pk, product_class_id, active_owned_count, lifetime_registered_count, last_registered_at, calculated_at)
+      SELECT held.party_pk, lineage.ancestor_id,
              COUNT(*) FILTER (WHERE held.valid_to IS NULL),
              COUNT(*),
              MAX(held.registered_at),
              now()
         FROM held
         JOIN lineage ON lineage.class_id = held.product_class_id
-       GROUP BY held.party_id, lineage.ancestor_id
+       GROUP BY held.party_pk, lineage.ancestor_id
     `, bindings);
 
     return { rows: result.rowCount };
@@ -119,13 +119,13 @@ async function overview() {
     one(`SELECT (SELECT COUNT(*) FROM crm_segment WHERE status = 'ACTIVE')::int AS segments,
                 (SELECT COUNT(*) FROM crm_campaign WHERE campaign_status IN ('APPROVED', 'ACTIVE'))::int AS campaigns_live`),
     db.raw(`SELECT project.project_code, project.project_name,
-                   COUNT(DISTINCT account.party_id) FILTER (WHERE account.unlinked_at IS NULL)::int AS parties
+                   COUNT(DISTINCT account.party_pk) FILTER (WHERE account.unlinked_at IS NULL)::int AS parties
               FROM crm_project project
               LEFT JOIN crm_project_account account ON account.project_id = project.project_id
              GROUP BY project.project_id ORDER BY project.project_id`).then(function (result) { return result.rows; }),
     db.raw(`SELECT product_class.class_code, product_class.class_name, product_class.product_domain,
                    COALESCE(SUM(class_stat.active_owned_count), 0)::int AS owned,
-                   COUNT(class_stat.party_id) FILTER (WHERE class_stat.active_owned_count > 0)::int AS owners
+                   COUNT(class_stat.party_pk) FILTER (WHERE class_stat.active_owned_count > 0)::int AS owners
               FROM crm_product_class product_class
               LEFT JOIN crm_party_product_class_stat class_stat ON class_stat.product_class_id = product_class.product_class_id
              WHERE product_class.parent_product_class_id IS NULL

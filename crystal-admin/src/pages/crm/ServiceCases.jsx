@@ -99,7 +99,7 @@ export default function ServiceCases() {
         <DataTable
           columns={[
             { key: 'external_case_id', label: 'Case', render: (row) => row.external_case_id || ('#' + row.case_id) },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'case_type_name', label: 'Type', render: (row) => translate(row.case_type_name || '-') },
             { key: 'status_name', label: 'Status', render: (row) => translate(row.status_name || '-') },
             { key: 'service_center_name', label: 'Service location', maxW: '12rem' },
@@ -132,8 +132,8 @@ export default function ServiceCases() {
         onSubmit={create}
         saving={saving}
         fields={[
-          { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
-            render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+          { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
+            render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
           { name: 'project_id', label: 'Project', type: 'select', required: true,
             options: optionsFrom(meta.projects, 'project_id', 'project_name') },
           { name: 'case_type_id', label: 'Type', type: 'select', required: true,
@@ -222,7 +222,7 @@ function CaseDetail({ id, onClose }) {
         <ModalBody pb={6}>
           <Stack spacing={5}>
             <Facts>
-              <Fact label="Customer">{serviceCase.party_name ? serviceCase.party_name + '  ' + partyIdLabel(serviceCase.party_id) : null}</Fact>
+              <Fact label="Customer">{serviceCase.party_name ? serviceCase.party_name + '  ' + partyIdLabel(serviceCase.party_pk) : null}</Fact>
               <Fact label="Type">{serviceCase.case_type_name ? translate(serviceCase.case_type_name) : null}</Fact>
               <Fact label="Status">{serviceCase.status_name ? translate(serviceCase.status_name) : null}</Fact>
               <Fact label="Project">{serviceCase.project_code}</Fact>

@@ -1,35 +1,19 @@
 const ExcelJS = require('exceljs');
+const crypto = require('crypto');
+const intake = require('./registrationIntake.service');
 
 const db = require('../../config/db');
 const vocabulary = require('../../repositories/crm/vocabulary.repository');
 const duplicates = require('./personDuplicates');
 const locations = require('./locations');
 const rules = require('./personRules');
-const partyIds = require('./partyId');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
 
-/**
- * PEOPLE FROM A SPREADSHEET.
- *
- * Staff collect real customers in Excel - name, gender, birthday, mobile,
- * location, job title - and load the sheet here. Every row becomes one
- * PERSON party with its crm_person row and its mobile (and email) as contact
- * points, exactly as a customer created on the "new customer" form.
- *
- * Two passes, the same code:
- *
- *   preview  reads the sheet and says, row by row, what WOULD happen -
- *            NEW, DUPLICATE (and of whom), or ERROR (and why) - writing nothing;
- *   import   does it. A sheet with any ERROR row is refused as a whole, every
- *            bad row listed by number, so a half-loaded file never has to be
- *            untangled. DUPLICATE rows are skipped, never merged: the person
- *            is probably already a customer, and the report says which one.
- *
- * Duplicates are looked for twice: against the customers already on file
- * (personDuplicates.findSimilar - the same check the "new customer" form
- * runs) and against earlier rows of the same sheet.
+/** Excel rows use the shared weighted registration gate. Preview writes nothing;
+ * import rechecks under the same lock as project and console registration.
+ * Source User IDs are retained as provenance, never used as CRM foreign keys.
  */
 
 const PAGE = '/admin/crm/customers';
@@ -42,8 +26,8 @@ const MAX_ROWS = 2000;
  * home_location_pk.
  */
 const COLUMNS = [
-  { key: 'user_id', header: 'User ID', width: 16, note: 'Optional. The customer\'s id (party_id): 1-32 letters, digits, - or _. Leave it empty and one is made.',
-    aliases: ['userid', 'party_id', 'customer id'] },
+  { key: 'user_id', header: 'User ID', width: 16, note: 'Optional source User ID. This is not a CRM party_pk.',
+    aliases: ['userid', 'source user id', 'customer id'] },
   { key: 'full_name', header: 'Full name', required: true, width: 24, aliases: ['name'] },
   { key: 'gender', header: 'Gender', width: 10, note: 'M or F' },
   { key: 'birth_date', header: 'Birthday', width: 14, note: 'YYYY-MM-DD, or a year alone' , aliases: ['birth date', 'date of birth'] },
@@ -134,16 +118,6 @@ function parseId(rawValue, label) {
   return { value: Number(text) };
 }
 
-/** The customers already on file under the User IDs of a sheet, by id. */
-async function customersById(records) {
-  const userIds = records.map(function (record) { return cellText(record.raw.user_id); }).filter(partyIds.isPartyId);
-  const byId = {};
-  if (!userIds.length) return byId;
-  const found = await db('crm_party').whereIn('party_id', userIds).select('party_id', 'display_name');
-  found.forEach(function (party) { byId[party.party_id] = party; });
-  return byId;
-}
-
 /* ------------------------------------------------------------ reading the sheet */
 
 async function readRows(buffer) {
@@ -196,10 +170,8 @@ function checkRow(record, lookups) {
   const out = {};
 
   const userId = cellText(raw.user_id);
-  if (userId) {
-    if (!partyIds.isPartyId(userId)) errors.push('User ID "' + userId + '" must be 1-32 letters, digits, "-" or "_"');
-    else out.party_id = userId;
-  }
+  if (userId.length > 128) errors.push('User ID is longer than 128 characters');
+  if (userId) out.source_user_id = userId;
 
   out.full_name = cellText(raw.full_name).replace(/\s+/g, ' ');
   if (!out.full_name) errors.push('Full name is required');
@@ -251,115 +223,53 @@ function checkRow(record, lookups) {
  * `summary` counts each; `rows` keeps the sheet's own row numbers.
  */
 async function preview(buffer) {
-  const records = await readRows(buffer);
-  const lookups = await loadLookups();
-  lookups.customerById = await customersById(records);
-  const seen = [];
-  const rows = [];
-
-  for (let index = 0; index < records.length; index += 1) {
-    const record = records[index];
-    const checked = checkRow(record, lookups);
-    const result = { row_number: record.row_number, values: checked.values };
-
-    // A User ID is the customer's identity: twice in one sheet is a mistake to fix, not a look-alike to skip.
-    const userId = checked.values.party_id;
-    const sameIdRow = userId ? rows.filter(function (other) { return other.values.party_id === userId; })[0] : null;
-    if (sameIdRow) checked.errors.push('User ID ' + userId + ' is also on row ' + sameIdRow.row_number);
-
-    if (checked.errors.length) {
-      result.status = 'ERROR';
-      result.errors = checked.errors;
-    } else {
-      const owner = userId ? lookups.customerById[userId] : null;
-      const earlier = owner ? null : seen.filter(function (other) { return duplicates.sameInFile(checked.values, other.values); })[0];
-      // eslint-disable-next-line no-await-in-loop
-      const similar = owner || earlier ? [] : await duplicates.findSimilar(checked.values);
-
-      if (owner) {
-        // That User ID is already a customer: the same person, whatever the other columns say.
-        result.status = 'DUPLICATE';
-        result.similar = [{ party_id: owner.party_id, display_name: owner.display_name, rule_code: 'SAME_USER_ID', score: 1, reason: 'Same user ID' }];
-      } else if (earlier) {
-        result.status = 'DUPLICATE';
-        result.duplicate_of_row = earlier.row_number;
-        result.rule_code = duplicates.sameInFile(checked.values, earlier.values);
-      } else if (similar.length) {
-        result.status = 'DUPLICATE';
-        result.similar = similar;
-      } else {
-        result.status = 'NEW';
-      }
-      seen.push({ row_number: record.row_number, values: checked.values });
-    }
-    rows.push(result);
+ const records = await readRows(buffer);
+ const lookups = await loadLookups();
+ const rows = [];
+ for (const record of records) {
+  const checked = checkRow(record, lookups);
+  const result = { row_number: record.row_number, values: checked.values };
+  if (checked.errors.length) { result.status = 'ERROR'; result.errors = checked.errors; }
+  else {
+   const found = await intake.candidates(db, checked.values);
+   rows.filter(r => r.status !== 'ERROR').forEach(other => {
+    const match = duplicates.score(checked.values, other.values);
+    if (match.score > 40) found.push(Object.assign({ row_number: other.row_number }, match));
+   });
+   found.sort((a,b) => b.score-a.score);
+   result.similar = found;
+   const strong = found.filter(r => r.score >= 70);
+   result.status = strong.length === 1 && !strong[0].intake_id ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
+   if (found.length && found[0].row_number) result.duplicate_of_row = found[0].row_number;
   }
-
-  const count = function (status) { return rows.filter(function (row) { return row.status === status; }).length; };
-  return {
-    summary: { total: rows.length, new: count('NEW'), duplicate: count('DUPLICATE'), error: count('ERROR') },
-    rows: rows
-  };
+  rows.push(result);
+ }
+ const count = status => rows.filter(r => r.status === status).length;
+ return { summary: { total: rows.length, new: count('NEW'), duplicate: count('DUPLICATE'), review: count('REVIEW'), error: count('ERROR') }, rows };
 }
-
-/**
- * The NEW rows of a sheet become customers, in one transaction.
- *
- * Refused as a whole while any row is an ERROR - the report lists them all.
- * DUPLICATE rows are left out and reported. The duplicate check is run again
- * inside the transaction, so two people loading overlapping sheets at once do
- * not both create the same person.
- */
 async function importPeople(buffer, actor) {
-  const report = await preview(buffer);
-  const failed = report.rows.filter(function (row) { return row.status === 'ERROR'; });
-  if (failed.length) {
-    throw new HttpError(400, 'crm.fixTheRowsAndUploadAgain', failed.map(function (row) {
-      return { row_number: row.row_number, errors: row.errors };
-    }));
+ const report = await preview(buffer);
+ const failed = report.rows.filter(r => r.status === 'ERROR');
+ if (failed.length) throw new HttpError(400, 'crm.fixTheRowsAndUploadAgain', failed);
+ const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
+ const batch = crypto.createHash('sha256').update(buffer).digest('hex');
+ await transaction(async trx => {
+  await intake.lock(trx);
+  for (const row of report.rows) {
+   const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: crystal }];
+   if (row.values.email) contacts.push({ contact_type: 'EMAIL', contact_value: row.values.email, source_project_id: crystal });
+   const result = await intake.submit(trx, Object.assign({}, row.values, { party_type: 'PERSON', origin_project_id: crystal, contacts }),
+    { source_record_id: 'excel:' + batch + ':' + row.row_number });
+   row.status = result.outcome === 'QUEUED' ? 'REVIEW' : result.outcome;
+   row.party_pk = result.party_pk;
+   row.intake_id = result.intake_id;
+   if (result.candidates) row.similar = result.candidates;
   }
-
-  const parties = require('./parties.service');
-  const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
-
-  const created = await transaction(async function (trx) {
-    // Serialise imports, so the re-check below sees every person another import just added.
-    await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', ['crm_person_import']);
-
-    const out = [];
-    for (let index = 0; index < report.rows.length; index += 1) {
-      const row = report.rows[index];
-      if (row.status !== 'NEW') continue;
-
-      // eslint-disable-next-line no-await-in-loop
-      const similar = await duplicates.findSimilar(row.values, { trx: trx });
-      if (similar.length) {
-        row.status = 'DUPLICATE';
-        row.similar = similar;
-        continue;
-      }
-
-      const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: crystal }];
-      if (row.values.email) contacts.push({ contact_type: 'EMAIL', contact_value: row.values.email, source_project_id: crystal });
-
-      // eslint-disable-next-line no-await-in-loop
-      const party = await parties.createParty(trx, Object.assign({}, row.values, {
-        party_type: 'PERSON',
-        origin_project_id: crystal,
-        contacts: contacts
-      }));
-      row.status = 'CREATED';
-      row.party_id = party.party_id;
-      out.push(party);
-    }
-    return out;
-  });
-
-  const count = function (status) { return report.rows.filter(function (row) { return row.status === status; }).length; };
-  const summary = { total: report.rows.length, created: created.length, duplicate: count('DUPLICATE') };
-
-  audit.imported(actor, 'crm_party', summary, PAGE);
-  return { summary: summary, rows: report.rows };
+ });
+ const count = status => report.rows.filter(r => r.status === status).length;
+ const summary = { total: report.rows.length, created: count('CREATED'), duplicate: count('MERGED'), review: count('REVIEW'), error: 0 };
+ audit.imported(actor, 'crm_registration_intake', summary, PAGE);
+ return { summary, rows: report.rows };
 }
 
 /* ------------------------------------------------------------ the template */

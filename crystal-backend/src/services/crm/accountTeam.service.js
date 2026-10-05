@@ -22,7 +22,7 @@ const AGREEMENT_TYPES = ['ENTERPRISE', 'RESELLER', 'DISTRIBUTION', 'SERVICE_LEVE
 const AGREEMENT_STATUS = ['DRAFT', 'ACTIVE', 'EXPIRED', 'TERMINATED'];
 
 async function requireParty(id) {
-  const party = await db('crm_party').where('party_id', id).first('party_id');
+  const party = await db('crm_party').where('party_pk', id).first('party_pk');
   if (!party) throw new HttpError(404, 'common.notFound');
   return party;
 }
@@ -30,7 +30,7 @@ async function requireParty(id) {
 function team(partyId) {
   return db('crm_party_team_member as team_member').join('managers as manager', 'manager.id', 'team_member.manager_id')
     .leftJoin('managers as assigned_by', 'assigned_by.id', 'team_member.assigned_by_manager_id')
-    .where('team_member.party_id', partyId).orderBy([{ column: 'team_member.ended_at', order: 'desc' }, { column: 'team_member.assigned_at', order: 'desc' }])
+    .where('team_member.party_pk', partyId).orderBy([{ column: 'team_member.ended_at', order: 'desc' }, { column: 'team_member.assigned_at', order: 'desc' }])
     .select('team_member.*', 'manager.name as manager_name', 'manager.username', 'assigned_by.name as assigned_by_name');
 }
 
@@ -41,11 +41,11 @@ async function assign(partyId, body, actor) {
   if (!manager) throw new HttpError(400, 'crm.chooseAStaffMember');
 
   const row = await transaction(async function (trx) {
-    const current = await trx('crm_party_team_member').where({ party_id: partyId, team_role: body.team_role }).whereNull('ended_at').forUpdate().first();
+    const current = await trx('crm_party_team_member').where({ party_pk: partyId, team_role: body.team_role }).whereNull('ended_at').forUpdate().first();
     if (current && current.manager_id === manager.id) throw new HttpError(409, 'crm.theyAlreadyHaveThatRole');
     if (current) await trx('crm_party_team_member').where('team_member_id', current.team_member_id).update({ ended_at: trx.fn.now() });
     const [created] = await trx('crm_party_team_member').insert({
-      party_id: partyId, manager_id: manager.id, team_role: body.team_role, assigned_by_manager_id: actor.manager_id
+      party_pk: partyId, manager_id: manager.id, team_role: body.team_role, assigned_by_manager_id: actor.manager_id
     }).returning('*');
     return created;
   });
@@ -54,7 +54,7 @@ async function assign(partyId, body, actor) {
 }
 
 async function endAssignment(partyId, teamMemberId, actor) {
-  const [row] = await db('crm_party_team_member').where({ team_member_id: teamMemberId, party_id: partyId }).whereNull('ended_at')
+  const [row] = await db('crm_party_team_member').where({ team_member_id: teamMemberId, party_pk: partyId }).whereNull('ended_at')
     .update({ ended_at: db.fn.now() }).returning('*');
   if (!row) throw new HttpError(404, 'common.notFound');
   audit.updated(actor, 'crm_party_team_member', teamMemberId, null, row, PAGE);
@@ -65,7 +65,7 @@ async function endAssignment(partyId, teamMemberId, actor) {
 
 function agreements(partyId) {
   return db('crm_party_agreement as agreement').leftJoin('managers as manager', 'manager.id', 'agreement.created_by_manager_id')
-    .where('agreement.party_id', partyId).orderBy('agreement.start_date', 'desc').select('agreement.*', 'manager.name as created_by_name');
+    .where('agreement.party_pk', partyId).orderBy('agreement.start_date', 'desc').select('agreement.*', 'manager.name as created_by_name');
 }
 
 async function saveAgreement(partyId, agreementId, body, actor) {
@@ -78,7 +78,7 @@ async function saveAgreement(partyId, agreementId, body, actor) {
   if (data.annual_value !== undefined && data.annual_value !== null && !data.currency_code) data.currency_code = 'USD';
 
   if (agreementId) {
-    const before = await db('crm_party_agreement').where({ agreement_id: agreementId, party_id: partyId }).first();
+    const before = await db('crm_party_agreement').where({ agreement_id: agreementId, party_pk: partyId }).first();
     if (!before) throw new HttpError(404, 'common.notFound');
     const merged = Object.assign({}, before, data);
     if (merged.end_date && new Date(merged.end_date) < new Date(merged.start_date)) throw new HttpError(400, 'crm.itCannotEndBeforeItStarts');
@@ -90,7 +90,7 @@ async function saveAgreement(partyId, agreementId, body, actor) {
 
   if (!data.agreement_type || !data.start_date) throw new HttpError(400, 'crm.typeAndStartAreRequired');
   if (data.end_date && new Date(data.end_date) < new Date(data.start_date)) throw new HttpError(400, 'crm.itCannotEndBeforeItStarts');
-  const [row] = await db('crm_party_agreement').insert(Object.assign({ party_id: partyId, created_by_manager_id: actor.manager_id }, data)).returning('*');
+  const [row] = await db('crm_party_agreement').insert(Object.assign({ party_pk: partyId, created_by_manager_id: actor.manager_id }, data)).returning('*');
   audit.created(actor, 'crm_party_agreement', row.agreement_id, row, PAGE);
   return row;
 }

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Badge, Box, Button, HStack, Icon, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader,
-  ModalOverlay, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useDisclosure, useToast
+  Box, Button, HStack, Icon, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
 
 import CustomerImport from './CustomerImport';
+import RegistrationReview from './RegistrationReview';
 
 import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
@@ -18,7 +18,7 @@ import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { date, dateTime, number } from '../../utils/format';
+import { dateTime, number } from '../../utils/format';
 import { Amount, Dot, GradeBadge, PartyAvatar, ProjectTags, ScoreMeter } from './ui';
 import { Status, choices, optionsFrom, problemsOf, useCrmMeta, word, filtersFor, partyIdLabel } from './shared';
 
@@ -34,14 +34,15 @@ export const PAGE = '/admin/crm/customers';
  * ids, because that is what somebody at a counter actually has in front of
  * them.
  *
- * POSSIBLE DUPLICATES are parties that share a mobile or an email. They are
- * queued rather than merged: one household shares a number, a shop registers
- * its customers' devices under its own email, and merging two real people is
- * far worse than leaving a pair for somebody to look at.
+ * Pending registrations and identifier assignments are reviewed before they
+ * become customers or active account links. Existing duplicate records remain
+ * available in their own tab for historical cleanup.
  */
 export default function Customers() {
   const translate = useT();
   const location = useLocation();
+  const [revision, setRevision] = useState(0);
+  const reviewed = () => setRevision(value => value + 1);
   const initialTab = new URLSearchParams(location.search).get('tab') === 'duplicates' ? 1 : 0;
 
   return (
@@ -49,10 +50,16 @@ export default function Customers() {
       <Tabs defaultIndex={initialTab} isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
           <Tab fontSize="sm">{translate('crm.customers.allCustomers')}</Tab>
-          <Tab fontSize="sm">{translate('crm.customers.possibleDuplicates')}</Tab>
+          <Tab fontSize="sm">Pending registrations</Tab>
+          <Tab fontSize="sm">E-shop assignments</Tab>
+          <Tab fontSize="sm">Resolved registrations</Tab>
+          <Tab fontSize="sm">Existing duplicate records</Tab>
         </TabList>
         <TabPanels>
-          <TabPanel px={0}><CustomerList grade={new URLSearchParams(location.search).get('grade') ? Number(new URLSearchParams(location.search).get('grade')) : undefined} /></TabPanel>
+          <TabPanel px={0}><CustomerList key={revision} grade={new URLSearchParams(location.search).get('grade') ? Number(new URLSearchParams(location.search).get('grade')) : undefined} /></TabPanel>
+          <TabPanel px={0}><RegistrationReview category="PERSON" onDecided={reviewed} /></TabPanel>
+          <TabPanel px={0}><RegistrationReview category="ESHOP" onDecided={reviewed} /></TabPanel>
+          <TabPanel px={0}><RegistrationReview key={revision} resolved /></TabPanel>
           <TabPanel px={0}><Duplicates /></TabPanel>
         </TabPanels>
       </Tabs>
@@ -72,35 +79,23 @@ function CustomerList({ grade }) {
   const { canWrite } = usePermission(PAGE);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState(NEW_CUSTOMER);
-  /* The look-alikes the API answered with, and the form values that would be saved if the manager goes ahead. */
-  const [lookAlikes, setLookAlikes] = useState(null);
 
   const list = useList((params) => crm.parties.list(params), { page: 1, limit: 20, sort: 'corporate_score', dir: 'desc', corporate_grade_id: grade });
 
   const openForm = () => { setValues(NEW_CUSTOMER); form.onOpen(); };
 
-  /*
-   * Every new person is checked against the customers on file first. A 409
-   * carries the look-alikes; the manager then opens one of them or confirms,
-   * and a confirmed pair waits in Possible duplicates.
-   */
-  const create = async (submitted, confirmed) => {
+  const create = async (submitted) => {
     setSaving(true);
     try {
-      const payload = Object.assign({}, submitted, confirmed ? { confirm_not_duplicate: true } : {});
+      const payload = Object.assign({}, submitted);
       if (payload.party_type !== 'ORGANIZATION') payload.full_name = payload.display_name;
       const { data } = await crm.parties.create(payload);
-      toast({ title: translate('Created'), status: 'success', duration: 2500 });
+      toast({ title: data && data.outcome === 'QUEUED' ? 'Saved for review; no customer created' : data && data.outcome === 'MERGED' ? 'Matched to existing customer' : translate('Created'), status: 'success', duration: 4000 });
       form.onClose();
-      setLookAlikes(null);
-      if (data && data.party_id) history.push(PAGE + '/' + data.party_id);
+      if (data && data.party_pk) history.push(PAGE + '/' + data.party_pk);
       else list.reload();
       return true;
     } catch (error) {
-      if (error.status === 409 && Array.isArray(error.detail)) {
-        setLookAlikes({ values: submitted, rows: error.detail });
-        return false;
-      }
       toast({ title: error.message, description: problemsOf(error), status: 'error', duration: 8000, isClosable: true });
       return false;
     } finally {
@@ -169,7 +164,7 @@ function CustomerList({ grade }) {
                   <PartyAvatar name={row.display_name} type={row.party_type} size="sm" />
                   <Box minW={0}>
                     <Text fontSize="sm" fontWeight="500" noOfLines={1}>{row.display_name || '-'}</Text>
-                    <Text fontSize="xs" color="gray.500">{partyIdLabel(row.party_id)}</Text>
+                    <Text fontSize="xs" color="gray.500">{partyIdLabel(row.party_pk)}</Text>
                   </Box>
                 </HStack>
               ) },
@@ -193,8 +188,8 @@ function CustomerList({ grade }) {
           onSort={list.setSort}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.party_id || row.id}
-          onRowClick={(row) => history.push(PAGE + '/' + (row.party_id || row.id))}
+          rowKey={(row) => row.party_pk || row.id}
+          onRowClick={(row) => history.push(PAGE + '/' + (row.party_pk || row.id))}
           storageKey={PAGE}
         />
       </Box>
@@ -230,51 +225,8 @@ function CustomerList({ grade }) {
         ]}
       />
 
-      <LookAlikes
-        found={lookAlikes}
-        saving={saving}
-        onClose={() => setLookAlikes(null)}
-        onOpenCustomer={(partyId) => { setLookAlikes(null); form.onClose(); history.push(PAGE + '/' + partyId); }}
-        onCreateAnyway={() => create(lookAlikes.values, true)}
-      />
-
       <CustomerImport isOpen={importer.isOpen} onClose={importer.onClose} onImported={list.reload} />
     </Box>
-  );
-}
-
-/** "This person may already be a customer": the look-alikes, each one a click away, and the way to go ahead anyway. */
-function LookAlikes({ found, saving, onClose, onOpenCustomer, onCreateAnyway }) {
-  const translate = useT();
-  return (
-    <Modal isOpen={!!found} onClose={onClose} size="2xl">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{translate('crm.customers.similarTitle')}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <Text fontSize="sm" mb={4}>{translate('crm.customers.similarExplained')}</Text>
-          {(found ? found.rows : []).map((row) => (
-            <HStack key={row.party_id} justify="space-between" py={2} borderBottomWidth="1px">
-              <Box minW={0}>
-                <Text fontWeight="600" noOfLines={1}>{row.display_name || partyIdLabel(row.party_id)}</Text>
-                <Text fontSize="xs" color="gray.500">
-                  {[partyIdLabel(row.party_id), row.mobile, row.birth_date ? date(row.birth_date) : null].filter(Boolean).join('  ·  ')}
-                </Text>
-                <Badge mt={1} colorScheme="orange" variant="subtle" textTransform="none">{translate(row.reason)}</Badge>
-              </Box>
-              <Button size="sm" variant="outline" onClick={() => onOpenCustomer(row.party_id)}>{translate('crm.customers.openCustomer')}</Button>
-            </HStack>
-          ))}
-        </ModalBody>
-        <ModalFooter>
-          <HStack spacing={3}>
-            <Button size="sm" variant="ghost" onClick={onClose}>{translate('common.cancel')}</Button>
-            <Button size="sm" variant="brand" isLoading={saving} onClick={onCreateAnyway}>{translate('crm.customers.createAnyway')}</Button>
-          </HStack>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
   );
 }
 
@@ -307,7 +259,7 @@ function Duplicates() {
         tone: 'danger',
         title: translate('crm.customers.mergeThesePair'),
         body: translate('crm.customers.mergeExplained'),
-        detail: partyIdLabel(row.incoming_party_id) + '  ->  ' + partyIdLabel(row.candidate_party_id),
+        detail: partyIdLabel(row.incoming_party_pk) + '  ->  ' + partyIdLabel(row.candidate_party_pk),
         confirmLabel: translate('crm.customers.merge')
       });
       if (!agreed) return;
@@ -325,7 +277,7 @@ function Duplicates() {
   return (
     <Box>
       <HStack px={5} py={3} justify="space-between" wrap="wrap">
-        <Text fontSize="sm" maxW="44rem">{translate('crm.customers.duplicatesExplained')}</Text>
+        <Text fontSize="sm" maxW="44rem">Review pairs that were already registered. New uncertain registrations wait in the Pending registrations tab.</Text>
         {canWrite ? (
           <Button size="sm" variant="subtle" isLoading={busy} onClick={scan}>{translate('crm.customers.scanForDuplicates')}</Button>
         ) : null}
@@ -333,10 +285,10 @@ function Duplicates() {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'incoming_party_id', label: 'Newer customer',
-              render: (row) => (row.incoming_name || '-') + '  ' + partyIdLabel(row.incoming_party_id) },
-            { key: 'candidate_party_id', label: 'Older customer',
-              render: (row) => (row.candidate_name || '-') + '  ' + partyIdLabel(row.candidate_party_id) },
+            { key: 'incoming_party_pk', label: 'Newer customer',
+              render: (row) => (row.incoming_name || '-') + '  ' + partyIdLabel(row.incoming_party_pk) },
+            { key: 'candidate_party_pk', label: 'Older customer',
+              render: (row) => (row.candidate_name || '-') + '  ' + partyIdLabel(row.candidate_party_pk) },
             { key: 'match_rule_code', label: 'Matched on',
               render: (row) => word(translate, String(row.match_rule_code || '').replace('SAME_', '')) },
             { key: 'match_score', label: 'Score', isNumeric: true, render: (row) => number(row.match_score, 2) },
@@ -350,7 +302,7 @@ function Duplicates() {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.match_candidate_id || row.id}
-          onRowClick={(row) => row.incoming_party_id && history.push(PAGE + '/' + row.incoming_party_id)}
+          onRowClick={(row) => row.incoming_party_pk && history.push(PAGE + '/' + row.incoming_party_pk)}
           actions={canWrite ? [
             { key: 'merge', label: translate('crm.customers.merge'), onClick: (row) => decide(row, true) },
             { key: 'reject', label: translate('crm.customers.keepApart'), onClick: (row) => decide(row, false) }

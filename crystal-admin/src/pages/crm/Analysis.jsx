@@ -240,7 +240,7 @@ function SnapshotsTab({ refDate, model }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', sortable: false, render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', sortable: false, render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             dream ? { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => <GradeBadge code={row.grade_code} /> }
               : { key: 'project_code', label: 'Project', sortable: false, render: (row) => <ProjectTags codes={[row.project_code]} /> },
             dream ? { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> } : null,
@@ -265,7 +265,7 @@ function SnapshotsTab({ refDate, model }) {
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.analysis_snapshot_id || row.id}
           renderExpanded={dream ? (row) => <Box maxW="28rem"><ScoreBreakdown components={row.score_components} model={model} /></Box> : undefined}
-          onRowDoubleClick={(row) => history.push('/admin/crm/customers/' + row.party_id)}
+          onRowDoubleClick={(row) => history.push('/admin/crm/customers/' + row.party_pk)}
           rowHint={translate('crm.analysis.openCustomerHint')}
           storageKey={PAGE + '/snapshots'}
         />
@@ -311,7 +311,7 @@ function MetricsTab({ refDate }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'numeric_value', label: 'Value', isNumeric: true, render: show },
             { key: 'unit_code', label: 'Unit', render: (row) => row.unit_code || '-' },
             { key: 'reference_date', label: 'Reference date', render: (row) => date(row.reference_date) },

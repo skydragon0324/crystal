@@ -58,7 +58,7 @@ const CONDITIONS = {
     params: ['project'],
     sql: function (condition) {
       return [`EXISTS (SELECT 1 FROM crm_project_account account JOIN crm_project project ON project.project_id = account.project_id
-                WHERE account.party_id = party.party_id AND account.unlinked_at IS NULL AND project.project_code = ?)`, [condition.project]];
+                WHERE account.party_pk = party.party_pk AND account.unlinked_at IS NULL AND project.project_code = ?)`, [condition.project]];
     }
   },
   tier: {
@@ -66,7 +66,7 @@ const CONDITIONS = {
     sql: function (condition) {
       return [`EXISTS (SELECT 1 FROM crm_membership membership JOIN crm_project project ON project.project_id = membership.project_id
                 JOIN crm_project_tier tier ON tier.project_tier_id = membership.current_tier_id
-                WHERE membership.party_id = party.party_id AND membership.membership_status = 'ACTIVE' AND project.project_code = ? AND tier.tier_code = ?)`,
+                WHERE membership.party_pk = party.party_pk AND membership.membership_status = 'ACTIVE' AND project.project_code = ? AND tier.tier_code = ?)`,
       [condition.project, condition.tier]];
     }
   },
@@ -74,7 +74,7 @@ const CONDITIONS = {
     params: ['class', 'min'],
     sql: function (condition) {
       return [`EXISTS (SELECT 1 FROM crm_party_product_class_stat class_stat JOIN crm_product_class product_class ON product_class.product_class_id = class_stat.product_class_id
-                WHERE class_stat.party_id = party.party_id AND product_class.class_code = ? AND class_stat.active_owned_count >= ?)`,
+                WHERE class_stat.party_pk = party.party_pk AND product_class.class_code = ? AND class_stat.active_owned_count >= ?)`,
       [condition.class, Number(condition.min || 1)]];
     }
   },
@@ -82,14 +82,14 @@ const CONDITIONS = {
     params: ['class'],
     sql: function (condition) {
       return [`NOT EXISTS (SELECT 1 FROM crm_party_product_class_stat class_stat JOIN crm_product_class product_class ON product_class.product_class_id = class_stat.product_class_id
-                WHERE class_stat.party_id = party.party_id AND product_class.class_code = ? AND class_stat.active_owned_count > 0)`, [condition.class]];
+                WHERE class_stat.party_pk = party.party_pk AND product_class.class_code = ? AND class_stat.active_owned_count > 0)`, [condition.class]];
     }
   },
   points_balance: {
     params: ['point_type', 'min'],
     sql: function (condition) {
       return [`EXISTS (SELECT 1 FROM crm_point_account account JOIN crm_point_type point_type ON point_type.point_type_id = account.point_type_id
-                WHERE account.party_id = party.party_id AND point_type.point_type_code = ? AND account.balance >= ?)`,
+                WHERE account.party_pk = party.party_pk AND point_type.point_type_code = ? AND account.balance >= ?)`,
       [condition.point_type, Number(condition.min || 0)]];
     }
   },
@@ -97,7 +97,7 @@ const CONDITIONS = {
     params: ['days', 'min'],
     sql: function (condition) {
       return [`(SELECT COUNT(*) FROM crm_service_case service_case
-                WHERE service_case.party_id = party.party_id AND service_case.received_at >= now() - (? || ' days')::interval) >= ?`,
+                WHERE service_case.party_pk = party.party_pk AND service_case.received_at >= now() - (? || ' days')::interval) >= ?`,
       [String(Number(condition.days || 365)), Number(condition.min === undefined ? 1 : condition.min)]];
     }
   },
@@ -105,7 +105,7 @@ const CONDITIONS = {
     params: ['days'],
     sql: function (condition) {
       return [`NOT EXISTS (SELECT 1 FROM crm_service_case service_case
-                WHERE service_case.party_id = party.party_id AND service_case.received_at >= now() - (? || ' days')::interval)`,
+                WHERE service_case.party_pk = party.party_pk AND service_case.received_at >= now() - (? || ' days')::interval)`,
       [String(Number(condition.days || 365))]];
     }
   },
@@ -115,7 +115,7 @@ const CONDITIONS = {
       const byType = condition.activity ? ' AND activity_type.activity_code = ?' : '';
       const bindings = [String(Number(condition.days || 365))].concat(condition.activity ? [condition.activity] : []).concat([Number(condition.min || 1)]);
       return [`(SELECT COUNT(*) FROM crm_service_center_activity activity JOIN crm_service_center_activity_type activity_type ON activity_type.activity_type_id = activity.activity_type_id
-                WHERE activity.party_id = party.party_id AND activity.status = 'COMPLETED'
+                WHERE activity.party_pk = party.party_pk AND activity.status = 'COMPLETED'
                   AND activity.occurred_at >= now() - (? || ' days')::interval${byType}) >= ?`, bindings];
     }
   },
@@ -123,7 +123,7 @@ const CONDITIONS = {
     params: ['days'],
     sql: function (condition) {
       return [`EXISTS (SELECT 1 FROM crm_product_registration registration
-                WHERE registration.party_id = party.party_id AND registration.registered_at >= now() - (? || ' days')::interval)`,
+                WHERE registration.party_pk = party.party_pk AND registration.registered_at >= now() - (? || ' days')::interval)`,
       [String(Number(condition.days || 30))]];
     }
   },
@@ -131,14 +131,14 @@ const CONDITIONS = {
     params: ['min_rank'],
     sql: function (condition) {
       return [`(SELECT grade.rank_no FROM crm_party_analysis_snapshot snapshot JOIN crm_corporate_grade grade ON grade.corporate_grade_id = snapshot.corporate_grade_id
-                WHERE snapshot.party_id = party.party_id AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1) >= ?`,
+                WHERE snapshot.party_pk = party.party_pk AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1) >= ?`,
       [Number(condition.min_rank || 1)]];
     }
   },
   has_contact: {
     params: ['type'],
     sql: function (condition) {
-      return [`EXISTS (SELECT 1 FROM crm_contact_point cp WHERE cp.party_id = party.party_id AND cp.status = 'ACTIVE' AND cp.contact_type = ?)`,
+      return [`EXISTS (SELECT 1 FROM crm_contact_point cp WHERE cp.party_pk = party.party_pk AND cp.status = 'ACTIVE' AND cp.contact_type = ?)`,
       [condition.type]];
     }
   },
@@ -157,7 +157,7 @@ const CONDITIONS = {
         ? 'snapshot.project_id = (SELECT project_id FROM crm_project WHERE project_code = ?)'
         : 'snapshot.project_id IS NULL';
       return [`(SELECT snapshot.${condition.measure} FROM crm_party_analysis_snapshot snapshot
-                WHERE snapshot.party_id = party.party_id AND ${scope} ORDER BY snapshot.reference_date DESC LIMIT 1) ${sqlOperator} ?`,
+                WHERE snapshot.party_pk = party.party_pk AND ${scope} ORDER BY snapshot.reference_date DESC LIMIT 1) ${sqlOperator} ?`,
       (condition.project ? [condition.project] : []).concat([Number(condition.value)])];
     }
   },
@@ -165,7 +165,7 @@ const CONDITIONS = {
     params: ['value'],
     sql: function (condition) {
       return [`(SELECT snapshot.activity_status FROM crm_party_analysis_snapshot snapshot
-                WHERE snapshot.party_id = party.party_id AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1) = ?`, [condition.value]];
+                WHERE snapshot.party_pk = party.party_pk AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1) = ?`, [condition.value]];
     }
   },
   metric: {
@@ -174,7 +174,7 @@ const CONDITIONS = {
     sql: function (condition) {
       return [`(SELECT metric_value.numeric_value FROM crm_party_metric_value metric_value
                 JOIN crm_metric_definition definition ON definition.metric_definition_id = metric_value.metric_definition_id
-                WHERE metric_value.party_id = party.party_id AND metric_value.project_id IS NULL AND definition.metric_code = ?
+                WHERE metric_value.party_pk = party.party_pk AND metric_value.project_id IS NULL AND definition.metric_code = ?
                 ORDER BY metric_value.reference_date DESC LIMIT 1) ${operator(condition.op)} ?`, [condition.metric, Number(condition.value)]];
     }
   },
@@ -185,7 +185,7 @@ const CONDITIONS = {
       return [`EXISTS (SELECT 1 FROM crm_transaction sale
                 JOIN crm_transaction_party tp ON tp.transaction_id = sale.transaction_id AND tp.party_role_code = 'BUYER'
                 JOIN crm_project project ON project.project_id = sale.project_id
-                WHERE tp.party_id = party.party_id AND project.project_code = ?
+                WHERE tp.party_pk = party.party_pk AND project.project_code = ?
                   AND sale.transaction_type_code NOT IN ('REFUND', 'RETURN', 'REVERSAL')
                   AND sale.transaction_at >= now() - (? || ' days')::interval)`,
       [condition.project, String(Number(condition.days || 365))]];
@@ -199,7 +199,7 @@ const CONDITIONS = {
                 JOIN crm_project project ON project.project_id = comm_option.project_id
                 JOIN crm_communication_purpose pp ON pp.purpose_id = comm_option.purpose_id
                 JOIN crm_communication_channel ch ON ch.channel_id = comm_option.channel_id
-                WHERE consent.party_id = party.party_id AND consent.consent_status = 'GRANTED'
+                WHERE consent.party_pk = party.party_pk AND consent.consent_status = 'GRANTED'
                   AND project.project_code = ? AND pp.purpose_code = ? AND ch.channel_code = ?)`,
       [condition.project, condition.purpose, condition.channel]];
     }
@@ -256,8 +256,8 @@ function parseRule(value) {
 async function matchRule(rule, connection) {
   const compiled = compile(rule);
   const res = await (connection || db).raw(
-    `SELECT party.party_id FROM crm_party party WHERE party.party_status = 'ACTIVE' AND ${compiled[0]}`, compiled[1]);
-  return res.rows.map(function (row) { return row.party_id; });
+    `SELECT party.party_pk FROM crm_party party WHERE party.party_status = 'ACTIVE' AND ${compiled[0]}`, compiled[1]);
+  return res.rows.map(function (row) { return row.party_pk; });
 }
 
 /* ------------------------------------------------------------ segments */
@@ -296,17 +296,17 @@ async function segmentDetail(id) {
 
 async function segmentMembers(id, filters, paging) {
   const qb = function () {
-    const query = db('crm_segment_membership as membership').join('crm_party as party', 'party.party_id', 'membership.party_id')
+    const query = db('crm_segment_membership as membership').join('crm_party as party', 'party.party_pk', 'membership.party_pk')
       .where('membership.segment_id', id);
     if (filters.past === '1') query.whereNotNull('membership.unmatched_at'); else query.whereNull('membership.unmatched_at');
     if (filters.q) {
       const like = '%' + String(filters.q).trim() + '%';
-      query.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
+      query.where(function () { this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]); });
     }
     return query;
   };
   const count = await qb().count({ total: '*' }).first();
-  const rows = await qb().select('membership.*', 'party.party_id', 'party.display_name as party_name', 'party.party_type')
+  const rows = await qb().select('membership.*', 'party.party_pk', 'party.display_name as party_name', 'party.party_type')
     .orderBy('membership.matched_at', 'desc').limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
 }
@@ -396,27 +396,27 @@ async function evaluate(id, actor) {
     const version = await trx('crm_segment_version').where('segment_version_id', segment.current_version_id).first();
     const matched = await matchRule(parseRule(version.rule_expression), trx);
 
-    const current = await trx('crm_segment_membership').where('segment_id', id).whereNull('unmatched_at').select('party_id');
+    const current = await trx('crm_segment_membership').where('segment_id', id).whereNull('unmatched_at').select('party_pk');
     const had = {};
-    current.forEach(function (row) { had[row.party_id] = true; });
+    current.forEach(function (row) { had[row.party_pk] = true; });
     const now = {};
     matched.forEach(function (pid) { now[pid] = true; });
 
     const joining = matched.filter(function (pid) { return !had[pid]; });
-    const leaving = current.map(function (row) { return row.party_id; }).filter(function (pid) { return !now[pid]; });
+    const leaving = current.map(function (row) { return row.party_pk; }).filter(function (pid) { return !now[pid]; });
 
     for (let index = 0; index < joining.length; index += 500) {
       // eslint-disable-next-line no-await-in-loop
       await trx('crm_segment_membership').insert(joining.slice(index, index + 500).map(function (pid) {
         return {
-          segment_id: id, segment_version_id: version.segment_version_id, party_id: pid,
+          segment_id: id, segment_version_id: version.segment_version_id, party_pk: pid,
           evaluation_reference_date: trx.raw('CURRENT_DATE')
         };
       }));
     }
     if (leaving.length) {
       await trx('crm_segment_membership').where('segment_id', id).whereNull('unmatched_at')
-        .whereIn('party_id', leaving).update({ unmatched_at: trx.fn.now() });
+        .whereIn('party_pk', leaving).update({ unmatched_at: trx.fn.now() });
     }
 
     await trx('crm_segment').where('segment_id', id).update({ member_count: matched.length, last_evaluated_at: trx.fn.now() });
@@ -590,31 +590,31 @@ async function addAudience(id, body, actor) {
     let rule = null;
     if (body.audience_type === 'SEGMENT') {
       if (!body.source_segment_id) throw new HttpError(400, 'crm.chooseASegment');
-      members = (await trx('crm_segment_membership as segment_member').join('crm_party as party', 'party.party_id', 'segment_member.party_id')
+      members = (await trx('crm_segment_membership as segment_member').join('crm_party as party', 'party.party_pk', 'segment_member.party_pk')
         .where('segment_member.segment_id', body.source_segment_id).whereNull('segment_member.unmatched_at').where('party.party_status', 'ACTIVE')
-        .select('segment_member.party_id', 'segment_member.segment_membership_id'))
-        .map(function (row) { return { party_id: row.party_id, source_segment_membership_id: row.segment_membership_id }; });
+        .select('segment_member.party_pk', 'segment_member.segment_membership_id'))
+        .map(function (row) { return { party_pk: row.party_pk, source_segment_membership_id: row.segment_membership_id }; });
     } else if (body.audience_type === 'PROGRAM_TARGETS') {
       if (!body.source_activity_program_id) throw new HttpError(400, 'crm.chooseAProgram');
-      members = (await trx('crm_activity_target as target').join('crm_party as party', 'party.party_id', 'target.party_id')
+      members = (await trx('crm_activity_target as target').join('crm_party as party', 'party.party_pk', 'target.party_pk')
         .where('target.activity_program_id', body.source_activity_program_id).whereNot('target.status', 'REVOKED')
         .where('party.party_status', 'ACTIVE')
-        .select('target.party_id', 'target.activity_target_id'))
-        .map(function (row) { return { party_id: row.party_id, source_activity_target_id: row.activity_target_id }; });
+        .select('target.party_pk', 'target.activity_target_id'))
+        .map(function (row) { return { party_pk: row.party_pk, source_activity_target_id: row.activity_target_id }; });
     } else if (body.audience_type === 'RULE') {
       rule = parseRule(body.rule_expression);
-      members = (await matchRule(rule, trx)).map(function (pid) { return { party_id: pid }; });
+      members = (await matchRule(rule, trx)).map(function (pid) { return { party_pk: pid }; });
     } else {
-      const ids = (Array.isArray(body.party_ids) ? body.party_ids : String(body.party_ids || '').split(/[\s,]+/))
-        .map(Number).filter(Boolean);
+      const ids = (Array.isArray(body.party_pks) ? body.party_pks : String(body.party_pks || '').split(/[\s,]+/))
+        .map(String).filter(function (id) { return /^[1-9][0-9]*$/.test(id); });
       if (!ids.length) throw new HttpError(400, 'crm.chooseAtLeastOneCustomer');
-      members = (await trx('crm_party').whereIn('party_id', ids).where('party_status', 'ACTIVE').select('party_id'))
-        .map(function (row) { return { party_id: row.party_id }; });
+      members = (await trx('crm_party').whereIn('party_pk', ids).where('party_status', 'ACTIVE').select('party_pk'))
+        .map(function (row) { return { party_pk: row.party_pk }; });
     }
 
     /* One entry per party even if the source lists somebody twice. */
     const seen = {};
-    members = members.filter(function (member) { if (seen[member.party_id]) return false; seen[member.party_id] = true; return true; });
+    members = members.filter(function (member) { if (seen[member.party_pk]) return false; seen[member.party_pk] = true; return true; });
 
     const [audience] = await trx('crm_campaign_audience').insert({
       campaign_id: id,
@@ -726,16 +726,16 @@ async function prepareAction(campaignId, actionId, actor) {
 
     const members = await trx('crm_campaign_audience_member as audience_member')
       .leftJoin('crm_party_communication_consent as consent', function () {
-        this.on('consent.party_id', 'audience_member.party_id')
+        this.on('consent.party_pk', 'audience_member.party_pk')
           .andOn('consent.project_communication_option_id', trx.raw('?', [option ? option.project_communication_option_id : 0]));
       })
       .where('audience_member.audience_id', action.audience_id)
-      .select('audience_member.audience_member_id', 'audience_member.party_id', 'consent.party_communication_consent_id', 'consent.consent_status',
+      .select('audience_member.audience_member_id', 'audience_member.party_pk', 'consent.party_communication_consent_id', 'consent.consent_status',
         'consent.contact_point_id', 'consent.effective_from', 'consent.effective_to');
 
     /* Every contact of the right type, active or not - a retired chosen contact is INVALID_CONTACT, not NO_CONTACT. */
     const contacts = channel.required_contact_type
-      ? await trx('crm_contact_point').whereIn('party_id', members.map(function (member) { return member.party_id; }))
+      ? await trx('crm_contact_point').whereIn('party_pk', members.map(function (member) { return member.party_pk; }))
         .where('contact_type', channel.required_contact_type)
         .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'is_verified', order: 'desc' }, { column: 'contact_point_id' }])
       : [];
@@ -747,7 +747,7 @@ async function prepareAction(campaignId, actionId, actor) {
     };
     contacts.forEach(function (contact) {
       chosen[contact.contact_point_id] = contact;
-      if (live(contact) && !usable[contact.party_id]) usable[contact.party_id] = contact;
+      if (live(contact) && !usable[contact.party_pk]) usable[contact.party_pk] = contact;
     });
     const needsOptIn = option ? (option.consent_required || purpose.requires_opt_in) : true;
     const inForce = function (member) {
@@ -773,10 +773,10 @@ async function prepareAction(campaignId, actionId, actor) {
       else if (needsOptIn && !(member.consent_status === 'GRANTED' && inForce(member))) reason = 'NO_CONSENT';
       else if (channel.required_contact_type) {
         const picked = member.contact_point_id ? chosen[member.contact_point_id] : null;
-        if (picked && picked.party_id === member.party_id && live(picked)) point = picked;
-        else if (!picked) point = usable[member.party_id] || null;
+        if (picked && picked.party_pk === member.party_pk && live(picked)) point = picked;
+        else if (!picked) point = usable[member.party_pk] || null;
         if (!point) {
-          const hasType = contacts.some(function (contact) { return contact.party_id === member.party_id; });
+          const hasType = contacts.some(function (contact) { return contact.party_pk === member.party_pk; });
           reason = picked || hasType ? 'INVALID_CONTACT' : 'NO_CONTACT';
         }
       }
@@ -786,7 +786,7 @@ async function prepareAction(campaignId, actionId, actor) {
         action_id: actionId,
         campaign_id: campaignId,
         audience_member_id: member.audience_member_id,
-        party_id: member.party_id,
+        party_pk: member.party_pk,
         contact_point_id: point ? point.contact_point_id : null,
         party_communication_consent_id: member.party_communication_consent_id || null,
         destination_snapshot: point ? point.contact_value : null,
@@ -849,13 +849,13 @@ async function removeCost(campaignId, costId, actor) {
 
 async function recipients(campaignId, actionId, filters, paging) {
   const qb = function () {
-    const query = db('crm_campaign_recipient as recipient').join('crm_party as party', 'party.party_id', 'recipient.party_id')
+    const query = db('crm_campaign_recipient as recipient').join('crm_party as party', 'party.party_pk', 'recipient.party_pk')
       .where({ 'recipient.campaign_id': campaignId, 'recipient.action_id': actionId });
     if (filters.recipient_status) query.where('recipient.recipient_status', filters.recipient_status);
     return query;
   };
   const count = await qb().count({ c: '*' }).first();
-  const rows = await qb().select('recipient.*', 'party.party_id', 'party.display_name as party_name')
+  const rows = await qb().select('recipient.*', 'party.party_pk', 'party.display_name as party_name')
     .orderBy('recipient.recipient_id').limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.c) };
 }

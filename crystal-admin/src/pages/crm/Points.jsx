@@ -121,7 +121,7 @@ function Balances() {
         <DataTable
           columns={[
             { key: 'party_name', label: 'Customer', sortable: false,
-              render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+              render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'point_type_name', label: 'Point type', sortable: false, render: (row) => translate(row.point_type_name || '-') },
             { key: 'balance', label: 'Balance', isNumeric: true, render: (row) => amount(row.balance, row.decimal_places) },
             { key: 'lifetime_earned', label: 'Earned', isNumeric: true, render: (row) => amount(row.lifetime_earned) },
@@ -151,8 +151,8 @@ function Balances() {
         onSubmit={adjust}
         saving={saving}
         fields={[
-          { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
-            render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+          { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
+            render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
           { name: 'point_type_id', label: 'Point type', type: 'select', required: true,
             options: optionsFrom(meta.point_types, 'point_type_id', 'point_type_name') },
           { name: 'points_delta', label: 'Points', type: 'number', required: true, step: '0.001',
@@ -216,7 +216,7 @@ function Ledger() {
         <DataTable
           columns={[
             { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'point_type_code', label: 'Point type' },
             { key: 'event_code', label: 'Movement', render: (row) => word(translate, row.event_code) },
             { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => amount(row.points_delta) },

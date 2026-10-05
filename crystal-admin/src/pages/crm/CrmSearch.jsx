@@ -51,7 +51,7 @@ export default function CrmSearch() {
 
   const groups = found ? [
     { key: 'customers', groupName: translate('crm.c360.searchCustomers'), icon: Md.MdPersonOutline,
-      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_id, title: row.display_name || partyIdLabel(row.party_id), detail: partyIdLabel(row.party_id), path: customerOr(row.party_id) })) },
+      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_pk, title: row.display_name || partyIdLabel(row.party_pk), detail: partyIdLabel(row.party_pk), path: customerOr(row.party_pk) })) },
     { key: 'orders', groupName: translate('crm.c360.searchOrders'), icon: Md.MdReceipt,
       rows: (found.orders || []).map((row) => ({ id: 'o' + row.transaction_id, title: row.external_transaction_id,
         detail: [row.project_code, date(row.transaction_at), row.party_name].filter(Boolean).join('  ·  '),

@@ -220,7 +220,7 @@ module.exports = {
     chooseAChannelThatCarriesMessages: 'выберите e-mail, SMS, push-уведомление или входящие участника',
     chooseAFile: 'выберите файл',
     similarCustomersExist: 'в базе уже есть клиенты, похожие на этого человека',
-    thatUserIdIsTaken: 'ID пользователя {party_id} уже принадлежит другому клиенту',
+    thatUserIdIsTaken: 'ID пользователя {party_pk} уже принадлежит другому клиенту',
     checkTheDetails: 'некоторые данные неверны',
     thisIsNotAnExcelFile: 'это не файл Excel (.xlsx)',
     theFileHasNoSheet: 'в файле нет листа для чтения',

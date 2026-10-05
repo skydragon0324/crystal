@@ -117,6 +117,26 @@ router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicate
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
 router.post('/duplicates/:id/accept', write(PAGES.CUSTOMERS), crmController.parties.acceptDuplicate);
 router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.parties.rejectDuplicate);
+// Registrations remain staged until identity is resolved. Departments poll and acknowledge results.
+const intake = require('../services/crm/registrationIntake.service');
+const response = require('../utils/response');
+router.get('/registrations', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.list(req.query)));
+router.post('/registrations/:id/decide', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.decide(req.params.id, req.body, req.actor)));
+router.get('/identity-resolutions', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.resolutions(req.query.project_id)));
+router.post('/identity-resolutions/:id/acknowledge', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.acknowledge(req.params.id, req.body.project_id)));
+router.post('/registrations', write(PAGES.CUSTOMERS), async (req, res) => {
+ const body = req.body || {};
+ if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'Project and source record ID are required');
+ const data = body.party || {};
+ const rules = require('../services/crm/personRules');
+ rules.assert(await rules.check(data, 'create', 'PERSON'));
+ const result = await require('../repositories/shared/transaction').transaction(trx => require('../services/crm/identity.service').resolveAccount(trx, {
+  project_id: body.project_id, external_account_id: body.external_account_id,
+  party: Object.assign({}, data, { party_type: 'PERSON' }),
+  contacts: [data.mobile ? { contact_type: 'MOBILE', contact_value: data.mobile } : null, data.email ? { contact_type: 'EMAIL', contact_value: data.email } : null].filter(Boolean)
+ }));
+ return response.ok(res, result);
+});
 router.get('/parties/:id', read(PAGES.CUSTOMERS), crmController.parties.detail);
 router.put('/parties/:id', write(PAGES.CUSTOMERS), crmController.parties.update);
 router.post('/parties/:id/status', write(PAGES.CUSTOMERS), crmController.parties.setStatus);

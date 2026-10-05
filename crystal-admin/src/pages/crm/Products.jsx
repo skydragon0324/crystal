@@ -144,7 +144,7 @@ function Registrations() {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'product_name', label: 'Product' },
             { key: 'external_product_instance_id', label: 'Serial or key' },
             { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name || '-') },
@@ -182,8 +182,8 @@ function Registrations() {
         onSubmit={register}
         saving={saving}
         fields={[
-          { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
-            render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+          { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
+            render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
           { name: 'product_id', label: 'Product', type: 'select', required: true, options: catalog, isSearchable: true },
           { name: 'serial_number', label: 'Serial number', required: true,
             help: 'A product already known by this serial is registered again; a new one is created.' },

@@ -160,10 +160,10 @@ export default function CustomerDetail() {
 
   const copyNumber = () => {
     try {
-      navigator.clipboard.writeText(String(party.party_id));
+      navigator.clipboard.writeText(String(party.party_pk));
       toast({ title: translate('crm.c360.copied'), status: 'success', duration: 1500 });
     } catch (error) {
-      toast({ title: partyIdLabel(party.party_id), status: 'info', duration: 3000 });
+      toast({ title: partyIdLabel(party.party_pk), status: 'info', duration: 3000 });
     }
   };
 
@@ -187,11 +187,11 @@ export default function CustomerDetail() {
       </Flex>
       <Box minW={0}>
         <HStack spacing={3} wrap="wrap">
-          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_id)}</Text>
+          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_pk)}</Text>
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_id) })}</Text>
+          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_pk) })}</Text>
           <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
           <Badge variant="subtle" colorScheme="gray" textTransform="none">{translate('crm.c360.individual')}</Badge>
           {verified ? <Badge variant="subtle" colorScheme="blue" textTransform="none">{translate('crm.customer.verified')}</Badge> : null}
@@ -220,12 +220,12 @@ export default function CustomerDetail() {
       </Flex>
       <Box minW={0}>
         <HStack spacing={3} wrap="wrap">
-          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_id)}</Text>
+          <Text fontSize="2xl" fontWeight="800" noOfLines={1}>{party.display_name || partyIdLabel(party.party_pk)}</Text>
           <Pill tone="purple">{translate('crm.c360.organization')}</Pill>
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_id) })}</Text>
+          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_pk) })}</Text>
           <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
         </HStack>
         <Wrap spacing={6} mt={2} fontSize="sm">
@@ -339,19 +339,19 @@ export default function CustomerDetail() {
                   <MenuItem icon={<Icon as={Md.MdForum} />} onClick={() => open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.c360.logInteraction')}</MenuItem>
                   {isPerson ? (
                     <MenuItem icon={<Icon as={Md.MdVerifiedUser} />}
-                      onClick={() => run(() => crm.parties.setChecked(party.party_id, !person.is_checked_manually))}>
+                      onClick={() => run(() => crm.parties.setChecked(party.party_pk, !person.is_checked_manually))}>
                       {translate(person.is_checked_manually ? 'crm.customers.markUnchecked' : 'crm.customers.markChecked')}
                     </MenuItem>
                   ) : null}
                   <MenuDivider />
                   {party.party_status === 'ACTIVE' ? (
                     <MenuItem icon={<Icon as={Md.MdBlock} />}
-                      onClick={() => ask('crm.customer.deactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_id), () => crm.parties.setStatus(party.party_id, 'INACTIVE'))}>
+                      onClick={() => ask('crm.customer.deactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_pk), () => crm.parties.setStatus(party.party_pk, 'INACTIVE'))}>
                       {translate('crm.customer.deactivate')}
                     </MenuItem>
                   ) : (
                     <MenuItem icon={<Icon as={Md.MdRestore} />}
-                      onClick={() => ask('crm.customer.reactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_id), () => crm.parties.setStatus(party.party_id, 'ACTIVE'), 'restore')}>
+                      onClick={() => ask('crm.customer.reactivate', 'crm.customer.statusExplained', partyIdLabel(party.party_pk), () => crm.parties.setStatus(party.party_pk, 'ACTIVE'), 'restore')}>
                       {translate('crm.customer.reactivate')}
                     </MenuItem>
                   )}
@@ -378,8 +378,8 @@ export default function CustomerDetail() {
         </Grid>
         {merged ? (
           <Box mt={3} p={3} borderRadius="md" bg={mergedBg} fontSize="sm">
-            {translate('crm.customer.mergedInto', { number: partyIdLabel(party.merged_into_party_id) })}{' '}
-            <Button size="xs" variant="link" onClick={() => history.push(PAGE + '/' + party.merged_into_party_id)}>{translate('crm.customer.openIt')}</Button>
+            {translate('crm.customer.mergedInto', { number: partyIdLabel(party.merged_into_party_pk) })}{' '}
+            <Button size="xs" variant="link" onClick={() => history.push(PAGE + '/' + party.merged_into_party_pk)}>{translate('crm.customer.openIt')}</Button>
           </Box>
         ) : null}
       </Box>
@@ -422,7 +422,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
     <Wrap spacing={2} mt={3} align="center">
       {tags.map((tag) => (
         <WrapItem key={tag.tag_id}>
-          <TagChip tag={tag} onRemove={editable ? () => run(() => crm.customer360.removeTag(party.party_id, tag.tag_id), 'crm.c360.tagRemoved') : null} />
+          <TagChip tag={tag} onRemove={editable ? () => run(() => crm.customer360.removeTag(party.party_pk, tag.tag_id), 'crm.c360.tagRemoved') : null} />
         </WrapItem>
       ))}
       {editable && unusedTags.length ? (
@@ -431,7 +431,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
             <MenuButton as={Button} size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />}>{translate('crm.c360.addTag')}</MenuButton>
             <MenuList fontSize="sm" maxH="16rem" overflowY="auto">
               {unusedTags.map((tag) => (
-                <MenuItem key={tag.tag_id} onClick={() => run(() => crm.customer360.addTag(party.party_id, tag.tag_id), 'crm.c360.tagAdded')}>
+                <MenuItem key={tag.tag_id} onClick={() => run(() => crm.customer360.addTag(party.party_pk, tag.tag_id), 'crm.c360.tagAdded')}>
                   <TagChip tag={tag} />
                 </MenuItem>
               ))}
@@ -576,7 +576,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'headquarters_address', label: 'Address', colSpan: 'full' },
         { name: 'description', label: 'Business description', type: 'textarea', colSpan: 'full' }
       ],
-      submit: (values) => run(() => crm.parties.update(party.party_id, values))
+      submit: (values) => run(() => crm.parties.update(party.party_pk, values))
     },
     contact: {
       title: translate('crm.customer.addContact'),
@@ -587,7 +587,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'is_primary', label: 'Primary for this type', type: 'checkbox' },
         { name: 'is_verified', label: 'Verified', type: 'checkbox' }
       ],
-      submit: (values) => run(() => crm.parties.addContact(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.parties.addContact(party.party_pk, values), 'Created')
     },
     account: {
       title: translate('crm.customer.linkAccount'),
@@ -596,7 +596,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'external_account_id', label: 'Account id in that project', required: true },
         { name: 'external_login', label: 'Login' }
       ],
-      submit: (values) => run(() => crm.parties.linkAccount(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.parties.linkAccount(party.party_pk, values), 'Created')
     },
     consent: {
       title: translate('crm.customer.changeConsent'),
@@ -609,17 +609,17 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'reason', label: 'Reason', type: 'textarea', required: true, colSpan: 'full',
           help: 'Say how the customer told you - a call, a letter, at a counter.' }
       ],
-      submit: (values) => run(() => crm.parties.setConsent(party.party_id, Object.assign({}, dialog.initial, values)))
+      submit: (values) => run(() => crm.parties.setConsent(party.party_pk, Object.assign({}, dialog.initial, values)))
     },
     merge: {
       title: translate('crm.customer.mergeIntoThis'),
       fields: [
-        { name: 'merged_party_id', label: 'The duplicate customer', type: 'custom', required: true, colSpan: 'full',
-          render: (values, set) => <PartyPicker value={values.merged_party_id} onChange={(value) => set('merged_party_id', value)} /> },
+        { name: 'merged_party_pk', label: 'The duplicate customer', type: 'custom', required: true, colSpan: 'full',
+          render: (values, set) => <PartyPicker value={values.merged_party_pk} onChange={(value) => set('merged_party_pk', value)} /> },
         { name: 'merge_reason', label: 'Reason', type: 'textarea', colSpan: 'full',
           help: 'The duplicate keeps its number and points here; its products, cases and accounts move to this customer.' }
       ],
-      submit: (values) => run(() => crm.parties.merge(party.party_id, values.merged_party_id, values.merge_reason), 'crm.customers.merged')
+      submit: (values) => run(() => crm.parties.merge(party.party_pk, values.merged_party_pk, values.merge_reason), 'crm.customers.merged')
     },
     orgType: {
       title: translate('crm.customer.addOrganizationType'),
@@ -627,7 +627,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'organization_type_id', label: 'Type', type: 'select', required: true, options: optionsFrom(meta.organization_types, 'organization_type_id', 'type_name') },
         { name: 'project_id', label: 'Only in project', type: 'select', options: projects, help: 'Left empty, the type holds across Dream.' }
       ],
-      submit: (values) => run(() => crm.organizations.assignType(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.organizations.assignType(party.party_pk, values), 'Created')
     },
     industry: {
       title: translate('crm.customer.addIndustry'),
@@ -635,18 +635,18 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'industry_id', label: 'Industry', type: 'select', required: true, options: optionsFrom(meta.industries, 'industry_id', 'industry_name') },
         { name: 'is_primary', label: 'Primary', type: 'checkbox' }
       ],
-      submit: (values) => run(() => crm.organizations.setIndustry(party.party_id, values))
+      submit: (values) => run(() => crm.organizations.setIndustry(party.party_pk, values))
     },
     person: {
       title: translate('crm.c360.linkContact'),
       fields: [
-        { name: 'person_party_id', label: 'Person', type: 'custom', required: true, colSpan: 'full',
-          render: (values, set) => <PartyPicker value={values.person_party_id} onChange={(value) => set('person_party_id', value)} /> },
+        { name: 'person_party_pk', label: 'Person', type: 'custom', required: true, colSpan: 'full',
+          render: (values, set) => <PartyPicker value={values.person_party_pk} onChange={(value) => set('person_party_pk', value)} /> },
         { name: 'contact_role_ids', label: 'Roles', type: 'multiselect', options: optionsFrom(meta.contact_roles, 'contact_role_id', 'role_name') },
         { name: 'department_name', label: 'Their department' },
         { name: 'project_id', label: 'Only in project', type: 'select', options: projects }
       ],
-      submit: (values) => run(() => crm.organizations.addPerson(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.organizations.addPerson(party.party_pk, values), 'Created')
     },
     relationship: {
       title: translate('crm.c360.addRelationship'),
@@ -656,12 +656,12 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
             .filter((type) => type.applies_to === 'ANY' || type.applies_to === (isPerson ? 'PERSON' : 'ORGANIZATION'))
             .map((type) => ({ value: type.relationship_type_code, label: type.relationship_name })),
           help: 'Read it as: the customer chosen below is their ... (spouse, parent company, affiliate).' },
-        { name: 'related_party_id', label: 'Related customer', type: 'custom', required: true, colSpan: 'full',
-          render: (values, set) => <PartyPicker value={values.related_party_id} onChange={(value) => set('related_party_id', value)} /> },
+        { name: 'related_party_pk', label: 'Related customer', type: 'custom', required: true, colSpan: 'full',
+          render: (values, set) => <PartyPicker value={values.related_party_pk} onChange={(value) => set('related_party_pk', value)} /> },
         { name: 'valid_from', label: 'Since', type: 'date' },
         { name: 'note', label: 'Note', colSpan: 'full' }
       ],
-      submit: (values) => run(() => crm.customer360.addRelationship(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.customer360.addRelationship(party.party_pk, values), 'Created')
     },
     interaction: {
       title: translate('crm.c360.logInteraction'),
@@ -677,7 +677,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'project_id', label: 'Project', type: 'select', options: projects },
         { name: 'duration_minutes', label: 'Duration in minutes', type: 'number' }
       ],
-      submit: (values) => run(() => crm.customer360.logInteraction(party.party_id, values), 'Created')
+      submit: (values) => run(() => crm.customer360.logInteraction(party.party_pk, values), 'Created')
     },
     message: {
       title: translate('crm.c360.sendMessage'),
@@ -692,7 +692,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'subject', label: 'Subject', required: true, colSpan: 'full' },
         { name: 'body', label: 'Message', type: 'textarea', required: true, colSpan: 'full' }
       ],
-      submit: (values) => run(() => crm.customer360.sendMessage(party.party_id, values), 'crm.c360.messageQueued')
+      submit: (values) => run(() => crm.customer360.sendMessage(party.party_pk, values), 'crm.c360.messageQueued')
     },
     team: {
       title: translate('crm.c360.assignAccountTeam'),
@@ -701,7 +701,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'manager_id', label: 'Staff member', type: 'select', required: true, isSearchable: true, options: optionsFrom(meta.staff, 'manager_id', 'name'),
           help: 'Whoever held the role before is kept in the history.' }
       ],
-      submit: (values) => run(() => crm.customer360.assignTeam(party.party_id, values))
+      submit: (values) => run(() => crm.customer360.assignTeam(party.party_pk, values))
     },
     agreement: {
       title: translate(dialog && dialog.initial && dialog.initial.agreement_id ? 'crm.c360.editAgreement' : 'crm.c360.addAgreement'),
@@ -718,8 +718,8 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'note', label: 'Note', type: 'textarea', colSpan: 'full' }
       ],
       submit: (values) => run(() => (dialog.initial.agreement_id
-        ? crm.customer360.updateAgreement(party.party_id, dialog.initial.agreement_id, values)
-        : crm.customer360.createAgreement(party.party_id, values)))
+        ? crm.customer360.updateAgreement(party.party_pk, dialog.initial.agreement_id, values)
+        : crm.customer360.createAgreement(party.party_pk, values)))
     },
     case: {
       title: translate('crm.c360.newCase'),
@@ -732,7 +732,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'title', label: 'Subject', required: true, colSpan: 'full' },
         { name: 'description', label: 'Description', type: 'textarea', colSpan: 'full' }
       ],
-      submit: (values) => run(() => crm.cases.create(Object.assign({ party_id: party.party_id }, values)), 'Created')
+      submit: (values) => run(() => crm.cases.create(Object.assign({ party_pk: party.party_pk }, values)), 'Created')
     },
     campaign: {
       title: translate('crm.c360.newCampaign'),
@@ -750,8 +750,8 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
             campaign_name: values.campaign_name, campaign_code: values.campaign_code, campaign_type: values.campaign_type, project_id: values.project_id
           });
           if (values.with_contacts) {
-            const ids = [party.party_id].concat((view.key_contacts || []).map((contact) => contact.person_party_id));
-            await crm.campaigns.addAudience(campaign.campaign_id, { audience_name: party.display_name, audience_type: 'MANUAL', party_ids: ids });
+            const ids = [party.party_pk].concat((view.key_contacts || []).map((contact) => contact.person_party_pk));
+            await crm.campaigns.addAudience(campaign.campaign_id, { audience_name: party.display_name, audience_type: 'MANUAL', party_pks: ids });
           }
           return campaign;
         }, 'Created');

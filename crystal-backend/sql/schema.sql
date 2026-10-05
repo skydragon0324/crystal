@@ -2762,7 +2762,7 @@ COMMENT ON VIEW v_defect_watch IS
 -- 10. CRM
 --
 -- The Dream CRM, as designed in "Crystal CRM - Logic & DB Design (v2)".
--- Every table is prefixed crm_ and keeps the design's own names - party_id
+-- Every table is prefixed crm_ and keeps the design's own names - party_pk
 -- rather than id, varchar codes with a CHECK rather than enum types -
 -- because the design is the contract the other projects (the vendor
 -- platform, eproduct, Eshop, Appstore, Karaoke, B-media) will be mapped
@@ -2773,7 +2773,7 @@ COMMENT ON VIEW v_defect_watch IS
 -- registered_products, repair_tickets, symptom_catalog, provinces,
 -- managers); no Crystal table gains a column or loses a row because of it.
 -- The design's two optional changes to existing tables - repair_tickets.
--- crm_party_id and manager_departments - are deliberately NOT applied:
+-- crm_party_pk and manager_departments - are deliberately NOT applied:
 -- crm_service_case.crystal_repair_ticket_id already links a ticket to its
 -- case from the CRM side.
 --
@@ -2866,18 +2866,18 @@ CREATE TABLE crm_party (
     party_status                       varchar(20)    NOT NULL DEFAULT 'ACTIVE' CHECK (party_status IN ('ACTIVE','INACTIVE','MERGED','DELETED')),
     display_name                       varchar(250)   NULL,
     origin_project_id                  int            NULL REFERENCES crm_project(project_id),
-    merged_into_party_id               varchar(32)    NULL REFERENCES crm_party(party_id),
+    merged_into_party_pk               bigint    NULL REFERENCES crm_party(party_pk),
     first_seen_at                      timestamptz    NULL,
     last_seen_at                       timestamptz    NULL,
     deleted_at                         timestamptz    NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT chk_crm_party_merged CHECK ((party_status = 'MERGED') = (merged_into_party_id IS NOT NULL)),
-    CONSTRAINT chk_crm_party_not_self CHECK (merged_into_party_id IS NULL OR merged_into_party_id <> party_id)
+    CONSTRAINT chk_crm_party_merged CHECK ((party_status = 'MERGED') = (merged_into_party_pk IS NOT NULL)),
+    CONSTRAINT chk_crm_party_not_self CHECK (merged_into_party_pk IS NULL OR merged_into_party_pk <> party_pk)
 );
-COMMENT ON TABLE crm_party IS 'Central identity root. Every person and organization known to Dream gets one party_id.';
-COMMENT ON COLUMN crm_party.party_pk IS 'Internal row key. Never shown, never in a URL, never referenced by another table.';
-COMMENT ON COLUMN crm_party.party_id IS 'The customer''s id: in URLs, on screens, and in every table that points at a customer. Generated (crm_new_party_id) or imported (the User ID of the customer sheet).';
+COMMENT ON TABLE crm_party IS 'Central identity root. Every person and organization known to Dream gets one party_pk.';
+COMMENT ON COLUMN crm_party.party_pk IS 'Phase 1 customer key used by CRM foreign keys, URLs and department records.';
+COMMENT ON COLUMN crm_party.party_id IS 'Reserved public identifier; not used as a foreign key in phase 1.';
 CREATE INDEX idx_crm_party_type_status ON crm_party(party_type, party_status);
 CREATE INDEX idx_crm_party_origin ON crm_party(origin_project_id);
 CREATE INDEX idx_crm_party_name ON crm_party(lower(display_name));
@@ -2892,7 +2892,7 @@ CREATE TABLE crm_job_title (
 COMMENT ON TABLE crm_job_title IS 'The job titles a person can be given. Seeded from the vendor JOBS list; edited at /admin/crm/settings.';
 
 CREATE TABLE crm_person (
-    party_id                           varchar(32)    PRIMARY KEY REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    PRIMARY KEY REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     full_name                          varchar(250)   NULL,
     gender_code                        varchar(20)    NULL CHECK (gender_code IN ('M','F','OTHER','UNKNOWN')),
     birth_date                         date           NULL,
@@ -2908,10 +2908,10 @@ CREATE TABLE crm_person (
 COMMENT ON TABLE crm_person IS 'Person-only attributes for a PERSON party.';
 COMMENT ON COLUMN crm_person.is_checked_manually IS 'true once a manager has reviewed this person by hand. Who and when is in audit_log.';
 CREATE INDEX idx_crm_person_job ON crm_person(job_title_id) WHERE job_title_id IS NOT NULL;
-CREATE INDEX idx_crm_person_unchecked ON crm_person(party_id) WHERE NOT is_checked_manually;
+CREATE INDEX idx_crm_person_unchecked ON crm_person(party_pk) WHERE NOT is_checked_manually;
 
 CREATE TABLE crm_organization (
-    party_id                           varchar(32)    PRIMARY KEY REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    PRIMARY KEY REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     legal_name                         varchar(250)   NULL,
     trading_name                       varchar(250)   NULL,
     registration_number                varchar(100)   NULL,
@@ -2925,7 +2925,7 @@ COMMENT ON TABLE crm_organization IS 'Organization-only attributes: agencies and
 
 CREATE TABLE crm_project_account (
     project_account_id                 bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     project_id                         int            NOT NULL REFERENCES crm_project(project_id),
     external_account_id                varchar(250)   NOT NULL,
     external_login                     varchar(100)   NULL,
@@ -2945,61 +2945,61 @@ CREATE TABLE crm_project_account (
 );
 COMMENT ON TABLE crm_project_account IS 'Links a party to the account id a project issues. Main cross-project identity map.';
 CREATE UNIQUE INDEX uq_crm_project_account ON crm_project_account(project_id, external_account_id) WHERE unlinked_at IS NULL;
-CREATE INDEX idx_crm_project_account_party ON crm_project_account(party_id, project_id);
+CREATE INDEX idx_crm_project_account_party ON crm_project_account(party_pk, project_id);
 CREATE INDEX idx_crm_project_account_user ON crm_project_account(crystal_user_id) WHERE crystal_user_id IS NOT NULL;
 
 CREATE TABLE crm_identity_match_candidate (
     match_candidate_id                 bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     incoming_project_id                int            NOT NULL REFERENCES crm_project(project_id),
     incoming_external_record_id        varchar(250)   NOT NULL,
-    incoming_party_id                  varchar(32)    NULL REFERENCES crm_party(party_id),
-    candidate_party_id                 varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    incoming_party_pk                  bigint    NULL REFERENCES crm_party(party_pk),
+    candidate_party_pk                 bigint    NOT NULL REFERENCES crm_party(party_pk),
     match_rule_code                    varchar(50)    NOT NULL,
-    match_score                        numeric(5,4)   NULL CHECK (match_score BETWEEN 0 AND 1),
+    match_score                        numeric(5,0)   NULL CHECK (match_score BETWEEN 0 AND 110),
     match_status                       varchar(30)    NOT NULL DEFAULT 'PENDING' CHECK (match_status IN ('PENDING','ACCEPTED','REJECTED')),
     explanation_json                   jsonb          NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     reviewed_at                        timestamptz    NULL,
     reviewed_by_manager_id             integer        REFERENCES managers(id) ON DELETE SET NULL,
-    CONSTRAINT uq_crm_match_pair UNIQUE (incoming_project_id, incoming_external_record_id, candidate_party_id)
+    CONSTRAINT uq_crm_match_pair UNIQUE (incoming_project_id, incoming_external_record_id, candidate_party_pk)
 );
 COMMENT ON TABLE crm_identity_match_candidate IS 'Uncertain matches waiting for review before an incoming record is linked to an existing party.';
 CREATE INDEX idx_crm_match_pending ON crm_identity_match_candidate(created_at) WHERE match_status = 'PENDING';
-CREATE INDEX idx_crm_match_candidate ON crm_identity_match_candidate(candidate_party_id);
+CREATE INDEX idx_crm_match_candidate ON crm_identity_match_candidate(candidate_party_pk);
 
 CREATE TABLE crm_party_merge_history (
     merge_id                           bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    surviving_party_id                 varchar(32)    NOT NULL REFERENCES crm_party(party_id),
-    merged_party_id                    varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    surviving_party_pk                 bigint    NOT NULL REFERENCES crm_party(party_pk),
+    merged_party_pk                    bigint    NOT NULL REFERENCES crm_party(party_pk),
     merge_reason                       varchar(250)   NULL,
     merge_method                       varchar(30)    NULL CHECK (merge_method IN ('MANUAL','EXACT_MATCH','REVIEWED_MATCH','PLATFORM')),
-    match_score                        numeric(5,4)   NULL CHECK (match_score BETWEEN 0 AND 1),
+    match_score                        numeric(5,0)   NULL CHECK (match_score BETWEEN 0 AND 110),
     moved_rows                         jsonb          NOT NULL,
     platform_merge_log_pk              bigint         NULL UNIQUE,
     merged_by_manager_id               integer        REFERENCES managers(id) ON DELETE SET NULL,
     merged_at                          timestamptz    NOT NULL DEFAULT now(),
     merge_metadata                     jsonb          NULL,
-    CONSTRAINT chk_crm_merge_not_self CHECK (surviving_party_id <> merged_party_id)
+    CONSTRAINT chk_crm_merge_not_self CHECK (surviving_party_pk <> merged_party_pk)
 );
 COMMENT ON TABLE crm_party_merge_history IS 'Audit of duplicate parties merged into a survivor.';
-CREATE INDEX idx_crm_merge_parties ON crm_party_merge_history(surviving_party_id, merged_party_id);
+CREATE INDEX idx_crm_merge_parties ON crm_party_merge_history(surviving_party_pk, merged_party_pk);
 
 CREATE TABLE crm_party_split_history (
     split_id                           bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    original_party_id                  varchar(32)    NOT NULL REFERENCES crm_party(party_id),
-    new_party_id                       varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    original_party_pk                  bigint    NOT NULL REFERENCES crm_party(party_pk),
+    new_party_pk                       bigint    NOT NULL REFERENCES crm_party(party_pk),
     reversed_merge_id                  bigint         NULL REFERENCES crm_party_merge_history(merge_id),
     split_reason                       varchar(250)   NULL,
     split_by_manager_id                integer        REFERENCES managers(id) ON DELETE SET NULL,
     split_at                           timestamptz    NOT NULL DEFAULT now(),
     split_metadata                     jsonb          NULL,
-    CONSTRAINT chk_crm_split_not_self CHECK (original_party_id <> new_party_id)
+    CONSTRAINT chk_crm_split_not_self CHECK (original_party_pk <> new_party_pk)
 );
 COMMENT ON TABLE crm_party_split_history IS 'Audit of a wrongly merged party being split again.';
 
 CREATE TABLE crm_contact_point (
     contact_point_id                   bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     contact_type                       varchar(30)    NOT NULL CHECK (contact_type IN ('EMAIL','MOBILE','PHONE','SIM_CID','WECHAT_ID','WHATSAPP','PUSH_TOKEN')),
     contact_value                      varchar(500)   NOT NULL,
     normalized_value                   varchar(500)   NOT NULL,
@@ -3012,13 +3012,13 @@ CREATE TABLE crm_contact_point (
     valid_to                           timestamptz    NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_contact UNIQUE (party_id, contact_type, normalized_value),
+    CONSTRAINT uq_crm_contact UNIQUE (party_pk, contact_type, normalized_value),
     CONSTRAINT chk_crm_contact_period CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from)
 );
 COMMENT ON TABLE crm_contact_point IS 'Reusable contact values of a party. Replaces comma-joined phone columns in the vendor CRM.';
 CREATE INDEX idx_crm_contact_lookup ON crm_contact_point(contact_type, normalized_value) WHERE status = 'ACTIVE';
-CREATE INDEX idx_crm_contact_party ON crm_contact_point(party_id, contact_type, status);
-CREATE UNIQUE INDEX uq_crm_contact_primary ON crm_contact_point(party_id, contact_type) WHERE is_primary;
+CREATE INDEX idx_crm_contact_party ON crm_contact_point(party_pk, contact_type, status);
+CREATE UNIQUE INDEX uq_crm_contact_primary ON crm_contact_point(party_pk, contact_type) WHERE is_primary;
 
 CREATE TABLE crm_communication_channel (
     channel_id                         smallint       GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3053,7 +3053,7 @@ COMMENT ON TABLE crm_project_communication_option IS 'Which project x purpose x 
 
 CREATE TABLE crm_party_communication_consent (
     party_communication_consent_id     bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     project_communication_option_id    int            NOT NULL REFERENCES crm_project_communication_option(project_communication_option_id),
     contact_point_id                   bigint         NULL REFERENCES crm_contact_point(contact_point_id) ON DELETE SET NULL,
     consent_status                     varchar(20)    NOT NULL CHECK (consent_status IN ('GRANTED','DENIED','WITHDRAWN','NOT_REQUIRED')),
@@ -3065,11 +3065,11 @@ CREATE TABLE crm_party_communication_consent (
     effective_to                       timestamptz    NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_consent UNIQUE (party_id, project_communication_option_id),
+    CONSTRAINT uq_crm_consent UNIQUE (party_pk, project_communication_option_id),
     CONSTRAINT chk_crm_consent_period CHECK (effective_to IS NULL OR effective_from IS NULL OR effective_to >= effective_from)
 );
 COMMENT ON TABLE crm_party_communication_consent IS 'Current consent of one party for one project option, with the contact point to use.';
-CREATE INDEX idx_crm_consent_option ON crm_party_communication_consent(project_communication_option_id, party_id);
+CREATE INDEX idx_crm_consent_option ON crm_party_communication_consent(project_communication_option_id, party_pk);
 
 CREATE TABLE crm_consent_event (
     consent_event_id                   bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3096,12 +3096,12 @@ CREATE TABLE crm_industry (
 COMMENT ON TABLE crm_industry IS 'Hierarchical industry classification.';
 
 CREATE TABLE crm_organization_industry (
-    organization_party_id              varchar(32)    NOT NULL REFERENCES crm_organization(party_id) ON DELETE CASCADE,
+    organization_party_pk              bigint    NOT NULL REFERENCES crm_organization(party_pk) ON DELETE CASCADE,
     industry_id                        int            NOT NULL REFERENCES crm_industry(industry_id),
     is_primary                         boolean        NOT NULL DEFAULT false,
     valid_from                         date           NULL,
     valid_to                           date           NULL,
-    PRIMARY KEY (organization_party_id, industry_id),
+    PRIMARY KEY (organization_party_pk, industry_id),
     CONSTRAINT chk_crm_org_industry_period CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from)
 );
 COMMENT ON TABLE crm_organization_industry IS 'Industries of an organization.';
@@ -3115,7 +3115,7 @@ COMMENT ON TABLE crm_organization_type IS 'Organization relationship types. Seed
 
 CREATE TABLE crm_organization_type_assignment (
     organization_type_assignment_id    bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    organization_party_id              varchar(32)    NOT NULL REFERENCES crm_organization(party_id) ON DELETE CASCADE,
+    organization_party_pk              bigint    NOT NULL REFERENCES crm_organization(party_pk) ON DELETE CASCADE,
     organization_type_id               int            NOT NULL REFERENCES crm_organization_type(organization_type_id),
     project_id                         int            NULL REFERENCES crm_project(project_id),
     status                             varchar(20)    NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','ENDED')),
@@ -3123,7 +3123,7 @@ CREATE TABLE crm_organization_type_assignment (
     ended_at                           timestamptz    NULL
 );
 COMMENT ON TABLE crm_organization_type_assignment IS 'Types an organization holds, Dream-wide (project NULL) or per project.';
-CREATE UNIQUE INDEX uq_crm_org_type_assignment ON crm_organization_type_assignment(organization_party_id, organization_type_id, COALESCE(project_id, 0));
+CREATE UNIQUE INDEX uq_crm_org_type_assignment ON crm_organization_type_assignment(organization_party_pk, organization_type_id, COALESCE(project_id, 0));
 
 CREATE TABLE crm_org_contact_role (
     contact_role_id                    int            GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3134,8 +3134,8 @@ COMMENT ON TABLE crm_org_contact_role IS 'Roles a person holds for an organizati
 
 CREATE TABLE crm_organization_person_relationship (
     org_person_relationship_id         bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    organization_party_id              varchar(32)    NOT NULL REFERENCES crm_organization(party_id),
-    person_party_id                    varchar(32)    NOT NULL REFERENCES crm_person(party_id),
+    organization_party_pk              bigint    NOT NULL REFERENCES crm_organization(party_pk),
+    person_party_pk                    bigint    NOT NULL REFERENCES crm_person(party_pk),
     project_id                         int            NULL REFERENCES crm_project(project_id),
     relationship_status                varchar(20)    NOT NULL DEFAULT 'ACTIVE' CHECK (relationship_status IN ('ACTIVE','ENDED')),
     valid_from                         date           NULL,
@@ -3144,8 +3144,8 @@ CREATE TABLE crm_organization_person_relationship (
     updated_at                         timestamptz    NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE crm_organization_person_relationship IS 'A person working for or representing an organization.';
-CREATE INDEX idx_crm_org_person ON crm_organization_person_relationship(organization_party_id, person_party_id, project_id);
-CREATE INDEX idx_crm_org_person_person ON crm_organization_person_relationship(person_party_id);
+CREATE INDEX idx_crm_org_person ON crm_organization_person_relationship(organization_party_pk, person_party_pk, project_id);
+CREATE INDEX idx_crm_org_person_person ON crm_organization_person_relationship(person_party_pk);
 
 CREATE TABLE crm_organization_person_role (
     org_person_role_id                 bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3166,7 +3166,7 @@ CREATE TABLE crm_service_center (
     service_center_code                varchar(40)    NOT NULL UNIQUE,
     service_center_name                varchar(200)   NOT NULL,
     service_center_kind                varchar(30)    NOT NULL CHECK (service_center_kind IN ('SERVICE_CENTER','SALES_AGENCY','COLLECTION_POINT','PARTNER_SHOP','OFFICE','EVENT_VENUE')),
-    operator_party_id                  varchar(32)    NULL REFERENCES crm_organization(party_id),
+    operator_party_pk                  bigint    NULL REFERENCES crm_organization(party_pk),
     location_pk                        bigint         NULL REFERENCES crm_location(location_pk),
     address_line                       varchar(255)   NULL,
     landmark                           varchar(255)   NULL,
@@ -3185,7 +3185,7 @@ CREATE TABLE crm_service_center (
 );
 COMMENT ON TABLE crm_service_center IS 'A service centre, sales agency, collection point, partner shop, office or event venue - whoever runs it. Merged from Crystal agencies and the three vendor agency tables. location_pk is where it is on the map (crm_location).';
 CREATE UNIQUE INDEX uq_crm_site_source ON crm_service_center(source_table_code, source_service_center_key) WHERE source_service_center_key IS NOT NULL;
-CREATE INDEX idx_crm_site_operator ON crm_service_center(operator_party_id);
+CREATE INDEX idx_crm_site_operator ON crm_service_center(operator_party_pk);
 CREATE INDEX idx_crm_site_location ON crm_service_center(location_pk, status);
 
 CREATE TABLE crm_service_center_capability (
@@ -3250,8 +3250,8 @@ CREATE TABLE crm_service_center_activity (
     project_id                         int            NULL REFERENCES crm_project(project_id),
     service_center_event_id                  bigint         NULL REFERENCES crm_service_center_event(service_center_event_id),
     occurred_at                        timestamptz    NOT NULL,
-    party_id                           varchar(32)    NULL REFERENCES crm_party(party_id),
-    performed_by_party_id              varchar(32)    NULL REFERENCES crm_person(party_id),
+    party_pk                           bigint    NULL REFERENCES crm_party(party_pk),
+    performed_by_party_pk              bigint    NULL REFERENCES crm_person(party_pk),
     performed_by_manager_id            integer        REFERENCES managers(id) ON DELETE SET NULL,
     quantity                           numeric(12,3)  NOT NULL DEFAULT 1 CHECK (quantity >= 0),
     amount                             numeric(20,4)  NULL,
@@ -3271,7 +3271,7 @@ COMMENT ON TABLE crm_service_center_activity IS 'One activity or service actuall
 CREATE UNIQUE INDEX uq_crm_loc_activity_ext ON crm_service_center_activity(project_id, activity_type_id, external_activity_id) WHERE external_activity_id IS NOT NULL;
 CREATE INDEX idx_crm_loc_activity_site ON crm_service_center_activity(service_center_id, occurred_at DESC);
 CREATE INDEX idx_crm_loc_activity_type ON crm_service_center_activity(activity_type_id, occurred_at DESC);
-CREATE INDEX idx_crm_loc_activity_party ON crm_service_center_activity(party_id, occurred_at DESC) WHERE party_id IS NOT NULL;
+CREATE INDEX idx_crm_loc_activity_party ON crm_service_center_activity(party_pk, occurred_at DESC) WHERE party_pk IS NOT NULL;
 
 CREATE TABLE crm_service_center_activity_target (
     service_center_activity_target_id        bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3341,7 +3341,7 @@ CREATE TABLE crm_product_instance (
     imei                               varchar(20)    NULL,
     license_key_hash                   varchar(64)    NULL,
     bound_instance_id                  bigint         NULL REFERENCES crm_product_instance(product_instance_id),
-    provider_party_id                  varchar(32)    NULL REFERENCES crm_organization(party_id),
+    provider_party_pk                  bigint    NULL REFERENCES crm_organization(party_pk),
     valid_until                        timestamptz    NULL,
     manufactured_at                    date           NULL,
     batch_code                         varchar(40)    NULL,
@@ -3395,7 +3395,7 @@ COMMENT ON TABLE crm_acquisition_type IS 'How the holder obtained it. Seeded: PU
 
 CREATE TABLE crm_product_registration (
     product_registration_id            bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     product_instance_id                bigint         NOT NULL REFERENCES crm_product_instance(product_instance_id),
     relationship_type_id               smallint       NOT NULL,
     relationship_code                  varchar(30)    NOT NULL,
@@ -3405,7 +3405,7 @@ CREATE TABLE crm_product_registration (
     purchase_purpose_id                smallint       NULL REFERENCES crm_purchase_purpose(purchase_purpose_id),
     usage_type_id                      smallint       NULL REFERENCES crm_product_usage_type(usage_type_id),
     acquisition_type_id                smallint       NULL REFERENCES crm_acquisition_type(acquisition_type_id),
-    previous_owner_party_id            varchar(32)    NULL REFERENCES crm_party(party_id),
+    previous_owner_party_pk            bigint    NULL REFERENCES crm_party(party_pk),
     related_transaction_id             bigint         NULL,
     transfer_id                        bigint         NULL,
     purchase_date                      date           NULL,
@@ -3422,14 +3422,14 @@ CREATE TABLE crm_product_registration (
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
     CONSTRAINT fk_crm_reg_rel_type FOREIGN KEY (relationship_type_id, relationship_code) REFERENCES crm_product_relationship_type(relationship_type_id, relationship_code),
     CONSTRAINT chk_crm_reg_period CHECK (valid_to IS NULL OR valid_to >= valid_from),
-    CONSTRAINT chk_crm_reg_prev CHECK (previous_owner_party_id IS NULL OR previous_owner_party_id <> party_id),
+    CONSTRAINT chk_crm_reg_prev CHECK (previous_owner_party_pk IS NULL OR previous_owner_party_pk <> party_pk),
     CONSTRAINT chk_crm_reg_ended CHECK ((valid_to IS NULL) = (registration_status = 'ACTIVE')),
     CONSTRAINT chk_crm_reg_end_reason CHECK (registration_status = 'ACTIVE' OR end_reason_code IS NOT NULL)
 );
 COMMENT ON TABLE crm_product_registration IS 'Time-bounded party <-> instance relationship: registration, ownership, assignment, licence. One table for phone, eproduct, licence and app registrations. valid_to NULL = current.';
 CREATE UNIQUE INDEX uq_crm_reg_one_owner ON crm_product_registration(product_instance_id) WHERE relationship_code IN ('OWNER','LICENSEE') AND valid_to IS NULL;
-CREATE UNIQUE INDEX uq_crm_reg_current ON crm_product_registration(product_instance_id, party_id, relationship_type_id) WHERE valid_to IS NULL;
-CREATE INDEX idx_crm_reg_party ON crm_product_registration(party_id, valid_to);
+CREATE UNIQUE INDEX uq_crm_reg_current ON crm_product_registration(product_instance_id, party_pk, relationship_type_id) WHERE valid_to IS NULL;
+CREATE INDEX idx_crm_reg_party ON crm_product_registration(party_pk, valid_to);
 CREATE INDEX idx_crm_reg_instance ON crm_product_registration(product_instance_id, valid_from);
 CREATE UNIQUE INDEX uq_crm_reg_source ON crm_product_registration(project_id, source_record_id) WHERE source_record_id IS NOT NULL;
 
@@ -3437,12 +3437,12 @@ CREATE TABLE crm_product_transfer (
     product_transfer_id                bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     product_instance_id                bigint         NOT NULL REFERENCES crm_product_instance(product_instance_id),
     transfer_kind                      varchar(30)    NOT NULL CHECK (transfer_kind IN ('OWNERSHIP_TRANSFER','ASSIGN_USER','END_ASSIGNMENT','RETURN_TO_OWNER','LEASE_START','LEASE_END','LICENCE_REBIND')),
-    from_party_id                      varchar(32)    NULL REFERENCES crm_party(party_id),
-    to_party_id                        varchar(32)    NULL REFERENCES crm_party(party_id),
+    from_party_pk                      bigint    NULL REFERENCES crm_party(party_pk),
+    to_party_pk                        bigint    NULL REFERENCES crm_party(party_pk),
     to_instance_id                     bigint         NULL REFERENCES crm_product_instance(product_instance_id),
     acquisition_type_id                smallint       NULL REFERENCES crm_acquisition_type(acquisition_type_id),
     requested_by_type                  varchar(20)    NOT NULL CHECK (requested_by_type IN ('PARTY','MANAGER','LOCATION','SYSTEM')),
-    requested_by_party_id              varchar(32)    NULL REFERENCES crm_party(party_id),
+    requested_by_party_pk              bigint    NULL REFERENCES crm_party(party_pk),
     requested_by_manager_id            integer        REFERENCES managers(id) ON DELETE SET NULL,
     handled_at_service_center_id             bigint         NULL REFERENCES crm_service_center(service_center_id),
     related_transaction_id             bigint         NULL,
@@ -3456,14 +3456,14 @@ CREATE TABLE crm_product_transfer (
     created_registration_id            bigint         NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT chk_crm_transfer_parties CHECK (from_party_id IS NULL OR to_party_id IS NULL OR from_party_id <> to_party_id),
+    CONSTRAINT chk_crm_transfer_parties CHECK (from_party_pk IS NULL OR to_party_pk IS NULL OR from_party_pk <> to_party_pk),
     CONSTRAINT chk_crm_transfer_completed CHECK (status <> 'COMPLETED' OR completed_at IS NOT NULL),
-    CONSTRAINT chk_crm_transfer_target CHECK (transfer_kind IN ('END_ASSIGNMENT','LEASE_END','RETURN_TO_OWNER','LICENCE_REBIND') OR to_party_id IS NOT NULL)
+    CONSTRAINT chk_crm_transfer_target CHECK (transfer_kind IN ('END_ASSIGNMENT','LEASE_END','RETURN_TO_OWNER','LICENCE_REBIND') OR to_party_pk IS NOT NULL)
 );
 COMMENT ON TABLE crm_product_transfer IS 'Request and outcome of a product-specific action: ownership transfer, assigning a user, ending an assignment, returning to the owner, leasing. Completing it closes and opens crm_product_registration rows in one transaction.';
 CREATE UNIQUE INDEX uq_crm_transfer_open ON crm_product_transfer(product_instance_id, transfer_kind) WHERE status IN ('REQUESTED','ACCEPTED');
-CREATE INDEX idx_crm_transfer_to ON crm_product_transfer(to_party_id, status);
-CREATE INDEX idx_crm_transfer_from ON crm_product_transfer(from_party_id, status);
+CREATE INDEX idx_crm_transfer_to ON crm_product_transfer(to_party_pk, status);
+CREATE INDEX idx_crm_transfer_from ON crm_product_transfer(from_party_pk, status);
 
 CREATE TABLE crm_registration_question (
     question_id                        int            GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3543,13 +3543,13 @@ CREATE INDEX idx_crm_txn_site ON crm_transaction(service_center_id, transaction_
 CREATE TABLE crm_transaction_party (
     transaction_party_id               bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     transaction_id                     bigint         NOT NULL REFERENCES crm_transaction(transaction_id) ON DELETE CASCADE,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     party_role_code                    varchar(30)    NOT NULL CHECK (party_role_code IN ('BUYER','PAYER','RECEIVER','SELLER','AGENT')),
     created_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_txn_party UNIQUE (transaction_id, party_id, party_role_code)
+    CONSTRAINT uq_crm_txn_party UNIQUE (transaction_id, party_pk, party_role_code)
 );
 COMMENT ON TABLE crm_transaction_party IS 'Parties in a transaction and their role.';
-CREATE INDEX idx_crm_txn_party ON crm_transaction_party(party_id, transaction_id);
+CREATE INDEX idx_crm_txn_party ON crm_transaction_party(party_pk, transaction_id);
 
 CREATE TABLE crm_transaction_item (
     transaction_item_id                bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3644,11 +3644,11 @@ COMMENT ON TABLE crm_resolution_category IS 'Selectable resolutions.';
 
 CREATE TABLE crm_service_case (
     case_id                            bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     project_id                         int            NOT NULL REFERENCES crm_project(project_id),
     external_case_id                   varchar(250)   NULL,
     crystal_repair_ticket_id           integer        NULL UNIQUE REFERENCES repair_tickets(id) ON DELETE SET NULL,
-    service_provider_party_id          varchar(32)    NULL REFERENCES crm_organization(party_id),
+    service_provider_party_pk          bigint    NULL REFERENCES crm_organization(party_pk),
     service_center_id                bigint         NULL REFERENCES crm_service_center(service_center_id),
     case_type_id                       smallint       NOT NULL REFERENCES crm_service_case_type(case_type_id),
     service_status_id                  smallint       NOT NULL REFERENCES crm_service_status(service_status_id),
@@ -3679,7 +3679,7 @@ CREATE TABLE crm_service_case (
 );
 COMMENT ON TABLE crm_service_case IS 'CRM-level service summary. Detailed repair workflow stays in the project (Crystal repair_tickets, parts, claims).';
 CREATE UNIQUE INDEX uq_crm_case_ext ON crm_service_case(project_id, external_case_id) WHERE external_case_id IS NOT NULL;
-CREATE INDEX idx_crm_case_party ON crm_service_case(party_id, received_at DESC);
+CREATE INDEX idx_crm_case_party ON crm_service_case(party_pk, received_at DESC);
 CREATE INDEX idx_crm_case_queue ON crm_service_case(project_id, service_status_id, received_at);
 CREATE INDEX idx_crm_case_instance ON crm_service_case(related_product_instance_id, received_at) WHERE related_product_instance_id IS NOT NULL;
 CREATE INDEX idx_crm_case_site ON crm_service_case(service_center_id, received_at DESC);
@@ -3714,7 +3714,7 @@ COMMENT ON TABLE crm_project_tier IS 'Levels calculated by a project. Rank is me
 
 CREATE TABLE crm_membership (
     membership_id                      bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     project_id                         int            NOT NULL REFERENCES crm_project(project_id),
     external_member_id                 varchar(250)   NULL,
     current_tier_id                    int            NULL,
@@ -3727,7 +3727,7 @@ CREATE TABLE crm_membership (
     synced_at                          timestamptz    NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_membership UNIQUE (party_id, project_id),
+    CONSTRAINT uq_crm_membership UNIQUE (party_pk, project_id),
     CONSTRAINT fk_crm_membership_tier FOREIGN KEY (current_tier_id, project_id) REFERENCES crm_project_tier(project_tier_id, project_id),
     CONSTRAINT chk_crm_membership_period CHECK (left_at IS NULL OR joined_at IS NULL OR left_at >= joined_at)
 );
@@ -3793,7 +3793,7 @@ CREATE UNIQUE INDEX uq_crm_point_rule_product ON crm_point_rule(product_id, poin
 
 CREATE TABLE crm_point_account (
     point_account_id                   bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     point_type_id                      smallint       NOT NULL REFERENCES crm_point_type(point_type_id),
     membership_id                      bigint         NULL REFERENCES crm_membership(membership_id),
     balance                            numeric(14,3)  NOT NULL DEFAULT 0,
@@ -3801,7 +3801,7 @@ CREATE TABLE crm_point_account (
     lifetime_spent                     numeric(14,3)  NOT NULL DEFAULT 0,
     last_event_at                      timestamptz    NULL,
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_point_account UNIQUE (party_id, point_type_id),
+    CONSTRAINT uq_crm_point_account UNIQUE (party_pk, point_type_id),
     CONSTRAINT chk_crm_point_account_sum CHECK (balance = lifetime_earned - lifetime_spent)
 );
 COMMENT ON TABLE crm_point_account IS 'Balance of one party in one currency: the cached total of crm_point_event, like wallets.point_balance over point_logs.';
@@ -3850,7 +3850,7 @@ COMMENT ON TABLE crm_corporate_grade IS 'Dream-wide grade bands produced from th
 
 CREATE TABLE crm_party_analysis_snapshot (
     analysis_snapshot_id               bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     project_id                         int            NULL REFERENCES crm_project(project_id),
     reference_date                     date           NOT NULL,
     calculated_at                      timestamptz    NOT NULL DEFAULT now(),
@@ -3877,9 +3877,9 @@ CREATE TABLE crm_party_analysis_snapshot (
     CONSTRAINT chk_crm_snapshot_grade_scope CHECK (project_id IS NULL OR (corporate_score IS NULL AND corporate_grade_id IS NULL))
 );
 COMMENT ON TABLE crm_party_analysis_snapshot IS 'Periodic snapshot per party: project row or Dream-wide row (project_id NULL). Replaces integrated_user_values.';
-CREATE UNIQUE INDEX uq_crm_snapshot_scope ON crm_party_analysis_snapshot(party_id, COALESCE(project_id, 0), reference_date);
-CREATE INDEX idx_crm_snapshot_history ON crm_party_analysis_snapshot(party_id, reference_date DESC);
-CREATE INDEX idx_crm_snapshot_grade ON crm_party_analysis_snapshot(reference_date, corporate_grade_id, party_id) WHERE project_id IS NULL;
+CREATE UNIQUE INDEX uq_crm_snapshot_scope ON crm_party_analysis_snapshot(party_pk, COALESCE(project_id, 0), reference_date);
+CREATE INDEX idx_crm_snapshot_history ON crm_party_analysis_snapshot(party_pk, reference_date DESC);
+CREATE INDEX idx_crm_snapshot_grade ON crm_party_analysis_snapshot(reference_date, corporate_grade_id, party_pk) WHERE project_id IS NULL;
 
 CREATE TABLE crm_metric_definition (
     metric_definition_id               bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -3894,7 +3894,7 @@ COMMENT ON TABLE crm_metric_definition IS 'Extensible metric dictionary.';
 
 CREATE TABLE crm_party_metric_value (
     party_metric_value_id              bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     project_id                         int            NULL REFERENCES crm_project(project_id),
     metric_definition_id               bigint         NOT NULL REFERENCES crm_metric_definition(metric_definition_id),
     reference_date                     date           NOT NULL,
@@ -3907,17 +3907,17 @@ CREATE TABLE crm_party_metric_value (
     CONSTRAINT chk_crm_metric_one_value CHECK (num_nonnulls(numeric_value, text_value, boolean_value, date_value) = 1)
 );
 COMMENT ON TABLE crm_party_metric_value IS 'Metric value per party, scope and date.';
-CREATE UNIQUE INDEX uq_crm_metric_value ON crm_party_metric_value(party_id, COALESCE(project_id, 0), metric_definition_id, reference_date);
-CREATE INDEX idx_crm_metric_eval ON crm_party_metric_value(metric_definition_id, project_id, reference_date, party_id);
+CREATE UNIQUE INDEX uq_crm_metric_value ON crm_party_metric_value(party_pk, COALESCE(project_id, 0), metric_definition_id, reference_date);
+CREATE INDEX idx_crm_metric_eval ON crm_party_metric_value(metric_definition_id, project_id, reference_date, party_pk);
 
 CREATE TABLE crm_party_product_class_stat (
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     product_class_id                   int            NOT NULL REFERENCES crm_product_class(product_class_id),
     active_owned_count                 int            NOT NULL DEFAULT 0 CHECK (active_owned_count >= 0),
     lifetime_registered_count          int            NOT NULL DEFAULT 0 CHECK (lifetime_registered_count >= 0),
     last_registered_at                 timestamptz    NULL,
     calculated_at                      timestamptz    NOT NULL DEFAULT now(),
-    PRIMARY KEY (party_id, product_class_id)
+    PRIMARY KEY (party_pk, product_class_id)
 );
 COMMENT ON TABLE crm_party_product_class_stat IS 'How many products of each class a party holds and has ever registered. Replaces the fixed counter columns of uclass_phone_values / uclass_eprod_values with one row per class, so a new class needs no new column.';
 CREATE INDEX idx_crm_class_stat_class ON crm_party_product_class_stat(product_class_id, active_owned_count);
@@ -3959,7 +3959,7 @@ CREATE TABLE crm_segment_membership (
     segment_membership_id              bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     segment_id                         bigint         NOT NULL REFERENCES crm_segment(segment_id) ON DELETE CASCADE,
     segment_version_id                 bigint         NOT NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     matched_at                         timestamptz    NOT NULL DEFAULT now(),
     unmatched_at                       timestamptz    NULL,
     evaluation_reference_date          date           NULL,
@@ -3968,9 +3968,9 @@ CREATE TABLE crm_segment_membership (
     CONSTRAINT chk_crm_segment_membership_period CHECK (unmatched_at IS NULL OR unmatched_at >= matched_at)
 );
 COMMENT ON TABLE crm_segment_membership IS 'Materialised current and past members.';
-CREATE UNIQUE INDEX uq_crm_segment_current ON crm_segment_membership(segment_id, party_id) WHERE unmatched_at IS NULL;
-CREATE INDEX idx_crm_segment_membership_hist ON crm_segment_membership(segment_id, party_id);
-CREATE INDEX idx_crm_segment_membership_party ON crm_segment_membership(party_id, unmatched_at);
+CREATE UNIQUE INDEX uq_crm_segment_current ON crm_segment_membership(segment_id, party_pk) WHERE unmatched_at IS NULL;
+CREATE INDEX idx_crm_segment_membership_hist ON crm_segment_membership(segment_id, party_pk);
+CREATE INDEX idx_crm_segment_membership_party ON crm_segment_membership(party_pk, unmatched_at);
 
 CREATE TABLE crm_activity_program (
     activity_program_id                bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -4068,7 +4068,7 @@ CREATE UNIQUE INDEX uq_crm_program_quota ON crm_activity_program_quota(activity_
 CREATE TABLE crm_activity_target (
     activity_target_id                 bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     activity_program_id                bigint         NOT NULL REFERENCES crm_activity_program(activity_program_id) ON DELETE CASCADE,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     program_tier_id                    bigint         NULL,
     entry_type                         varchar(10)    NOT NULL DEFAULT 'NORMAL' CHECK (entry_type IN ('NORMAL','REWARD')),
     allowed_count                      smallint       NOT NULL CHECK (allowed_count >= 0),
@@ -4082,20 +4082,20 @@ CREATE TABLE crm_activity_target (
     added_by_manager_id                integer        REFERENCES managers(id) ON DELETE SET NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT uq_crm_target UNIQUE (activity_program_id, party_id, entry_type),
-    CONSTRAINT uq_crm_target_key UNIQUE (activity_target_id, activity_program_id, party_id),
+    CONSTRAINT uq_crm_target UNIQUE (activity_program_id, party_pk, entry_type),
+    CONSTRAINT uq_crm_target_key UNIQUE (activity_target_id, activity_program_id, party_pk),
     CONSTRAINT fk_crm_target_tier FOREIGN KEY (program_tier_id, activity_program_id) REFERENCES crm_activity_program_tier(program_tier_id, activity_program_id),
     CONSTRAINT chk_crm_target_used CHECK (used_count <= allowed_count)
 );
 COMMENT ON TABLE crm_activity_target IS 'The activity targets: who may take part, in which tier, how many times, and why. Frozen when the program moves to TARGETS_FROZEN, like a campaign audience.';
-CREATE INDEX idx_crm_target_party ON crm_activity_target(party_id, activity_program_id);
+CREATE INDEX idx_crm_target_party ON crm_activity_target(party_pk, activity_program_id);
 CREATE INDEX idx_crm_target_rank ON crm_activity_target(activity_program_id, qualification_rank);
 
 CREATE TABLE crm_activity_reservation (
     reservation_id                     bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     activity_program_id                bigint         NOT NULL REFERENCES crm_activity_program(activity_program_id),
     activity_target_id                 bigint         NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     program_tier_id                    bigint         NULL,
     entry_type                         varchar(10)    NOT NULL DEFAULT 'NORMAL' CHECK (entry_type IN ('NORMAL','REWARD')),
     reservation_no                     int            NOT NULL,
@@ -4118,13 +4118,13 @@ CREATE TABLE crm_activity_reservation (
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
     CONSTRAINT uq_crm_reservation_no UNIQUE (activity_program_id, reservation_no),
-    CONSTRAINT fk_crm_reservation_target FOREIGN KEY (activity_target_id, activity_program_id, party_id) REFERENCES crm_activity_target(activity_target_id, activity_program_id, party_id),
+    CONSTRAINT fk_crm_reservation_target FOREIGN KEY (activity_target_id, activity_program_id, party_pk) REFERENCES crm_activity_target(activity_target_id, activity_program_id, party_pk),
     CONSTRAINT fk_crm_reservation_tier FOREIGN KEY (program_tier_id, activity_program_id) REFERENCES crm_activity_program_tier(program_tier_id, activity_program_id),
     CONSTRAINT chk_crm_reservation_cancel CHECK (status <> 'CANCELLED' OR cancelled_at IS NOT NULL)
 );
 COMMENT ON TABLE crm_activity_reservation IS 'A numbered entry taken by a target: a phone reservation or a lottery number. Holds the identity used for pickup and the whole lifecycle to sale.';
 CREATE UNIQUE INDEX uq_crm_reservation_id_card ON crm_activity_reservation(activity_program_id, holder_id_card_hash) WHERE holder_id_card_hash IS NOT NULL AND status NOT IN ('CANCELLED','EXPIRED','FAILED');
-CREATE INDEX idx_crm_reservation_party ON crm_activity_reservation(party_id, created_at DESC);
+CREATE INDEX idx_crm_reservation_party ON crm_activity_reservation(party_pk, created_at DESC);
 CREATE INDEX idx_crm_reservation_site ON crm_activity_reservation(service_center_id, status);
 CREATE INDEX idx_crm_reservation_status ON crm_activity_reservation(activity_program_id, status);
 
@@ -4170,7 +4170,7 @@ CREATE TABLE crm_activity_award (
     award_id                           bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     activity_program_id                bigint         NOT NULL REFERENCES crm_activity_program(activity_program_id),
     reward_id                          bigint         NOT NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     activity_target_id                 bigint         NULL REFERENCES crm_activity_target(activity_target_id),
     reservation_id                     bigint         NULL REFERENCES crm_activity_reservation(reservation_id),
     fulfilment_method                  varchar(20)    NOT NULL CHECK (fulfilment_method IN ('DELIVERY','PICKUP','POINTS','WALLET')),
@@ -4194,7 +4194,7 @@ CREATE TABLE crm_activity_award (
 );
 COMMENT ON TABLE crm_activity_award IS 'One reward given to one party and how it reaches them: delivery, pickup at a site, points or wallet credit.';
 CREATE UNIQUE INDEX uq_crm_award_entry ON crm_activity_award(reservation_id) WHERE reservation_id IS NOT NULL;
-CREATE INDEX idx_crm_award_party ON crm_activity_award(party_id, awarded_at DESC);
+CREATE INDEX idx_crm_award_party ON crm_activity_award(party_pk, awarded_at DESC);
 CREATE INDEX idx_crm_award_status ON crm_activity_award(activity_program_id, status);
 
 CREATE TABLE crm_campaign (
@@ -4242,17 +4242,17 @@ CREATE TABLE crm_campaign_audience_member (
     audience_member_id                 bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     audience_id                        bigint         NOT NULL,
     campaign_id                        bigint         NOT NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     assigned_at                        timestamptz    NOT NULL DEFAULT now(),
     qualification_reason               jsonb          NULL,
     source_segment_membership_id       bigint         NULL REFERENCES crm_segment_membership(segment_membership_id) ON DELETE SET NULL,
     source_activity_target_id          bigint         NULL REFERENCES crm_activity_target(activity_target_id) ON DELETE SET NULL,
     CONSTRAINT fk_crm_member_audience FOREIGN KEY (audience_id, campaign_id) REFERENCES crm_campaign_audience(audience_id, campaign_id) ON DELETE CASCADE,
-    CONSTRAINT uq_crm_audience_party UNIQUE (audience_id, party_id),
-    CONSTRAINT uq_crm_audience_member_key UNIQUE (audience_member_id, campaign_id, party_id)
+    CONSTRAINT uq_crm_audience_party UNIQUE (audience_id, party_pk),
+    CONSTRAINT uq_crm_audience_member_key UNIQUE (audience_member_id, campaign_id, party_pk)
 );
 COMMENT ON TABLE crm_campaign_audience_member IS 'Frozen party membership of an audience.';
-CREATE INDEX idx_crm_audience_member_party ON crm_campaign_audience_member(party_id, audience_id);
+CREATE INDEX idx_crm_audience_member_party ON crm_campaign_audience_member(party_pk, audience_id);
 
 CREATE TABLE crm_campaign_content (
     content_id                         bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -4296,7 +4296,7 @@ CREATE TABLE crm_campaign_recipient (
     action_id                          bigint         NOT NULL,
     campaign_id                        bigint         NOT NULL,
     audience_member_id                 bigint         NOT NULL,
-    party_id                           varchar(32)    NOT NULL,
+    party_pk                           bigint    NOT NULL,
     contact_point_id                   bigint         NULL REFERENCES crm_contact_point(contact_point_id) ON DELETE SET NULL,
     party_communication_consent_id     bigint         NULL REFERENCES crm_party_communication_consent(party_communication_consent_id) ON DELETE SET NULL,
     destination_snapshot               varchar(500)   NULL,
@@ -4309,21 +4309,21 @@ CREATE TABLE crm_campaign_recipient (
     failed_at                          timestamptz    NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     CONSTRAINT fk_crm_recipient_action FOREIGN KEY (action_id, campaign_id) REFERENCES crm_campaign_action(action_id, campaign_id),
-    CONSTRAINT fk_crm_recipient_member FOREIGN KEY (audience_member_id, campaign_id, party_id) REFERENCES crm_campaign_audience_member(audience_member_id, campaign_id, party_id),
+    CONSTRAINT fk_crm_recipient_member FOREIGN KEY (audience_member_id, campaign_id, party_pk) REFERENCES crm_campaign_audience_member(audience_member_id, campaign_id, party_pk),
     CONSTRAINT uq_crm_recipient UNIQUE (action_id, audience_member_id),
-    CONSTRAINT uq_crm_recipient_key UNIQUE (recipient_id, campaign_id, party_id),
+    CONSTRAINT uq_crm_recipient_key UNIQUE (recipient_id, campaign_id, party_pk),
     CONSTRAINT chk_crm_recipient_skip CHECK ((recipient_status = 'SKIPPED') = (skip_reason_code IS NOT NULL))
 );
 COMMENT ON TABLE crm_campaign_recipient IS 'One delivery attempt for one frozen member, with the consent decision used.';
 CREATE INDEX idx_crm_recipient_work ON crm_campaign_recipient(action_id, recipient_status);
-CREATE INDEX idx_crm_recipient_party ON crm_campaign_recipient(party_id, created_at DESC);
+CREATE INDEX idx_crm_recipient_party ON crm_campaign_recipient(party_pk, created_at DESC);
 
 CREATE TABLE crm_campaign_interaction (
     interaction_id                     bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     campaign_id                        bigint         NOT NULL REFERENCES crm_campaign(campaign_id) ON DELETE CASCADE,
     action_id                          bigint         NULL,
     recipient_id                       bigint         NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     interaction_type                   varchar(40)    NOT NULL CHECK (interaction_type IN ('OPEN','CLICK','REPLY','VIEW','FORM_SUBMIT','UNSUBSCRIBE')),
     interaction_url                    text           NULL,
     source_event_id                    varchar(250)   NULL UNIQUE,
@@ -4334,18 +4334,18 @@ CREATE TABLE crm_campaign_interaction (
     occurred_at                        timestamptz    NOT NULL,
     event_metadata                     jsonb          NULL,
     CONSTRAINT fk_crm_interaction_action FOREIGN KEY (action_id, campaign_id) REFERENCES crm_campaign_action(action_id, campaign_id),
-    CONSTRAINT fk_crm_interaction_recipient FOREIGN KEY (recipient_id, campaign_id, party_id) REFERENCES crm_campaign_recipient(recipient_id, campaign_id, party_id)
+    CONSTRAINT fk_crm_interaction_recipient FOREIGN KEY (recipient_id, campaign_id, party_pk) REFERENCES crm_campaign_recipient(recipient_id, campaign_id, party_pk)
 );
 COMMENT ON TABLE crm_campaign_interaction IS 'Engagement events.';
 CREATE INDEX idx_crm_interaction_campaign ON crm_campaign_interaction(campaign_id, occurred_at);
-CREATE INDEX idx_crm_interaction_party ON crm_campaign_interaction(party_id, occurred_at);
+CREATE INDEX idx_crm_interaction_party ON crm_campaign_interaction(party_pk, occurred_at);
 
 CREATE TABLE crm_campaign_conversion (
     conversion_id                      bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     campaign_id                        bigint         NOT NULL REFERENCES crm_campaign(campaign_id) ON DELETE CASCADE,
     action_id                          bigint         NULL,
     recipient_id                       bigint         NULL,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id),
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk),
     conversion_type                    varchar(40)    NOT NULL CHECK (conversion_type IN ('PURCHASE','REGISTRATION','RENEWAL','SERVICE_BOOKING','RESERVATION','PROGRAM_ENTRY')),
     source_project_id                  int            NULL REFERENCES crm_project(project_id),
     related_transaction_id             bigint         NULL REFERENCES crm_transaction(transaction_id),
@@ -4360,12 +4360,12 @@ CREATE TABLE crm_campaign_conversion (
     occurred_at                        timestamptz    NOT NULL,
     recorded_at                        timestamptz    NOT NULL DEFAULT now(),
     CONSTRAINT fk_crm_conversion_action FOREIGN KEY (action_id, campaign_id) REFERENCES crm_campaign_action(action_id, campaign_id),
-    CONSTRAINT fk_crm_conversion_recipient FOREIGN KEY (recipient_id, campaign_id, party_id) REFERENCES crm_campaign_recipient(recipient_id, campaign_id, party_id)
+    CONSTRAINT fk_crm_conversion_recipient FOREIGN KEY (recipient_id, campaign_id, party_pk) REFERENCES crm_campaign_recipient(recipient_id, campaign_id, party_pk)
 );
 COMMENT ON TABLE crm_campaign_conversion IS 'Business outcome attributed to a campaign.';
 CREATE UNIQUE INDEX uq_crm_conversion_txn ON crm_campaign_conversion(campaign_id, related_transaction_id) WHERE related_transaction_id IS NOT NULL;
 CREATE INDEX idx_crm_conversion_campaign ON crm_campaign_conversion(campaign_id, occurred_at);
-CREATE INDEX idx_crm_conversion_party ON crm_campaign_conversion(party_id, occurred_at);
+CREATE INDEX idx_crm_conversion_party ON crm_campaign_conversion(party_pk, occurred_at);
 
 CREATE TABLE crm_campaign_cost (
     campaign_cost_id                   bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -4419,9 +4419,9 @@ DECLARE
     expected varchar(20) := CASE TG_TABLE_NAME WHEN 'crm_person' THEN 'PERSON' ELSE 'ORGANIZATION' END;
     actual   varchar(20);
 BEGIN
-    SELECT party_type INTO actual FROM crm_party WHERE party_id = NEW.party_id;
+    SELECT party_type INTO actual FROM crm_party WHERE party_pk = NEW.party_pk;
     IF actual IS DISTINCT FROM expected THEN
-        RAISE EXCEPTION '% row needs a % party, party % is %', TG_TABLE_NAME, expected, NEW.party_id, actual;
+        RAISE EXCEPTION '% row needs a % party, party % is %', TG_TABLE_NAME, expected, NEW.party_pk, actual;
     END IF;
     RETURN NEW;
 END;
@@ -4511,7 +4511,7 @@ GROUP BY target.service_center_activity_target_id, center.service_center_name, a
 
 /* a point account whose cached balance no longer equals its ledger */
 CREATE VIEW v_crm_point_account_drift AS
-SELECT pa.point_account_id, pa.party_id, pa.point_type_id, pa.balance,
+SELECT pa.point_account_id, pa.party_pk, pa.point_type_id, pa.balance,
        COALESCE(SUM(pe.points_delta), 0) AS ledger_balance
 FROM crm_point_account pa
 LEFT JOIN crm_point_event pe ON pe.point_account_id = pa.point_account_id
@@ -4522,7 +4522,7 @@ HAVING pa.balance <> COALESCE(SUM(pe.points_delta), 0);
 CREATE VIEW v_crm_current_holding AS
 SELECT registration.product_instance_id, instance.project_id, instance.external_product_instance_id, instance.instance_kind,
        product.product_id, product.product_name, product.product_class_id,
-       registration.party_id, registration.relationship_code, registration.valid_from, registration.product_registration_id
+       registration.party_pk, registration.relationship_code, registration.valid_from, registration.product_registration_id
 FROM crm_product_registration registration
 JOIN crm_product_instance instance ON instance.product_instance_id = registration.product_instance_id
 JOIN crm_product_catalog  product ON product.product_id = instance.product_id
@@ -4778,11 +4778,11 @@ CREATE TABLE crm_tag (
 COMMENT ON TABLE crm_tag IS 'Labels staff put on customers (High value, Early adopter ...). Basic data.';
 
 CREATE TABLE crm_party_tag (
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     tag_id                             int            NOT NULL REFERENCES crm_tag(tag_id) ON DELETE CASCADE,
     tagged_at                          timestamptz    NOT NULL DEFAULT now(),
     tagged_by_manager_id               integer        NULL REFERENCES managers(id) ON DELETE SET NULL,
-    PRIMARY KEY (party_id, tag_id)
+    PRIMARY KEY (party_pk, tag_id)
 );
 CREATE INDEX idx_crm_party_tag_tag ON crm_party_tag(tag_id);
 
@@ -4799,8 +4799,8 @@ COMMENT ON TABLE crm_party_relationship_type IS 'A row (A, B, T) reads "B is the
 
 CREATE TABLE crm_party_relationship (
     party_relationship_id              bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
-    related_party_id                   varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
+    related_party_pk                   bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     relationship_type_code             varchar(40)    NOT NULL REFERENCES crm_party_relationship_type(relationship_type_code),
     status                             varchar(20)    NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','ENDED')),
     valid_from                         date           NULL,
@@ -4809,15 +4809,15 @@ CREATE TABLE crm_party_relationship (
     created_by_manager_id              integer        NULL REFERENCES managers(id) ON DELETE SET NULL,
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
-    CONSTRAINT chk_crm_party_rel_self CHECK (party_id <> related_party_id),
+    CONSTRAINT chk_crm_party_rel_self CHECK (party_pk <> related_party_pk),
     CONSTRAINT chk_crm_party_rel_period CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from)
 );
-CREATE UNIQUE INDEX uq_crm_party_rel_active ON crm_party_relationship(party_id, related_party_id, relationship_type_code) WHERE status = 'ACTIVE';
-CREATE INDEX idx_crm_party_rel_related ON crm_party_relationship(related_party_id, status);
+CREATE UNIQUE INDEX uq_crm_party_rel_active ON crm_party_relationship(party_pk, related_party_pk, relationship_type_code) WHERE status = 'ACTIVE';
+CREATE INDEX idx_crm_party_rel_related ON crm_party_relationship(related_party_pk, status);
 
 CREATE TABLE crm_party_interaction (
     interaction_id                     bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     project_id                         int            NULL REFERENCES crm_project(project_id),
     direction                          varchar(10)    NOT NULL CHECK (direction IN ('INBOUND','OUTBOUND')),
     channel_code                       varchar(20)    NOT NULL CHECK (channel_code IN ('EMAIL','PHONE','SMS','CHAT','IN_PERSON','APP','WEB','LETTER','PUSH')),
@@ -4836,12 +4836,12 @@ CREATE TABLE crm_party_interaction (
     created_at                         timestamptz    NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE crm_party_interaction IS 'One contact with a customer outside a campaign: a call taken, an email answered, a message sent from the customer record.';
-CREATE INDEX idx_crm_party_interaction_party ON crm_party_interaction(party_id, occurred_at DESC);
+CREATE INDEX idx_crm_party_interaction_party ON crm_party_interaction(party_pk, occurred_at DESC);
 CREATE INDEX idx_crm_party_interaction_case ON crm_party_interaction(case_id) WHERE case_id IS NOT NULL;
 
 CREATE TABLE crm_party_note (
     note_id                            bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     note_text                          text           NOT NULL,
     is_pinned                          boolean        NOT NULL DEFAULT false,
     created_by_manager_id              integer        NULL REFERENCES managers(id) ON DELETE SET NULL,
@@ -4849,11 +4849,11 @@ CREATE TABLE crm_party_note (
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
     deleted_at                         timestamptz    NULL
 );
-CREATE INDEX idx_crm_note_party ON crm_party_note(party_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_crm_note_party ON crm_party_note(party_pk, created_at DESC) WHERE deleted_at IS NULL;
 
 CREATE TABLE crm_party_file (
     file_id                            bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     file_name                          varchar(255)   NOT NULL,
     storage_key                        varchar(255)   NOT NULL UNIQUE,
     content_type                       varchar(100)   NOT NULL,
@@ -4864,23 +4864,23 @@ CREATE TABLE crm_party_file (
     deleted_at                         timestamptz    NULL
 );
 COMMENT ON TABLE crm_party_file IS 'A document kept with a customer. The bytes live in the private CRM file folder, never under the public uploads; storage_key is the name there.';
-CREATE INDEX idx_crm_file_party ON crm_party_file(party_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX idx_crm_file_party ON crm_party_file(party_pk, created_at DESC) WHERE deleted_at IS NULL;
 
 CREATE TABLE crm_party_team_member (
     team_member_id                     bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     manager_id                         integer        NOT NULL REFERENCES managers(id) ON DELETE CASCADE,
     team_role                          varchar(30)    NOT NULL CHECK (team_role IN ('ACCOUNT_MANAGER','SALES_REP','SUPPORT_MANAGER')),
     assigned_at                        timestamptz    NOT NULL DEFAULT now(),
     ended_at                           timestamptz    NULL,
     assigned_by_manager_id             integer        NULL REFERENCES managers(id) ON DELETE SET NULL
 );
-CREATE UNIQUE INDEX uq_crm_team_role_current ON crm_party_team_member(party_id, team_role) WHERE ended_at IS NULL;
+CREATE UNIQUE INDEX uq_crm_team_role_current ON crm_party_team_member(party_pk, team_role) WHERE ended_at IS NULL;
 CREATE INDEX idx_crm_team_manager ON crm_party_team_member(manager_id) WHERE ended_at IS NULL;
 
 CREATE TABLE crm_party_agreement (
     agreement_id                       bigint         GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    party_id                           varchar(32)    NOT NULL REFERENCES crm_party(party_id) ON DELETE CASCADE,
+    party_pk                           bigint    NOT NULL REFERENCES crm_party(party_pk) ON DELETE CASCADE,
     agreement_no                       varchar(60)    NULL,
     agreement_type                     varchar(30)    NOT NULL CHECK (agreement_type IN ('ENTERPRISE','RESELLER','DISTRIBUTION','SERVICE_LEVEL','PURCHASE','PARTNERSHIP')),
     title                              varchar(200)   NULL,
@@ -4896,7 +4896,7 @@ CREATE TABLE crm_party_agreement (
     updated_at                         timestamptz    NOT NULL DEFAULT now(),
     CONSTRAINT chk_crm_agreement_period CHECK (end_date IS NULL OR end_date >= start_date)
 );
-CREATE INDEX idx_crm_agreement_party ON crm_party_agreement(party_id, status);
+CREATE INDEX idx_crm_agreement_party ON crm_party_agreement(party_pk, status);
 
 ALTER TABLE crm_organization ADD COLUMN local_name varchar(250) NULL;
 ALTER TABLE crm_organization ADD COLUMN employee_count_band varchar(20) NULL
@@ -4930,3 +4930,30 @@ ON CONFLICT (role_code) DO NOTHING;
 
 
 COMMIT;
+
+
+CREATE TABLE crm_registration_intake (
+ intake_id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+ source_project_id bigint REFERENCES crm_project(project_id),
+ source_record_id text,
+ category text NOT NULL DEFAULT 'PERSON' CHECK (category IN ('PERSON','ESHOP')),
+ status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','MERGED','CREATED','ASSIGNED','REJECTED')),
+ payload jsonb NOT NULL,
+ candidates jsonb NOT NULL DEFAULT '[]',
+ party_pk bigint REFERENCES crm_party(party_pk),
+ reviewed_by_manager_id integer REFERENCES managers(id),
+ reviewed_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(source_project_id,source_record_id,category)
+);
+CREATE INDEX idx_crm_intake_pending ON crm_registration_intake(category,status,created_at);
+CREATE TABLE crm_identity_resolution (
+ resolution_id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+ intake_id bigint NOT NULL UNIQUE REFERENCES crm_registration_intake(intake_id),
+ source_project_id bigint REFERENCES crm_project(project_id),
+ source_record_id text,
+ party_pk bigint NOT NULL REFERENCES crm_party(party_pk),
+ outcome text NOT NULL,
+ acknowledged_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT now()
+);

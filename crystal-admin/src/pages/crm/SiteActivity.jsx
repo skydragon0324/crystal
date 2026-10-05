@@ -123,7 +123,7 @@ function Log() {
             { key: 'occurred_at', label: 'When', render: (row) => dateTime(row.occurred_at) },
             { key: 'service_center_name', label: 'Service location', maxW: '14rem' },
             { key: 'activity_name', label: 'Activity', render: (row) => translate(row.activity_name || '-') },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_id) : '-') },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_pk) : '-') },
             { key: 'quantity', label: 'Quantity', isNumeric: true, render: (row) => amount(row.quantity) },
             { key: 'amount', label: 'Amount', isNumeric: true, render: (row) => (row.amount === null || row.amount === undefined ? '-' : money(row.amount, row.currency_code)) },
             { key: 'manager_name', label: 'Recorded by' },
@@ -159,8 +159,8 @@ function Log() {
           { name: 'occurred_at', label: 'When', type: 'datetime-local', required: true },
           { name: 'quantity', label: 'Quantity', type: 'number', step: '0.001' },
           { name: 'amount', label: 'Amount', type: 'number', step: '0.01', help: 'Only counted for activities that measure money, such as a sale.' },
-          { name: 'party_id', label: 'Customer', type: 'custom', colSpan: 'full',
-            render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+          { name: 'party_pk', label: 'Customer', type: 'custom', colSpan: 'full',
+            render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
           { name: 'note', label: 'Note', type: 'textarea', colSpan: 'full' }
         ]}
       />

@@ -448,8 +448,8 @@ function Targets({ program, tierOptions, ask, run, tick }) {
               </Button>
             ) : null}
             <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.addTarget'), [
-              { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
-                render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+              { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
+                render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
               { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
               { name: 'program_tier_id', label: 'Tier', type: 'select', options: tierOptions },
               { name: 'allowed_count', label: 'Entries allowed', type: 'number' },
@@ -465,7 +465,7 @@ function Targets({ program, tierOptions, ask, run, tick }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'tier_name', label: 'Tier' },
             { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
             { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.allowed_count) },
@@ -546,8 +546,8 @@ function Entries({ program, programSites, ask, run, tick }) {
         ])}
         actions={canWrite && program.status === 'OPEN' ? (
           <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.takeAnEntry'), [
-            { name: 'party_id', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
-              render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+            { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
+              render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
             { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
             { name: 'service_center_id', label: 'Collect at', type: 'select', options: programSites, isSearchable: true },
             { name: 'holder_name', label: 'Name on the entry' },
@@ -564,7 +564,7 @@ function Entries({ program, programSites, ask, run, tick }) {
         <DataTable
           columns={[
             { key: 'reservation_code', label: 'Number' },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'holder_name', label: 'Name on the entry' },
             { key: 'holder_id_card_masked', label: 'ID card' },
             { key: 'tier_name', label: 'Tier' },
@@ -660,8 +660,8 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
           <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.giveAReward'), [
             { name: 'reward_id', label: 'Reward', type: 'select', required: true,
               options: rewards.map((reward) => ({ value: reward.reward_id, label: reward.reward_name + '  (' + number(reward.quantity_total - reward.quantity_awarded) + ')' })) },
-            { name: 'party_id', label: 'Customer', type: 'custom', colSpan: 'full',
-              render: (values, set) => <PartyPicker value={values.party_id} onChange={(value) => set('party_id', value)} /> },
+            { name: 'party_pk', label: 'Customer', type: 'custom', colSpan: 'full',
+              render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
             { name: 'fulfilment_method', label: 'How it reaches them', type: 'select', isClearable: false,
               options: choices(['PICKUP', 'DELIVERY']), help: 'Points and wallet credit ignore this.' },
             { name: 'pickup_service_center_id', label: 'Collect at', type: 'select', options: sites, isSearchable: true },
@@ -677,7 +677,7 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
             { key: 'reward_name', label: 'Reward' },
             { key: 'reward_type', label: 'Kind', render: (row) => word(translate, row.reward_type) },
             { key: 'reservation_code', label: 'Entry' },

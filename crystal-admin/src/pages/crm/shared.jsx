@@ -231,7 +231,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
 
   /* Name the party we were handed, so an edit opens showing who it is. */
   useEffect(() => {
-    if (!value || (chosen && String(chosen.party_id) === String(value))) return;
+    if (!value || (chosen && String(chosen.party_pk) === String(value))) return;
     crm.parties.lookup('', String(value))
       .then(({ data }) => { if (Array.isArray(data) && data[0]) setChosen(data[0]); })
       .catch(() => {});
@@ -251,12 +251,12 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
   }, [query]);
 
   const label = function (party) {
-    return (party.display_name || '-') + '  ' + partyIdLabel(party.party_id) + (party.mobile ? '  ' + party.mobile : '');
+    return (party.display_name || '-') + '  ' + partyIdLabel(party.party_pk) + (party.mobile ? '  ' + party.mobile : '');
   };
 
-  const options = found.map((party) => ({ value: party.party_id, label: label(party) }));
-  if (chosen && !options.some((option) => String(option.value) === String(chosen.party_id))) {
-    options.unshift({ value: chosen.party_id, label: label(chosen) });
+  const options = found.map((party) => ({ value: party.party_pk, label: label(party) }));
+  if (chosen && !options.some((option) => String(option.value) === String(chosen.party_pk))) {
+    options.unshift({ value: chosen.party_pk, label: label(chosen) });
   }
 
   return (
@@ -281,7 +281,7 @@ export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
         isSearchable={false}
         placeholder={translate('crm.common.chooseFromTheMatches')}
         onChange={(next) => {
-          const hit = found.filter((party) => String(party.party_id) === String(next))[0];
+          const hit = found.filter((party) => String(party.party_pk) === String(next))[0];
           if (hit) setChosen(hit);
           onChange(next === undefined ? null : next);
         }}
@@ -402,7 +402,7 @@ export function Pending({ loading }) {
   return <Text fontSize="sm" py={6}>{translate('crm.common.notFound')}</Text>;
 }
 
-/** A customer as screens show it: its party_id. */
+/** A customer as screens show it: its party_pk. */
 export function partyIdLabel(partyId) {
   return partyId || '';
 }

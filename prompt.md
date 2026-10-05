@@ -117,4 +117,24 @@ Therefore, existing e-shop identifiers should be stored as candidates, allowing 
 The system needs to enable administrators to perform these operations on the "Customers" page.
 There is currently a "Possible Duplicates" tab, but it needs to be refined and subdivided into more specific categories.
 Currently, the process involves creating a party record first and then identifying similar users to place in this tab... If a user with similar characteristics appears, the system should not create a party; instead, it should store the data in a temporary area for processing by an administrator.
---------------------------------------------------
+--------------------- 10/5 -----------------------------
+I’d like to modify the "Choose File" button used for Excel imports; the current default style looks unappealing. Please design the UI to match the file upload feature found in the "Notes and Tabs" section of the user details view.
+In the user details view, where various category-specific records are displayed, I would like to add a scrollbar.
+Setting a fixed size for these detail windows and enabling scrolling when there is a large volume of records would make the interface much more user-friendly.
+Additionally, please include search and filter functions for these records so that users can easily search and filter data specific to that user.
+---------------------------------------------------
+When adding project tiers, the system needs to allow administrators to modify the scoring rules associated with those tiers.
+Currently, on the analysis page, users are assigned overall grades ranging from AAA to C, but it is unclear where or how these were determined.
+These tiers should be managed within the project tier settings and automatically assigned based on the scoring rules; the scoring system itself must also be modifiable.
+In the "Snapshots" section, each row displays a user's grade and their activity history over the past 12 months.
+Currently, there are separate views for individual projects and an overall view; it would be better to consolidate these into a collapsible format.
+At present, expanding a row reveals the user's scores; instead, expanding it should display project-specific data, while the row itself should show the overall information.
+-----------------------------------------
+The product registration feature includes a user search function that allows only registered users to be added; searching must be possible using the user's name or phone number.
+When displaying the list of search results, each user's details—specifically `party_pk`, name, home address, and phone number—must be shown on a single line, separated by commas.
+Since a single user may have multiple phone numbers, these numbers must also be displayed separated by commas.
+The administrator selects the correct user to input the data.
+Once a user is selected, their name appears in the search bar, and the user list is hidden.
+It must be possible to change the search term in case of an input error; changing the term should trigger a new search and redisplay the user list in the specified format.
+As this user search function has numerous applications, it should be well-modularized and designed for reusability.
+-------------------------------

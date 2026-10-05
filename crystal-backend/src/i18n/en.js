@@ -254,7 +254,7 @@ module.exports = {
     chooseAChannelThatCarriesMessages: 'choose email, SMS, app push or the member inbox',
     chooseAFile: 'choose a file',
     similarCustomersExist: 'customers who look like this person are already on file',
-    thatUserIdIsTaken: 'user ID {party_id} already belongs to another customer',
+    thatUserIdIsTaken: 'user ID {party_pk} already belongs to another customer',
     checkTheDetails: 'some details are not valid',
     thisIsNotAnExcelFile: 'this is not an Excel (.xlsx) file',
     theFileHasNoSheet: 'the file has no sheet to read',

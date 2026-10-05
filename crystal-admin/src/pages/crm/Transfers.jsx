@@ -125,8 +125,8 @@ export default function Transfers() {
             { key: 'transfer_kind', label: 'What', render: (row) => word(translate, row.transfer_kind) },
             { key: 'product_name', label: 'Product' },
             { key: 'external_product_instance_id', label: 'Serial or key' },
-            { key: 'from_name', label: 'From', render: (row) => (row.from_name ? row.from_name + '  ' + partyIdLabel(row.from_party_id) : '-') },
-            { key: 'to_name', label: 'To', render: (row) => (row.to_name ? row.to_name + '  ' + partyIdLabel(row.to_party_id) : (row.to_instance_external_id || '-')) },
+            { key: 'from_name', label: 'From', render: (row) => (row.from_name ? row.from_name + '  ' + partyIdLabel(row.from_party_pk) : '-') },
+            { key: 'to_name', label: 'To', render: (row) => (row.to_name ? row.to_name + '  ' + partyIdLabel(row.to_party_pk) : (row.to_instance_external_id || '-')) },
             { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
             { key: 'reason', label: 'Reason', maxW: '14rem' },
             { key: 'requested_at', label: 'Requested', render: (row) => dateTime(row.requested_at) },
@@ -159,13 +159,13 @@ export default function Transfers() {
               options: choices(KINDS), colSpan: 'full' },
             { name: 'product_instance_id', label: 'Product', type: 'custom', required: true, colSpan: 'full',
               render: (values, set) => <InstancePicker value={values.product_instance_id} onChange={(value) => set('product_instance_id', value)} /> },
-            { name: 'to_party_id', label: 'Goes to', type: 'custom', colSpan: 'full',
+            { name: 'to_party_pk', label: 'Goes to', type: 'custom', colSpan: 'full',
               help: 'Needed when the product is handed to somebody: a transfer, an assignment, a lease.',
               render: (values, set) => (
                 <PartyPicker
-                  value={values.to_party_id}
+                  value={values.to_party_pk}
                   isDisabled={NEEDS_RECEIVER.indexOf(values.transfer_kind) === -1}
-                  onChange={(value) => set('to_party_id', value)}
+                  onChange={(value) => set('to_party_pk', value)}
                 />
               ) },
             { name: 'to_instance_id', label: 'New device for the licence', type: 'custom', colSpan: 'full',

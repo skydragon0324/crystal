@@ -353,20 +353,20 @@ async function removeReward(programId, rewardId, actor) {
 async function searchTargets(programId, filters, paging) {
   const qb = function () {
     const query = db('crm_activity_target as target')
-      .join('crm_party as party', 'party.party_id', 'target.party_id')
+      .join('crm_party as party', 'party.party_pk', 'target.party_pk')
       .leftJoin('crm_activity_program_tier as tier', 'tier.program_tier_id', 'target.program_tier_id')
       .where('target.activity_program_id', programId);
     if (filters.status) query.where('target.status', filters.status);
     if (filters.entry_type) query.where('target.entry_type', filters.entry_type);
     if (filters.q) {
       const like = '%' + String(filters.q).trim() + '%';
-      query.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
+      query.where(function () { this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]); });
     }
     return query;
   };
   const count = await qb().count({ total: '*' }).first();
   const rows = await qb()
-    .select('target.*', 'party.party_id', 'party.display_name as party_name', 'tier.tier_code', 'tier.tier_name')
+    .select('target.*', 'party.party_pk', 'party.display_name as party_name', 'tier.tier_code', 'tier.tier_name')
     .orderByRaw('target.qualification_rank NULLS LAST, target.activity_target_id')
     .limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
@@ -386,7 +386,7 @@ function tierFor(tiers, value) {
 async function addTarget(programId, body, actor) {
   const program = await loadProgram(db, programId);
   requireStatus(program, SETUP, 'crm.targetsAreFrozen');
-  if (!body.party_id) throw new HttpError(400, 'crm.chooseACustomer');
+  if (!body.party_pk) throw new HttpError(400, 'crm.chooseACustomer');
 
   const tiers = await db('crm_activity_program_tier').where('activity_program_id', programId).orderBy('rank_no');
   const tier = body.program_tier_id
@@ -395,7 +395,7 @@ async function addTarget(programId, body, actor) {
 
   const [row] = await db('crm_activity_target').insert({
     activity_program_id: programId,
-    party_id: body.party_id,
+    party_pk: body.party_pk,
     program_tier_id: tier ? tier.program_tier_id : null,
     entry_type: body.entry_type || 'NORMAL',
     allowed_count: body.allowed_count || (tier ? tier.entries_per_target : 1),
@@ -440,29 +440,29 @@ async function buildTargets(programId, actor) {
   switch (program.eligibility_basis) {
     case 'SEGMENT':
       source = 'SEGMENT';
-      candidates = (await db('crm_segment_membership as membership').join('crm_party as party', 'party.party_id', 'membership.party_id')
+      candidates = (await db('crm_segment_membership as membership').join('crm_party as party', 'party.party_pk', 'membership.party_pk')
         .where('membership.segment_id', program.eligibility_segment_id).whereNull('membership.unmatched_at')
         .where('party.party_status', 'ACTIVE')
-        .select('membership.party_id', 'membership.segment_membership_id'))
-        .map(function (row) { return { party_id: row.party_id, source_segment_membership_id: row.segment_membership_id }; });
+        .select('membership.party_pk', 'membership.segment_membership_id'))
+        .map(function (row) { return { party_pk: row.party_pk, source_segment_membership_id: row.segment_membership_id }; });
       break;
 
     case 'POINT_RANKING': {
       source = 'RANKING';
       const ranked = await db.raw(`
-        SELECT account.party_id, SUM(point_event.points_delta) AS value,
+        SELECT account.party_pk, SUM(point_event.points_delta) AS value,
                RANK() OVER (ORDER BY SUM(point_event.points_delta) DESC) AS rank
           FROM crm_point_event point_event
           JOIN crm_point_account account ON account.point_account_id = point_event.point_account_id
-          JOIN crm_party party ON party.party_id = account.party_id
+          JOIN crm_party party ON party.party_pk = account.party_pk
          WHERE account.point_type_id = ? AND point_event.occurred_at <= ? AND party.party_status = 'ACTIVE'
-         GROUP BY account.party_id
+         GROUP BY account.party_pk
         HAVING SUM(point_event.points_delta) > 0
          ORDER BY value DESC
          ${program.ranking_top_n ? 'LIMIT ' + Number(program.ranking_top_n) : ''}`,
       [program.ranking_point_type_id, program.ranking_cutoff_at]);
       candidates = ranked.rows.map(function (row) {
-        return { party_id: row.party_id, qualification_value: row.value, qualification_rank: Number(row.rank) };
+        return { party_pk: row.party_pk, qualification_value: row.value, qualification_rank: Number(row.rank) };
       });
       break;
     }
@@ -471,14 +471,14 @@ async function buildTargets(programId, actor) {
       source = 'GRADE';
       const minRank = Number(rule.min_grade_rank || 1);
       const graded = await db.raw(`
-        SELECT DISTINCT ON (snapshot.party_id) snapshot.party_id, grade.rank_no, snapshot.corporate_score
+        SELECT DISTINCT ON (snapshot.party_pk) snapshot.party_pk, grade.rank_no, snapshot.corporate_score
           FROM crm_party_analysis_snapshot snapshot
           JOIN crm_corporate_grade grade ON grade.corporate_grade_id = snapshot.corporate_grade_id
-          JOIN crm_party party ON party.party_id = snapshot.party_id
+          JOIN crm_party party ON party.party_pk = snapshot.party_pk
          WHERE snapshot.project_id IS NULL AND party.party_status = 'ACTIVE'
-         ORDER BY snapshot.party_id, snapshot.reference_date DESC`);
+         ORDER BY snapshot.party_pk, snapshot.reference_date DESC`);
       candidates = graded.rows.filter(function (row) { return Number(row.rank_no) >= minRank; })
-        .map(function (row) { return { party_id: row.party_id, qualification_value: row.corporate_score }; });
+        .map(function (row) { return { party_pk: row.party_pk, qualification_value: row.corporate_score }; });
       break;
     }
 
@@ -487,11 +487,11 @@ async function buildTargets(programId, actor) {
       const classId = rule.product_class_code
         ? await vocabulary.idOf('crm_product_class', rule.product_class_code) : rule.product_class_id;
       if (!classId) throw new HttpError(409, 'crm.theRuleNeedsAProductClass');
-      const owners = await db('crm_party_product_class_stat as class_stat').join('crm_party as party', 'party.party_id', 'class_stat.party_id')
+      const owners = await db('crm_party_product_class_stat as class_stat').join('crm_party as party', 'party.party_pk', 'class_stat.party_pk')
         .where('class_stat.product_class_id', classId).where('class_stat.active_owned_count', '>=', Number(rule.min_count || 1))
         .where('party.party_status', 'ACTIVE')
-        .select('class_stat.party_id', 'class_stat.active_owned_count');
-      candidates = owners.map(function (row) { return { party_id: row.party_id, qualification_value: row.active_owned_count }; });
+        .select('class_stat.party_pk', 'class_stat.active_owned_count');
+      candidates = owners.map(function (row) { return { party_pk: row.party_pk, qualification_value: row.active_owned_count }; });
       break;
     }
 
@@ -501,17 +501,17 @@ async function buildTargets(programId, actor) {
       if (!typeId) throw new HttpError(409, 'crm.theRuleNeedsAnActivity');
       const since = Number(rule.since_days || 365);
       const visits = await db.raw(`
-        SELECT activity.party_id, COUNT(*) AS value
+        SELECT activity.party_pk, COUNT(*) AS value
           FROM crm_service_center_activity activity
-          JOIN crm_party party ON party.party_id = activity.party_id
+          JOIN crm_party party ON party.party_pk = activity.party_pk
          WHERE activity.activity_type_id = ? AND activity.status = 'COMPLETED'
            AND activity.occurred_at >= now() - (? || ' days')::interval
            AND party.party_status = 'ACTIVE'
            AND (NOT EXISTS (SELECT 1 FROM crm_activity_program_service_center program_center WHERE program_center.activity_program_id = ?)
                 OR activity.service_center_id IN (SELECT service_center_id FROM crm_activity_program_service_center WHERE activity_program_id = ?))
-         GROUP BY activity.party_id
+         GROUP BY activity.party_pk
         HAVING COUNT(*) >= ?`, [typeId, String(since), programId, programId, Number(rule.min_count || 1)]);
-      candidates = visits.rows.map(function (row) { return { party_id: row.party_id, qualification_value: row.value }; });
+      candidates = visits.rows.map(function (row) { return { party_pk: row.party_pk, qualification_value: row.value }; });
       break;
     }
 
@@ -529,12 +529,12 @@ async function buildTargets(programId, actor) {
       // eslint-disable-next-line no-await-in-loop
       const res = await trx.raw(`
         INSERT INTO crm_activity_target
-          (activity_program_id, party_id, program_tier_id, entry_type, allowed_count,
+          (activity_program_id, party_pk, program_tier_id, entry_type, allowed_count,
            qualification_value, qualification_rank, qualification_reason, source,
            source_segment_membership_id, added_by_manager_id)
         VALUES (?, ?, ?, 'NORMAL', ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (activity_program_id, party_id, entry_type) DO NOTHING`,
-      [programId, candidate.party_id, tier ? tier.program_tier_id : null, tier ? tier.entries_per_target : 1,
+        ON CONFLICT (activity_program_id, party_pk, entry_type) DO NOTHING`,
+      [programId, candidate.party_pk, tier ? tier.program_tier_id : null, tier ? tier.entries_per_target : 1,
         candidate.qualification_value === undefined ? null : candidate.qualification_value,
         candidate.qualification_rank || null,
         JSON.stringify({ basis: program.eligibility_basis, rule: rule }),
@@ -551,7 +551,7 @@ async function buildTargets(programId, actor) {
 
 function reservationQuery() {
   return db('crm_activity_reservation as reservation')
-    .join('crm_party as party', 'party.party_id', 'reservation.party_id')
+    .join('crm_party as party', 'party.party_pk', 'reservation.party_pk')
     .join('crm_activity_program as program', 'program.activity_program_id', 'reservation.activity_program_id')
     .leftJoin('crm_activity_program_tier as tier', 'tier.program_tier_id', 'reservation.program_tier_id')
     .leftJoin('crm_service_center as center', 'center.service_center_id', 'reservation.service_center_id')
@@ -567,14 +567,14 @@ async function searchReservations(programId, filters, paging) {
       const like = '%' + String(filters.q).trim() + '%';
       query.where(function () {
         this.where('reservation.reservation_code', 'ilike', like).orWhere('party.display_name', 'ilike', like)
-          .orWhere('party.party_id', 'ilike', searchId(like)).orWhere('reservation.holder_name', 'ilike', like);
+          .orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]).orWhere('reservation.holder_name', 'ilike', like);
       });
     }
     return query;
   };
   const count = await qb().count({ total: '*' }).first();
   const rows = await qb()
-    .select('reservation.*', 'party.party_id', 'party.display_name as party_name', 'tier.tier_name', 'center.service_center_name',
+    .select('reservation.*', 'party.party_pk', 'party.display_name as party_name', 'tier.tier_name', 'center.service_center_name',
       'instance.external_product_instance_id')
     .orderBy('reservation.reservation_no', paging.dir).limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
@@ -630,14 +630,14 @@ async function reserve(programId, body, actor) {
     if (program.ends_at && now > new Date(program.ends_at)) throw new HttpError(409, 'crm.theProgramHasEnded');
 
     const entryType = body.entry_type || 'NORMAL';
-    const party = await trx('crm_party').where('party_id', body.party_id).first();
+    const party = await trx('crm_party').where('party_pk', body.party_pk).first();
     if (!party || party.party_status !== 'ACTIVE') throw new HttpError(409, 'crm.chooseAnActiveCustomer');
 
     /* 1. the target */
     let target = null;
     if (program.eligibility_basis !== 'OPEN') {
       target = await trx('crm_activity_target')
-        .where({ activity_program_id: programId, party_id: party.party_id, entry_type: entryType })
+        .where({ activity_program_id: programId, party_pk: party.party_pk, entry_type: entryType })
         .forUpdate().first();
       if (!target || target.status === 'REVOKED') throw new HttpError(409, 'crm.thisCustomerIsNotATarget');
       if (target.used_count >= target.allowed_count) throw new HttpError(409, 'crm.noEntriesLeft');
@@ -690,7 +690,7 @@ async function reserve(programId, body, actor) {
     const [reservation] = await trx('crm_activity_reservation').insert({
       activity_program_id: programId,
       activity_target_id: target ? target.activity_target_id : null,
-      party_id: party.party_id,
+      party_pk: party.party_pk,
       program_tier_id: tierId,
       entry_type: entryType,
       reservation_no: number,
@@ -707,7 +707,7 @@ async function reserve(programId, body, actor) {
     /* 4. the points */
     if (program.cost_point_type_id && Number(program.cost_points) > 0) {
       await ledger.post(trx, {
-        party_id: party.party_id,
+        party_pk: party.party_pk,
         point_type_id: program.cost_point_type_id,
         event_code: 'RESERVATION_COST',
         points_delta: -Number(program.cost_points),
@@ -798,7 +798,7 @@ async function moveReservation(trx, reservationId, status, body, actor) {
           activity_type_id: typeId,
           project_id: program.project_id,
           occurred_at: trx.fn.now(),
-          party_id: reservation.party_id,
+          party_pk: reservation.party_pk,
           performed_by_manager_id: actor ? actor.manager_id : null,
           related_reservation_id: reservation.reservation_id,
           related_product_instance_id: body.product_instance_id || reservation.product_instance_id || null,
@@ -834,14 +834,14 @@ async function moveReservation(trx, reservationId, status, body, actor) {
         .join('crm_point_event_type as event_type', 'event_type.point_event_type_id', 'point_event.point_event_type_id')
         .join('crm_point_account as account', 'account.point_account_id', 'point_event.point_account_id')
         .where('point_event.related_reservation_id', reservationId).where('event_type.event_code', 'RESERVATION_COST')
-        .first('point_event.points_delta', 'point_event.project_id', 'account.point_type_id', 'account.party_id');
+        .first('point_event.points_delta', 'point_event.project_id', 'account.point_type_id', 'account.party_pk');
       const refunded = await trx('crm_point_event as point_event')
         .join('crm_point_event_type as event_type', 'event_type.point_event_type_id', 'point_event.point_event_type_id')
         .where('point_event.related_reservation_id', reservationId).where('event_type.event_code', 'REFUND').first('point_event.point_event_id');
 
       if (cost && !refunded) {
         await ledger.post(trx, {
-          party_id: cost.party_id,
+          party_pk: cost.party_pk,
           point_type_id: cost.point_type_id,
           event_code: 'REFUND',
           points_delta: -Number(cost.points_delta),
@@ -891,7 +891,7 @@ function reservationEvents(reservationId) {
 async function searchAwards(programId, filters, paging) {
   const qb = function () {
     const query = db('crm_activity_award as award')
-      .join('crm_party as party', 'party.party_id', 'award.party_id')
+      .join('crm_party as party', 'party.party_pk', 'award.party_pk')
       .join('crm_activity_reward as rw', 'rw.reward_id', 'award.reward_id')
       .leftJoin('crm_activity_reservation as reservation', 'reservation.reservation_id', 'award.reservation_id')
       .leftJoin('crm_service_center as center', 'center.service_center_id', 'award.pickup_service_center_id')
@@ -899,13 +899,13 @@ async function searchAwards(programId, filters, paging) {
     if (filters.status) query.where('award.status', filters.status);
     if (filters.q) {
       const like = '%' + String(filters.q).trim() + '%';
-      query.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
+      query.where(function () { this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]); });
     }
     return query;
   };
   const count = await qb().count({ total: '*' }).first();
   const rows = await qb()
-    .select('award.*', 'party.party_id', 'party.display_name as party_name', 'rw.reward_name', 'rw.reward_type',
+    .select('award.*', 'party.party_pk', 'party.display_name as party_name', 'rw.reward_name', 'rw.reward_type',
       'reservation.reservation_code', 'center.service_center_name as pickup_location_name')
     .orderBy('award.awarded_at', paging.dir).limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
@@ -936,12 +936,12 @@ async function award(programId, body, actor) {
     if (!reward) throw new HttpError(404, 'common.notFound');
     if (reward.quantity_awarded >= reward.quantity_total) throw new HttpError(409, 'crm.thisRewardIsAllGone');
 
-    let partyId = body.party_id;
+    let partyId = body.party_pk;
     let reservation = null;
     if (body.reservation_id) {
       reservation = await trx('crm_activity_reservation').where({ reservation_id: body.reservation_id, activity_program_id: programId }).first();
       if (!reservation) throw new HttpError(404, 'common.notFound');
-      partyId = reservation.party_id;
+      partyId = reservation.party_pk;
     }
     if (!partyId) throw new HttpError(400, 'crm.chooseACustomer');
 
@@ -950,12 +950,12 @@ async function award(programId, body, actor) {
     if (method === 'PICKUP' && !body.pickup_service_center_id) throw new HttpError(400, 'crm.chooseWhereItIsCollected');
 
     const target = await trx('crm_activity_target')
-      .where({ activity_program_id: programId, party_id: partyId }).orderBy('entry_type').first('activity_target_id');
+      .where({ activity_program_id: programId, party_pk: partyId }).orderBy('entry_type').first('activity_target_id');
 
     const [row] = await trx('crm_activity_award').insert({
       activity_program_id: programId,
       reward_id: reward.reward_id,
-      party_id: partyId,
+      party_pk: partyId,
       activity_target_id: target ? target.activity_target_id : null,
       reservation_id: reservation ? reservation.reservation_id : null,
       fulfilment_method: method,
@@ -973,7 +973,7 @@ async function award(programId, body, actor) {
 
     if (method === 'POINTS') {
       const event = await ledger.post(trx, {
-        party_id: partyId,
+        party_pk: partyId,
         point_type_id: reward.point_type_id,
         event_code: 'PROGRAM_AWARD',
         points_delta: Number(reward.points),
@@ -1030,7 +1030,7 @@ async function transitionAward(awardId, status, body, actor) {
           activity_type_id: typeId,
           project_id: program.project_id,
           occurred_at: trx.fn.now(),
-          party_id: current.party_id,
+          party_pk: current.party_pk,
           performed_by_manager_id: actor.manager_id,
           related_award_id: current.award_id,
           external_activity_id: 'award:' + current.award_id

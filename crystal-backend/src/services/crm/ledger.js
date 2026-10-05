@@ -34,14 +34,14 @@ const { points: roundPoints } = require('../../utils/query');
 /** The account for (party, currency), created empty on first use, and locked. */
 async function lockAccount(trx, partyId, pointTypeId) {
   await trx.raw(
-    `INSERT INTO crm_point_account (party_id, point_type_id)
+    `INSERT INTO crm_point_account (party_pk, point_type_id)
      VALUES (?, ?)
-     ON CONFLICT (party_id, point_type_id) DO NOTHING`,
+     ON CONFLICT (party_pk, point_type_id) DO NOTHING`,
     [partyId, pointTypeId]
   );
 
   return trx('crm_point_account')
-    .where({ party_id: partyId, point_type_id: pointTypeId })
+    .where({ party_pk: partyId, point_type_id: pointTypeId })
     .forUpdate()
     .first();
 }
@@ -49,7 +49,7 @@ async function lockAccount(trx, partyId, pointTypeId) {
 /**
  * Post one movement. Returns the event row.
  *
- *   entry.party_id, entry.point_type_id, entry.points_delta   required
+ *   entry.party_pk, entry.point_type_id, entry.points_delta   required
  *   entry.event_code                                          EARN | REDEEM | ADJUST | ...
  *   entry.project_id                                          defaults to the currency's owner, else PLATFORM
  *   entry.allow_negative                                      the importer only
@@ -69,7 +69,7 @@ async function post(trx, entry) {
   let projectId = entry.project_id || pointType.owner_project_id;
   if (!projectId) projectId = await vocabulary.idOf('crm_project', 'PLATFORM', trx);
 
-  const account = await lockAccount(trx, entry.party_id, entry.point_type_id);
+  const account = await lockAccount(trx, entry.party_pk, entry.point_type_id);
   const balance = roundPoints(Number(account.balance) + delta);
 
   if (balance < 0 && !entry.allow_negative) {

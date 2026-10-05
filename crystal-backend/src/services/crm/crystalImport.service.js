@@ -244,8 +244,8 @@ const MEMBERSHIP_STATUS = { ACTIVE: 'ACTIVE', LOCKED: 'SUSPENDED', DELETED: 'LEF
  * and email become contact points.
  *
  * A member already imported is found by their CRYSTAL account and refreshed.
- * A new member is never matched to an existing party by phone here: that is
- * the duplicate queue's job, where a person decides.
+ * New members pass the shared weighted matcher before a party is created.
+ * Uncertain registrations remain staged; dependent records wait for resolution.
  */
 async function importMembers(connection, ctx) {
   const users = await connection('users').orderBy('id');
@@ -279,8 +279,9 @@ async function importMembers(connection, ctx) {
         party: { party_type: 'PERSON', display_name: user.nickname, full_name: user.nickname },
         contacts: contacts
       });
-      const partyId = resolved.party_id;
-      if (resolved.outcome === 'EXISTING') updated += 1; else added += 1;
+      if (!resolved.party_pk) { counts[resolved.outcome] = (counts[resolved.outcome] || 0) + 1; return; }
+      const partyId = resolved.party_pk;
+      if (resolved.outcome === 'CREATED') added += 1; else updated += 1;
       counts[resolved.outcome] = (counts[resolved.outcome] || 0) + 1;
 
       /* users.id IS the platform's user_pk, so the platform account is certain. */
@@ -292,14 +293,14 @@ async function importMembers(connection, ctx) {
           external_account_type: 'PID',
           crystal_user_id: user.id,
           source_created_at: user.created_at,
-          known_party_id: partyId
+          resolved_party_pk: partyId
         });
       }
 
       await trx.raw(`
-        INSERT INTO crm_membership (party_id, project_id, external_member_id, membership_status, joined_at, synced_at)
+        INSERT INTO crm_membership (party_pk, project_id, external_member_id, membership_status, joined_at, synced_at)
         VALUES (?, ?, ?, ?, ?, now())
-        ON CONFLICT (party_id, project_id) DO UPDATE SET membership_status = EXCLUDED.membership_status, synced_at = now()`,
+        ON CONFLICT (party_pk, project_id) DO UPDATE SET membership_status = EXCLUDED.membership_status, synced_at = now()`,
       [partyId, ctx.project.CRYSTAL, String(user.id), MEMBERSHIP_STATUS[user.status] || 'ACTIVE', user.created_at]);
     });
   }
@@ -310,9 +311,9 @@ async function importMembers(connection, ctx) {
 /** user id -> party id, for the steps that follow. */
 async function partyByUser(connection, ctx) {
   const rows = await connection('crm_project_account').where('project_id', ctx.project.CRYSTAL).whereNull('unlinked_at')
-    .whereNotNull('crystal_user_id').select('crystal_user_id', 'party_id');
+    .whereNotNull('crystal_user_id').select('crystal_user_id', 'party_pk');
   const out = {};
-  rows.forEach(function (row) { out[row.crystal_user_id] = row.party_id; });
+  rows.forEach(function (row) { out[row.crystal_user_id] = row.party_pk; });
   return out;
 }
 
@@ -361,7 +362,7 @@ async function importRegistrations(connection, ctx) {
       if (current) return;
 
       await trx('crm_product_registration').insert({
-        party_id: partyId,
+        party_pk: partyId,
         product_instance_id: instance.product_instance_id,
         relationship_type_id: ctx.relationship.OWNER,
         relationship_code: 'OWNER',
@@ -406,7 +407,7 @@ async function importRegistrations(connection, ctx) {
       const active = licence.status === 'ACTIVE';
       const ended = licence.valid_until && new Date(licence.valid_until) > new Date(licence.created_at) ? licence.valid_until : licence.created_at;
       await trx('crm_product_registration').insert({
-        party_id: partyId,
+        party_pk: partyId,
         product_instance_id: instance.product_instance_id,
         relationship_type_id: ctx.relationship.LICENSEE,
         relationship_code: 'LICENSEE',
@@ -460,7 +461,7 @@ async function importPoints(connection, ctx) {
       const code = pointLog.type === 'ADJUST' ? 'ADJUST' : (Number(pointLog.amount) > 0 ? 'EARN' : 'REDEEM');
       // eslint-disable-next-line no-await-in-loop
       await ledger.post(trx, {
-        party_id: partyId, point_type_id: typeId, event_code: code, points_delta: Number(pointLog.amount),
+        party_pk: partyId, point_type_id: typeId, event_code: code, points_delta: Number(pointLog.amount),
         project_id: ctx.project.CRYSTAL, description: pointLog.description || pointLog.type,
         source_table_code: 'point_logs', external_event_id: String(pointLog.id), occurred_at: pointLog.created_at,
         allow_negative: true, allow_inactive: true
@@ -479,12 +480,12 @@ async function importPoints(connection, ctx) {
       }).first('point_event_id');
       if (opened) continue;
       // eslint-disable-next-line no-await-in-loop
-      const account = await trx('crm_point_account').where({ party_id: partyId, point_type_id: typeId }).first('balance');
+      const account = await trx('crm_point_account').where({ party_pk: partyId, point_type_id: typeId }).first('balance');
       const gap = Math.round((Number(wallet.point_balance) - Number(account ? account.balance : 0)) * 1000) / 1000;
       if (!gap) continue;
       // eslint-disable-next-line no-await-in-loop
       await ledger.post(trx, {
-        party_id: partyId, point_type_id: typeId, event_code: 'ADJUST', points_delta: gap,
+        party_pk: partyId, point_type_id: typeId, event_code: 'ADJUST', points_delta: gap,
         project_id: ctx.project.CRYSTAL, description: 'Opening balance from the Crystal wallet',
         source_table_code: 'wallets', external_event_id: String(wallet.user_id),
         allow_negative: true, allow_inactive: true
@@ -536,34 +537,24 @@ async function importCases(connection, ctx) {
       let partyId = ticket.user_id ? owners[ticket.user_id] : null;
 
       if (!partyId) {
-        const phone = contact.phone(ticket.customer_phone);
-        const known = phone ? await trx('crm_contact_point as contact_point')
-          .join('crm_party as party', 'party.party_id', 'contact_point.party_id')
-          .where({ 'contact_point.contact_type': 'MOBILE', 'contact_point.normalized_value': phone, 'contact_point.status': 'ACTIVE' })
-          .whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
-          .orderBy('party.party_pk').first('party.party_id') : null;
-
-        if (known) {
-          partyId = known.party_id;
-        } else {
-          const party = await parties.createParty(trx, {
+          const party = await require('./registrationIntake.service').submit(trx, {
             party_type: 'PERSON', display_name: ticket.customer_name, full_name: ticket.customer_name,
             origin_project_id: ctx.project.CRYSTAL, first_seen_at: ticket.received_at,
             contacts: [
               ticket.customer_phone ? { contact_type: 'MOBILE', contact_value: ticket.customer_phone, source_project_id: ctx.project.CRYSTAL } : null,
               ticket.customer_email ? { contact_type: 'EMAIL', contact_value: ticket.customer_email, source_project_id: ctx.project.CRYSTAL } : null
             ].filter(Boolean)
-          });
-          partyId = party.party_id;
-        }
+          }, { source_record_id: 'repair:' + ticket.id });
+          partyId = party.party_pk;
       }
+      if (!partyId) return;
 
       const instance = await trx('crm_product_instance')
         .where({ project_id: ctx.project.CRYSTAL, external_product_instance_id: ticket.serial_number }).first('product_instance_id');
 
       const total = Number(ticket.total_amount || 0) + Number(ticket.covered_amount || 0);
       const values = {
-        party_id: partyId,
+        party_pk: partyId,
         project_id: ctx.project.CRYSTAL,
         external_case_id: ticket.ticket_no,
         service_center_id: sites[ticket.agency_id] || null,
@@ -618,7 +609,7 @@ async function importCases(connection, ctx) {
           // eslint-disable-next-line no-await-in-loop
           await trx.raw(`
             INSERT INTO crm_service_center_activity
-              (service_center_id, activity_type_id, project_id, occurred_at, party_id,
+              (service_center_id, activity_type_id, project_id, occurred_at, party_pk,
                related_service_case_id, related_product_instance_id, external_activity_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (project_id, activity_type_id, external_activity_id) WHERE external_activity_id IS NOT NULL DO NOTHING`,
@@ -676,7 +667,7 @@ async function importTransactions(connection, ctx) {
       .join('crm_service_case as service_case', 'service_case.crystal_repair_ticket_id', 'ticket.id')
       .where('ticket.pay_state', 2).where('ticket.total_amount', '>', 0).where('ticket.is_deleted', false)
       .select('ticket.id', 'ticket.ticket_no', 'ticket.total_amount', 'ticket.currency', 'ticket.agency_id', 'ticket.closed_at', 'ticket.updated_at',
-        'ticket.received_at', 'service_case.case_id', 'service_case.party_id', 'service_case.related_product_instance_id');
+        'ticket.received_at', 'service_case.case_id', 'service_case.party_pk', 'service_case.related_product_instance_id');
     for (let index = 0; index < paid.length; index += 1) {
       const ticket = paid[index];
       // eslint-disable-next-line no-await-in-loop
@@ -690,7 +681,7 @@ async function importTransactions(connection, ctx) {
         sales_channel_code: 'SERVICE_CENTRE',
         service_center_id: sites[ticket.agency_id] || null,
         transaction_at: ticket.closed_at || ticket.updated_at || ticket.received_at,
-        parties: [{ party_id: ticket.party_id, party_role_code: 'BUYER' }, { party_id: ticket.party_id, party_role_code: 'PAYER' }],
+        parties: [{ party_pk: ticket.party_pk, party_role_code: 'BUYER' }, { party_pk: ticket.party_pk, party_role_code: 'PAYER' }],
         items: [{
           external_item_id: ticket.ticket_no, product_instance_id: ticket.related_product_instance_id,
           quantity: 1, net_amount: Number(ticket.total_amount)
@@ -722,7 +713,7 @@ async function importTransactions(connection, ctx) {
           net_amount: amount,
           sales_channel_code: 'WALLET',
           transaction_at: move.created_at,
-          parties: [{ party_id: partyId, party_role_code: 'BUYER' }],
+          parties: [{ party_pk: partyId, party_role_code: 'BUYER' }],
           items: [{ external_item_id: move.reference, quantity: 1, net_amount: amount }]
         }, reporting);
         count(outcome);
@@ -744,7 +735,7 @@ async function importTransactions(connection, ctx) {
         net_amount: -amount,
         sales_channel_code: 'WALLET',
         transaction_at: move.created_at,
-        parties: [{ party_id: partyId, party_role_code: 'BUYER' }]
+        parties: [{ party_pk: partyId, party_role_code: 'BUYER' }]
       }, reporting));
     }
 
@@ -770,7 +761,7 @@ async function importTransactions(connection, ctx) {
         points_used: licence.points_used,
         sales_channel_code: 'WEB',
         transaction_at: licence.created_at,
-        parties: [{ party_id: partyId, party_role_code: 'BUYER' }],
+        parties: [{ party_pk: partyId, party_role_code: 'BUYER' }],
         items: [{
           product_id: licence.product_id, product_instance_id: licence.product_instance_id,
           external_item_id: 'LIC-' + licence.id, quantity: 1, net_amount: 0

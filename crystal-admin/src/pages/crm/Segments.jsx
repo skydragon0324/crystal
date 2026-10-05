@@ -344,7 +344,7 @@ function SegmentDetail({ id, onClose }) {
               </Box>
               <DataTable
                 columns={[
-                  { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+                  { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
                   { key: 'matched_at', label: 'Joined', render: (row) => dateTime(row.matched_at) },
                   { key: 'unmatched_at', label: 'Left', render: (row) => dateTime(row.unmatched_at) }
                 ]}

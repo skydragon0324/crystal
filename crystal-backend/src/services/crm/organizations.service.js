@@ -19,7 +19,7 @@ const { HttpError } = require('../../utils/response');
 const PAGE = '/admin/crm/customers';
 
 async function requireType(partyId, type) {
-  const party = await db('crm_party').where('party_id', partyId).first('party_type');
+  const party = await db('crm_party').where('party_pk', partyId).first('party_type');
   if (!party) throw new HttpError(404, 'common.notFound');
   if (party.party_type !== type) throw new HttpError(409, type === 'ORGANIZATION' ? 'crm.onlyForOrganizations' : 'crm.onlyForPeople');
 }
@@ -29,20 +29,20 @@ async function forParty(partyId) {
   const [types, industries, people, employers] = await Promise.all([
     db('crm_organization_type_assignment as assignment').join('crm_organization_type as org_type', 'org_type.organization_type_id', 'assignment.organization_type_id')
       .leftJoin('crm_project as project', 'project.project_id', 'assignment.project_id')
-      .where('assignment.organization_party_id', partyId).orderBy('assignment.assigned_at', 'desc')
+      .where('assignment.organization_party_pk', partyId).orderBy('assignment.assigned_at', 'desc')
       .select('assignment.*', 'org_type.type_code', 'org_type.type_name', 'project.project_code'),
     db('crm_organization_industry as oi').join('crm_industry as industry', 'industry.industry_id', 'oi.industry_id')
-      .where('oi.organization_party_id', partyId).select('oi.*', 'industry.industry_code', 'industry.industry_name'),
-    relationships().where('relationship.organization_party_id', partyId),
-    relationships().where('relationship.person_party_id', partyId)
+      .where('oi.organization_party_pk', partyId).select('oi.*', 'industry.industry_code', 'industry.industry_name'),
+    relationships().where('relationship.organization_party_pk', partyId),
+    relationships().where('relationship.person_party_pk', partyId)
   ]);
   return { types: types, industries: industries, people: people, employers: employers };
 }
 
 function relationships() {
   return db('crm_organization_person_relationship as relationship')
-    .join('crm_party as organization', 'organization.party_id', 'relationship.organization_party_id')
-    .join('crm_party as person', 'person.party_id', 'relationship.person_party_id')
+    .join('crm_party as organization', 'organization.party_pk', 'relationship.organization_party_pk')
+    .join('crm_party as person', 'person.party_pk', 'relationship.person_party_pk')
     .leftJoin('crm_project as project', 'project.project_id', 'relationship.project_id')
     .orderBy([{ column: 'relationship.relationship_status' }, { column: 'relationship.created_at', order: 'desc' }])
     .select('relationship.*', 'organization.display_name as organization_name',
@@ -57,7 +57,7 @@ function relationships() {
 async function assignType(partyId, body, actor) {
   await requireType(partyId, 'ORGANIZATION');
   const [row] = await db('crm_organization_type_assignment').insert({
-    organization_party_id: partyId,
+    organization_party_pk: partyId,
     organization_type_id: body.organization_type_id,
     project_id: body.project_id || null
   }).returning('*');
@@ -67,7 +67,7 @@ async function assignType(partyId, body, actor) {
 
 async function endType(partyId, assignmentId, actor) {
   const [row] = await db('crm_organization_type_assignment')
-    .where({ organization_type_assignment_id: assignmentId, organization_party_id: partyId })
+    .where({ organization_type_assignment_id: assignmentId, organization_party_pk: partyId })
     .update({ status: 'ENDED', ended_at: db.fn.now() }).returning('*');
   if (!row) throw new HttpError(404, 'common.notFound');
   audit.updated(actor, 'crm_organization_type_assignment', assignmentId, null, row, PAGE);
@@ -78,21 +78,21 @@ async function setIndustry(partyId, body, actor) {
   await requireType(partyId, 'ORGANIZATION');
   const row = await transaction(async function (trx) {
     if (body.is_primary) {
-      await trx('crm_organization_industry').where('organization_party_id', partyId).update({ is_primary: false });
+      await trx('crm_organization_industry').where('organization_party_pk', partyId).update({ is_primary: false });
     }
     await trx.raw(`
-      INSERT INTO crm_organization_industry (organization_party_id, industry_id, is_primary, valid_from)
+      INSERT INTO crm_organization_industry (organization_party_pk, industry_id, is_primary, valid_from)
       VALUES (?, ?, ?, CURRENT_DATE)
-      ON CONFLICT (organization_party_id, industry_id) DO UPDATE SET is_primary = EXCLUDED.is_primary, valid_to = NULL`,
+      ON CONFLICT (organization_party_pk, industry_id) DO UPDATE SET is_primary = EXCLUDED.is_primary, valid_to = NULL`,
     [partyId, body.industry_id, !!body.is_primary]);
-    return trx('crm_organization_industry').where({ organization_party_id: partyId, industry_id: body.industry_id }).first();
+    return trx('crm_organization_industry').where({ organization_party_pk: partyId, industry_id: body.industry_id }).first();
   });
   audit.updated(actor, 'crm_organization_industry', partyId + ':' + body.industry_id, null, row, PAGE);
   return row;
 }
 
 async function removeIndustry(partyId, industryId, actor) {
-  const removed = await db('crm_organization_industry').where({ organization_party_id: partyId, industry_id: industryId }).del();
+  const removed = await db('crm_organization_industry').where({ organization_party_pk: partyId, industry_id: industryId }).del();
   if (!removed) throw new HttpError(404, 'common.notFound');
   audit.deleted(actor, 'crm_organization_industry', partyId + ':' + industryId, null, PAGE);
 }
@@ -100,13 +100,13 @@ async function removeIndustry(partyId, industryId, actor) {
 /** A person who acts for an organization, with the roles they hold there. */
 async function addPerson(organizationId, body, actor) {
   await requireType(organizationId, 'ORGANIZATION');
-  await requireType(body.person_party_id, 'PERSON');
+  await requireType(body.person_party_pk, 'PERSON');
   const roles = Array.isArray(body.contact_role_ids) ? body.contact_role_ids : (body.contact_role_ids ? [body.contact_role_ids] : []);
 
   const row = await transaction(async function (trx) {
     const [rel] = await trx('crm_organization_person_relationship').insert({
-      organization_party_id: organizationId,
-      person_party_id: body.person_party_id,
+      organization_party_pk: organizationId,
+      person_party_pk: body.person_party_pk,
       project_id: body.project_id || null,
       valid_from: body.valid_from || trx.raw('CURRENT_DATE')
     }).returning('*');
@@ -130,7 +130,7 @@ async function addPerson(organizationId, body, actor) {
 async function endPerson(organizationId, relationshipId, actor) {
   const [row] = await db('crm_organization_person_relationship')
     .where({ org_person_relationship_id: relationshipId })
-    .where(function () { this.where('organization_party_id', organizationId).orWhere('person_party_id', organizationId); })
+    .where(function () { this.where('organization_party_pk', organizationId).orWhere('person_party_pk', organizationId); })
     .update({ relationship_status: 'ENDED', valid_to: db.raw('CURRENT_DATE') }).returning('*');
   if (!row) throw new HttpError(404, 'common.notFound');
   await db('crm_organization_person_role').where('org_person_relationship_id', relationshipId).whereNull('valid_to')

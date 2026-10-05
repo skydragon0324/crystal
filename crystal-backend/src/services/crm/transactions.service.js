@@ -36,7 +36,7 @@ function round4(value) {
  *   currency_code, net_amount (signed by the convention above), transaction_at   required
  *   txn.original_transaction_id     for a refund
  *   txn.reporting_net_amount         defaults to net_amount when the currency is the reporting one
- *   txn.parties [{ party_id, party_role_code }]
+ *   txn.parties [{ party_pk, party_role_code }]
  *   txn.items   [{ product_id, product_instance_id, external_item_id, quantity, unit_price, net_amount }]
  */
 async function upsert(trx, txn, reporting) {
@@ -82,8 +82,8 @@ async function upsert(trx, txn, reporting) {
   for (let index = 0; index < (txn.parties || []).length; index += 1) {
     const participant = txn.parties[index];
     // eslint-disable-next-line no-await-in-loop
-    await trx.raw(`INSERT INTO crm_transaction_party (transaction_id, party_id, party_role_code) VALUES (?, ?, ?)
-                   ON CONFLICT (transaction_id, party_id, party_role_code) DO NOTHING`, [id, participant.party_id, participant.party_role_code]);
+    await trx.raw(`INSERT INTO crm_transaction_party (transaction_id, party_pk, party_role_code) VALUES (?, ?, ?)
+                   ON CONFLICT (transaction_id, party_pk, party_role_code) DO NOTHING`, [id, participant.party_pk, participant.party_role_code]);
   }
 
   if (txn.items) {
@@ -116,12 +116,12 @@ function query(filters) {
     .leftJoin('crm_transaction_party as tp', function () {
       this.on('tp.transaction_id', 'txn.transaction_id').andOn('tp.party_role_code', db.raw("'BUYER'"));
     })
-    .leftJoin('crm_party as party', 'party.party_id', 'tp.party_id')
+    .leftJoin('crm_party as party', 'party.party_pk', 'tp.party_pk')
     .leftJoin('crm_service_center as center', 'center.service_center_id', 'txn.service_center_id');
 
   if (filters.project_id) qb.where('txn.project_id', filters.project_id);
   if (filters.transaction_type_code) qb.where('txn.transaction_type_code', filters.transaction_type_code);
-  if (filters.party_id) qb.where('tp.party_id', filters.party_id);
+  if (filters.party_pk) qb.where('tp.party_pk', filters.party_pk);
   if (filters.from) qb.where('txn.transaction_at', '>=', filters.from);
   if (filters.to) qb.where('txn.transaction_at', '<', db.raw('?::date + 1', [filters.to]));
   if (filters.counted === '1') qb.whereIn('txn.transaction_status', COUNTED_STATUSES);
@@ -129,7 +129,7 @@ function query(filters) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
       this.where('txn.external_transaction_id', 'ilike', like).orWhere('party.display_name', 'ilike', like)
-        .orWhere('party.party_id', 'ilike', searchId(like));
+        .orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]);
     });
   }
   return qb;
@@ -144,7 +144,7 @@ async function search(filters, paging) {
     transaction_at: 'txn.transaction_at', net_amount: 'txn.net_amount', reporting_net_amount: 'txn.reporting_net_amount'
   }[paging.sort] || 'txn.transaction_at';
   const rows = await query(filters)
-    .select('txn.*', 'project.project_code', 'party.party_id', 'party.party_id', 'party.display_name as party_name',
+    .select('txn.*', 'project.project_code', 'party.party_pk', 'party.display_name as party_name',
       'center.service_center_name',
       db.raw('(txn.transaction_status IN (' + COUNTED_STATUSES.map(function () { return '?'; }).join(', ') + ')) AS is_counted', COUNTED_STATUSES),
       db.raw('(SELECT COUNT(*) FROM crm_transaction_item item WHERE item.transaction_id = txn.transaction_id)::int AS item_cnt'),
@@ -161,8 +161,8 @@ async function detail(id) {
   if (!txn) throw new HttpError(404, 'common.notFound');
 
   const [parties, items, refunds, cases, points] = await Promise.all([
-    db('crm_transaction_party as tp').join('crm_party as party', 'party.party_id', 'tp.party_id')
-      .where('tp.transaction_id', id).select('tp.*', 'party.party_id', 'party.display_name as party_name'),
+    db('crm_transaction_party as tp').join('crm_party as party', 'party.party_pk', 'tp.party_pk')
+      .where('tp.transaction_id', id).select('tp.*', 'party.party_pk', 'party.display_name as party_name'),
     db('crm_transaction_item as item')
       .leftJoin('crm_product_catalog as product', 'product.product_id', 'item.product_id')
       .leftJoin('crm_product_instance as pi', 'pi.product_instance_id', 'item.product_instance_id')

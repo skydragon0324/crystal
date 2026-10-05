@@ -120,7 +120,7 @@ export default function CampaignDetail() {
         options: segments.map((segment) => ({ value: segment.segment_id, label: segment.segment_name + '  (' + number(segment.member_count) + ')' })) },
       { name: 'source_activity_program_id', label: 'Program', type: 'select',
         options: programs.map((program) => ({ value: program.activity_program_id, label: program.program_name })) },
-      { name: 'party_ids', label: 'Customer ids, for a list by hand', type: 'textarea', colSpan: 'full' },
+      { name: 'party_pks', label: 'Customer ids, for a list by hand', type: 'textarea', colSpan: 'full' },
       { name: 'rule', label: 'Rule, for a rule audience', type: 'custom', colSpan: 'full',
         render: () => <RuleEditor value={rule} onChange={setRule} /> }
     ], { audience_type: 'SEGMENT' }, (values) => run(() => crm.campaigns.addAudience(campaign.campaign_id,

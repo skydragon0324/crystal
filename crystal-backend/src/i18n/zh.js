@@ -220,7 +220,7 @@ module.exports = {
     chooseAChannelThatCarriesMessages: '请选择邮件、短信、App 推送或会员收件箱',
     chooseAFile: '请选择文件',
     similarCustomersExist: '已有与此人相似的客户',
-    thatUserIdIsTaken: '用户 ID {party_id} 已属于另一位客户',
+    thatUserIdIsTaken: '用户 ID {party_pk} 已属于另一位客户',
     checkTheDetails: '部分信息无效',
     thisIsNotAnExcelFile: '这不是 Excel (.xlsx) 文件',
     theFileHasNoSheet: '文件中没有可读取的工作表',

@@ -115,21 +115,21 @@ async function load(connection, refDate) {
 
   const [purchases, cases, held, earned, visits] = await Promise.all([
     /* one row per counted transaction: amount, day, type - grouping happens in JS */
-    selectRows(`SELECT tp.party_id, sale.project_id, sale.transaction_at, sale.transaction_type_code,
+    selectRows(`SELECT tp.party_pk, sale.project_id, sale.transaction_at, sale.transaction_type_code,
               COALESCE(sale.reporting_net_amount, 0) AS amount
          FROM crm_transaction sale
          JOIN crm_transaction_party tp ON tp.transaction_id = sale.transaction_id AND tp.party_role_code = 'BUYER'
         WHERE sale.transaction_status IN (${marks}) AND sale.transaction_at < ${end}`, counted.concat([refDate])),
-    selectRows(`SELECT service_case.party_id, service_case.project_id, service_case.received_at, ct.case_type_code
+    selectRows(`SELECT service_case.party_pk, service_case.project_id, service_case.received_at, ct.case_type_code
          FROM crm_service_case service_case JOIN crm_service_case_type ct ON ct.case_type_id = service_case.case_type_id
         WHERE service_case.received_at < ${end} AND service_case.received_at >= ${start}`, [refDate, refDate]),
-    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS held_count FROM crm_product_registration
+    selectRows(`SELECT party_pk, project_id, COUNT(*)::int AS held_count FROM crm_product_registration
         WHERE valid_to IS NULL AND relationship_code IN ('OWNER', 'LICENSEE') GROUP BY 1, 2`, []),
-    selectRows(`SELECT account.party_id, point_event.project_id, COALESCE(SUM(point_event.points_delta), 0) AS points_earned
+    selectRows(`SELECT account.party_pk, point_event.project_id, COALESCE(SUM(point_event.points_delta), 0) AS points_earned
          FROM crm_point_event point_event JOIN crm_point_account account ON account.point_account_id = point_event.point_account_id
         WHERE point_event.points_delta > 0 AND point_event.occurred_at < ${end} AND point_event.occurred_at >= ${start} GROUP BY 1, 2`, [refDate, refDate]),
-    selectRows(`SELECT party_id, project_id, COUNT(*)::int AS visit_count FROM crm_service_center_activity
-        WHERE party_id IS NOT NULL AND status = 'COMPLETED' AND occurred_at < ${end} AND occurred_at >= ${start}
+    selectRows(`SELECT party_pk, project_id, COUNT(*)::int AS visit_count FROM crm_service_center_activity
+        WHERE party_pk IS NOT NULL AND status = 'COMPLETED' AND occurred_at < ${end} AND occurred_at >= ${start}
         GROUP BY 1, 2`, [refDate, refDate])
   ]);
 
@@ -146,7 +146,7 @@ function accumulate(data, ref) {
     const key = partyId + ':' + (projectId || '');
     if (!rows[key]) {
       rows[key] = {
-        party_id: partyId, project_id: projectId || null,
+        party_pk: partyId, project_id: projectId || null,
         first_transaction_at: null, last_transaction_at: null,
         purchase_amount_lifetime: 0, purchase_amount_12m: 0,
         transaction_count_lifetime: 0, transaction_count_12m: 0,
@@ -167,7 +167,7 @@ function accumulate(data, ref) {
     const when = new Date(purchaseRow.transaction_at);
     const recent = when >= yearAgo;
     const purchase = NOT_A_PURCHASE.indexOf(purchaseRow.transaction_type_code) === -1;
-    both(purchaseRow.party_id, purchaseRow.project_id, function (facts, projectId) {
+    both(purchaseRow.party_pk, purchaseRow.project_id, function (facts, projectId) {
       facts.purchase_amount_lifetime += Number(purchaseRow.amount);
       if (recent) facts.purchase_amount_12m += Number(purchaseRow.amount);
       if (!purchase) return;
@@ -183,20 +183,20 @@ function accumulate(data, ref) {
   });
 
   data.cases.forEach(function (caseRow) {
-    both(caseRow.party_id, caseRow.project_id, function (facts, projectId) {
+    both(caseRow.party_pk, caseRow.project_id, function (facts, projectId) {
       facts.service_case_count_12m += 1;
       if (caseRow.case_type_code === 'COMPLAINT') facts.complaint_count_12m += 1;
       facts.projects[projectId] = true;
     });
   });
   data.held.forEach(function (heldRow) {
-    both(heldRow.party_id, heldRow.project_id, function (facts) { facts.registered_device_count += Number(heldRow.held_count); });
+    both(heldRow.party_pk, heldRow.project_id, function (facts) { facts.registered_device_count += Number(heldRow.held_count); });
   });
   data.earned.forEach(function (earnedRow) {
-    both(earnedRow.party_id, earnedRow.project_id, function (facts) { facts.points_earned_12m += Number(earnedRow.points_earned); });
+    both(earnedRow.party_pk, earnedRow.project_id, function (facts) { facts.points_earned_12m += Number(earnedRow.points_earned); });
   });
   data.visits.forEach(function (visitRow) {
-    both(visitRow.party_id, visitRow.project_id, function (facts, projectId) {
+    both(visitRow.party_pk, visitRow.project_id, function (facts, projectId) {
       facts.location_visit_count_12m += Number(visitRow.visit_count);
       if (projectId) facts.projects[projectId] = true;
     });
@@ -242,12 +242,12 @@ async function run(options) {
     connection('crm_corporate_grade').where('is_active', true).orderBy('rank_no', 'desc'),
     connection('crm_metric_definition').where('is_active', true),
     connection('crm_currency').where('is_reporting', true).first('currency_code'),
-    connection('crm_point_account').select('party_id').sum({ balance_total: 'balance' }).groupBy('party_id'),
+    connection('crm_point_account').select('party_pk').sum({ balance_total: 'balance' }).groupBy('party_pk'),
     connection('crm_project_account as account').join('crm_project as project', 'project.project_id', 'account.project_id')
       .whereNull('account.unlinked_at').whereNot('project.project_code', 'PLATFORM')
-      .select('account.party_id').countDistinct({ project_count: 'account.project_id' }).groupBy('account.party_id'),
+      .select('account.party_pk').countDistinct({ project_count: 'account.project_id' }).groupBy('account.party_pk'),
     connection('crm_service_case').where('received_at', '<', connection.raw('?::date + 1', [refDate]))
-      .select('party_id').max({ last_received_at: 'received_at' }).groupBy('party_id'),
+      .select('party_pk').max({ last_received_at: 'received_at' }).groupBy('party_pk'),
     connection('crm_project').where('project_code', 'PLATFORM').first('project_id')
   ]);
 
@@ -259,7 +259,7 @@ async function run(options) {
   };
   const byParty = function (list, field) {
     const out = {};
-    list.forEach(function (row) { out[row.party_id] = row[field]; });
+    list.forEach(function (row) { out[row.party_pk] = row[field]; });
     return out;
   };
   const pointsOf = byParty(balances, 'balance_total');
@@ -277,7 +277,7 @@ async function run(options) {
     .filter(function (facts) { return !platform || facts.project_id !== platform.project_id; })
     .map(function (facts) {
       const row = {
-        party_id: facts.party_id,
+        party_pk: facts.party_pk,
         project_id: facts.project_id,
         reference_date: refDate,
         reporting_currency_code: reporting ? reporting.currency_code : null,
@@ -309,13 +309,13 @@ async function run(options) {
 
   const metricRows = [];
   rows.filter(function (snapshot) { return snapshot.project_id === null; }).forEach(function (snapshot) {
-    const extra = { points: Number(pointsOf[snapshot.party_id] || 0), projects: Number(projectsOf[snapshot.party_id] || 0), lastService: serviceOf[snapshot.party_id] || null };
+    const extra = { points: Number(pointsOf[snapshot.party_pk] || 0), projects: Number(projectsOf[snapshot.party_pk] || 0), lastService: serviceOf[snapshot.party_pk] || null };
     Object.keys(METRICS).forEach(function (code) {
       if (!defs[code]) return;
       const value = METRICS[code](snapshot, ref, extra);
       if (!value) return;
       metricRows.push(Object.assign({
-        party_id: snapshot.party_id, project_id: null, metric_definition_id: defs[code].metric_definition_id,
+        party_pk: snapshot.party_pk, project_id: null, metric_definition_id: defs[code].metric_definition_id,
         reference_date: refDate, model_version: MODEL_VERSION
       }, value));
     });

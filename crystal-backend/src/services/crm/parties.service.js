@@ -44,39 +44,30 @@ function personRow(body) {
  * Shared by the console and by the Crystal import, so a customer created at a
  * counter and one imported from a member account have exactly the same shape.
  */
-async function createParty(trx, data) {
+async function insertParty(trx, data) {
   const type = data.party_type === 'ORGANIZATION' ? 'ORGANIZATION' : 'PERSON';
 
   const name = data.display_name
     || (type === 'PERSON' ? data.full_name : (data.trading_name || data.legal_name))
     || null;
 
-  // A party_id given by the caller (the User ID of an imported customer) is kept; otherwise the database makes one.
-  let givenId = null;
-  if (data.party_id !== undefined && data.party_id !== null && String(data.party_id).trim() !== '') {
-    givenId = String(data.party_id).trim();
-    if (!partyIds.isPartyId(givenId)) throw new HttpError(400, 'crm.checkTheDetails', [{ field: 'party_id', message: 'User ID must be 1-32 letters, digits, "-" or "_"' }]);
-    const taken = await trx('crm_party').where('party_id', givenId).first('party_id');
-    if (taken) throw new HttpError(409, 'crm.thatUserIdIsTaken', null, { party_id: givenId });
-  }
-
-  const [party] = await trx('crm_party').insert(Object.assign(givenId ? { party_id: givenId } : {}, {
+  const [party] = await trx('crm_party').insert({
     party_type: type,
     party_status: 'ACTIVE',
     display_name: name ? String(name).slice(0, 250) : null,
     origin_project_id: data.origin_project_id || null,
     first_seen_at: data.first_seen_at || trx.fn.now(),
     last_seen_at: data.last_seen_at || null
-  })).returning('*');
+  }).returning('*');
 
   if (type === 'PERSON') {
     await trx('crm_person').insert(Object.assign(
-      { party_id: party.party_id },
+      { party_pk: party.party_pk },
       personRow(Object.assign({ full_name: name }, data))
     ));
   } else {
     await trx('crm_organization').insert(Object.assign(
-      { party_id: party.party_id },
+      { party_pk: party.party_pk },
       pickFrom(Object.assign({ trading_name: name }, data), ORG_COLUMNS)
     ));
   }
@@ -84,10 +75,14 @@ async function createParty(trx, data) {
   const contacts = (data.contacts || []).filter(function (contactInput) { return contactInput && contactInput.contact_value; });
   for (let index = 0; index < contacts.length; index += 1) {
     // eslint-disable-next-line no-await-in-loop
-    await insertContact(trx, party.party_id, Object.assign({ is_primary: true }, contacts[index]));
+    await insertContact(trx, party.party_pk, Object.assign({ is_primary: true }, contacts[index]));
   }
 
   return party;
+}
+
+async function createParty(trx, data) {
+  return require('./registrationIntake.service').submit(trx, data);
 }
 
 /** A contact, normalised, primary-flag kept unique per type. Returns null for a duplicate. */
@@ -99,14 +94,14 @@ async function insertContact(trx, partyId, data) {
   if (!normalised) throw new HttpError(400, 'crm.contactValueIsRequired');
 
   const existing = await trx('crm_contact_point')
-    .where({ party_id: partyId, contact_type: type, normalized_value: normalised }).first();
+    .where({ party_pk: partyId, contact_type: type, normalized_value: normalised }).first();
   if (existing) return null;
 
   const hasPrimary = await trx('crm_contact_point')
-    .where({ party_id: partyId, contact_type: type, is_primary: true }).first();
+    .where({ party_pk: partyId, contact_type: type, is_primary: true }).first();
 
   const [row] = await trx('crm_contact_point').insert({
-    party_id: partyId,
+    party_pk: partyId,
     contact_type: type,
     contact_value: String(data.contact_value).trim().slice(0, 500),
     normalized_value: normalised,
@@ -121,26 +116,12 @@ async function insertContact(trx, partyId, data) {
   return row;
 }
 
-/**
- * A NEW CUSTOMER from the console.
- *
- * A person is checked against the customers already on file first
- * (personDuplicates.js). If any look like the same human, nothing is created
- * and the answer is 409 with the look-alikes in `detail`, so the form can show
- * them. The manager can still go ahead - `confirm_not_duplicate: true` - and
- * then each look-alike pair goes into the duplicate review queue, so the
- * decision is seen again by whoever works that queue.
- */
+/** Console registrations use the same pre-creation gate as imports and projects. */
 async function create(body, actor) {
   const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
   const isPerson = body.party_type !== 'ORGANIZATION';
 
   rules.assert(await rules.check(body, 'create', isPerson ? 'PERSON' : 'ORGANIZATION'));
-
-  const similar = isPerson ? await duplicates.findSimilar(body) : [];
-  if (similar.length && !body.confirm_not_duplicate) {
-    throw new HttpError(409, 'crm.similarCustomersExist', similar);
-  }
 
   const contacts = [];
   if (body.mobile) contacts.push({ contact_type: 'MOBILE', contact_value: body.mobile, source_project_id: crystal });
@@ -151,33 +132,16 @@ async function create(body, actor) {
       origin_project_id: body.origin_project_id || crystal,
       contacts: contacts
     }));
-    await queueLookAlikes(trx, created, similar, crystal);
     return created;
   });
 
-  audit.created(actor, 'crm_party', party.party_id, party, PAGE);
+  audit.created(actor, 'crm_registration_intake', party.intake_id, party, PAGE);
   return partyIds.publicParty(party);
-}
-
-/** Look-alikes a manager chose to create anyway, into the duplicate review queue. */
-async function queueLookAlikes(trx, party, similar, projectId) {
-  for (let index = 0; index < similar.length; index += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    await trx('crm_identity_match_candidate').insert({
-      incoming_project_id: projectId,
-      incoming_external_record_id: String(party.party_id),
-      incoming_party_id: party.party_id,
-      candidate_party_id: similar[index].party_id,
-      match_rule_code: similar[index].rule_code,
-      match_score: similar[index].score,
-      explanation_json: JSON.stringify({ reason: similar[index].reason, created_anyway: true })
-    }).onConflict(['incoming_project_id', 'incoming_external_record_id', 'candidate_party_id']).ignore();
-  }
 }
 
 /** The look-alikes of a person not yet saved, for the form to show while it is being filled in. */
 function similarTo(query) {
-  return duplicates.findSimilar(query, { excludePartyId: query.exclude_party_id });
+  return duplicates.findSimilar(query, { excludePartyId: query.exclude_party_pk });
 }
 
 /**
@@ -187,10 +151,10 @@ function similarTo(query) {
  * is where the customer record reads it from.
  */
 async function setChecked(id, checked, actor) {
-  const before = await db('crm_person').where('party_id', id).first();
+  const before = await db('crm_person').where('party_pk', id).first();
   if (!before) throw new HttpError(404, 'common.notFound');
 
-  const [after] = await db('crm_person').where('party_id', id)
+  const [after] = await db('crm_person').where('party_pk', id)
     .update({ is_checked_manually: !!checked }).returning('*');
   audit.updated(actor, 'crm_person', id, before, after, PAGE);
   return after;
@@ -203,23 +167,23 @@ async function update(id, body, actor) {
   if (!before) throw new HttpError(404, 'common.notFound');
   if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
 
-  const currentPerson = before.party_type === 'PERSON' ? await db('crm_person').where('party_id', id).first() : null;
+  const currentPerson = before.party_type === 'PERSON' ? await db('crm_person').where('party_pk', id).first() : null;
   rules.assert(await rules.check(body, 'update', before.party_type, currentPerson));
 
   const after = await transaction(async function (trx) {
     const patch = {};
     if (body.display_name !== undefined) patch.display_name = body.display_name || null;
-    if (Object.keys(patch).length) await trx('crm_party').where('party_id', id).update(patch);
+    if (Object.keys(patch).length) await trx('crm_party').where('party_pk', id).update(patch);
 
     if (before.party_type === 'PERSON') {
       const person = personRow(body);
-      if (Object.keys(person).length) await trx('crm_person').where('party_id', id).update(person);
+      if (Object.keys(person).length) await trx('crm_person').where('party_pk', id).update(person);
     } else {
       const org = pickFrom(body, ORG_COLUMNS);
-      if (Object.keys(org).length) await trx('crm_organization').where('party_id', id).update(org);
+      if (Object.keys(org).length) await trx('crm_organization').where('party_pk', id).update(org);
     }
 
-    return trx('crm_party').where('party_id', id).first();
+    return trx('crm_party').where('party_pk', id).first();
   });
 
   audit.updated(actor, 'crm_party', id, before, after, PAGE);
@@ -233,7 +197,7 @@ async function setStatus(id, status, actor) {
   if (!before) throw new HttpError(404, 'common.notFound');
   if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
 
-  const [after] = await db('crm_party').where('party_id', id).update({ party_status: status }).returning('*');
+  const [after] = await db('crm_party').where('party_pk', id).update({ party_status: status }).returning('*');
   audit.updated(actor, 'crm_party', id, before, after, PAGE);
   return partyIds.publicParty(after);
 }
@@ -248,7 +212,7 @@ async function addContact(partyId, body, actor) {
   const row = await transaction(async function (trx) {
     if (body.is_primary) {
       await trx('crm_contact_point')
-        .where({ party_id: partyId, contact_type: String(body.contact_type || '').toUpperCase() })
+        .where({ party_pk: partyId, contact_type: String(body.contact_type || '').toUpperCase() })
         .update({ is_primary: false });
     }
     return insertContact(trx, partyId, body);
@@ -260,7 +224,7 @@ async function addContact(partyId, body, actor) {
 }
 
 async function updateContact(partyId, contactId, body, actor) {
-  const before = await db('crm_contact_point').where({ party_id: partyId, contact_point_id: contactId }).first();
+  const before = await db('crm_contact_point').where({ party_pk: partyId, contact_point_id: contactId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
 
   if (body.contact_value !== undefined) {
@@ -284,7 +248,7 @@ async function updateContact(partyId, contactId, body, actor) {
     }
     if (body.is_primary) {
       await trx('crm_contact_point')
-        .where({ party_id: partyId, contact_type: before.contact_type })
+        .where({ party_pk: partyId, contact_type: before.contact_type })
         .whereNot('contact_point_id', contactId)
         .update({ is_primary: false });
       patch.is_primary = true;
@@ -306,7 +270,7 @@ async function linkAccount(partyId, body, actor) {
   if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'crm.projectAndAccountAreRequired');
 
   const [row] = await db('crm_project_account').insert({
-    party_id: partyId,
+    party_pk: partyId,
     project_id: body.project_id,
     external_account_id: String(body.external_account_id).trim(),
     external_login: body.external_login || null,
@@ -321,7 +285,7 @@ async function linkAccount(partyId, body, actor) {
 }
 
 async function unlinkAccount(partyId, accountId, actor) {
-  const before = await db('crm_project_account').where({ party_id: partyId, project_account_id: accountId }).first();
+  const before = await db('crm_project_account').where({ party_pk: partyId, project_account_id: accountId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
   if (before.unlinked_at) throw new HttpError(409, 'crm.alreadyUnlinked');
 
@@ -353,7 +317,7 @@ async function setConsent(partyId, body, actor) {
 
   const result = await transaction(async function (trx) {
     const current = await trx('crm_party_communication_consent')
-      .where({ party_id: partyId, project_communication_option_id: option.project_communication_option_id })
+      .where({ party_pk: partyId, project_communication_option_id: option.project_communication_option_id })
       .forUpdate().first();
 
     let row;
@@ -369,7 +333,7 @@ async function setConsent(partyId, body, actor) {
         }).returning('*');
     } else {
       [row] = await trx('crm_party_communication_consent').insert({
-        party_id: partyId,
+        party_pk: partyId,
         project_communication_option_id: option.project_communication_option_id,
         contact_point_id: body.contact_point_id || null,
         consent_status: body.consent_status,
@@ -425,12 +389,13 @@ async function merge(survivorId, mergedId, reason, method, actor) {
   if (!mergedId || survivorId === mergedId) throw new HttpError(400, 'crm.chooseAnotherPartyToMerge');
 
   const result = await transaction(async function (trx) {
+    await require('./registrationIntake.service').lock(trx);
     // Lock in id order, so two merges touching the same pair cannot deadlock.
     const lockOrder = survivorId < mergedId ? [survivorId, mergedId] : [mergedId, survivorId];
     const first = await repo.lockParty(lockOrder[0], trx);
     const second = await repo.lockParty(lockOrder[1], trx);
-    const survivor = first && first.party_id === survivorId ? first : second;
-    const merged = first && first.party_id === mergedId ? first : second;
+    const survivor = first && first.party_pk === survivorId ? first : second;
+    const merged = first && first.party_pk === mergedId ? first : second;
 
     if (!survivor || !merged) throw new HttpError(404, 'common.notFound');
     if (survivor.party_status === 'MERGED' || merged.party_status === 'MERGED') {
@@ -443,75 +408,75 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     const survivorPartyId = survivorId;
     const mergedPartyId = mergedId;
 
-    count('crm_project_account', await trx('crm_project_account').where('party_id', mergedPartyId).update({ party_id: survivorPartyId, is_primary: false }));
+    count('crm_project_account', await trx('crm_project_account').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId, is_primary: false }));
 
     count('crm_contact_point', await trx.raw(
-      `UPDATE crm_contact_point moved_row SET party_id = ?, is_primary = false
-        WHERE moved_row.party_id = ? AND NOT EXISTS (
+      `UPDATE crm_contact_point moved_row SET party_pk = ?, is_primary = false
+        WHERE moved_row.party_pk = ? AND NOT EXISTS (
           SELECT 1 FROM crm_contact_point survivor_row
-           WHERE survivor_row.party_id = ? AND survivor_row.contact_type = moved_row.contact_type AND survivor_row.normalized_value = moved_row.normalized_value)`,
+           WHERE survivor_row.party_pk = ? AND survivor_row.contact_type = moved_row.contact_type AND survivor_row.normalized_value = moved_row.normalized_value)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     count('crm_party_communication_consent', await trx.raw(
-      `UPDATE crm_party_communication_consent moved_row SET party_id = ?, contact_point_id = NULL
-        WHERE moved_row.party_id = ? AND NOT EXISTS (
+      `UPDATE crm_party_communication_consent moved_row SET party_pk = ?, contact_point_id = NULL
+        WHERE moved_row.party_pk = ? AND NOT EXISTS (
           SELECT 1 FROM crm_party_communication_consent survivor_row
-           WHERE survivor_row.party_id = ? AND survivor_row.project_communication_option_id = moved_row.project_communication_option_id)`,
+           WHERE survivor_row.party_pk = ? AND survivor_row.project_communication_option_id = moved_row.project_communication_option_id)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     /* A device both parties hold the same way today: the merged party's copy ends. */
     await trx.raw(
       `UPDATE crm_product_registration moved_row
           SET valid_to = now(), registration_status = 'ENDED', end_reason_code = 'MERGE'
-        WHERE moved_row.party_id = ? AND moved_row.valid_to IS NULL AND EXISTS (
+        WHERE moved_row.party_pk = ? AND moved_row.valid_to IS NULL AND EXISTS (
           SELECT 1 FROM crm_product_registration survivor_row
-           WHERE survivor_row.party_id = ? AND survivor_row.valid_to IS NULL
+           WHERE survivor_row.party_pk = ? AND survivor_row.valid_to IS NULL
              AND survivor_row.product_instance_id = moved_row.product_instance_id
              AND survivor_row.relationship_type_id = moved_row.relationship_type_id)`,
       [mergedPartyId, survivorPartyId]);
-    count('crm_product_registration', await trx('crm_product_registration').where('party_id', mergedPartyId)
+    count('crm_product_registration', await trx('crm_product_registration').where('party_pk', mergedPartyId)
       .update({
-        party_id: survivorPartyId,
-        previous_owner_party_id: trx.raw('CASE WHEN previous_owner_party_id = ? THEN NULL ELSE previous_owner_party_id END', [survivorPartyId])
+        party_pk: survivorPartyId,
+        previous_owner_party_pk: trx.raw('CASE WHEN previous_owner_party_pk = ? THEN NULL ELSE previous_owner_party_pk END', [survivorPartyId])
       }));
-    await trx('crm_product_registration').where('previous_owner_party_id', mergedPartyId).whereNot('party_id', survivorPartyId)
-      .update({ previous_owner_party_id: survivorPartyId });
+    await trx('crm_product_registration').where('previous_owner_party_pk', mergedPartyId).whereNot('party_pk', survivorPartyId)
+      .update({ previous_owner_party_pk: survivorPartyId });
 
-    count('crm_product_transfer', await trx('crm_product_transfer').where('from_party_id', mergedPartyId)
-      .where(function () { this.whereNull('to_party_id').orWhereNot('to_party_id', survivorPartyId); })
-      .update({ from_party_id: survivorPartyId }));
-    count('crm_product_transfer', await trx('crm_product_transfer').where('to_party_id', mergedPartyId)
-      .where(function () { this.whereNull('from_party_id').orWhereNot('from_party_id', survivorPartyId); })
-      .update({ to_party_id: survivorPartyId }));
-    await trx('crm_product_transfer').where('requested_by_party_id', mergedPartyId).update({ requested_by_party_id: survivorPartyId });
+    count('crm_product_transfer', await trx('crm_product_transfer').where('from_party_pk', mergedPartyId)
+      .where(function () { this.whereNull('to_party_pk').orWhereNot('to_party_pk', survivorPartyId); })
+      .update({ from_party_pk: survivorPartyId }));
+    count('crm_product_transfer', await trx('crm_product_transfer').where('to_party_pk', mergedPartyId)
+      .where(function () { this.whereNull('from_party_pk').orWhereNot('from_party_pk', survivorPartyId); })
+      .update({ to_party_pk: survivorPartyId }));
+    await trx('crm_product_transfer').where('requested_by_party_pk', mergedPartyId).update({ requested_by_party_pk: survivorPartyId });
 
-    count('crm_service_case', await trx('crm_service_case').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
-    count('crm_service_center_activity', await trx('crm_service_center_activity').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
-    await trx('crm_service_center_activity').where('performed_by_party_id', mergedPartyId).update({ performed_by_party_id: survivorPartyId });
+    count('crm_service_case', await trx('crm_service_case').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
+    count('crm_service_center_activity', await trx('crm_service_center_activity').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
+    await trx('crm_service_center_activity').where('performed_by_party_pk', mergedPartyId).update({ performed_by_party_pk: survivorPartyId });
 
     count('crm_transaction_party', await trx.raw(
-      `UPDATE crm_transaction_party moved_row SET party_id = ?
-        WHERE moved_row.party_id = ? AND NOT EXISTS (
+      `UPDATE crm_transaction_party moved_row SET party_pk = ?
+        WHERE moved_row.party_pk = ? AND NOT EXISTS (
           SELECT 1 FROM crm_transaction_party survivor_row
-           WHERE survivor_row.party_id = ? AND survivor_row.transaction_id = moved_row.transaction_id AND survivor_row.party_role_code = moved_row.party_role_code)`,
+           WHERE survivor_row.party_pk = ? AND survivor_row.transaction_id = moved_row.transaction_id AND survivor_row.party_role_code = moved_row.party_role_code)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     count('crm_membership', await trx.raw(
-      `UPDATE crm_membership moved_row SET party_id = ?
-        WHERE moved_row.party_id = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_membership survivor_row WHERE survivor_row.party_id = ? AND survivor_row.project_id = moved_row.project_id)`,
+      `UPDATE crm_membership moved_row SET party_pk = ?
+        WHERE moved_row.party_pk = ? AND NOT EXISTS (
+          SELECT 1 FROM crm_membership survivor_row WHERE survivor_row.party_pk = ? AND survivor_row.project_id = moved_row.project_id)`,
       [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
 
     /* Points: re-point where the survivor has no account in that currency, carry over where it does. */
-    const accounts = await trx('crm_point_account').where('party_id', mergedPartyId);
+    const accounts = await trx('crm_point_account').where('party_pk', mergedPartyId);
     for (let index = 0; index < accounts.length; index += 1) {
       const account = accounts[index];
       // eslint-disable-next-line no-await-in-loop
-      const clash = await trx('crm_point_account').where({ party_id: survivorPartyId, point_type_id: account.point_type_id }).first();
+      const clash = await trx('crm_point_account').where({ party_pk: survivorPartyId, point_type_id: account.point_type_id }).first();
 
       if (!clash) {
         // eslint-disable-next-line no-await-in-loop
-        await trx('crm_point_account').where('point_account_id', account.point_account_id).update({ party_id: survivorPartyId });
+        await trx('crm_point_account').where('point_account_id', account.point_account_id).update({ party_pk: survivorPartyId });
         count('crm_point_account', 1);
       } else if (Number(account.balance) !== 0) {
         const carry = {
@@ -523,12 +488,12 @@ async function merge(survivorId, mergedId, reason, method, actor) {
         };
         // eslint-disable-next-line no-await-in-loop
         await ledger.post(trx, Object.assign({}, carry, {
-          party_id: mergedPartyId, points_delta: -Number(account.balance),
+          party_pk: mergedPartyId, points_delta: -Number(account.balance),
           description: 'Carried over to the surviving party on merge'
         }));
         // eslint-disable-next-line no-await-in-loop
         await ledger.post(trx, Object.assign({}, carry, {
-          party_id: survivorPartyId, points_delta: Number(account.balance),
+          party_pk: survivorPartyId, points_delta: Number(account.balance),
           description: 'Carried over from a merged party'
         }));
         count('crm_point_event', 2);
@@ -540,10 +505,10 @@ async function merge(survivorId, mergedId, reason, method, actor) {
      * party), so the pair has to move together: the reservations let go of
      * their target, the target moves, the reservations follow and take it back.
      */
-    const targets = await trx('crm_activity_target as moved_row').where('moved_row.party_id', mergedPartyId)
+    const targets = await trx('crm_activity_target as moved_row').where('moved_row.party_pk', mergedPartyId)
       .whereNotExists(function () {
         this.select(trx.raw(1)).from('crm_activity_target as survivor_row')
-          .whereRaw('survivor_row.party_id = ? AND survivor_row.activity_program_id = moved_row.activity_program_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
+          .whereRaw('survivor_row.party_pk = ? AND survivor_row.activity_program_id = moved_row.activity_program_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
       }).select('moved_row.activity_target_id');
     const targetIds = targets.map(function (target) { return target.activity_target_id; });
 
@@ -551,60 +516,62 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       const held = await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds)
         .select('reservation_id', 'activity_target_id');
       await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds).update({ activity_target_id: null });
-      count('crm_activity_target', await trx('crm_activity_target').whereIn('activity_target_id', targetIds).update({ party_id: survivorPartyId }));
+      count('crm_activity_target', await trx('crm_activity_target').whereIn('activity_target_id', targetIds).update({ party_pk: survivorPartyId }));
       for (let index = 0; index < held.length; index += 1) {
         // eslint-disable-next-line no-await-in-loop
         await trx('crm_activity_reservation').where('reservation_id', held[index].reservation_id)
-          .update({ party_id: survivorPartyId, activity_target_id: held[index].activity_target_id });
+          .update({ party_pk: survivorPartyId, activity_target_id: held[index].activity_target_id });
       }
     }
-    count('crm_activity_reservation', await trx('crm_activity_reservation').where('party_id', mergedPartyId).whereNull('activity_target_id').update({ party_id: survivorPartyId }));
-    count('crm_activity_award', await trx('crm_activity_award').where('party_id', mergedPartyId).update({ party_id: survivorPartyId }));
+    count('crm_activity_reservation', await trx('crm_activity_reservation').where('party_pk', mergedPartyId).whereNull('activity_target_id').update({ party_pk: survivorPartyId }));
+    count('crm_activity_award', await trx('crm_activity_award').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
 
     /* Relationships an organization or a person has. */
     if (survivor.party_type === 'PERSON') {
       count('crm_organization_person_relationship', await trx('crm_organization_person_relationship')
-        .where('person_party_id', mergedPartyId).update({ person_party_id: survivorPartyId }));
+        .where('person_party_pk', mergedPartyId).update({ person_party_pk: survivorPartyId }));
 
       /* Fill what the survivor does not know from what the merged party did. */
-      const mergedPerson = await trx('crm_person').where('party_id', mergedPartyId).first();
-      const survivorPerson = await trx('crm_person').where('party_id', survivorPartyId).first();
+      const mergedPerson = await trx('crm_person').where('party_pk', mergedPartyId).first();
+      const survivorPerson = await trx('crm_person').where('party_pk', survivorPartyId).first();
       if (mergedPerson && survivorPerson) {
         const fill = {};
         PERSON_COLUMNS.forEach(function (column) {
           if ((survivorPerson[column] === null || survivorPerson[column] === undefined) && mergedPerson[column] !== null && mergedPerson[column] !== undefined) fill[column] = mergedPerson[column];
         });
-        if (Object.keys(fill).length) await trx('crm_person').where('party_id', survivorPartyId).update(fill);
+        if (Object.keys(fill).length) await trx('crm_person').where('party_pk', survivorPartyId).update(fill);
       }
     } else {
       count('crm_organization_person_relationship', await trx('crm_organization_person_relationship')
-        .where('organization_party_id', mergedPartyId).update({ organization_party_id: survivorPartyId }));
-      await trx('crm_service_center').where('operator_party_id', mergedPartyId).update({ operator_party_id: survivorPartyId });
+        .where('organization_party_pk', mergedPartyId).update({ organization_party_pk: survivorPartyId }));
+      await trx('crm_service_center').where('operator_party_pk', mergedPartyId).update({ operator_party_pk: survivorPartyId });
     }
 
     /* Derived rows are rebuilt rather than moved. */
-    await trx('crm_segment_membership').where('party_id', mergedPartyId).whereNull('unmatched_at').update({ unmatched_at: trx.fn.now() });
-    await trx('crm_party_product_class_stat').where('party_id', mergedPartyId).del();
+    await trx('crm_segment_membership').where('party_pk', mergedPartyId).whereNull('unmatched_at').update({ unmatched_at: trx.fn.now() });
+    await trx('crm_party_product_class_stat').where('party_pk', mergedPartyId).del();
 
     await trx('crm_identity_match_candidate')
       .where('match_status', 'PENDING')
       .where(function () {
-        this.where({ incoming_party_id: mergedPartyId, candidate_party_id: survivorPartyId })
-          .orWhere({ incoming_party_id: survivorPartyId, candidate_party_id: mergedPartyId });
+        this.where({ incoming_party_pk: mergedPartyId, candidate_party_pk: survivorPartyId })
+          .orWhere({ incoming_party_pk: survivorPartyId, candidate_party_pk: mergedPartyId });
       })
       .update({ match_status: 'ACCEPTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
 
-    await trx('crm_party').where('party_id', mergedPartyId).update({
-      party_status: 'MERGED', merged_into_party_id: survivorPartyId
+    await trx('crm_registration_intake').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId });
+    await trx('crm_identity_resolution').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId, acknowledged_at: null });
+    await trx('crm_party').where('party_pk', mergedPartyId).update({
+      party_status: 'MERGED', merged_into_party_pk: survivorPartyId
     });
-    await trx('crm_party').where('party_id', survivorPartyId).update({
+    await trx('crm_party').where('party_pk', survivorPartyId).update({
       first_seen_at: trx.raw('LEAST(first_seen_at, ?)', [merged.first_seen_at || survivor.first_seen_at]),
       last_seen_at: trx.raw('GREATEST(last_seen_at, ?)', [merged.last_seen_at || survivor.last_seen_at])
     });
 
     const [history] = await trx('crm_party_merge_history').insert({
-      surviving_party_id: survivorPartyId,
-      merged_party_id: mergedPartyId,
+      surviving_party_pk: survivorPartyId,
+      merged_party_pk: mergedPartyId,
       merge_reason: reason ? String(reason).slice(0, 250) : null,
       merge_method: method || 'MANUAL',
       moved_rows: JSON.stringify(moved),
@@ -617,51 +584,35 @@ async function merge(survivorId, mergedId, reason, method, actor) {
   // The stats are recalculated outside the merge so a slow rebuild cannot hold its locks.
   await require('./analysis.service').recalculateClassStats({ partyIds: [survivorId] });
 
-  audit.updated(actor, 'crm_party', mergedId, null, { merged_into_party_id: survivorId, moved_rows: result.moved_rows }, PAGE);
+  audit.updated(actor, 'crm_party', mergedId, null, { merged_into_party_pk: survivorId, moved_rows: result.moved_rows }, PAGE);
   return result;
 }
 
 /* ------------------------------------------------------------ duplicates */
 
-/**
- * PARTIES THAT SHARE A MOBILE OR AN EMAIL, queued for a person to decide.
- *
- * Never merged automatically: two members of one household share a landline,
- * a shop registers its customers' devices under its own email, and the cost
- * of merging two real people is far higher than the cost of a queue. The
- * newer party is the "incoming" one and the older the candidate it would be
- * merged into.
- */
+/** Apply the weighted matcher to historical parties; review existing pairs manually. */
 async function scanDuplicates(actor) {
-  const platform = await vocabulary.idOf('crm_project', 'PLATFORM');
-
-  const inserted = await db.raw(`
-    INSERT INTO crm_identity_match_candidate
-      (incoming_project_id, incoming_external_record_id, incoming_party_id, candidate_party_id,
-       match_rule_code, match_score, explanation_json)
-    SELECT DISTINCT ON (newer_party.party_id, older_party.party_id)
-           COALESCE(newer_party.origin_project_id, ?), newer_party.party_id, newer_party.party_id, older_party.party_id,
-           'SAME_' || newer_contact.contact_type,
-           CASE newer_contact.contact_type WHEN 'MOBILE' THEN 0.9 ELSE 0.85 END,
-           json_build_object('contact_type', newer_contact.contact_type, 'value', newer_contact.normalized_value)
-      FROM crm_contact_point newer_contact
-      JOIN crm_contact_point older_contact
-        ON older_contact.contact_type = newer_contact.contact_type
-       AND older_contact.normalized_value = newer_contact.normalized_value
-       AND older_contact.party_id <> newer_contact.party_id
-      JOIN crm_party newer_party ON newer_party.party_id = newer_contact.party_id
-      JOIN crm_party older_party ON older_party.party_id = older_contact.party_id
-     WHERE newer_contact.contact_type IN ('MOBILE', 'EMAIL')
-       AND newer_contact.status = 'ACTIVE' AND older_contact.status = 'ACTIVE'
-       AND newer_party.party_status = 'ACTIVE' AND older_party.party_status = 'ACTIVE'
-       AND newer_party.party_type = older_party.party_type
-       AND older_party.party_pk < newer_party.party_pk
-     ORDER BY newer_party.party_id, older_party.party_id, newer_contact.contact_type DESC
-    ON CONFLICT (incoming_project_id, incoming_external_record_id, candidate_party_id) DO NOTHING
-  `, [platform]);
-
-  audit.imported(actor, 'crm_identity_match_candidate', { found: inserted.rowCount }, PAGE);
-  return { found: inserted.rowCount };
+ const platform = await vocabulary.idOf('crm_project', 'PLATFORM');
+ let found = 0;
+ await transaction(async trx => {
+  const people = await trx('crm_party as p').join('crm_person as person','person.party_pk','p.party_pk')
+   .whereIn('p.party_status',['ACTIVE','INACTIVE']).select('person.*','p.origin_project_id');
+  for (const person of people) {
+   person.contacts = await trx('crm_contact_point').where({ party_pk: person.party_pk, status: 'ACTIVE' });
+   const matches = await duplicates.findSimilar(person, { trx, excludePartyId: person.party_pk });
+   for (const match of matches) {
+    if (BigInt(match.party_pk) >= BigInt(person.party_pk)) continue;
+    const inserted = await trx('crm_identity_match_candidate').insert({
+     incoming_project_id: person.origin_project_id || platform, incoming_external_record_id: String(person.party_pk),
+     incoming_party_pk: person.party_pk, candidate_party_pk: match.party_pk,
+     match_rule_code: match.rule_code, match_score: match.score, explanation_json: JSON.stringify({ reason: match.reason })
+    }).onConflict(['incoming_project_id','incoming_external_record_id','candidate_party_pk']).ignore().returning('match_candidate_id');
+    found += inserted.length;
+   }
+  }
+ });
+ audit.imported(actor, 'crm_identity_match_candidate', { found }, PAGE);
+ return { found };
 }
 
 async function decideCandidate(id, accept, actor) {
@@ -670,8 +621,8 @@ async function decideCandidate(id, accept, actor) {
   if (candidate.match_status !== 'PENDING') throw new HttpError(409, 'crm.alreadyDecided');
 
   if (accept) {
-    if (!candidate.incoming_party_id) throw new HttpError(409, 'crm.nothingToMerge');
-    await merge(candidate.candidate_party_id, candidate.incoming_party_id,
+    if (!candidate.incoming_party_pk) throw new HttpError(409, 'crm.nothingToMerge');
+    await merge(candidate.candidate_party_pk, candidate.incoming_party_pk,
       'Duplicate by ' + candidate.match_rule_code, 'REVIEWED_MATCH', actor);
   }
 
@@ -715,7 +666,7 @@ async function detail(id) {
     organizations.forParty(id),
     db('crm_transaction as txn').join('crm_transaction_party as tp', 'tp.transaction_id', 'txn.transaction_id')
       .join('crm_project as project', 'project.project_id', 'txn.project_id')
-      .where('tp.party_id', id).where('tp.party_role_code', 'BUYER')
+      .where('tp.party_pk', id).where('tp.party_role_code', 'BUYER')
       .orderBy('txn.transaction_at', 'desc').limit(50)
       .select('txn.transaction_id', 'txn.external_transaction_id', 'txn.transaction_type_code', 'txn.transaction_status',
         'txn.currency_code', 'txn.net_amount', 'txn.reporting_net_amount', 'txn.points_used', 'txn.transaction_at',
@@ -724,7 +675,7 @@ async function detail(id) {
       .join('crm_project as project', 'project.project_id', 'membership.project_id')
       .leftJoin('crm_project_tier as old_tier', 'old_tier.project_tier_id', 'tier_history.old_tier_id')
       .join('crm_project_tier as new_tier', 'new_tier.project_tier_id', 'tier_history.new_tier_id')
-      .where('membership.party_id', id).orderBy('tier_history.changed_at', 'desc').limit(30)
+      .where('membership.party_pk', id).orderBy('tier_history.changed_at', 'desc').limit(30)
       .select('tier_history.*', 'project.project_code', 'old_tier.tier_name as old_tier_name', 'new_tier.tier_name as new_tier_name'),
     db('audit_log').where(function () {
       audited.forEach((pair) => {
@@ -747,6 +698,7 @@ module.exports = {
   PAGE: PAGE,
   CONTACT_TYPES: CONTACT_TYPES,
   createParty: createParty,
+  insertParty: insertParty,
   insertContact: insertContact,
   search: repo.search,
   lookup: repo.lookup,
@@ -754,7 +706,6 @@ module.exports = {
   create: create,
   similarTo: similarTo,
   setChecked: setChecked,
-  queueLookAlikes: queueLookAlikes,
   update: update,
   setStatus: setStatus,
   addContact: addContact,

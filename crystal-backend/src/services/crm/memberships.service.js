@@ -23,17 +23,17 @@ const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
 
 function query(filters) {
   const qb = db('crm_membership as membership')
-    .join('crm_party as party', 'party.party_id', 'membership.party_id')
+    .join('crm_party as party', 'party.party_pk', 'membership.party_pk')
     .join('crm_project as project', 'project.project_id', 'membership.project_id')
     .leftJoin('crm_project_tier as tier', 'tier.project_tier_id', 'membership.current_tier_id');
   if (filters.project_id) qb.where('membership.project_id', filters.project_id);
   if (filters.current_tier_id) qb.where('membership.current_tier_id', filters.current_tier_id);
   if (filters.membership_status) qb.where('membership.membership_status', filters.membership_status);
-  if (filters.party_id) qb.where('membership.party_id', filters.party_id);
+  if (filters.party_pk) qb.where('membership.party_pk', filters.party_pk);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)).orWhere('membership.external_member_id', 'ilike', like);
+      this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]).orWhere('membership.external_member_id', 'ilike', like);
     });
   }
   return qb;
@@ -44,7 +44,7 @@ async function search(filters, paging) {
   const sort = { tier_value: 'membership.tier_value', joined_at: 'membership.joined_at', available_reward_points: 'membership.available_reward_points' }[paging.sort]
     || 'membership.membership_id';
   const rows = await query(filters)
-    .select('membership.*', 'party.party_id', 'party.display_name as party_name', 'project.project_code', 'project.project_name',
+    .select('membership.*', 'party.party_pk', 'party.display_name as party_name', 'project.project_code', 'project.project_name',
       'tier.tier_code', 'tier.tier_name', 'tier.rank_no as tier_rank',
       db.raw('(SELECT COUNT(*) FROM crm_membership_tier_history tier_history WHERE tier_history.membership_id = membership.membership_id)::int AS change_cnt'))
     .orderByRaw(sort + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')

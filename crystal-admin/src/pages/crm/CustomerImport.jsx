@@ -10,7 +10,7 @@ import { useT } from '../../i18n';
 import { date } from '../../utils/format';
 import { partyIdLabel } from './shared';
 
-const TONE = { NEW: 'green', CREATED: 'green', DUPLICATE: 'orange', ERROR: 'red' };
+const TONE = { REVIEW: 'purple', MERGED: 'blue', NEW: 'green', CREATED: 'green', DUPLICATE: 'orange', ERROR: 'red' };
 const STATUS = {
   NEW: 'crm.customers.rowStatusNEW',
   CREATED: 'crm.customers.rowStatusCREATED',
@@ -72,7 +72,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
       if (!dryRun) {
         setDone(true);
         toast({
-          title: translate('crm.customers.importDone', { created: data.summary.created, duplicate: data.summary.duplicate }),
+          title: `${data.summary.created} created, ${data.summary.duplicate} merged, ${data.summary.review} awaiting review`,
           status: 'success', duration: 5000, isClosable: true
         });
         if (onImported) onImported();
@@ -87,7 +87,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
 
   const summary = report ? report.summary : null;
   const rows = report ? report.rows : [];
-  const canImport = !done && summary && summary.error === 0 && summary.new > 0;
+  const canImport = !done && summary && summary.error === 0 && summary.total > 0;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
@@ -96,7 +96,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
         <ModalHeader>{translate('crm.customers.importTitle')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Text fontSize="sm" mb={3}>{translate('crm.customers.importExplained')}</Text>
+          <Text fontSize="sm" mb={3}>Rows are checked against this file, existing customers, and pending registrations. Scores above 40 wait for review; a unique match of 70 or more is merged.</Text>
 
           <HStack spacing={3} mb={4} wrap="wrap">
             <Button size="sm" variant="outline" onClick={downloadTemplate}>{translate('crm.customers.downloadTemplate')}</Button>
@@ -123,11 +123,12 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
           ) : null}
 
           {summary ? (
-            <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3} mb={4}>
+            <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3} mb={4}>
               <Stat><StatLabel>{translate('crm.customers.rowsRead')}</StatLabel><StatNumber>{summary.total}</StatNumber></Stat>
               <Stat><StatLabel>{translate(done ? 'crm.customers.rowsCreated' : 'crm.customers.rowsNew')}</StatLabel>
                 <StatNumber color="green.500">{done ? summary.created : summary.new}</StatNumber></Stat>
               <Stat><StatLabel>{translate('crm.customers.rowsDuplicate')}</StatLabel><StatNumber color="orange.500">{summary.duplicate}</StatNumber></Stat>
+              <Stat><StatLabel>Awaiting review</StatLabel><StatNumber color="purple.500">{summary.review || 0}</StatNumber></Stat>
               {done ? null : <Stat><StatLabel>{translate('crm.customers.rowsError')}</StatLabel><StatNumber color="red.500">{summary.error}</StatNumber></Stat>}
             </SimpleGrid>
           ) : null}
@@ -143,7 +144,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                   <Tr>
                     <Th>{translate('Row')}</Th>
                     <Th>{translate('Result')}</Th>
-                    <Th>{translate('User ID')}</Th>
+                    <Th>Customer key / source ID</Th>
                     <Th>{translate('Name')}</Th>
                     <Th>{translate('Mobile')}</Th>
                     <Th>{translate('Date of birth')}</Th>
@@ -157,7 +158,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                     <Tr key={row.row_number}>
                       <Td>{row.row_number}</Td>
                       <Td><Badge colorScheme={TONE[row.status] || 'gray'}>{STATUS[row.status] ? translate(STATUS[row.status]) : row.status}</Badge></Td>
-                      <Td>{row.party_id || row.values.party_id || '-'}</Td>
+                      <Td>{row.party_pk || row.values.source_user_id || '-'}</Td>
                       <Td>{row.values.full_name || '-'}</Td>
                       <Td>{row.values.mobile || '-'}</Td>
                       <Td>{row.values.birth_date ? date(row.values.birth_date) : (row.values.birth_year || '-')}</Td>
@@ -167,15 +168,15 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                         {row.status === 'ERROR' ? (row.errors || []).join('; ') : null}
                         {row.duplicate_of_row ? translate('crm.customers.sameAsRow', { row: row.duplicate_of_row }) : null}
                         {(row.similar || []).map((match) => (
-                          <Text key={match.party_id}>
-                            <Text as="a" href={(process.env.PUBLIC_URL || '') + '/admin/crm/customers/' + match.party_id}
+                          <Text key={match.party_pk || match.intake_id || match.row_number}>
+                            <Text as={match.party_pk ? 'a' : 'span'} href={match.party_pk ? (process.env.PUBLIC_URL || '') + '/admin/crm/customers/' + match.party_pk : undefined}
                               target="_blank" rel="noopener noreferrer" color="brand.500">
-                              {match.display_name} {partyIdLabel(match.party_id)}
+                              {match.display_name} {match.party_pk ? partyIdLabel(match.party_pk) : match.intake_id ? 'Pending #' + match.intake_id : 'Row ' + match.row_number}
                             </Text>
                             {' - ' + match.reason}
                           </Text>
                         ))}
-                        {partyIdLabel(row.party_id) || null}
+                        {partyIdLabel(row.party_pk) || null}
                       </Td>
                     </Tr>
                   ))}

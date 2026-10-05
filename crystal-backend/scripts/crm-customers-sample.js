@@ -52,7 +52,7 @@ async function main() {
 
   const examples = PEOPLE.map(function (person, index) {
     return {
-      // Half the sample brings its own User ID (the customer's party_id); the rest get one made.
+      // Half the sample brings its own User ID (the customer's party_pk); the rest get one made.
       user_id: index % 2 === 0 ? 'U' + (10001 + index) : '',
       full_name: person[0],
       gender: person[1],

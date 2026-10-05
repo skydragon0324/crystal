@@ -45,7 +45,7 @@ const FILE_TYPES = config.storage.allowedDocumentTypes.concat(config.storage.all
 }));
 
 async function requireParty(id) {
-  const party = await db('crm_party').where('party_id', id).first('party_id', 'party_type', 'party_status');
+  const party = await db('crm_party').where('party_pk', id).first('party_pk', 'party_type', 'party_status');
   if (!party) throw new HttpError(404, 'common.notFound');
   return party;
 }
@@ -55,7 +55,7 @@ async function requireParty(id) {
 async function notes(partyId, filters, paging) {
   const query = function () {
     return db('crm_party_note as note').leftJoin('managers as manager', 'manager.id', 'note.created_by_manager_id')
-      .where('note.party_id', partyId).whereNull('note.deleted_at');
+      .where('note.party_pk', partyId).whereNull('note.deleted_at');
   };
   const count = await query().count({ total: '*' }).first();
   const rows = await query().select('note.*', 'manager.name as author_name')
@@ -69,14 +69,14 @@ async function addNote(partyId, body, actor) {
   const text = String(body.note_text || '').trim();
   if (!text) throw new HttpError(400, 'crm.writeTheNote');
   const [row] = await db('crm_party_note').insert({
-    party_id: partyId, note_text: text.slice(0, 5000), is_pinned: !!body.is_pinned, created_by_manager_id: actor.manager_id
+    party_pk: partyId, note_text: text.slice(0, 5000), is_pinned: !!body.is_pinned, created_by_manager_id: actor.manager_id
   }).returning('*');
   audit.created(actor, 'crm_party_note', row.note_id, row, PAGE);
   return row;
 }
 
 async function updateNote(partyId, noteId, body, actor) {
-  const before = await db('crm_party_note').where({ note_id: noteId, party_id: partyId }).whereNull('deleted_at').first();
+  const before = await db('crm_party_note').where({ note_id: noteId, party_pk: partyId }).whereNull('deleted_at').first();
   if (!before) throw new HttpError(404, 'common.notFound');
   const patch = { updated_at: db.fn.now() };
   if (body.note_text !== undefined) {
@@ -91,7 +91,7 @@ async function updateNote(partyId, noteId, body, actor) {
 }
 
 async function removeNote(partyId, noteId, actor) {
-  const before = await db('crm_party_note').where({ note_id: noteId, party_id: partyId }).whereNull('deleted_at').first();
+  const before = await db('crm_party_note').where({ note_id: noteId, party_pk: partyId }).whereNull('deleted_at').first();
   if (!before) throw new HttpError(404, 'common.notFound');
   await db('crm_party_note').where('note_id', noteId).update({ deleted_at: db.fn.now() });
   audit.deleted(actor, 'crm_party_note', noteId, before, PAGE);
@@ -101,7 +101,7 @@ async function removeNote(partyId, noteId, actor) {
 
 function files(partyId) {
   return db('crm_party_file as party_file').leftJoin('managers as manager', 'manager.id', 'party_file.uploaded_by_manager_id')
-    .where('party_file.party_id', partyId).whereNull('party_file.deleted_at').orderBy('party_file.created_at', 'desc')
+    .where('party_file.party_pk', partyId).whereNull('party_file.deleted_at').orderBy('party_file.created_at', 'desc')
     .select('party_file.file_id', 'party_file.file_name', 'party_file.content_type', 'party_file.byte_size', 'party_file.description', 'party_file.created_at', 'manager.name as uploaded_by_name');
 }
 
@@ -118,7 +118,7 @@ async function addFile(partyId, file, body, actor) {
 
   try {
     const [row] = await db('crm_party_file').insert({
-      party_id: partyId,
+      party_pk: partyId,
       file_name: String(file.originalname || storageKey).slice(0, 255),
       storage_key: storageKey,
       content_type: file.mimetype,
@@ -136,7 +136,7 @@ async function addFile(partyId, file, body, actor) {
 
 /** Where a file's bytes are, for a download - never a path the caller could steer. */
 async function fileForDownload(partyId, fileId) {
-  const row = await db('crm_party_file').where({ file_id: fileId, party_id: partyId }).whereNull('deleted_at').first();
+  const row = await db('crm_party_file').where({ file_id: fileId, party_pk: partyId }).whereNull('deleted_at').first();
   if (!row) throw new HttpError(404, 'common.notFound');
   const absolute = path.join(FILE_DIR, path.basename(row.storage_key));
   if (!fs.existsSync(absolute)) throw new HttpError(404, 'common.notFound');
@@ -144,7 +144,7 @@ async function fileForDownload(partyId, fileId) {
 }
 
 async function removeFile(partyId, fileId, actor) {
-  const row = await db('crm_party_file').where({ file_id: fileId, party_id: partyId }).whereNull('deleted_at').first();
+  const row = await db('crm_party_file').where({ file_id: fileId, party_pk: partyId }).whereNull('deleted_at').first();
   if (!row) throw new HttpError(404, 'common.notFound');
   await db('crm_party_file').where('file_id', fileId).update({ deleted_at: db.fn.now() });
   const absolute = path.join(FILE_DIR, path.basename(row.storage_key));
@@ -156,7 +156,7 @@ async function removeFile(partyId, fileId, actor) {
 
 async function interactions(partyId, filters, paging) {
   const query = function () {
-    const builder = db('crm_party_interaction as interaction').where('interaction.party_id', partyId);
+    const builder = db('crm_party_interaction as interaction').where('interaction.party_pk', partyId);
     if (filters.channel_code) builder.where('interaction.channel_code', filters.channel_code);
     if (filters.direction) builder.where('interaction.direction', filters.direction);
     return builder;
@@ -180,12 +180,12 @@ async function logInteraction(partyId, body, actor) {
   const subject = String(body.subject || '').trim();
   if (!subject) throw new HttpError(400, 'crm.giveASummary');
   if (body.case_id) {
-    const serviceCase = await db('crm_service_case').where({ case_id: body.case_id, party_id: partyId }).first('case_id');
+    const serviceCase = await db('crm_service_case').where({ case_id: body.case_id, party_pk: partyId }).first('case_id');
     if (!serviceCase) throw new HttpError(409, 'crm.thatCaseIsAnotherCustomers');
   }
 
   const [row] = await db('crm_party_interaction').insert({
-    party_id: partyId,
+    party_pk: partyId,
     project_id: body.project_id || null,
     direction: body.direction === 'OUTBOUND' ? 'OUTBOUND' : 'INBOUND',
     channel_code: body.channel_code,
@@ -223,7 +223,7 @@ async function sendMessage(partyId, body, actor) {
   if (!option || !option.is_enabled) throw new HttpError(409, 'crm.thatProjectDoesNotSendThat');
 
   const consent = await db('crm_party_communication_consent')
-    .where({ party_id: partyId, project_communication_option_id: option.project_communication_option_id }).first();
+    .where({ party_pk: partyId, project_communication_option_id: option.project_communication_option_id }).first();
   const now = new Date();
   const inForce = consent && consent.consent_status === 'GRANTED'
     && (!consent.effective_from || new Date(consent.effective_from) <= now) && (!consent.effective_to || new Date(consent.effective_to) > now);
@@ -234,7 +234,7 @@ async function sendMessage(partyId, body, actor) {
 
   let contact = null;
   if (channel.required_contact_type) {
-    const candidates = await db('crm_contact_point').where({ party_id: partyId, contact_type: channel.required_contact_type, status: 'ACTIVE' })
+    const candidates = await db('crm_contact_point').where({ party_pk: partyId, contact_type: channel.required_contact_type, status: 'ACTIVE' })
       .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'is_verified', order: 'desc' }, { column: 'contact_point_id' }]);
     contact = (consent && consent.contact_point_id
       ? candidates.filter(function (candidate) { return candidate.contact_point_id === consent.contact_point_id; })[0] : null) || candidates[0] || null;
@@ -242,7 +242,7 @@ async function sendMessage(partyId, body, actor) {
   }
 
   const [row] = await db('crm_party_interaction').insert({
-    party_id: partyId,
+    party_pk: partyId,
     project_id: option.project_id,
     direction: 'OUTBOUND',
     channel_code: MESSAGE_CHANNELS[channel.channel_code],

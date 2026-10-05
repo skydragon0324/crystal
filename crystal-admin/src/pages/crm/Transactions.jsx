@@ -73,7 +73,7 @@ export default function Transactions() {
               { key: 'transaction_type_code', label: 'Type', sortable: false, render: (row) => word(translate, row.transaction_type_code) },
               { key: 'external_transaction_id', label: 'Reference', sortable: false },
               { key: 'party_name', label: 'Customer', sortable: false,
-                render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_id) : '-') },
+                render: (row) => (row.party_name ? row.party_name + '  ' + partyIdLabel(row.party_pk) : '-') },
               { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => <Amount value={row.net_amount} currency={row.currency_code} sign /> },
               { key: 'reporting_net_amount', label: 'Reporting amount', isNumeric: true, render: (row) => <Amount value={row.reporting_net_amount} sign /> },
               { key: 'points_used', label: 'Points used', sortable: false, isNumeric: true, render: (row) => amount(row.points_used, 0) },
@@ -146,8 +146,8 @@ function TransactionDrawer({ id, onClose }) {
               <InfoList items={(record.parties || []).map((participant) => ({
                 label: word(translate, participant.party_role_code),
                 value: (
-                  <Text as="span" color="brand.500" cursor="pointer" onClick={() => history.push('/admin/crm/customers/' + participant.party_id)}>
-                    {(participant.party_name || '-') + '  ' + partyIdLabel(participant.party_id)}
+                  <Text as="span" color="brand.500" cursor="pointer" onClick={() => history.push('/admin/crm/customers/' + participant.party_pk)}>
+                    {(participant.party_name || '-') + '  ' + partyIdLabel(participant.party_pk)}
                   </Text>
                 )
               }))} />

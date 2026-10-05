@@ -25,7 +25,7 @@ const PAGE = '/admin/crm/sites';
 const ACTIVITY_PAGE = '/admin/crm/site-activity';
 
 const KINDS = ['SERVICE_CENTER', 'SALES_AGENCY', 'COLLECTION_POINT', 'PARTNER_SHOP', 'OFFICE', 'EVENT_VENUE'];
-const SITE_COLUMNS = ['service_center_code', 'service_center_name', 'service_center_kind', 'operator_party_id', 'location_pk',
+const SITE_COLUMNS = ['service_center_code', 'service_center_name', 'service_center_kind', 'operator_party_pk', 'location_pk',
   'address_line', 'landmark', 'map_position', 'rating', 'status', 'opened_on', 'closed_on'];
 const EVENT_TYPES = ['PROMOTION_DAY', 'PRODUCT_LAUNCH', 'ROADSHOW', 'TRAINING', 'INSPECTION', 'PROGRAM_PICKUP_DAY', 'COMMUNITY_EVENT'];
 const EVENT_STATUS = ['PLANNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
@@ -44,7 +44,7 @@ function pick(body, columns) {
 function siteQuery(filters) {
   const qb = db('crm_service_center as center')
     .leftJoin('crm_location as place', 'place.location_pk', 'center.location_pk')
-    .leftJoin('crm_party as operator_party', 'operator_party.party_id', 'center.operator_party_id')
+    .leftJoin('crm_party as operator_party', 'operator_party.party_pk', 'center.operator_party_pk')
     .leftJoin('crm_project as project', 'project.project_id', 'center.source_project_id');
   if (filters.service_center_kind) qb.where('center.service_center_kind', filters.service_center_kind);
   if (filters.status) qb.where('center.status', filters.status);
@@ -156,7 +156,7 @@ function activityQuery(filters) {
   const qb = db('crm_service_center_activity as activity')
     .join('crm_service_center_activity_type as activity_type', 'activity_type.activity_type_id', 'activity.activity_type_id')
     .join('crm_service_center as center', 'center.service_center_id', 'activity.service_center_id')
-    .leftJoin('crm_party as party', 'party.party_id', 'activity.party_id')
+    .leftJoin('crm_party as party', 'party.party_pk', 'activity.party_pk')
     .leftJoin('crm_project as project', 'project.project_id', 'activity.project_id')
     .leftJoin('managers as manager', 'manager.id', 'activity.performed_by_manager_id');
 
@@ -180,7 +180,7 @@ async function searchActivities(filters, paging) {
   const rows = await activityQuery(filters)
     .select('activity.*', 'activity_type.activity_code', 'activity_type.activity_name', 'activity_type.activity_group',
       'center.service_center_code', 'center.service_center_name',
-      'party.party_id', 'party.display_name as party_name', 'project.project_code', 'manager.name as manager_name')
+      'party.party_pk', 'party.display_name as party_name', 'project.project_code', 'manager.name as manager_name')
     .orderBy([{ column: 'activity.occurred_at', order: paging.dir }, { column: 'activity.service_center_activity_id', order: paging.dir }])
     .limit(paging.limit).offset(paging.offset);
   return { rows: rows, total: Number(count.total) };
@@ -213,7 +213,7 @@ async function recordActivity(body, actor) {
     project_id: body.project_id || null,
     service_center_event_id: body.service_center_event_id || null,
     occurred_at: body.occurred_at || db.fn.now(),
-    party_id: body.party_id || null,
+    party_pk: body.party_pk || null,
     performed_by_manager_id: actor.manager_id,
     quantity: body.quantity === undefined || body.quantity === '' ? 1 : body.quantity,
     amount: type.counts_amount ? amount : null,

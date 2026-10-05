@@ -20,15 +20,15 @@ const PAGE = '/admin/crm/points';
 
 function accountQuery(filters) {
   const qb = db('crm_point_account as account')
-    .join('crm_party as party', 'party.party_id', 'account.party_id')
+    .join('crm_party as party', 'party.party_pk', 'account.party_pk')
     .join('crm_point_type as point_type', 'point_type.point_type_id', 'account.point_type_id');
 
   if (filters.point_type_id) qb.where('account.point_type_id', filters.point_type_id);
-  if (filters.party_id) qb.where('account.party_id', filters.party_id);
+  if (filters.party_pk) qb.where('account.party_pk', filters.party_pk);
   if (filters.nonzero === '1') qb.whereNot('account.balance', 0);
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
-    qb.where(function () { this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like)); });
+    qb.where(function () { this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)]); });
   }
   return qb;
 }
@@ -38,7 +38,7 @@ async function searchAccounts(filters, paging) {
   const sort = { balance: 'account.balance', lifetime_earned: 'account.lifetime_earned', last_event_at: 'account.last_event_at' }[paging.sort]
     || 'account.point_account_id';
   const rows = await accountQuery(filters)
-    .select('account.*', 'party.party_id', 'party.display_name as party_name', 'party.party_status',
+    .select('account.*', 'party.party_pk', 'party.display_name as party_name', 'party.party_status',
       'point_type.point_type_code', 'point_type.point_type_name', 'point_type.decimal_places')
     .orderBy(sort, paging.dir).limit(paging.limit).offset(paging.offset);
 
@@ -52,7 +52,7 @@ async function searchAccounts(filters, paging) {
 function eventQuery(filters) {
   const qb = db('crm_point_event as point_event')
     .join('crm_point_account as account', 'account.point_account_id', 'point_event.point_account_id')
-    .join('crm_party as party', 'party.party_id', 'account.party_id')
+    .join('crm_party as party', 'party.party_pk', 'account.party_pk')
     .join('crm_point_type as point_type', 'point_type.point_type_id', 'account.point_type_id')
     .join('crm_point_event_type as event_type', 'event_type.point_event_type_id', 'point_event.point_event_type_id')
     .join('crm_project as project', 'project.project_id', 'point_event.project_id')
@@ -67,7 +67,7 @@ function eventQuery(filters) {
   if (filters.q) {
     const like = '%' + String(filters.q).trim() + '%';
     qb.where(function () {
-      this.where('party.display_name', 'ilike', like).orWhere('party.party_id', 'ilike', searchId(like))
+      this.where('party.display_name', 'ilike', like).orWhereRaw('??::text ILIKE ?', ['party.party_pk', searchId(like)])
         .orWhere('point_event.description', 'ilike', like);
     });
   }
@@ -77,7 +77,7 @@ function eventQuery(filters) {
 async function searchEvents(filters, paging) {
   const count = await eventQuery(filters).count({ total: '*' }).first();
   const rows = await eventQuery(filters)
-    .select('point_event.*', 'party.party_id', 'party.party_id', 'party.display_name as party_name', 'point_type.point_type_code',
+    .select('point_event.*', 'party.party_pk', 'party.display_name as party_name', 'point_type.point_type_code',
       'point_type.point_type_name', 'event_type.event_code', 'event_type.display_name as event_name', 'project.project_code',
       'point_rule.rule_code', 'point_rule.rule_name', 'manager.name as manager_name', 'center.service_center_name')
     .orderBy([{ column: 'point_event.occurred_at', order: paging.dir }, { column: 'point_event.point_event_id', order: paging.dir }])
@@ -93,7 +93,7 @@ async function searchEvents(filters, paging) {
  * record. The reason is required for the same reason it is on a wallet.
  */
 async function adjust(body, actor) {
-  if (!body.party_id || !body.point_type_id) throw new HttpError(400, 'crm.customerAndPointTypeAreRequired');
+  if (!body.party_pk || !body.point_type_id) throw new HttpError(400, 'crm.customerAndPointTypeAreRequired');
   if (!body.description || !String(body.description).trim()) throw new HttpError(400, 'crm.aReasonIsRequired');
 
   const delta = Number(body.points_delta);
@@ -101,7 +101,7 @@ async function adjust(body, actor) {
 
   const event = await transaction(function (trx) {
     return ledger.post(trx, {
-      party_id: body.party_id,
+      party_pk: body.party_pk,
       point_type_id: body.point_type_id,
       event_code: 'ADJUST',
       points_delta: delta,
@@ -119,9 +119,9 @@ async function adjust(body, actor) {
 /** Accounts whose cached balance no longer equals the sum of their ledger. Should be empty. */
 function drift() {
   return db('v_crm_point_account_drift as account_drift')
-    .join('crm_party as party', 'party.party_id', 'account_drift.party_id')
+    .join('crm_party as party', 'party.party_pk', 'account_drift.party_pk')
     .join('crm_point_type as point_type', 'point_type.point_type_id', 'account_drift.point_type_id')
-    .select('account_drift.*', 'party.party_id', 'party.display_name as party_name', 'point_type.point_type_code');
+    .select('account_drift.*', 'party.party_pk', 'party.display_name as party_name', 'point_type.point_type_code');
 }
 
 module.exports = {

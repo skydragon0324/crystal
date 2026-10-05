@@ -112,7 +112,7 @@ export default function Memberships() {
         <Box px="0.5rem" pb="0.5rem">
           <DataTable
             columns={[
-              { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_id) },
+              { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
               { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'external_member_id', label: 'Member number' },
               { key: 'tier_name', label: 'Project tier', render: (row) => translate(row.tier_name || '-') },
@@ -135,7 +135,7 @@ export default function Memberships() {
             rowKey={(row) => row.membership_id || row.id}
             renderExpanded={(row) => <TierHistory membershipId={row.membership_id} />}
             actions={[
-              { key: 'open', label: translate('crm.memberships.openCustomer'), onClick: (row) => history.push('/admin/crm/customers/' + row.party_id) }
+              { key: 'open', label: translate('crm.memberships.openCustomer'), onClick: (row) => history.push('/admin/crm/customers/' + row.party_pk) }
             ].concat(canWrite ? [{ key: 'tier', label: translate('crm.memberships.changeTier'), onClick: (row) => setChanging(row) }] : [])}
             actionsIconOnly={false}
             storageKey={PAGE}
