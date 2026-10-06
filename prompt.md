@@ -123,9 +123,6 @@ In the user details view, where various category-specific records are displayed,
 Setting a fixed size for these detail windows and enabling scrolling when there is a large volume of records would make the interface much more user-friendly.
 Additionally, please include search and filter functions for these records so that users can easily search and filter data specific to that user.
 ---------------------------------------------------
-When adding project tiers, the system needs to allow administrators to modify the scoring rules associated with those tiers.
-Currently, on the analysis page, users are assigned overall grades ranging from AAA to C, but it is unclear where or how these were determined.
-These tiers should be managed within the project tier settings and automatically assigned based on the scoring rules; the scoring system itself must also be modifiable.
 In the "Snapshots" section, each row displays a user's grade and their activity history over the past 12 months.
 Currently, there are separate views for individual projects and an overall view; it would be better to consolidate these into a collapsible format.
 At present, expanding a row reveals the user's scores; instead, expanding it should display project-specific data, while the row itself should show the overall information.
@@ -138,3 +135,10 @@ Once a user is selected, their name appears in the search bar, and the user list
 It must be possible to change the search term in case of an input error; changing the term should trigger a new search and redisplay the user list in the specified format.
 As this user search function has numerous applications, it should be well-modularized and designed for reusability.
 -------------------------------
+`party_id` is the user identifier, while `party_pk` is the primary key for the user identifier; specifically, `party_id` is of type `varchar` and `party_pk` is of type `int`.
+On the user details page, it is more accurate to display `party_pk` rather than `party_id`.
+On the "Group details" page, under the "Contacts" tab, a new contact is added via the "Link contact" function, and a role can be selected during this process.
+However, after the contact is added, how do roles such as CEO, Nurse, IT Manager, or Sales Manager appear beneath the user's name?
+These roles differ from the one selected during the initial addition.
+-----------------------------
+
