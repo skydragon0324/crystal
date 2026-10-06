@@ -66,7 +66,7 @@ export function AccountsTab({ record, view, act }) {
             rows={record.memberships || []}
             rowKey={(row) => row.membership_id}
             columns={[
-              { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'tier_name', label: 'Project tier', render: (row) => translate(row.tier_name || '-') },
               { key: 'available_reward_points', label: 'Reward points', isNumeric: true, render: (row) => amount(row.available_reward_points, 2) },
               { key: 'membership_status', label: 'Status', render: (row) => <Pill code={row.membership_status} /> },
@@ -79,7 +79,7 @@ export function AccountsTab({ record, view, act }) {
             rows={record.point_accounts || []}
             rowKey={(row) => row.point_account_id}
             columns={[
-              { key: 'point_type_name', label: 'Points', render: (row) => translate(row.point_type_name || row.point_type_code) },
+              { key: 'point_type_name', label: 'Points', filter: true, render: (row) => translate(row.point_type_name || row.point_type_code) },
               { key: 'balance', label: 'Balance', isNumeric: true, render: (row) => <Text as="span" fontWeight="700">{amount(row.balance, row.decimal_places)}</Text> }
             ]}
           />
@@ -92,7 +92,7 @@ export function AccountsTab({ record, view, act }) {
             rowKey={(row) => row.membership_tier_history_id}
             columns={[
               { key: 'changed_at', label: 'When', render: (row) => date(row.changed_at) },
-              { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'new_tier_name', label: 'Tier', render: (row) => (row.old_tier_name ? translate(row.old_tier_name) + ' → ' : '') + translate(row.new_tier_name || '-') },
               { key: 'change_reason', label: 'Reason', maxW: '12rem' }
             ]}
@@ -100,11 +100,11 @@ export function AccountsTab({ record, view, act }) {
         </Card360>
         <Card360 icon={Md.MdHistory} title={translate('crm.customer.recentPoints')}>
           <MiniTable
-            rows={(record.point_events || []).slice(0, 12)}
+            rows={record.point_events || []}
             rowKey={(row) => row.point_event_id}
             columns={[
               { key: 'occurred_at', label: 'When', render: (row) => date(row.occurred_at) },
-              { key: 'event_code', label: 'Movement', render: (row) => word(translate, row.event_code) },
+              { key: 'event_code', label: 'Movement', filter: true, render: (row) => word(translate, row.event_code) },
               { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => <Amount value={row.points_delta} sign /> },
               { key: 'points_balance_after', label: 'Balance', isNumeric: true, render: (row) => amount(row.points_balance_after) }
             ]}
@@ -130,7 +130,7 @@ export function OrdersTab({ record }) {
           columns={[
             { key: 'external_transaction_id', label: 'Order number', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_transaction_id}</Text> },
             { key: 'transaction_at', label: 'When', render: (row) => dateTime(row.transaction_at) },
-            { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+            { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
             { key: 'transaction_type_code', label: 'Type', render: (row) => word(translate, row.transaction_type_code) },
             { key: 'transaction_status', label: 'Status', render: (row) => <Pill code={row.transaction_status} /> },
             { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => <Amount value={row.net_amount} currency={row.currency_code} sign /> },
@@ -163,7 +163,7 @@ export function ProductsTab({ record }) {
               { key: 'external_product_instance_id', label: 'Serial or key', render: (row) => row.serial_number || row.imei || row.external_product_instance_id || '-' },
               { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name || '-') },
               { key: 'relationship_code', label: 'Held as', render: (row) => word(translate, row.relationship_code) },
-              { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
               { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : translate('crm.customer.now')) }
             ]}
@@ -188,9 +188,9 @@ export function ProductsTab({ record }) {
             rows={record.transfers || []}
             rowKey={(row) => row.product_transfer_id}
             columns={[
-              { key: 'transfer_kind', label: 'What', render: (row) => word(translate, row.transfer_kind) },
+              { key: 'transfer_kind', label: 'What', filter: true, render: (row) => word(translate, row.transfer_kind) },
               { key: 'product_name', label: 'Product' },
-              { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> },
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Status value={row.status} /> },
               { key: 'requested_at', label: 'Requested', render: (row) => date(row.requested_at) }
             ]}
           />
@@ -263,7 +263,7 @@ export function ServiceTab({ record, view, act }) {
               { key: 'title', label: 'Subject', maxW: '14rem' },
               { key: 'status_name', label: 'Status', render: (row) => <Pill tone={row.is_terminal ? 'green' : 'orange'}>{translate(row.status_name || '-')}</Pill> },
               { key: 'service_center_name', label: 'Service location' },
-              { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'received_at', label: 'Received', render: (row) => dateTime(row.received_at) },
               { key: 'closed_at', label: 'Closed', render: (row) => dateTime(row.closed_at) }
             ]}
@@ -319,9 +319,9 @@ export function CampaignsTab({ record, view }) {
             rowKey={(row) => row.activity_target_id}
             onRowClick={(row) => history.push('/admin/crm/programs/' + row.activity_program_id)}
             columns={[
-              { key: 'program_name', label: 'Program' },
+              { key: 'program_name', label: 'Program', filter: true },
               { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.allowed_count) },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> }
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}
           />
         </Card360>
@@ -331,8 +331,8 @@ export function CampaignsTab({ record, view }) {
             rowKey={(row) => row.reservation_id}
             columns={[
               { key: 'reservation_code', label: 'Number' },
-              { key: 'program_name', label: 'Program' },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> }
+              { key: 'program_name', label: 'Program', filter: true },
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}
           />
         </Card360>
@@ -342,8 +342,8 @@ export function CampaignsTab({ record, view }) {
             rowKey={(row) => row.award_id}
             columns={[
               { key: 'reward_name', label: 'Reward' },
-              { key: 'program_name', label: 'Program' },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> }
+              { key: 'program_name', label: 'Program', filter: true },
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}
           />
         </Card360>
@@ -448,7 +448,7 @@ export function AnalyticsTab({ record, view, model }) {
           rowKey={(row) => row.analysis_snapshot_id}
           empty="crm.customer.notAnalysedYet"
           columns={[
-            { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+            { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
             { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
             { key: 'transaction_count_12m', label: 'Purchases, 12 months', isNumeric: true, render: (row) => number(row.transaction_count_12m) },
             { key: 'last_transaction_at', label: 'Last purchase', render: (row) => date(row.last_transaction_at) },
@@ -493,7 +493,7 @@ export function ConsentTab({ record, view, act }) {
             rows={record.consents || []}
             rowKey={(row) => row.project_communication_option_id}
             columns={[
-              { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
               { key: 'purpose_name', label: 'About', render: (row) => translate(row.purpose_name || '-') },
               { key: 'channel_name', label: 'Channel', render: (row) => <ChannelLabel code={row.channel_code} /> },
               { key: 'consent_status', label: 'Consent',
@@ -541,7 +541,7 @@ export function RelatedTab({ record, view, act }) {
             { key: 'relationship_name', label: 'Relationship', render: (row) => translate(row.relationship_name) },
             { key: 'other_party_type', label: 'Type', render: (row) => word(translate, row.other_party_type) },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
-            { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> },
+            { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
             { key: 'end', label: 'Actions', render: (row) => (act.editable && row.status === 'ACTIVE' ? (
               <Button size="xs" variant="ghost" onClick={(event) => {
                 event.stopPropagation();
@@ -798,7 +798,7 @@ export function NotesFilesTab({ record, act }) {
             columns={[
               { key: 'created_at', label: 'When', render: (row) => dateTime(row.created_at) },
               { key: 'manager_name', label: 'By' },
-              { key: 'action', label: 'Action' },
+              { key: 'action', label: 'Action', filter: true },
               { key: 'entity', label: 'Record', render: (row) => translate(ENTITY_WORDS[row.entity] || row.entity) }
             ]}
           />
@@ -836,7 +836,7 @@ export function OrganizationTab({ record, view, act }) {
             rowKey={(row) => row.team_member_id}
             empty="crm.c360.noTeamYet"
             columns={[
-              { key: 'team_role', label: 'Role', render: (row) => word(translate, row.team_role) },
+              { key: 'team_role', label: 'Role', filter: true, render: (row) => word(translate, row.team_role) },
               { key: 'manager_name', label: 'Staff member', render: (row) => <HStack spacing={2}><Initials name={row.manager_name} /><Text as="span">{row.manager_name}</Text></HStack> },
               { key: 'assigned_at', label: 'From', render: (row) => date(row.assigned_at) },
               { key: 'ended_at', label: 'Until', render: (row) => (row.ended_at ? date(row.ended_at) : <Pill code="ACTIVE" />) },
@@ -854,12 +854,12 @@ export function OrganizationTab({ record, view, act }) {
             empty="crm.c360.noAgreements"
             onRowClick={act.editable ? (row) => act.open('agreement', row) : undefined}
             columns={[
-              { key: 'agreement_type', label: 'Contract type', render: (row) => word(translate, row.agreement_type) },
+              { key: 'agreement_type', label: 'Contract type', filter: true, render: (row) => word(translate, row.agreement_type) },
               { key: 'agreement_no', label: 'Number' },
               { key: 'start_date', label: 'Start', render: (row) => date(row.start_date) },
               { key: 'end_date', label: 'End', render: (row) => date(row.end_date) },
               { key: 'renewal_date', label: 'Next renewal', render: (row) => date(row.renewal_date) },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> }
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}
           />
         </Card360>
@@ -872,8 +872,8 @@ export function OrganizationTab({ record, view, act }) {
             rowKey={(row) => row.organization_type_assignment_id}
             columns={[
               { key: 'type_name', label: 'Type', render: (row) => translate(row.type_name) },
-              { key: 'project_code', label: 'Project', render: (row) => row.project_code || translate('crm.ui.dreamWide') },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.ui.dreamWide') },
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
               { key: 'end', label: 'Actions', render: (row) => (act.editable && row.status === 'ACTIVE' ? (
                 <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.endType(party.party_pk, row.organization_type_assignment_id))}>{translate('crm.sites.end')}</Button>
               ) : null) }
@@ -916,10 +916,10 @@ export function ContactsTab({ record, view, act }) {
             rows={record.contacts || []}
             rowKey={(row) => row.contact_point_id}
             columns={[
-              { key: 'contact_type', label: 'Type', render: (row) => word(translate, row.contact_type) },
+              { key: 'contact_type', label: 'Type', filter: true, render: (row) => word(translate, row.contact_type) },
               { key: 'contact_value', label: 'Contact' },
               { key: 'is_primary', label: 'Primary', render: (row) => (row.is_primary ? <Pill code="PRIMARY" /> : '-') },
-              { key: 'status', label: 'Status', render: (row) => <Pill code={row.status} /> }
+              { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}
           />
         </Card360>
@@ -932,7 +932,7 @@ export function ContactsTab({ record, view, act }) {
           columns={[
             { key: 'person_name', label: 'Person', render: (row) => row.person_name + '  ' + partyIdLabel(row.person_party_pk) },
             { key: 'roles', label: 'Roles', render: (row) => (row.roles || []).map((role) => translate(role.role_name)).join(', ') || '-' },
-            { key: 'project_code', label: 'Project', render: (row) => row.project_code || translate('crm.ui.dreamWide') },
+            { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.ui.dreamWide') },
             { key: 'relationship_status', label: 'Status', render: (row) => <Pill code={row.relationship_status} /> },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) }
           ]}

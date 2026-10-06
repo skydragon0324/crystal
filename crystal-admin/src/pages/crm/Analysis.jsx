@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
-  Box, Button, Flex, Grid, HStack, Progress, Stack, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useColorMode, useToast
+  Box, Button, Flex, Grid, HStack, Progress, Spinner, Stack, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useColorMode, useToast
 } from '@chakra-ui/react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -17,8 +17,9 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { choices, filtersFor, optionsFrom, translateOptions, useCrmMeta, partyIdLabel } from './shared';
-import { Amount, Dot, GradeBadge, InfoList, Kpi, KpiStrip, Panel, ProjectTags, ScoreBreakdown, ScoreMeter } from './ui';
+import { choices, filtersFor, optionsFrom, rowsOf, translateOptions, useCrmMeta, partyIdLabel } from './shared';
+import { MiniTable } from './c360Cards';
+import { Amount, Dot, GradeBadge, InfoList, Kpi, KpiStrip, Panel, ProjectTags, ScoreMeter } from './ui';
 
 export const PAGE = '/admin/crm/analysis';
 
@@ -107,7 +108,7 @@ export default function Analysis() {
           </TabList>
           <TabPanels>
             <TabPanel><SummaryTab summaryData={summaryData} /></TabPanel>
-            <TabPanel px={0}><SnapshotsTab refDate={refDate || summaryData.reference_date} model={model} /></TabPanel>
+            <TabPanel px={0}><SnapshotsTab refDate={refDate || summaryData.reference_date} /></TabPanel>
             <TabPanel px={0}><MetricsTab refDate={refDate} /></TabPanel>
             <TabPanel><ModelTab model={model} grades={summaryData.grades || []} /></TabPanel>
           </TabPanels>
@@ -201,11 +202,52 @@ function SummaryTab({ summaryData }) {
   );
 }
 
-function SnapshotsTab({ refDate, model }) {
+/** One customer's per-project snapshots on a date, loaded when their Dream-wide row is opened. */
+function ProjectSnapshots({ partyPk, refDate }) {
+  const translate = useT();
+  const [rows, setRows] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    crm.analysis.snapshots({ scope: 'project', party_pk: partyPk, reference_date: refDate || undefined, limit: 100, sort: 'purchase_amount_12m' })
+      .then(({ data }) => { if (alive) setRows(rowsOf(data)); })
+      .catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [partyPk, refDate]);
+
+  if (rows === null) return <Spinner size="sm" />;
+  return (
+    <Box maxW="60rem">
+      <MiniTable
+        rows={rows}
+        rowKey={(row) => row.analysis_snapshot_id}
+        empty="crm.analysis.noProjectSnapshots"
+        columns={[
+          { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
+          { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
+          { key: 'purchase_amount_lifetime', label: 'Lifetime spend', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_lifetime} /> },
+          { key: 'transaction_count_12m', label: 'Purchases, 12 months', isNumeric: true, render: (row) => number(row.transaction_count_12m) },
+          { key: 'active_purchase_days_12m', label: 'Purchase days', isNumeric: true, render: (row) => number(row.active_purchase_days_12m) },
+          { key: 'last_transaction_at', label: 'Last purchase', render: (row) => date(row.last_transaction_at) },
+          { key: 'service_case_count_12m', label: 'Service cases', isNumeric: true, render: (row) => number(row.service_case_count_12m) },
+          { key: 'registered_device_count', label: 'Products held', isNumeric: true, render: (row) => number(row.registered_device_count) },
+          { key: 'activity_status', label: 'Activity', render: (row) => <Dot value={row.activity_status} /> }
+        ]}
+      />
+      <Text fontSize="xs" color="gray.500" mt={1}>{translate('crm.analysis.projectSnapshotsExplained')}</Text>
+    </Box>
+  );
+}
+
+/*
+ * SNAPSHOTS. A row is a customer's Dream-wide snapshot - grade, score and the
+ * twelve months across every project; opening it shows the same figures for
+ * each project the customer is active in.
+ */
+function SnapshotsTab({ refDate }) {
   const translate = useT();
   const history = useHistory();
   const meta = useCrmMeta();
-  const [scope, setScope] = useState('dream');
 
   const list = useList((params) => crm.analysis.snapshots(params),
     { page: 1, limit: 25, sort: 'corporate_score', dir: 'desc', scope: 'dream' });
@@ -215,23 +257,15 @@ function SnapshotsTab({ refDate, model }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refDate]);
 
-  const dream = scope === 'dream';
-
   return (
     <Box>
       <Toolbar
         search={list.params.q}
         onSearch={(searchText) => list.setFilter({ q: searchText })}
         filters={filtersFor(translate, [
-          { key: 'scope', label: 'Scope', value: scope,
-            options: [{ value: 'dream', label: 'Dream-wide' }, { value: 'project', label: 'Per project' }],
-            onChange: (value) => { setScope(value || 'dream'); list.setFilter({ scope: value || 'dream', sort: value === 'project' ? 'purchase_amount_12m' : 'corporate_score' }); } },
-          dream ? { key: 'corporate_grade_id', label: 'Corporate grade', value: list.params.corporate_grade_id,
+          { key: 'corporate_grade_id', label: 'Corporate grade', value: list.params.corporate_grade_id,
             options: optionsFrom(meta.corporate_grades, 'corporate_grade_id', 'grade_code'),
-            onChange: (value) => list.setFilter({ corporate_grade_id: value || undefined }) }
-            : { key: 'project_id', label: 'Project', value: list.params.project_id,
-              options: optionsFrom(meta.projects, 'project_id', 'project_name'),
-              onChange: (value) => list.setFilter({ project_id: value || undefined }) },
+            onChange: (value) => list.setFilter({ corporate_grade_id: value || undefined }) },
           { key: 'activity_status', label: 'Activity', value: list.params.activity_status,
             options: choices(['NEW', 'ACTIVE', 'AT_RISK', 'LAPSED', 'NEVER_BOUGHT']),
             onChange: (value) => list.setFilter({ activity_status: value || undefined }) }
@@ -241,9 +275,8 @@ function SnapshotsTab({ refDate, model }) {
         <DataTable
           columns={[
             { key: 'party_name', label: 'Customer', sortable: false, render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
-            dream ? { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => <GradeBadge code={row.grade_code} /> }
-              : { key: 'project_code', label: 'Project', sortable: false, render: (row) => <ProjectTags codes={[row.project_code]} /> },
-            dream ? { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> } : null,
+            { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => <GradeBadge code={row.grade_code} /> },
+            { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> },
             { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
             { key: 'purchase_amount_lifetime', label: 'Lifetime spend', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_lifetime} /> },
             { key: 'transaction_count_12m', label: 'Purchases, 12 months', isNumeric: true, render: (row) => number(row.transaction_count_12m) },
@@ -252,7 +285,7 @@ function SnapshotsTab({ refDate, model }) {
             { key: 'service_case_count_12m', label: 'Service cases', isNumeric: true, render: (row) => number(row.service_case_count_12m) },
             { key: 'registered_device_count', label: 'Products held', isNumeric: true, render: (row) => number(row.registered_device_count) },
             { key: 'activity_status', label: 'Activity', sortable: false, render: (row) => <Dot value={row.activity_status} /> }
-          ].filter(Boolean)}
+          ]}
           rows={list.rows}
           loading={list.loading}
           page={list.params.page}
@@ -264,7 +297,7 @@ function SnapshotsTab({ refDate, model }) {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.analysis_snapshot_id || row.id}
-          renderExpanded={dream ? (row) => <Box maxW="28rem"><ScoreBreakdown components={row.score_components} model={model} /></Box> : undefined}
+          renderExpanded={(row) => <ProjectSnapshots partyPk={row.party_pk} refDate={row.reference_date || refDate} />}
           onRowDoubleClick={(row) => history.push('/admin/crm/customers/' + row.party_pk)}
           rowHint={translate('crm.analysis.openCustomerHint')}
           storageKey={PAGE + '/snapshots'}

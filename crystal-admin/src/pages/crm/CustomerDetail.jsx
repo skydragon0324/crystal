@@ -191,7 +191,7 @@ export default function CustomerDetail() {
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_pk) })}</Text>
+          <Text fontWeight="700">{translate('crm.c360.partyPk', { number: partyIdLabel(party.party_pk) })}</Text>
           <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
           <Badge variant="subtle" colorScheme="gray" textTransform="none">{translate('crm.c360.individual')}</Badge>
           {verified ? <Badge variant="subtle" colorScheme="blue" textTransform="none">{translate('crm.customer.verified')}</Badge> : null}
@@ -225,7 +225,7 @@ export default function CustomerDetail() {
           {statusPill}
         </HStack>
         <HStack spacing={3} mt={1} fontSize="sm">
-          <Text fontWeight="700">{translate('crm.c360.partyId', { number: partyIdLabel(party.party_pk) })}</Text>
+          <Text fontWeight="700">{translate('crm.c360.partyPk', { number: partyIdLabel(party.party_pk) })}</Text>
           <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdContentCopy} />} aria-label={translate('crm.c360.copyNumber')} onClick={copyNumber} />
         </HStack>
         <Wrap spacing={6} mt={2} fontSize="sm">

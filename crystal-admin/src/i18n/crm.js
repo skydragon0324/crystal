@@ -50,6 +50,8 @@ const en = {
     modelIntro: 'The score is the sum of six parts. Spend and purchase days are ranked against every customer who bought in the last 12 months, so the score says where a customer stands in the base, not how much they spent in absolute terms.',
     notRunYet: 'No analysis has been run yet. Run it to see grades, activity and spend by project.',
     openCustomerHint: 'Double-click a row to open the customer',
+    noProjectSnapshots: 'No project figures on this date',
+    projectSnapshotsExplained: 'The same figures for each project the customer is active in; the row above is Dream-wide.',
     overview: 'Summary',
     partBreadth: 'Projects active in - 5 points for each project the customer was active in during the last 12 months.',
     partCare: 'Complaints - starts full and loses 2.5 points for each complaint in the last 12 months.',
@@ -158,7 +160,7 @@ const en = {
     organizationContactPoints: 'Organization contact points',
     organizationInformation: 'Organization information',
     ownedProducts: 'Owned products',
-    partyId: 'Party ID {number}',
+    partyPk: 'Customer key (party_pk) {number}',
     perYear: '{n} / year',
     phone: 'Phone',
     pin: 'Pin to top',
@@ -267,7 +269,10 @@ const en = {
   },
   common: {
     chooseFromTheMatches: 'Choose from the matches',
-    findACustomer: 'Find a customer by name, number, phone or email',
+    clearCustomer: 'Clear the chosen customer',
+    noCustomerMatches: 'No registered customer has that name or phone',
+    searching: 'Searching…',
+    findACustomer: 'Find a registered customer by name or phone',
     findAProduct: 'Find a product by serial, IMEI or name',
     notFound: 'Not found.'
   },
@@ -363,6 +368,8 @@ const en = {
     importExplained: 'Fill in the template - one person per row - and check the file. Location and job title are IDs, taken from the template\'s Locations and Job titles sheets. Nothing is saved until you import. People who look like customers already on file, or like an earlier row, are left out and listed.',
     downloadTemplate: 'Download template',
     checkFile: 'Check the file',
+    chooseFile: 'Choose file',
+    noFileChosen: 'No file chosen',
     importNew: 'Import {n} new customers',
     importDone: '{created} customers created, {duplicate} left out as duplicates',
     rowNumber: 'Row {row}',
@@ -581,7 +588,12 @@ const en = {
     dreamWide: 'Dream-wide',
     notGraded: 'not graded',
     notGradedYet: 'Not graded yet - run the analysis.',
-    nothingYet: 'Nothing yet'
+    nothingYet: 'Nothing yet',
+    allValues: 'All',
+    filterBy: 'Filter by {column}',
+    noMatches: 'No records match the search or filters',
+    searchThese: 'Search these records',
+    shownOf: '{shown} of {total}'
   }
 };
 
@@ -615,6 +627,8 @@ const zh = {
     modelIntro: '评分由六个部分相加而成。消费金额和购买天数按近 12 个月内所有有购买的客户进行排名，因此评分反映客户在整体中的位置，而非绝对消费额。',
     notRunYet: '尚未运行分析。运行后可查看评级、活跃度和各项目消费。',
     openCustomerHint: '双击行可打开客户',
+    noProjectSnapshots: '该日期没有项目数据',
+    projectSnapshotsExplained: '客户在每个项目中的同一组数据；上面一行是 Dream 全局数据。',
     overview: '汇总',
     partBreadth: '活跃项目数 - 近 12 个月内每活跃一个项目得 5 分。',
     partCare: '投诉 - 初始满分，近 12 个月内每有一次投诉扣 2.5 分。',
@@ -723,7 +737,7 @@ const zh = {
     organizationContactPoints: '组织联系方式',
     organizationInformation: '组织信息',
     ownedProducts: '拥有产品',
-    partyId: '客户编号 {number}',
+    partyPk: '客户主键 (party_pk) {number}',
     perYear: '{n} 次/年',
     phone: '电话',
     pin: '置顶',
@@ -832,7 +846,10 @@ const zh = {
   },
   common: {
     chooseFromTheMatches: '从匹配结果中选择',
-    findACustomer: '按姓名、编号、电话或邮箱查找客户',
+    clearCustomer: '清除所选客户',
+    noCustomerMatches: '没有匹配该姓名或电话的已登记客户',
+    searching: '正在搜索…',
+    findACustomer: '按姓名或电话查找已登记客户',
     findAProduct: '按序列号、IMEI 或名称查找产品',
     notFound: '未找到。'
   },
@@ -928,6 +945,8 @@ const zh = {
     importExplained: '按模板填写（每行一人）后先检查文件。所在地和职位填写 ID，取自模板中的“Locations”和“Job titles”工作表。导入前不会保存任何内容。与现有客户或前面某行相似的人会被跳过并列出。',
     downloadTemplate: '下载模板',
     checkFile: '检查文件',
+    chooseFile: '选择文件',
+    noFileChosen: '未选择文件',
     importNew: '导入 {n} 位新客户',
     importDone: '已创建 {created} 位客户，{duplicate} 位因疑似重复被跳过',
     rowNumber: '第 {row} 行',
@@ -1146,7 +1165,12 @@ const zh = {
     dreamWide: 'Dream 全局',
     notGraded: '未评级',
     notGradedYet: '尚未评级，请运行分析。',
-    nothingYet: '暂无记录'
+    nothingYet: '暂无记录',
+    allValues: '全部',
+    filterBy: '按{column}筛选',
+    noMatches: '没有符合搜索或筛选条件的记录',
+    searchThese: '搜索这些记录',
+    shownOf: '{shown} / {total}'
   }
 };
 
@@ -1180,6 +1204,8 @@ const ru = {
     modelIntro: 'Балл — сумма шести частей. Расходы и дни покупок ранжируются среди всех клиентов, покупавших за последние 12 месяцев, поэтому балл показывает место клиента в базе, а не абсолютную сумму.',
     notRunYet: 'Анализ ещё не запускался. Запустите его, чтобы увидеть рейтинги, активность и расходы по проектам.',
     openCustomerHint: 'Дважды щёлкните строку, чтобы открыть клиента',
+    noProjectSnapshots: 'Нет данных по проектам на эту дату',
+    projectSnapshotsExplained: 'Те же показатели по каждому проекту клиента; строка выше - по всему Dream.',
     overview: 'Сводка',
     partBreadth: 'Активные проекты — 5 баллов за каждый проект, где клиент был активен за 12 месяцев.',
     partCare: 'Жалобы — начинается с максимума и теряет 2,5 балла за каждую жалобу за 12 месяцев.',
@@ -1288,7 +1314,7 @@ const ru = {
     organizationContactPoints: 'Контакты организации',
     organizationInformation: 'Сведения об организации',
     ownedProducts: 'Товары во владении',
-    partyId: 'ID клиента {number}',
+    partyPk: 'Ключ клиента (party_pk) {number}',
     perYear: '{n} в год',
     phone: 'Телефон',
     pin: 'Закрепить',
@@ -1397,7 +1423,10 @@ const ru = {
   },
   common: {
     chooseFromTheMatches: 'Выберите из найденного',
-    findACustomer: 'Найти клиента по имени, номеру, телефону или e-mail',
+    clearCustomer: 'Очистить выбор клиента',
+    noCustomerMatches: 'Нет зарегистрированного клиента с таким именем или телефоном',
+    searching: 'Поиск…',
+    findACustomer: 'Найти зарегистрированного клиента по имени или телефону',
     findAProduct: 'Найти товар по серийному номеру, IMEI или названию',
     notFound: 'Не найдено.'
   },
@@ -1493,6 +1522,8 @@ const ru = {
     importExplained: 'Заполните шаблон - один человек в строке - и проверьте файл. Местоположение и должность указываются ID из листов шаблона Locations и Job titles. До импорта ничего не сохраняется. Люди, похожие на существующих клиентов или на одну из предыдущих строк, пропускаются и перечисляются.',
     downloadTemplate: 'Скачать шаблон',
     checkFile: 'Проверить файл',
+    chooseFile: 'Выбрать файл',
+    noFileChosen: 'Файл не выбран',
     importNew: 'Импортировать новых клиентов: {n}',
     importDone: 'Создано клиентов: {created}, пропущено как дубликаты: {duplicate}',
     rowNumber: 'Строка {row}',
@@ -1711,7 +1742,12 @@ const ru = {
     dreamWide: 'По всему Dream',
     notGraded: 'без рейтинга',
     notGradedYet: 'Рейтинга ещё нет — запустите анализ.',
-    nothingYet: 'Пока ничего'
+    nothingYet: 'Пока ничего',
+    allValues: 'Все',
+    filterBy: 'Фильтр: {column}',
+    noMatches: 'Нет записей, подходящих под поиск или фильтры',
+    searchThese: 'Искать в этих записях',
+    shownOf: '{shown} из {total}'
   }
 };
 

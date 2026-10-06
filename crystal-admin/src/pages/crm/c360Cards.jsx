@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
-  Box, Button, Collapse, Flex, Grid, HStack, Icon, Link, SimpleGrid, Stack, Table, Tbody, Td, Text, Th, Thead, Tr, Wrap, WrapItem
+  Box, Button, Collapse, Flex, Grid, HStack, Icon, Input, InputGroup, InputLeftElement, Link, Select, SimpleGrid, Stack, Table, Tbody, Td,
+  Text, Th, Thead, Tr, Wrap, WrapItem
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
@@ -24,14 +25,67 @@ import { Card360, Empty360, Facts360, Initials, MiniBars, Pill, RfmHexagon, Spar
 const CUSTOMERS = '/admin/crm/customers';
 
 /** A compact table for a card: no paging, no settings, a row may open something. */
-export function MiniTable({ columns, rows, rowKey, onRowClick, empty }) {
+/*
+ * A list longer than a card's six rows gets a search box, and a column marked
+ * `filter: true` a choice of its values; the table keeps a fixed height and
+ * scrolls under a header that stays in view.
+ */
+const SEARCH_FROM = 7;
+
+/** Everything a row says, as lower-case text to search: its plain values, nested ones included. */
+function rowText(row) {
+  return Object.keys(row).map((key) => {
+    const value = row[key];
+    if (value === null || value === undefined) return '';
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  }).join(' ').toLowerCase();
+}
+
+function filterValue(column, row) {
+  const value = column.filterValue ? column.filterValue(row) : row[column.key];
+  return value === null || value === undefined || value === '' ? '' : String(value);
+}
+
+export function MiniTable({ columns, rows, rowKey, onRowClick, empty, maxH = '24rem' }) {
   const translate = useT();
   const surface = useSurface();
+  const [search, setSearch] = useState('');
+  const [chosen, setChosen] = useState({});
   if (!rows || !rows.length) return <Empty360>{translate(empty || 'crm.ui.nothingYet')}</Empty360>;
+
+  const searchable = rows.length >= SEARCH_FROM;
+  const filterColumns = searchable ? columns.filter((column) => column.filter) : [];
+  const term = search.trim().toLowerCase();
+  const shown = rows.filter((row) => (!term || rowText(row).indexOf(term) !== -1)
+    && filterColumns.every((column) => !chosen[column.key] || filterValue(column, row) === chosen[column.key]));
+
   return (
-    <Box overflowX="auto">
+    <Box>
+      {searchable ? (
+        <Flex mb={2} gap="0.5rem" data-gap="8" data-gap-wrap wrap="wrap" align="center">
+          <InputGroup size="sm" maxW="16rem">
+            <InputLeftElement pointerEvents="none"><Icon as={Md.MdSearch} color={surface.muted} /></InputLeftElement>
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={translate('crm.ui.searchThese')}
+              aria-label={translate('crm.ui.searchThese')} borderRadius="md" />
+          </InputGroup>
+          {filterColumns.map((column) => {
+            const values = Array.from(new Set(rows.map((row) => filterValue(column, row)).filter(Boolean))).sort();
+            return (
+              <Select key={column.key} size="sm" maxW="12rem" borderRadius="md" value={chosen[column.key] || ''}
+                aria-label={translate('crm.ui.filterBy', { column: translate(column.label) })}
+                onChange={(event) => setChosen(Object.assign({}, chosen, { [column.key]: event.target.value }))}>
+                <option value="">{translate(column.label)}: {translate('crm.ui.allValues')}</option>
+                {values.map((value) => <option key={value} value={value}>{word(translate, value)}</option>)}
+              </Select>
+            );
+          })}
+          <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.ui.shownOf', { shown: shown.length, total: rows.length })}</Text>
+        </Flex>
+      ) : null}
+      {!shown.length ? <Empty360>{translate('crm.ui.noMatches')}</Empty360> : (
+    <Box overflow="auto" maxH={maxH} borderWidth={searchable ? '1px' : 0} borderColor={surface.border} borderRadius="md">
       <Table size="sm" variant="simple">
-        <Thead>
+        <Thead position="sticky" top={0} zIndex={1} bg={surface.card}>
           <Tr>
             {columns.map((column) => (
               <Th key={column.key} px={2} py={2} fontSize="0.68rem" color={surface.muted} textTransform="none" letterSpacing="normal"
@@ -42,7 +96,7 @@ export function MiniTable({ columns, rows, rowKey, onRowClick, empty }) {
           </Tr>
         </Thead>
         <Tbody>
-          {rows.map((row) => (
+          {shown.map((row) => (
             <Tr key={rowKey(row)} cursor={onRowClick ? 'pointer' : undefined} onClick={onRowClick ? () => onRowClick(row) : undefined}
               _hover={onRowClick ? { bg: surface.hover } : undefined}>
               {columns.map((column) => (
@@ -54,6 +108,8 @@ export function MiniTable({ columns, rows, rowKey, onRowClick, empty }) {
           ))}
         </Tbody>
       </Table>
+    </Box>
+      )}
     </Box>
   );
 }

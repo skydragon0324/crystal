@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert, AlertIcon, Badge, Box, Button, HStack, Input, Modal, ModalBody, ModalCloseButton, ModalContent,
+  Alert, AlertIcon, Badge, Box, Button, HStack, Icon, Modal, ModalBody, ModalCloseButton, ModalContent,
   ModalFooter, ModalHeader, ModalOverlay, SimpleGrid, Stat, StatLabel, StatNumber, Table, Tbody, Td, Text, Th,
   Thead, Tr, useToast
 } from '@chakra-ui/react';
+import * as Md from 'react-icons/md';
 
 import { crm } from '../../api';
 import { useT } from '../../i18n';
@@ -100,8 +101,15 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
 
           <HStack spacing={3} mb={4} wrap="wrap">
             <Button size="sm" variant="outline" onClick={downloadTemplate}>{translate('crm.customers.downloadTemplate')}</Button>
-            <Input ref={input} type="file" accept=".xlsx" size="sm" maxW="22rem" p={1}
+            {/* The same picker as a customer's "Notes and files": a button over a hidden input, the chosen name beside it. */}
+            <input ref={input} type="file" accept=".xlsx" hidden
               onChange={(event) => { setFile(event.target.files && event.target.files[0]); setReport(null); setDone(false); setProblem(null); }} />
+            <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdCloudUpload} />} onClick={() => { if (input.current) { input.current.value = ''; input.current.click(); } }}>
+              {translate('crm.customers.chooseFile')}
+            </Button>
+            <Text fontSize="sm" color={file ? undefined : 'gray.500'} maxW="16rem" noOfLines={1}>
+              {file ? file.name : translate('crm.customers.noFileChosen')}
+            </Text>
             <Button size="sm" variant="brand" isDisabled={!file || done} isLoading={busy && !summary} onClick={() => send(true)}>
               {translate('crm.customers.checkFile')}
             </Button>

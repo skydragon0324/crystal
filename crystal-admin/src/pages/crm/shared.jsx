@@ -215,82 +215,10 @@ export function optionsFrom(list, idKey, label) {
 
 /* ------------------------------------------------------------ pickers */
 
-/**
- * FIND A CUSTOMER, by name, number, phone, email or another project's account.
- *
- * Not a select over every party - there are hundreds of thousands - but a
- * search box with the twenty best matches under it. The chosen party stays
- * shown by name even after the box is cleared.
- */
-export function PartyPicker({ value, onChange, placeholder, isDisabled }) {
-  const translate = useT();
-  const [query, setQuery] = useState('');
-  const [found, setFound] = useState([]);
-  const [chosen, setChosen] = useState(null);
-  const [busy, setBusy] = useState(false);
+/** Finding one registered customer: see PartyPicker.jsx. */
+export { default as PartyPicker } from './PartyPicker';
 
-  /* Name the party we were handed, so an edit opens showing who it is. */
-  useEffect(() => {
-    if (!value || (chosen && String(chosen.party_pk) === String(value))) return;
-    crm.parties.lookup('', String(value))
-      .then(({ data }) => { if (Array.isArray(data) && data[0]) setChosen(data[0]); })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  useEffect(() => {
-    if (!query || query.trim().length < 2) { setFound([]); return undefined; }
-    const timer = setTimeout(() => {
-      setBusy(true);
-      crm.parties.lookup(query.trim())
-        .then(({ data }) => setFound(Array.isArray(data) ? data : []))
-        .catch(() => setFound([]))
-        .finally(() => setBusy(false));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const label = function (party) {
-    return (party.display_name || '-') + '  ' + partyIdLabel(party.party_pk) + (party.mobile ? '  ' + party.mobile : '');
-  };
-
-  const options = found.map((party) => ({ value: party.party_pk, label: label(party) }));
-  if (chosen && !options.some((option) => String(option.value) === String(chosen.party_pk))) {
-    options.unshift({ value: chosen.party_pk, label: label(chosen) });
-  }
-
-  return (
-    <Stack spacing={2}>
-      <InputGroup size="sm">
-        <InputLeftElement pointerEvents="none">
-          {busy ? <Spinner size="xs" /> : <SearchIcon color="gray.400" boxSize="0.8em" />}
-        </InputLeftElement>
-        <Input
-          borderRadius="md"
-          value={query}
-          isDisabled={isDisabled}
-          placeholder={placeholder || translate('crm.common.findACustomer')}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </InputGroup>
-      <SelectField
-        size="sm"
-        options={options}
-        value={value || null}
-        isDisabled={isDisabled}
-        isSearchable={false}
-        placeholder={translate('crm.common.chooseFromTheMatches')}
-        onChange={(next) => {
-          const hit = found.filter((party) => String(party.party_pk) === String(next))[0];
-          if (hit) setChosen(hit);
-          onChange(next === undefined ? null : next);
-        }}
-      />
-    </Stack>
-  );
-}
-
-/** The same search for a product instance, by serial, IMEI or product name. */
+/** Finding one product instance, by serial, IMEI or product name. */
 export function InstancePicker({ value, onChange }) {
   const translate = useT();
   const [query, setQuery] = useState('');

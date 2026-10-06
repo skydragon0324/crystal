@@ -140,5 +140,7 @@ On the user details page, it is more accurate to display `party_pk` rather than 
 On the "Group details" page, under the "Contacts" tab, a new contact is added via the "Link contact" function, and a role can be selected during this process.
 However, after the contact is added, how do roles such as CEO, Nurse, IT Manager, or Sales Manager appear beneath the user's name?
 These roles differ from the one selected during the initial addition.
------------------------------
+----------------------------------------------------------------
+You removed `party_id` from crm_person
+we need to save it, but, we won't use it in phase 1
 
