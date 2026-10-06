@@ -135,17 +135,37 @@ async function search(filters, paging) {
 }
 
 /** Twenty matches for a picker: enough to choose from, few enough to be quick. */
+/*
+ * What a picker shows for a customer, on one line: party_pk, name, home
+ * address, every phone. Phones are all of their active MOBILE and PHONE
+ * contact points, primary first.
+ */
+const LOOKUP_COLUMNS = [
+  'party.party_pk', 'party.party_type', 'party.party_status', 'party.display_name',
+  'person.address_line',
+  db.raw(locations.fullNameOf('person.home_location_pk') + ' AS home_place'),
+  db.raw(`ARRAY(SELECT contact.contact_value FROM crm_contact_point contact
+                 WHERE contact.party_pk = party.party_pk AND contact.contact_type IN ('MOBILE', 'PHONE') AND contact.status = 'ACTIVE'
+                 ORDER BY contact.is_primary DESC, contact.contact_point_id) AS phones`),
+  firstContact('MOBILE', 'mobile')
+];
+
+/**
+ * Customers for a picker: by name, phone or party_pk (`term`), or the ones
+ * named by `ids` (to show who an edit form already holds). A search finds
+ * registered customers only - never a merged or deleted record.
+ */
 function lookup(term, ids) {
-  const qb = narrowed({ q: term })
-    .select('party.party_pk', 'party.party_type', 'party.display_name', firstContact('MOBILE', 'mobile'))
+  if (ids && ids.length) {
+    return db('crm_party as party').leftJoin('crm_person as person', 'person.party_pk', 'party.party_pk')
+      .whereIn('party.party_pk', ids).select(LOOKUP_COLUMNS);
+  }
+  return narrowed({ q: term })
+    .leftJoin('crm_person as person', 'person.party_pk', 'party.party_pk')
+    .whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
+    .select(LOOKUP_COLUMNS)
     .orderBy('party.party_pk', 'desc')
     .limit(20);
-
-  if (ids && ids.length) {
-    return db('crm_party as party').whereIn('party.party_pk', ids)
-      .select('party.party_pk', 'party.party_type', 'party.display_name', firstContact('MOBILE', 'mobile'));
-  }
-  return qb;
 }
 
 function findParty(id, trx) {
