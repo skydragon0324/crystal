@@ -72,6 +72,14 @@ router.use('/media', require('./media.routes'));
 router.use('/members', require('./members.routes'));
 router.use('/wallets', require('./wallets.routes'));
 
+/*
+ * ---- 10. the CRM ----
+ *
+ * Its own router under its own prefix, guarded page by page from inside -
+ * see routes/crm.routes.js. It reads the tables above and never writes them.
+ */
+router.use('/crm', require('./crm.routes'));
+
 /* ---- 1. management ---- */
 router.use('/admins', require('./managers.routes'));
 router.use('/permissions', require('./permissions.routes'));

@@ -16,6 +16,9 @@
     "build:min": "node scripts/build.js --min",
     "mock:images": "node scripts/generate-mock-images.js",
     "check": "node scripts/check.js",
+    "check:crm": "node scripts/check-crm.js",
+    "demo:crm": "node scripts/demo-crm.js",
+    "crm:sample": "node scripts/crm-customers-sample.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "schema:verify": "node scripts/verify-schema.js",
     "migrate:verify": "node scripts/verify-migrations.js",
@@ -25,6 +28,7 @@
     "content-keys": "node scripts/content-keys.js",
     "sign:audit": "node scripts/sign-audit.js",
     "sign:backfill": "node scripts/sign-backfill.js",
+    "test:identity": "node test/identity-matching.test.js && node test/registration-workflow.test.js",
     "test:signing": "node test/signing.test.js"
   },
   "keywords": [],

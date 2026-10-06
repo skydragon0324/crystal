@@ -91,6 +91,8 @@ exports.seed = async function seed(knex) {
    */
   await knex('content_signatures').whereIn('content_type', ['notification', 'faq']).del();
 
+  await resetCrm(knex);
+
   for (let i = 0; i < TABLES.length; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     await knex(TABLES[i]).del();
@@ -98,6 +100,52 @@ exports.seed = async function seed(knex) {
     await restartIdentity(knex, TABLES[i]);
   }
 };
+
+/**
+ * THE CRM'S RECORDS, in one statement rather than in the list above.
+ *
+ * One TRUNCATE because the CRM has references that run both ways - an award
+ * names the point event that paid it and the event names the award - so no
+ * order of single deletes can empty it. Everything the console or the Crystal
+ * import writes goes; the VOCABULARIES stay, because sql/schema.sql seeded
+ * them and no seed file would put them back: projects, point types, product
+ * classes, case types and statuses, tiers, channels and the rest.
+ *
+ * Seed 09_crm fills it again from what the seeds above wrote. A database that
+ * predates the CRM has none of these tables, and is left alone.
+ */
+const CRM_RECORDS = [
+  'crm_party_agreement', 'crm_party_team_member', 'crm_party_file', 'crm_party_note', 'crm_party_interaction',
+  'crm_party_relationship', 'crm_party_tag',
+  'crm_campaign_cost', 'crm_campaign_conversion', 'crm_campaign_interaction',
+  'crm_campaign_recipient', 'crm_campaign_action', 'crm_campaign_content',
+  'crm_campaign_audience_member', 'crm_campaign_audience', 'crm_campaign',
+  'crm_activity_award', 'crm_activity_reward', 'crm_activity_reservation_event',
+  'crm_activity_reservation', 'crm_activity_target', 'crm_activity_program_quota',
+  'crm_activity_program_location', 'crm_activity_program_tier', 'crm_activity_program',
+  'crm_segment_membership', 'crm_segment_version', 'crm_segment',
+  'crm_party_product_class_stat', 'crm_party_metric_value', 'crm_party_analysis_snapshot',
+  'crm_point_event', 'crm_point_account', 'crm_point_rule',
+  'crm_membership_tier_history', 'crm_membership',
+  'crm_service_case_classification', 'crm_service_case', 'crm_fault_category',
+  'crm_transaction_item', 'crm_transaction_party', 'crm_transaction',
+  'crm_registration_answer', 'crm_product_transfer', 'crm_product_registration',
+  'crm_product_instance', 'crm_product_catalog',
+  'crm_location_activity_target', 'crm_location_activity', 'crm_location_event',
+  'crm_service_location_capability', 'crm_service_location',
+  'crm_organization_person_role', 'crm_organization_person_relationship',
+  'crm_organization_type_assignment', 'crm_organization_industry',
+  'crm_consent_event', 'crm_party_communication_consent', 'crm_contact_point',
+  'crm_party_split_history', 'crm_party_merge_history', 'crm_identity_match_candidate',
+  'crm_project_account', 'crm_organization', 'crm_person', 'crm_party', 'crm_location'
+];
+
+async function resetCrm(knex) {
+  const built = await knex.raw("SELECT to_regclass('crm_party') AS found");
+  if (!built.rows[0].found) return;
+
+  await knex.raw('TRUNCATE ' + CRM_RECORDS.join(', ') + ' RESTART IDENTITY');
+}
 
 /**
  * PUT THE KEY SEQUENCE BACK, which `del()` does not do.

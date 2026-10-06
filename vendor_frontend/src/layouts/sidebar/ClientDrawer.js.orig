@@ -1,0 +1,52 @@
+import React, { useRef } from 'react';
+import { Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerOverlay, Flex, IconButton, useColorModeValue, useDisclosure } from '@chakra-ui/react';
+import { FiMenu } from 'react-icons/fi';
+import ClientSidebar from './ClientSidebar';
+
+const ClientDrawer = () => {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const mainPanel = useRef();
+  const btnRef = useRef();
+  const sidebarBackgroundColor = useColorModeValue("white", "navy.800");
+
+  return (
+    <Flex
+      display={{ sm: "flex", xl: "none" }}
+      alignItems="center"
+      ref={mainPanel}
+    >
+      <IconButton
+        variant="ghost"
+        icon={<FiMenu color="white" />}
+        w="18px"
+        h="18px"
+        ref={btnRef}
+        onClick={onOpen}
+      />
+      <Drawer
+        isOpen={isOpen}
+        onClose={onClose}
+        placement="left"
+        finalFocusRef={btnRef}
+      >
+        <DrawerOverlay />
+        <DrawerContent
+          w="260px"
+          maxW="260px"
+          bg={sidebarBackgroundColor}
+        >
+          <DrawerCloseButton
+            _focus={{ boxShadow: "none" }}
+            _hover={{ boxShadow: "none" }}
+            zIndex={10}
+          />
+          <DrawerBody maxW="260px" px="1rem">
+            <ClientSidebar />
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+    </Flex>
+  );
+}
+
+export default ClientDrawer;

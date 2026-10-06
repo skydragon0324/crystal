@@ -30,6 +30,7 @@
  *   catalog       11
  *   common        30
  *   company       2
+ *   crm           16   (in i18n/crm.js)
  *   components    31
  *   dashboard     14
  *   datepicker    5
@@ -53,7 +54,11 @@
  * database is not a key and never will be. See i18n/index.js.
  */
 
+import crmCatalog from './crm';
+
 const en = {
+  /* The CRM screens - see i18n/crm.js. */
+  crm: crmCatalog.en,
   analysis: {
     agencyhealth: {
       averageTurnaround: 'Average turnaround',
@@ -518,7 +523,23 @@ const en = {
     administrators: 'Administrators',
     roles: 'Roles',
     pages: 'Pages',
-    auditLog: 'Audit log'
+    auditLog: 'Audit log',
+    crm: 'CRM',
+    crmOverview: 'CRM overview',
+    crmCustomers: 'Customers',
+    crmTransactions: 'Transactions',
+    crmMemberships: 'Memberships and tiers',
+    crmAnalysis: 'Analysis and grades',
+    crmProducts: 'Products and registrations',
+    crmTransfers: 'Transfers and assignments',
+    crmServiceCases: 'Service cases',
+    crmPoints: 'Reward points',
+    crmPrograms: 'Activity programs',
+    crmSites: 'Service network',
+    crmSiteActivity: 'Location activity',
+    crmSegments: 'Segments',
+    crmCampaigns: 'Campaigns',
+    crmSettings: 'CRM basic data'
   },
   members: {
     accounts: {
@@ -788,6 +809,7 @@ const en = {
     showDetail: 'Show detail'
   },
   vocabulary: {
+    crm: crmCatalog.words.en,
     accessoriesHandedIn: 'Accessories handed in',
     account: 'Account',
     action: 'Action',
@@ -1177,6 +1199,8 @@ const en = {
 };
 
 const zh = {
+  /* The CRM screens - see i18n/crm.js. */
+  crm: crmCatalog.zh,
   analysis: {
     agencyhealth: {
       averageTurnaround: '平均周转时间',
@@ -1641,7 +1665,23 @@ const zh = {
     administrators: '管理员',
     roles: '角色',
     pages: '页面',
-    auditLog: '审计日志'
+    auditLog: '审计日志',
+    crm: 'CRM 客户管理',
+    crmOverview: 'CRM 概览',
+    crmCustomers: '客户',
+    crmTransactions: '交易记录',
+    crmMemberships: '会员与等级',
+    crmAnalysis: '分析与客户评级',
+    crmProducts: '产品与登记',
+    crmTransfers: '转移与指派',
+    crmServiceCases: '服务工单',
+    crmPoints: '奖励积分',
+    crmPrograms: '活动计划',
+    crmSites: '服务网络',
+    crmSiteActivity: '网点业务记录',
+    crmSegments: '客户分群',
+    crmCampaigns: '营销活动',
+    crmSettings: 'CRM 基础数据'
   },
   members: {
     accounts: {
@@ -1911,6 +1951,7 @@ const zh = {
     showDetail: '展开明细'
   },
   vocabulary: {
+    crm: crmCatalog.words.zh,
     accessoriesHandedIn: '一并交付的配件',
     account: '账户',
     action: '操作',
@@ -2311,6 +2352,8 @@ const zh = {
  * the parity test meaningful while a translation is in progress.
  */
 const ru = {
+  /* The CRM screens - see i18n/crm.js. */
+  crm: crmCatalog.ru,
   analysis: {
     agencyhealth: {
       averageTurnaround: 'Среднее время обработки',
@@ -2775,7 +2818,23 @@ const ru = {
     administrators: 'Администраторы',
     roles: 'Роли',
     pages: 'Страницы',
-    auditLog: 'Журнал аудита'
+    auditLog: 'Журнал аудита',
+    crm: 'CRM-система',
+    crmOverview: 'Обзор CRM',
+    crmCustomers: 'Клиенты',
+    crmTransactions: 'Транзакции',
+    crmMemberships: 'Членство и уровни',
+    crmAnalysis: 'Анализ и рейтинги',
+    crmProducts: 'Товары и регистрации',
+    crmTransfers: 'Передачи и назначения',
+    crmServiceCases: 'Обращения',
+    crmPoints: 'Бонусные баллы',
+    crmPrograms: 'Программы активности',
+    crmSites: 'Сервисная сеть',
+    crmSiteActivity: 'Деятельность на точках',
+    crmSegments: 'Сегменты',
+    crmCampaigns: 'Кампании',
+    crmSettings: 'Базовые данные CRM'
   },
   members: {
     accounts: {
@@ -3045,6 +3104,7 @@ const ru = {
     showDetail: 'Показать подробности'
   },
   vocabulary: {
+    crm: crmCatalog.words.ru,
     accessoriesHandedIn: 'Принятые аксессуары',
     account: 'Аккаунт',
     action: 'Действие',

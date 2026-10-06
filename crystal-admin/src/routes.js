@@ -111,6 +111,26 @@ const Pages = deferred(() => import(/* webpackChunkName: "admin-management" */ '
 const Permissions = deferred(() => import(/* webpackChunkName: "admin-management" */ './pages/management/Permissions'));
 const Audit = deferred(() => import(/* webpackChunkName: "admin-management" */ './pages/management/Audit'));
 
+/* The CRM - one chunk, fetched the first time any CRM screen is opened. */
+const CrmOverview = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Overview'));
+const CrmCustomers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Customers'));
+const CrmCustomerDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/CustomerDetail'));
+const CrmTransactions = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Transactions'));
+const CrmMemberships = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Memberships'));
+const CrmAnalysis = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Analysis'));
+const CrmProducts = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Products'));
+const CrmTransfers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Transfers'));
+const CrmServiceCases = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/ServiceCases'));
+const CrmPoints = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Points'));
+const CrmPrograms = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Programs'));
+const CrmProgramDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/ProgramDetail'));
+const CrmSites = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Sites'));
+const CrmSiteActivity = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/SiteActivity'));
+const CrmSegments = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Segments'));
+const CrmCampaigns = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Campaigns'));
+const CrmCampaignDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/CampaignDetail'));
+const CrmSettings = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Settings'));
+
 /**
  * Every screen, addressed by the SAME url the permission grid uses.
  *
@@ -200,7 +220,30 @@ const routes = [
   { path: '/admin/management/roles', component: Roles },
   { path: '/admin/management/pages', component: Pages },
   { path: '/admin/management/permissions', component: Permissions },
-  { path: '/admin/management/audit', component: Audit }
+  { path: '/admin/management/audit', component: Audit },
+
+  /*
+   * THE CRM. A record screen sits under its list's url and reads its
+   * permission from it, the way a ticket sits under the ticket list.
+   */
+  { path: '/admin/crm/overview', component: CrmOverview },
+  { path: '/admin/crm/customers/:id', component: CrmCustomerDetail },
+  { path: '/admin/crm/customers', component: CrmCustomers },
+  { path: '/admin/crm/transactions', component: CrmTransactions },
+  { path: '/admin/crm/memberships', component: CrmMemberships },
+  { path: '/admin/crm/analysis', component: CrmAnalysis },
+  { path: '/admin/crm/products', component: CrmProducts },
+  { path: '/admin/crm/transfers', component: CrmTransfers },
+  { path: '/admin/crm/service-cases', component: CrmServiceCases },
+  { path: '/admin/crm/points', component: CrmPoints },
+  { path: '/admin/crm/programs/:id', component: CrmProgramDetail },
+  { path: '/admin/crm/programs', component: CrmPrograms },
+  { path: '/admin/crm/sites', component: CrmSites },
+  { path: '/admin/crm/site-activity', component: CrmSiteActivity },
+  { path: '/admin/crm/segments', component: CrmSegments },
+  { path: '/admin/crm/campaigns/:id', component: CrmCampaignDetail },
+  { path: '/admin/crm/campaigns', component: CrmCampaigns },
+  { path: '/admin/crm/settings', component: CrmSettings }
 ];
 
 /**
@@ -223,7 +266,9 @@ const routes = [
 export const REDIRECTS = [
   { from: '/admin/catalog/products', to: '/admin/catalog/products/smartphone' },
   { from: '/admin/support/agencies', to: '/admin/support/agencies/smartphone' },
-  { from: '/admin/support/pricing', to: '/admin/support/pricing/smartphone' }
+  { from: '/admin/support/pricing', to: '/admin/support/pricing/smartphone' },
+  /* The CRM group itself is a heading; landing on it means its overview. */
+  { from: '/admin/crm', to: '/admin/crm/overview' }
 ];
 
 /** Begin a screen download while a menu item is being considered. */
