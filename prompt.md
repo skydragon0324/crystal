@@ -144,3 +144,29 @@ These roles differ from the one selected during the initial addition.
 You removed `party_id` from crm_person
 we need to save it, but, we won't use it in phase 1
 
+----------------------------------------
+let me check it later
+Why is it impossible to modify or delete records in the crm_projects table?
+There are no external tables currently referencing it, so why has modification been disabled?
+Regarding the project: I tried changing the project type from "Platform" to "CRM," but I received an error message stating, "the code 'Platform' is used by the system and cannot be changed or deleted."
+I also attempted the change directly in the database and encountered this error: "new row for relation 'crm_project' violates check constraint 'crm_project_project_type_code_check'."
+Furthermore, why are project_type_code and source_system_code required? Wouldn't it suffice to have just project_id, project_name, project_code, created_at, and updated_at?
+Regarding the next issue: as I mentioned previously, there is only one program per project—meaning the project itself represents the business system, and there are no individual sub-projects within it.
+Therefore, there is no need to store "program" information separately.
+By any chance, does the "program" you designed for this CRM refer to a software store?
+-------------------------------------------
+1. Why use Crystal for customer aggregation, and why use Platform for account-related tasks?
+
+2. [schema.sql (row 2800)](D:/sky/crystal/crystal-backend/sql/schema.sql:2800) allows only the following values:
+
+PLATFORM, COMMERCE, SERVICE, SOFTWARE, CONTENT
+
+CRM is not allowed. This check constraint operates independently of foreign keys or the application's protected code rules.
+
+There are two separate restrictions here, and “program” has a different meaning in the current code.
+
+To remove the limitation, we can add, update, or delete projects by admin.
+
+3. “program” means a customer activity: a reservation event, lottery, prize service, puzzle, survey reward, or attendance event. It manages participants, quotas, entries, and awards.
+
+We already have an activity management system called “campaign,” so why should we adopt “program”? I think you created a "program" to store and manage user activity history across various business systems, but if that is the intended meaning, the term "program" is not appropriate.

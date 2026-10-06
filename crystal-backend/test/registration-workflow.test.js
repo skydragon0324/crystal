@@ -8,6 +8,8 @@ const matching = require('../src/services/crm/personDuplicates');
 const realDb = require('../src/config/db');
 const ExcelJS = require('exceljs');
 const tables = {};
+let candidateLoads = 0;
+let pendingLoads = 0;
 const keys = { crm_party: 'party_pk', crm_registration_intake: 'intake_id', crm_identity_resolution: 'resolution_id', crm_project_account: 'project_account_id' };
 function records(name) { return tables[name] || (tables[name] = []); }
 function query(name) {
@@ -24,6 +26,7 @@ function query(name) {
   then(resolve, reject) {
    try {
     let rows = records(name).filter(r => filters.every(test => test(r)));
+    if (name === 'crm_registration_intake' && !operation && !first) pendingLoads += 1;
     if (operation === 'insert') {
      const row = Object.assign({ status: 'PENDING' }, payload);
      if (keys[name]) row[keys[name]] = String(records(name).length + 1);
@@ -48,6 +51,11 @@ const parties = {
  async insertContact(trx, pk, item) { await trx('crm_contact_point').insert(Object.assign({ party_pk: pk }, item)); }
 };
 const duplicateStub = Object.assign({}, matching, {
+ async loadCandidates(people, options) {
+  candidateLoads += 1;
+  return records('crm_person').filter(row => !options.partyPk || row.party_pk === options.partyPk)
+   .map(row => Object.assign({}, row, { contacts: records('crm_contact_point').filter(c => c.party_pk === row.party_pk) }));
+ },
  async findSimilar(person) {
   return records('crm_person').map(existing => Object.assign({}, existing, matching.score(person, existing)))
    .filter(row => row.score > 40).sort((a,b) => b.score-a.score);
@@ -71,7 +79,7 @@ const intake = load('registrationIntake.service.js', common);
 const importPeople = load('personImport.service.js', Object.assign({}, common, {
  './registrationIntake.service': intake,
  '../../repositories/crm/vocabulary.repository': { idOf: async () => 1 },
- './locations': { all: async () => [] }
+ './locations': { all: async () => records('crm_location') }
 }));
 const identity = load('identity.service.js', Object.assign({}, common, { './registrationIntake.service': intake }));
 const person = { party_type: 'PERSON', full_name: 'Ada', mobile: '1234567890', birth_date: '1980-01-01', origin_project_id: 1 };
@@ -139,6 +147,61 @@ async function main() {
  assert.equal(imported.rows[2].party_pk,null);
  await importPeople.importPeople(bytes, actor);
  assert.equal(records('crm_party').length,before+1,'reimport is idempotent');
+ // Lookup IDs come from database records, not workbook list sheets or row positions.
+ records('crm_location').push({ location_pk: 701, full_name: 'Province / City' });
+ records('crm_job_title').push(
+  { job_title_id: 903, job_name: 'Database job', is_active: true },
+  { job_title_id: 904, job_name: 'Inactive job', is_active: false }
+ );
+ const lookupBook = new ExcelJS.Workbook();
+ const lookupSheet = lookupBook.addWorksheet('Customers');
+ lookupSheet.addRow(['Full name', 'Mobile', 'location_id', 'job_title_id']);
+ lookupSheet.addRow(['Lookup Customer', '7777777777', '701', '903']);
+ lookupBook.addWorksheet('Locations').addRows([['ID', 'Location'], [701, 'Wrong workbook location']]);
+ lookupBook.addWorksheet('Job titles').addRows([['ID', 'Job title'], [903, 'Wrong workbook job']]);
+ const lookupBytes = await lookupBook.xlsx.writeBuffer();
+ const lookupPreview = await importPeople.preview(lookupBytes);
+ assert.equal(lookupPreview.rows[0].status, 'NEW');
+ assert.equal(lookupPreview.rows[0].values.home_location_pk, 701);
+ assert.equal(lookupPreview.rows[0].values.location_label, 'Province / City');
+ assert.equal(lookupPreview.rows[0].values.job_title_id, 903);
+ assert.equal(lookupPreview.rows[0].values.job_name, 'Database job');
+ const lookupImport = await importPeople.importPeople(lookupBytes, actor);
+ const saved = records('crm_person').find(row => row.party_pk === lookupImport.rows[0].party_pk);
+ assert.equal(saved.home_location_pk, 701);
+ assert.equal(saved.job_title_id, 903);
+ lookupSheet.getCell('C2').value = 999999;
+ lookupSheet.getCell('D2').value = 904;
+ const invalidLookup = await importPeople.preview(await lookupBook.xlsx.writeBuffer());
+ assert.equal(invalidLookup.rows[0].status, 'ERROR');
+ assert.equal(invalidLookup.rows[0].errors.length, 2, 'unknown locations and inactive jobs are rejected');
+ const templateBook = new ExcelJS.Workbook();
+ await templateBook.xlsx.load(await importPeople.template());
+ assert.equal(templateBook.getWorksheet('Locations').getCell('A2').value, 701);
+ assert.equal(templateBook.getWorksheet('Job titles').getCell('A2').value, 903);
+ assert.equal(templateBook.getWorksheet('Job titles').actualRowCount, 2, 'template excludes inactive jobs');
+ // A merge adds birthday evidence that must be visible to the next row.
+ const enrichment = new ExcelJS.Workbook();
+ enrichment.addWorksheet('Customers').addRows([
+  ['Full name', 'Mobile', 'Birthday', 'Job title ID'],
+  ['Cache Customer', '8888888888', '', 903],
+  ['Cache Customer', '8888888888', '1993-05-09', 903],
+  ['Changed Name', '8888888888', '1993-05-09', 903]
+ ]);
+ const enriched = await importPeople.importPeople(await enrichment.xlsx.writeBuffer(), actor);
+ assert.equal(enriched.summary.created, 1);
+ assert.equal(enriched.summary.duplicate, 2, 'later rows see evidence added by a merge');
+ // Increasing file sizes must not reload the database per preview row.
+ for (const size of [2000, 1000, 1000, 500]) {
+  const bulk = new ExcelJS.Workbook(); const bulkSheet = bulk.addWorksheet('Customers');
+  bulkSheet.addRow(['Full name', 'Mobile']);
+  for (let i = 0; i < size; i += 1) bulkSheet.addRow(['Bulk ' + i, String(3000000000 + i)]);
+  const loadsBefore = candidateLoads; const pendingBefore = pendingLoads;
+  const bulkReport = await importPeople.preview(await bulk.xlsx.writeBuffer());
+  assert.equal(bulkReport.summary.new, size);
+  assert.equal(candidateLoads - loadsBefore, 1, 'one customer candidate load per preview');
+  assert.equal(pendingLoads - pendingBefore, 1, 'one pending registration load per preview');
+ }
  const feed = await intake.resolutions(1);
  assert(feed.length > 0 && feed.every(r => r.party_pk));
  await intake.acknowledge(feed[0].resolution_id,1);

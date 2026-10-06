@@ -410,7 +410,9 @@ export const crm = {
     importPeople: (file, dryRun) => {
       const form = new FormData();
       form.append('file', file);
-      return client.post(CRM + '/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: { 'Content-Type': undefined } });
+      return client.post(CRM + '/parties/import' + (dryRun ? '?dry_run=1' : ''), form, {
+        headers: { 'Content-Type': undefined }, timeout: 120000
+      });
     },
     importTemplate: () => client.get(CRM + '/parties/import/template', { responseType: 'blob' }),
     update: (id, payload) => client.put(CRM + '/parties/' + id, payload),

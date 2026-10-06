@@ -175,6 +175,7 @@ const en = {
     errors: {
       anUnknownType: 'an unknown type',
       cannotReachTheServer: 'Cannot reach the server',
+      requestTimedOut: 'The request timed out. Processing may still be running. Check the result before trying again.',
       notJson: 'The server answered {type} instead of JSON - {url} is not reaching the backend',
       requestFailed: 'The request failed'
     },
@@ -1317,6 +1318,7 @@ const zh = {
     errors: {
       anUnknownType: '未知类型',
       cannotReachTheServer: '无法连接服务器',
+      requestTimedOut: '请求超时，服务器可能仍在处理中。请先检查处理结果，再重试。',
       notJson: '服务器返回了 {type} 而不是 JSON — {url} 未连接到后端',
       requestFailed: '请求失败'
     },
@@ -2470,6 +2472,7 @@ const ru = {
     errors: {
       anUnknownType: 'неизвестный тип',
       cannotReachTheServer: 'Не удаётся связаться с сервером',
+      requestTimedOut: 'Время ожидания запроса истекло. Обработка может продолжаться. Проверьте результат перед повторной попыткой.',
       notJson: 'Сервер ответил {type} вместо JSON — {url} не доходит до бэкенда',
       requestFailed: 'Запрос не выполнен'
     },

@@ -15,6 +15,25 @@ assert.equal(match.score(base, { birth_year: 1980 }).score, 0, 'birth year alone
 assert.equal(match.score(base, { contacts: [{ contact_type: 'PHONE', contact_value: base.mobile }, { contact_type: 'MOBILE', contact_value: base.mobile }] }).score, 40, 'phone is counted once');
 assert.equal(match.sameInFile(base, base).decision, 'MERGE');
 assert.equal(match.sameInFile(base, { mobile: base.mobile }), null);
+// Indexed matching must retain every >40 match, including secondary phones,
+// and replace old keys when merge evidence changes.
+const index = match.createIndex();
+const fixtures = Array.from({ length: 150 }, (_, i) => ({
+ full_name: 'Person ' + (i % 17), birth_date: '1980-01-' + String(i % 28 + 1).padStart(2, '0'),
+ mobile: String(1000000000 + i % 31), address_line: 'Address ' + (i % 5), job_title_id: i % 3,
+ contacts: [{ contact_type: 'PHONE', contact_value: String(2000000000 + i % 11) }]
+}));
+fixtures.forEach((row, i) => index.set(i, row));
+fixtures.forEach(candidate => {
+ const expected = fixtures.filter(row => match.score(candidate, row).score > 40);
+ const actual = index.find(candidate).filter(row => match.score(candidate, row).score > 40);
+ assert.deepStrictEqual(actual, expected, 'index must preserve all matches and insertion order');
+});
+const replacement = match.createIndex();
+replacement.set('one', { mobile: '1234567890', contacts: [{ contact_type: 'MOBILE', contact_value: '1234567890' }] });
+replacement.set('one', { mobile: '9999999999' });
+assert.equal(replacement.find({ mobile: '1234567890' }).length, 0);
+assert.equal(replacement.find({ mobile: '9999999999' }).length, 1);
 // Compile the real Knex query and supply rows without opening a connection.
 let compiled;
 function fakeConnection(table) {

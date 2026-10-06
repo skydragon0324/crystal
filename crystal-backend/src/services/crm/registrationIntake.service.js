@@ -8,9 +8,32 @@ const PAGE = '/admin/crm/customers';
 const { publicParty } = require('./partyId');
 
 async function lock(trx) { await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', ['crm_identity_registration']); }
-async function candidates(trx, data) {
- const found = await duplicates.findSimilar(data, { trx });
- const pending = await trx('crm_registration_intake').where({ status: 'PENDING', category: 'PERSON' });
+// Request-scoped only. For writes, build this after taking the registration
+// lock and refresh affected evidence after every submission in that transaction.
+async function candidateContext(trx, people) {
+ const persons = duplicates.createIndex(); const pending = duplicates.createIndex();
+ const existing = await duplicates.loadCandidates(people, { trx });
+ existing.forEach(row => persons.set(String(row.party_pk), row));
+ const staged = await trx('crm_registration_intake').where({ status: 'PENDING', category: 'PERSON' });
+ const addPending = row => pending.set(String(row.intake_id), Object.assign({}, row.payload.party, { intake_id: row.intake_id }));
+ staged.forEach(addPending);
+ return {
+  persons, pending,
+  async refresh(result) {
+   if (result.party_pk) {
+    const rows = await duplicates.loadCandidates([], { trx, partyPk: result.party_pk });
+    rows.forEach(row => persons.set(String(row.party_pk), row));
+   } else if (result.outcome === 'QUEUED') {
+    const row = await trx('crm_registration_intake').where('intake_id', result.intake_id).first();
+    if (row && row.category === 'PERSON') addPending(row);
+   }
+  }
+ };
+}
+async function candidates(trx, data, context) {
+ const found = context ? duplicates.rank(data, context.persons.find(data)) : await duplicates.findSimilar(data, { trx });
+ const pending = context ? context.pending.find(data).map(party => ({ intake_id: party.intake_id, payload: { party } }))
+  : await trx('crm_registration_intake').where({ status: 'PENDING', category: 'PERSON' });
  pending.forEach(row => {
   const match = duplicates.score(data, row.payload.party);
   if (match.score > 40) found.push(Object.assign({ intake_id: row.intake_id, display_name: row.payload.party.full_name || row.payload.party.display_name }, match));
@@ -69,7 +92,7 @@ async function submit(trx, data, options) {
   const party = await trx('crm_party').where('party_pk', existing.party_pk).first();
   return Object.assign({}, publicParty(party), { intake_id: existing.intake_id, outcome: existing.status });
  }
- const found = category === 'ESHOP' ? (opts.candidates || []) : data.party_type === 'ORGANIZATION' ? [] : await candidates(trx, data);
+ const found = category === 'ESHOP' ? (opts.candidates || []) : data.party_type === 'ORGANIZATION' ? [] : await candidates(trx, data, opts.candidateContext);
  if (category !== 'ESHOP') (opts.candidates || []).forEach(hint => {
   if (!found.some(row => String(row.party_pk) === String(hint.party_pk))) found.push(Object.assign({ reason: 'Unverified project assignment' }, hint));
  });
@@ -131,4 +154,4 @@ async function acknowledge(id, projectId) {
  if (!rows.length) throw new HttpError(404, 'common.notFound');
  return rows[0];
 }
-module.exports = { submit, candidates, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
+module.exports = { submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };

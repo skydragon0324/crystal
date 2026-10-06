@@ -243,9 +243,11 @@ client.interceptors.response.use(
     }
 
     const payload = err.response ? err.response.data : null;
+    const timedOut = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' || status === 504;
 
     const message =
       (payload && payload.message) ||
+      (timedOut ? translate('common.errors.requestTimedOut') : null) ||
       (status === 0 ? translate('common.errors.cannotReachTheServer') : translate('common.errors.requestFailed'));
 
     /*
@@ -268,6 +270,8 @@ client.interceptors.response.use(
 
     const error = new Error(message);
     error.status = status;
+    error.code = err.code;
+    error.timedOut = timedOut;
     // Structured extras - per-row import problems and the like - ride along
     // so a caller can present them properly instead of just the summary line.
     error.detail = (payload && payload.detail) || null;

@@ -225,15 +225,19 @@ function checkRow(record, lookups) {
 async function preview(buffer) {
  const records = await readRows(buffer);
  const lookups = await loadLookups();
+ const checkedRows = records.map(record => checkRow(record, lookups));
+ const context = await intake.candidateContext(db, checkedRows.filter(row => !row.errors.length).map(row => row.values));
+ const earlier = duplicates.createIndex();
  const rows = [];
- for (const record of records) {
-  const checked = checkRow(record, lookups);
+ for (let index = 0; index < records.length; index += 1) {
+  const record = records[index];
+  const checked = checkedRows[index];
   const result = { row_number: record.row_number, values: checked.values };
   if (checked.errors.length) { result.status = 'ERROR'; result.errors = checked.errors; }
   else {
-   const found = await intake.candidates(db, checked.values);
-   rows.filter(r => r.status !== 'ERROR').forEach(other => {
-    const match = duplicates.score(checked.values, other.values);
+   const found = await intake.candidates(db, checked.values, context);
+   earlier.find(checked.values).forEach(other => {
+    const match = duplicates.score(checked.values, other);
     if (match.score > 40) found.push(Object.assign({ row_number: other.row_number }, match));
    });
    found.sort((a,b) => b.score-a.score);
@@ -241,6 +245,7 @@ async function preview(buffer) {
    const strong = found.filter(r => r.score >= 70);
    result.status = strong.length === 1 && !strong[0].intake_id ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
    if (found.length && found[0].row_number) result.duplicate_of_row = found[0].row_number;
+   earlier.set(record.row_number, Object.assign({}, checked.values, { row_number: record.row_number }));
   }
   rows.push(result);
  }
@@ -248,18 +253,27 @@ async function preview(buffer) {
  return { summary: { total: rows.length, new: count('NEW'), duplicate: count('DUPLICATE'), review: count('REVIEW'), error: count('ERROR') }, rows };
 }
 async function importPeople(buffer, actor) {
- const report = await preview(buffer);
+ // Validate first, but do not repeat the read-only preview's duplicate pass:
+ // submit performs the authoritative check under the registration lock below.
+ const records = await readRows(buffer);
+ const lookups = await loadLookups();
+ const report = { rows: records.map(record => {
+  const checked = checkRow(record, lookups);
+  return { row_number: record.row_number, values: checked.values, status: checked.errors.length ? 'ERROR' : 'NEW', errors: checked.errors };
+ }) };
  const failed = report.rows.filter(r => r.status === 'ERROR');
  if (failed.length) throw new HttpError(400, 'crm.fixTheRowsAndUploadAgain', failed);
  const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
  const batch = crypto.createHash('sha256').update(buffer).digest('hex');
  await transaction(async trx => {
   await intake.lock(trx);
+  const context = await intake.candidateContext(trx, report.rows.map(row => row.values));
   for (const row of report.rows) {
    const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: crystal }];
    if (row.values.email) contacts.push({ contact_type: 'EMAIL', contact_value: row.values.email, source_project_id: crystal });
    const result = await intake.submit(trx, Object.assign({}, row.values, { party_type: 'PERSON', origin_project_id: crystal, contacts }),
-    { source_record_id: 'excel:' + batch + ':' + row.row_number });
+    { source_record_id: 'excel:' + batch + ':' + row.row_number, candidateContext: context });
+   await context.refresh(result);
    row.status = result.outcome === 'QUEUED' ? 'REVIEW' : result.outcome;
    row.party_pk = result.party_pk;
    row.intake_id = result.intake_id;
