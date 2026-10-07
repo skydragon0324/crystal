@@ -24,6 +24,13 @@ export const auth = {
   x509PrimaryData: (clientRand, userId, version) =>
     client.post('/auth/x509/primary_data', { client_rand: clientRand, userid: userId, version }),
   x509Login: (payload) => client.post('/auth/x509/x509_login', payload),
+  /*
+   * THE PHONE'S SIM, the same idea for a device that has the card in it.
+   * The customised browser signs the challenge; see app/mikAgent.js.
+   */
+  mikRegister: (cid, mikData) => client.post('/auth/mik/register', { cid, mikData }),
+  mikChallenge: (cid) => client.post('/auth/mik/challenge', { cid }),
+  mikLogin: (payload) => client.post('/auth/mik/login', payload),
   requestOtp: (phone, purpose) => client.post('/auth/otp/request', { phone, purpose }),
   verifyOtp: (phone, code, deviceId) =>
     client.post('/auth/otp/verify', { phone, code, deviceId }),

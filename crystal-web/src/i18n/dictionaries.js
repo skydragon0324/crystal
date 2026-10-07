@@ -567,6 +567,9 @@ const en = {
     signin: {
       desktopSignIn: 'Desktop sign-in',
       mobileSignIn: 'Mobile sign-in',
+      theCardDidNotAnswer: 'The SIM card did not answer',
+      theCardWouldNotSign: 'The SIM card would not sign in',
+      thisBrowserCannotUseTheSim: 'This browser cannot sign with the SIM card',
       useTheCertificate: 'Sign in with the certificate installed on this computer.',
       useYourUserId: 'Sign in with your user ID, your password and this phone\'s CID.',
       signingInWithCertificate: 'Signing in with your certificate…',
@@ -1782,6 +1785,9 @@ const zh = {
     signin: {
       desktopSignIn: '电脑端登录',
       mobileSignIn: '手机端登录',
+      theCardDidNotAnswer: 'SIM 卡没有响应',
+      theCardWouldNotSign: 'SIM 卡拒绝签名',
+      thisBrowserCannotUseTheSim: '此浏览器无法使用 SIM 卡签名',
       useTheCertificate: '使用本电脑上安装的证书登录。',
       useYourUserId: '请输入用户 ID、密码以及本机的 CID 登录。',
       signingInWithCertificate: '正在使用证书登录…',
@@ -3009,6 +3015,9 @@ const ru = {
     signin: {
       desktopSignIn: 'Вход с компьютера',
       mobileSignIn: 'Вход с телефона',
+      theCardDidNotAnswer: 'SIM-карта не ответила',
+      theCardWouldNotSign: 'SIM-карта отказалась подписать',
+      thisBrowserCannotUseTheSim: 'Этот браузер не может подписывать SIM-картой',
       useTheCertificate: 'Войдите с сертификатом, установленным на этом компьютере.',
       useYourUserId: 'Войдите с помощью ID пользователя, пароля и CID этого телефона.',
       signingInWithCertificate: 'Выполняется вход с сертификатом…',

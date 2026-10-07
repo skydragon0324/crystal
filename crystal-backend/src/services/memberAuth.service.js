@@ -9,6 +9,8 @@ const settings = require('./settings.service');
 const deviceUtil = require('../utils/device');
 const fs = require('fs');
 const x509 = require('../utils/x509');
+const mik = require('../utils/mik');
+const browserDevices = require('../repositories/browserDevices.repository');
 const token = require('../utils/token');
 const { transaction } = require('../repositories/shared/transaction');
 const { HttpError } = require('../utils/response');
@@ -713,6 +715,180 @@ async function bindPhone(userId, rawPhone, code) {
   return users.findById(userId);
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  phone: the SIM's own certificate                                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * MIK: THE cid, PROVED INSTEAD OF TYPED.
+ *
+ * The phone form above already sends the SIM's cid, and `recordCid` records
+ * it and never checks it - because a number typed into a form is a claim, and
+ * a claim proves only that somebody knew the number. The customised mobile
+ * browser can reach the card's MIK certificate and sign with a key that never
+ * leaves it, so here the same cid arrives PROVED.
+ *
+ * It is the phone's answer to the desktop's certificate agent above. Same
+ * shape - a challenge from the server, a signature over it, the signature
+ * checked against a certificate that chains to a known authority - and the
+ * same guarantee that the challenge was issued once, is used once and
+ * expires. What differs:
+ *
+ *   the card's certificate chains to the MIK authority, not to the personal
+ *   certificate authority the desktop agent's certificates come from
+ *
+ *   the challenges live in a TABLE rather than in this process's memory
+ *   (sql/deltas/036) - the caveat written on `challenges` above, fixed at the
+ *   start for the login that is being added rather than after a second API
+ *   process is deployed and one sign-in in two begins to fail
+ *
+ * THE CARD IS NOT TIED TO THE ACCOUNT, and that is a decision somebody made
+ * rather than something nobody got round to. A valid card may sign in ANY
+ * account whose user ID and password are correct, including one whose stored
+ * ora_pid.users.cid is a different card entirely. So what a MIK sign-in
+ * proves is "a trusted SIM is present", not "this member's SIM is present":
+ * one valid card can be used to attempt every account on the site, and the
+ * card never objects. The vendor's own application takes the other view -
+ * ora_pid.users.locked is literally 'allow only registered cid for login'.
+ * If that rule is ever wanted here, it goes in `loginWithMik`, where the
+ * comparison would be one line and the consequence is a member who changes
+ * SIM being locked out until somebody clears the stored number.
+ */
+
+/** The card's registration: its certificate, checked and remembered. */
+async function registerCard(body) {
+  if (!mik.ready()) throw new HttpError(404, 'memberAuth.simSignInIsNotEnabled');
+
+  const cid = String(body.cid || '').trim();
+  const certificate = String(body.mikData || body.mik_data || '').trim();
+
+  if (!cid || !certificate) throw new HttpError(400, 'common.valueFailedAValidation');
+  if (cid.length > CID_MAX) throw new HttpError(400, 'common.valueFailedAValidation');
+
+  const checked = await mik.checkCard(certificate, cid);
+  if (!checked.ok) {
+    /* Which check failed is for the log; the browser is told one thing. */
+    console.warn('[auth] a MIK card was refused at registration (' + checked.reason + ') for cid ' + cid);
+    throw new HttpError(
+      checked.reason === 'unavailable' ? 503 : 400,
+      checked.reason === 'unavailable' ? 'memberAuth.simSignInIsNotEnabled' : 'memberAuth.thatSimCardWasNotAccepted'
+    );
+  }
+
+  const card = await browserDevices.register({
+    cid: cid,
+    certificate: certificate,
+    publicKey: checked.publicKey,
+    subject: checked.subject,
+    serialNumber: checked.serialNumber,
+    notAfter: checked.notAfter
+  });
+
+  return { cid: card.cid, registered: true };
+}
+
+/**
+ * STEP ONE: a challenge for this card.
+ *
+ * The browser sends the cid it is holding; the server finds the card, writes
+ * a challenge against it and hands it back. Nothing about a member is named
+ * here at all - who is signing in is settled in step two.
+ */
+async function mikChallenge(body) {
+  if (!mik.ready()) throw new HttpError(404, 'memberAuth.simSignInIsNotEnabled');
+
+  const cid = String(body.cid || '').trim();
+  if (!cid) throw new HttpError(400, 'common.valueFailedAValidation');
+
+  const card = await browserDevices.findByCid(cid);
+  /*
+   * A card nobody has registered is told so plainly, because the browser's
+   * next step is to register it. This leaks that a given number is known to
+   * the site, which is a number the holder of the card already has.
+   */
+  if (!card) throw new HttpError(404, 'memberAuth.thisSimIsNotRegistered');
+
+  /* Spent and stale rows go now, so the table stays the size of the backlog. */
+  await browserDevices.sweep();
+
+  const challenge = mik.newChallenge();
+  await browserDevices.issue(card.id, challenge, config.mik.challengeSeconds);
+
+  return {
+    challenge: challenge,
+    /* What the browser must sign, written out rather than described. */
+    sign_data: mik.signedText(challenge, cid),
+    expires_in: config.mik.challengeSeconds
+  };
+}
+
+/**
+ * STEP TWO: the signature, and then the member.
+ *
+ * The card is checked FIRST and the account second, so a request carrying a
+ * signature that does not verify never reaches the password check at all -
+ * and so the reply cannot be used to learn whether a user ID exists by
+ * sending a broken signature with it.
+ */
+async function loginWithMik(body, device) {
+  if (!mik.ready()) throw new HttpError(404, 'memberAuth.simSignInIsNotEnabled');
+
+  const cid = String(body.cid || '').trim();
+  const challenge = String(body.challenge || '').trim();
+  const signature = String(body.signature || body.sign_data || '').trim();
+
+  if (!cid || !challenge || !signature) throw new HttpError(400, 'common.valueFailedAValidation');
+
+  const refused = new HttpError(401, 'memberAuth.thatSimCardWasNotAccepted');
+
+  const card = await browserDevices.findByCid(cid);
+  if (!card) throw refused;
+
+  /*
+   * SPENT BEFORE IT IS CHECKED, and spent whether or not the signature turns
+   * out to be good. A challenge that could be tried twice is a challenge an
+   * attacker may guess at twice, and the cost of being strict is that a
+   * browser whose signing call failed asks for a new one - which it must do
+   * anyway.
+   */
+  const spent = await browserDevices.spend(card.id, challenge);
+  if (!spent) throw refused;
+
+  if (!mik.verify(challenge, cid, signature, card.public_key)) {
+    console.warn('[auth] a MIK signature did not verify for cid ' + cid);
+    throw refused;
+  }
+
+  /*
+   * The card is proved. Who the member is remains the user ID and the
+   * password, exactly as the typed-cid form settles it - including every
+   * refusal it makes, in the order it makes them.
+   */
+  const found = await members.verify(String(body.login || body.userid || '').trim(), body.password);
+  if (!found) throw new HttpError(401, 'memberAuth.thoseSignInDetails');
+
+  if (found.blocked) {
+    throw new HttpError(403, 'common.thisAccountIs', null, {
+      status: found.member.locked ? 'locked' : 'inactive'
+    });
+  }
+
+  const user = await mirrorOf(found.member);
+
+  await afterLogin(user);
+  await recordCid(found.member.id, cid);
+
+  /* The card's own row remembers when it was last used; a failure is nothing. */
+  try {
+    await browserDevices.touch(card.id);
+  } catch (error) {
+    console.warn('[auth] could not stamp the MIK card for cid ' + cid + ': ' + error.message);
+  }
+
+  return buildSession(user, device, 'mik');
+}
+
 module.exports = {
   normalisePhone: normalisePhone,
   publicUser: publicUser,
@@ -721,6 +897,9 @@ module.exports = {
   loginWithPassword: loginWithPassword,
   x509PrimaryData: x509PrimaryData,
   loginWithX509: loginWithX509,
+  registerCard: registerCard,
+  mikChallenge: mikChallenge,
+  loginWithMik: loginWithMik,
   requestOtp: requestOtp,
   loginWithOtp: loginWithOtp,
   refresh: refresh,

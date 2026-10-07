@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/api';
 import { clearSession, getToken, setSession, translate } from '@/api/client';
 import { x509SignIn } from './x509Agent';
+import * as mik from '@/app/mikAgent';
 
 /**
  * The member session.
@@ -19,6 +20,51 @@ export const signInWithPassword = createAsyncThunk(
   'auth/password',
   async ({ user_id: userId, password, cid }, { rejectWithValue }) => {
     try {
+      /*
+       * THE SIM PROVES THE cid WHERE IT CAN.
+       *
+       * The typed cid has always been recorded and never checked - a number
+       * somebody knew. In the customised mobile browser the card itself can
+       * sign for it, so the same form takes the same three fields and sends
+       * them the stronger way; every other browser is unchanged, because
+       * mikAgent.available() is false there and this falls straight through.
+       *
+       * A card that is not registered yet, or that refuses, is NOT a failed
+       * sign-in: it falls back to the password path, which is exactly what
+       * the member would have got a moment ago.
+       */
+      if (cid && mik.available()) {
+        try {
+          const signed = await mik.mikSignIn(userId, password, cid);
+          setSession(signed.token, signed.refreshToken);
+          return signed;
+        } catch (cardError) {
+          /*
+           * ANY failure of the card path falls through to the password, and
+           * that is deliberate rather than lazy. An earlier version tried to
+           * tell a refused CARD from a wrong PASSWORD and rethrow the second,
+           * which cannot be done from here: the server answers 401 to both,
+           * and the test for it proved the guard turned a working sign-in
+           * into a refusal.
+           *
+           * Falling through costs nothing: the password endpoint refuses a
+           * wrong password itself, with the message it has always used, and a
+           * phone sending a typed cid is what this form did before the card
+           * existed. What it does NOT do is make a password-only sign-in
+           * weaker than it was.
+           *
+           * It does mean a broken card quietly downgrades to the password, so
+           * it is logged. If a deployment ever wants the card to be required
+           * rather than preferred, that belongs on the server - refusing a
+           * password sign-in from a phone - not here, where anybody can edit
+           * the condition out.
+           */
+          // eslint-disable-next-line no-console
+          console.warn('[auth] the SIM could not sign this in, using the password alone: '
+            + ((cardError && (cardError.code || cardError.message)) || cardError));
+        }
+      }
+
       const { data } = await api.auth.login(userId, password, cid);
       setSession(data.token, data.refreshToken);
       return data;
