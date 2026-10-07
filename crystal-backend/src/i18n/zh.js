@@ -364,6 +364,7 @@ module.exports = {
     thisIdCardHasAnEntry: '该身份证已在本活动中登记',
     thisPartyWasMerged: '该客户已合并到其他客户',
     chooseAGrade: '请选择一个启用中的企业等级',
+    chooseAnActiveOriginProject: '请选择一个启用中的项目作为来源项目',
     thisProductAlreadyHasAnOwner: '该产品已归属于 {holder}',
     thisProductIsOutOfService: '该产品已作废或报废',
     thisQuotaIsInUse: '该配额已被使用，不能删除',

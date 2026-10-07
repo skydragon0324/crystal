@@ -3,7 +3,7 @@ import { crm } from '../../api';
 import { choices, optionsFrom, useCatalogOptions, useCrmMeta } from './shared';
 
 const TYPES = ['RESERVATION', 'LOTTERY', 'PRIZE_SERVICE', 'PUZZLE', 'SURVEY_REWARD', 'EVENT_ATTENDANCE'];
-const BASES = ['MANUAL', 'SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'LOCATION_ACTIVITY', 'IMPORT', 'OPEN'];
+const BASES = ['MANUAL', 'SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'SERVICE_CENTER_ACTIVITY', 'IMPORT', 'OPEN'];
 
 /**
  * THE EVENT FORM, for the new-event dialog and the edit on the event

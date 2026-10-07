@@ -398,6 +398,7 @@ module.exports = {
     thisIdCardHasAnEntry: 'this ID card already has an entry in this event',
     thisPartyWasMerged: 'this customer was merged into another one',
     chooseAGrade: 'choose one of the active corporate grades',
+    chooseAnActiveOriginProject: 'choose an active project as the origin project',
     thisProductAlreadyHasAnOwner: 'this product already belongs to {holder}',
     thisProductIsOutOfService: 'this product is void or scrapped',
     thisQuotaIsInUse: 'this quota is in use and cannot be deleted',

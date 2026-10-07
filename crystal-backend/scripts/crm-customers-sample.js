@@ -65,7 +65,9 @@ async function main() {
       location_id: idOf(places, 'location_name', 'location_pk', person[4]),
       job_title_id: idOf(jobs, 'job_name', 'job_title_id', person[5]),
       address: person[6],
-      email: person[7]
+      // The user-management account: its own number, the same login as the e-shop in this sample.
+      user_pk: String(Number(person[8]) + 400000),
+      user_id: person[9]
     };
   });
 

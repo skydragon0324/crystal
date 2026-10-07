@@ -15,8 +15,8 @@ const { ok, HttpError } = require('../utils/response');
  * duplicate check as the console and the Excel import:
  *
  *   unique match of 70+   linked to that customer, account added    MERGED
- *   nothing above 40      new customer created, account added       CREATED
- *   41-69, or conflicts   staged for an administrator               QUEUED
+ *   nothing of 50 or more new customer created, account added       CREATED
+ *   50-69, or conflicts   staged for an administrator               QUEUED
  *   account already known its customer                              EXISTING
  *
  * QUEUED callers learn the result from the resolution feed once an

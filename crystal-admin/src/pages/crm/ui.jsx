@@ -171,7 +171,7 @@ export function Timeline({ items, onOpen }) {
           >
             <Icon as={TIMELINE_ICON[item.kind] || Md.MdEvent} color={TIMELINE_COLOUR[item.kind] || 'gray.400'} boxSize="0.9rem" />
           </Flex>
-          <Box flex="1" minW={0} cursor={onOpen && item.link ? 'pointer' : 'default'} onClick={() => onOpen && item.link && onOpen(item.link)}>
+          <Box flex="1" minW={0} cursor={onOpen && item.open ? 'pointer' : 'default'} onClick={() => onOpen && item.open && onOpen(item.open)}>
             <HStack justify="space-between" align="baseline">
               <Text fontSize="sm" fontWeight="500" noOfLines={1}>{item.title}</Text>
               <Text fontSize="xs" color={surface.muted} flexShrink={0} ml={2}>{dateTime(item.at)}</Text>

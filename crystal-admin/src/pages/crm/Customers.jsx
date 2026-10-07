@@ -8,6 +8,7 @@ import * as Md from 'react-icons/md';
 
 import CustomerImport from './CustomerImport';
 import RegistrationReview from './RegistrationReview';
+import ImportErrors from './ImportErrors';
 
 import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
@@ -43,7 +44,9 @@ export default function Customers() {
   const location = useLocation();
   const [revision, setRevision] = useState(0);
   const reviewed = () => setRevision(value => value + 1);
-  const initialTab = new URLSearchParams(location.search).get('tab') === 'duplicates' ? 1 : 0;
+  /* ?tab= opens a tab by name; the order is the TabList's below. */
+  const TAB_NAMES = ['customers', 'pending', 'assignments', 'resolved', 'duplicates', 'import-errors'];
+  const initialTab = Math.max(0, TAB_NAMES.indexOf(new URLSearchParams(location.search).get('tab') || 'customers'));
 
   return (
     <Card bodyProps={false}>
@@ -54,6 +57,7 @@ export default function Customers() {
           <Tab fontSize="sm">{translate('crm.review.eshopTab')}</Tab>
           <Tab fontSize="sm">{translate('crm.review.resolvedTab')}</Tab>
           <Tab fontSize="sm">{translate('crm.review.duplicatesTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.customers.importErrorsTab')}</Tab>
         </TabList>
         <TabPanels>
           <TabPanel px={0}><CustomerList key={revision} grade={new URLSearchParams(location.search).get('grade') ? Number(new URLSearchParams(location.search).get('grade')) : undefined} /></TabPanel>
@@ -61,6 +65,7 @@ export default function Customers() {
           <TabPanel px={0}><RegistrationReview category="ESHOP" onDecided={reviewed} /></TabPanel>
           <TabPanel px={0}><RegistrationReview key={revision} resolved /></TabPanel>
           <TabPanel px={0}><Duplicates /></TabPanel>
+          <TabPanel px={0}><ImportErrors key={revision} /></TabPanel>
         </TabPanels>
       </Tabs>
     </Card>
@@ -223,9 +228,9 @@ function CustomerList({ grade }) {
           { name: 'mobile', label: 'Mobile' },
           { name: 'email', label: 'Email' },
           ...(isPerson ? [{ name: 'address_line', label: 'Address', colSpan: 'full' }] : []),
-          { name: 'origin_project_id', label: 'First seen in project', type: 'select',
-            options: optionsFrom(meta.projects, 'project_id', 'project_name'),
-            help: 'Left empty, a customer created here counts as a Crystal customer.' }
+          { name: 'origin_project_id', label: 'First seen in project', type: 'select', required: true,
+            options: optionsFrom((meta.projects || []).filter((project) => project.status !== 'INACTIVE'), 'project_id', 'project_name'),
+            help: 'The project the customer came from.' }
         ]}
       />
 
@@ -243,6 +248,7 @@ function Duplicates() {
   const [busy, setBusy] = useState(false);
 
   const list = useList((params) => crm.parties.duplicates(params), { page: 1, limit: 20 });
+  const search = <Toolbar search={list.params.q} onSearch={(q) => list.setFilter({ q: q || undefined })} />;
 
   const scan = async () => {
     setBusy(true);
@@ -286,6 +292,7 @@ function Duplicates() {
           <Button size="sm" variant="subtle" isLoading={busy} onClick={scan}>{translate('crm.customers.scanForDuplicates')}</Button>
         ) : null}
       </HStack>
+      {search}
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[

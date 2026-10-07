@@ -406,10 +406,11 @@ export const crm = {
     create: (payload) => client.post(CRM + '/parties', payload),
     /* Customers on file who look like a person not yet saved. */
     similar: (params) => client.get(CRM + '/parties/similar', { params }),
-    /* People from an Excel sheet; dryRun only reports what would happen. Multipart, so the JSON content type is left off. */
-    importPeople: (file, dryRun) => {
+    /* People from an Excel sheet; dryRun only reports what would happen; originProjectId is the origin of rows that name none. Multipart, so the JSON content type is left off. */
+    importPeople: (file, dryRun, originProjectId) => {
       const form = new FormData();
       form.append('file', file);
+      if (originProjectId) form.append('origin_project_id', originProjectId);
       return client.post(CRM + '/parties/import' + (dryRun ? '?dry_run=1' : ''), form, {
         headers: { 'Content-Type': undefined }, timeout: 120000
       });
@@ -427,8 +428,13 @@ export const crm = {
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
     merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_pk: mergedId, merge_reason: reason }),
     registrations: (params) => client.get(CRM + '/identity-intakes', { params }),
+    /* One staged registration with everything to compare: basic information and project identifiers, its own and each candidate's. */
+    registration: (id) => client.get(CRM + '/identity-intakes/' + id),
     decideRegistration: (id, payload) => client.post(CRM + '/identity-intakes/' + id + '/decide', payload),
     unverifiedAccounts: (id) => client.get(CRM + '/parties/' + id + '/unverified-accounts'),
+    /* Rows of a customer import that failed the file check, kept until dismissed. */
+    importErrors: (params) => client.get(CRM + '/import-errors', { params }),
+    dismissImportError: (id) => client.post(CRM + '/import-errors/' + id + '/dismiss'),
     /* action: LINK or REJECT, for one { project_id, external_account_id } listed there. */
     decideUnverified: (id, payload) => client.post(CRM + '/parties/' + id + '/unverified-accounts/decide', payload),
     duplicates: (params) => client.get(CRM + '/duplicates', { params }),

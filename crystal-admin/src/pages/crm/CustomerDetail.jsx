@@ -16,8 +16,9 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, money, number } from '../../utils/format';
-import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel } from './shared';
+import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress } from './shared';
 import CrmSearch from './CrmSearch';
+import { PeekProvider } from './peek';
 import {
   AccountsCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
   MarketingCard, NotesCard, OrganizationInfoCard, ProductsCard, RecentOrdersCard, RelatedPartiesCard,
@@ -202,13 +203,13 @@ export default function CustomerDetail() {
         <Wrap spacing={4} mt={2} fontSize="sm" color={surface.muted}>
           {GENDER[person.gender_code] ? <WrapItem>{translate(GENDER[person.gender_code])}</WrapItem> : null}
           {person.birth_date ? <WrapItem>{translate('crm.c360.born', { date: date(person.birth_date), age: ageOf(person.birth_date) })}</WrapItem> : null}
-          {person.home_location_name ? <WrapItem>{person.home_location_name}</WrapItem> : null}
           {person.job_title_name ? <WrapItem>{translate(person.job_title_name)}</WrapItem> : null}
         </Wrap>
         <Wrap spacing={5} mt={2} fontSize="sm">
           {reach.email ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdMailOutline} color="brand.500" /><Text color="brand.500">{reach.email.contact_value}</Text></HStack></WrapItem> : null}
           {reach.phone ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdPhone} color={surface.muted} /><Text>{reach.phone.contact_value}</Text></HStack></WrapItem> : null}
-          {person.address_line ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdPlace} color={surface.muted} /><Text>{person.address_line}</Text></HStack></WrapItem> : null}
+          {/* The address once: its text when there is one, otherwise the location name. */}
+          {homeAddress(person.address_line, person.home_location_name) ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdPlace} color={surface.muted} /><Text>{homeAddress(person.address_line, person.home_location_name)}</Text></HStack></WrapItem> : null}
         </Wrap>
         <TagsLine facts={facts} unusedTags={unusedTags} editable={editable} party={party} run={run} />
       </Box>
@@ -305,6 +306,7 @@ export default function CustomerDetail() {
   const editInitial = Object.assign({}, person, org, { display_name: party.display_name });
 
   return (
+    <PeekProvider onChanged={load}>
     <Box>
       {/* ---------------------------------------------------------- breadcrumb, search, title, actions */}
       <Flex align="center" justify="space-between" wrap="wrap" mb={3}>
@@ -433,6 +435,7 @@ export default function CustomerDetail() {
         />
       ) : null}
     </Box>
+    </PeekProvider>
   );
 }
 
@@ -536,16 +539,16 @@ function timelineOf(record, translate) {
     kind: transaction.transaction_type_code === 'REFUND' ? 'REFUND' : 'TRANSACTION', id: transaction.transaction_id, at: transaction.transaction_at,
     title: word(translate, transaction.transaction_type_code) + '  ·  ' + transaction.project_code,
     detail: money(transaction.net_amount, transaction.currency_code) + (transaction.points_used ? '  ·  ' + translate('crm.customer.pointsUsed', { n: amount(transaction.points_used, 0) }) : ''),
-    link: '/admin/crm/transactions?txn=' + transaction.transaction_id
+    open: ['TRANSACTION', transaction.transaction_id]
   }));
   (record.cases || []).forEach((serviceCase) => items.push({
     kind: 'CASE', id: serviceCase.case_id, at: serviceCase.received_at, title: translate(serviceCase.case_type_name || '-') + '  ·  ' + (serviceCase.external_case_id || ''),
-    detail: [translate(serviceCase.status_name || '-'), serviceCase.service_center_name].filter(Boolean).join('  ·  '), link: '/admin/crm/service-cases?case=' + serviceCase.case_id
+    detail: [translate(serviceCase.status_name || '-'), serviceCase.service_center_name].filter(Boolean).join('  ·  '), open: ['CASE', serviceCase.case_id]
   }));
   (record.holdings || []).forEach((holding) => items.push({
     kind: 'REGISTRATION', id: holding.product_registration_id, at: holding.valid_from,
     title: (holding.product_name || '-') + '  ·  ' + word(translate, holding.relationship_code), detail: holding.external_product_instance_id,
-    link: '/admin/crm/products?instance=' + holding.product_instance_id
+    open: ['PRODUCT', holding.product_instance_id]
   }));
   (record.activities || []).forEach((activity) => items.push({
     kind: 'VISIT', id: activity.service_center_activity_id, at: activity.occurred_at, title: translate(activity.activity_name || '-'), detail: activity.service_center_name

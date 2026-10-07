@@ -120,7 +120,8 @@ export function TransactionDrawer({ id, onClose }) {
   const transaction = record.transaction || {};
 
   return (
-    <Drawer isOpen={!!id} onClose={onClose} size="md" placement="right">
+    /* No focus hand-back on close: focusing the opener scrolled the page (and a tab strip) sideways. */
+    <Drawer isOpen={!!id} onClose={onClose} size="md" placement="right" returnFocusOnClose={false} preserveScrollBarGap>
       <DrawerOverlay />
       <DrawerContent>
         <DrawerCloseButton />

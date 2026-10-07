@@ -10,7 +10,7 @@
 
 /* [topic, rule]: shown as the Conventions table at the top of the document. */
 const conventions = [
-  ['Customer key', '`party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is a reserved public id and is not used for links yet.'],
+  ['Customer key', '`party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is reserved for a later phase and is not generated or used in phase 1.'],
   ['Project', '`project_id` names the Dream project (business system) a row came from or belongs to: PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA, ... An external id is only unique inside its project.'],
   ['Who did it', '`*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives.'],
   ['History', '`valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it.'],
@@ -69,7 +69,7 @@ const common = {
   transaction_id: 'Transaction (→ crm_transaction).',
   reservation_id: 'Event reservation (→ crm_activity_reservation).',
   activity_target_id: 'Event target (→ crm_activity_target).',
-  activity_type_id: 'Kind of site activity (→ crm_service_center_activity_type).',
+  activity_type_id: 'Kind of service center activity (→ crm_service_center_activity_type).',
   acquisition_type_id: 'How the holder obtained the product (→ crm_acquisition_type).',
   service_status_id: 'CRM service status (→ crm_service_status).',
   department_id: 'Internal department (→ crm_department).',
@@ -110,7 +110,7 @@ const groups = [
   { title: 'Identity resolution (duplicate check, review, department accounts)',
     intro: 'How an incoming person becomes a customer: weighted duplicate check, staging for review, merges, and the link from each project account to its customer. See crm-logic.md, section 5.',
     tables: ['crm_project_account', 'crm_registration_intake', 'crm_identity_resolution', 'crm_identity_match_candidate',
-      'crm_party_merge_history', 'crm_party_split_history'] },
+      'crm_party_merge_history', 'crm_party_split_history', 'crm_person_import_error'] },
   { title: 'Communication and consent',
     intro: 'What each project may send, through which channel and for which purpose, and what each customer agreed to. Consent changes are kept as an append-only history.',
     tables: ['crm_communication_channel', 'crm_communication_purpose', 'crm_project_communication_option',
@@ -132,7 +132,7 @@ const groups = [
     intro: 'A summary of every service contact (repair, complaint, enquiry) from any project, with its status and classification.',
     tables: ['crm_service_case', 'crm_service_case_type', 'crm_service_status', 'crm_service_status_map', 'crm_service_priority',
       'crm_service_case_classification', 'crm_issue_category', 'crm_fault_category', 'crm_root_cause', 'crm_resolution_category'] },
-  { title: 'Sites (service centres) and site activity',
+  { title: 'Sites (service centres) and service center activity',
     intro: 'Physical places (service centres, agencies, shops), what each may do, what happened there, and the targets set for them.',
     tables: ['crm_service_center', 'crm_service_center_capability', 'crm_service_center_activity_type', 'crm_service_center_activity',
       'crm_service_center_activity_target', 'crm_service_center_event', 'v_crm_service_center_activity_progress'] },
@@ -207,7 +207,7 @@ const tables = {
       party_type: 'PERSON (details in crm_person) or ORGANIZATION (details in crm_organization).',
       party_status: 'ACTIVE / INACTIVE customers are usable; MERGED points to the survivor; DELETED is kept for history.',
       display_name: 'Name shown everywhere; for a person the full name, for an organization its trading or legal name.',
-      origin_project_id: 'Project through which the customer first reached the CRM (CRYSTAL for console and Excel entries).',
+      origin_project_id: 'Project through which the customer first reached the CRM: chosen on the console form, and per Excel row (its Origin project column, or the project chosen on the import screen). Never assumed.',
       merged_into_party_pk: 'When MERGED: the surviving customer. Required exactly when status is MERGED.',
       first_seen_at: 'First known activity anywhere.',
       last_seen_at: 'Latest known activity anywhere.',
@@ -226,8 +226,8 @@ const tables = {
       birth_date: 'Full date of birth; used by the duplicate check (+25 when equal).',
       birth_year: 'Year of birth, kept when only the year is known; must equal the year of birth_date when both are set.',
       job_title_id: 'Occupation (→ crm_job_title); used by the duplicate check (+5).',
-      home_location_pk: 'Home area on the vendor location list (→ crm_location); part of the home address.',
-      address_line: 'Street address; with home_location_pk it is the home address used by the duplicate check (+15).'
+      home_location_pk: 'Home area on the vendor location list (→ crm_location). Used by the duplicate check (+15 when the same location ID).',
+      address_line: 'The written address, free text, kept for search and display. When set it is the address shown (instead of the location name). Not used by the duplicate check.'
     }
   },
   crm_organization: {
@@ -405,7 +405,7 @@ const tables = {
     }
   },
   crm_registration_intake: {
-    purpose: 'Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 41-69, or matches several strong candidates, waits here without creating a customer.',
+    purpose: 'Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.',
     usedBy: 'Customers > Pending registrations / E-shop assignments / Resolved registrations; department API; Excel import.',
     fields: {
       intake_id: 'Intake key; departments receive it for QUEUED registrations.',
@@ -450,6 +450,21 @@ const tables = {
       moved_rows: 'Which rows moved from the merged customer, so a merge can be split again.',
       platform_merge_log_pk: 'Vendor merge log row when the merge came from the platform.',
       merged_by_manager_id: 'Manager who merged.', merged_at: 'When.', merge_metadata: 'Extra details.'
+    }
+  },
+  crm_person_import_error: {
+    usedBy: 'Customers > Import errors; written by the customer Excel import for rows that failed the file check.',
+    fields: {
+      import_error_id: 'Failed-row key.',
+      batch_hash: 'SHA-256 of the imported file; with row_number it keeps a re-run of the same file from adding the row twice.',
+      file_name: 'Name of the uploaded file.',
+      row_number: 'Row in the sheet, as Excel numbers it (the header is row 1).',
+      cells: 'Every cell of the row as text, keyed by column (eshop_pk, eshop_id, user_pk, user_id, full_name, ...), as it was written.',
+      errors: 'Every reason the row failed the check.',
+      status: 'OPEN until an administrator dismisses it (DISMISSED) - after importing the corrected row, or deciding it is not wanted.',
+      imported_by_manager_id: 'Manager who ran the import.',
+      dismissed_by_manager_id: 'Manager who dismissed the row.',
+      dismissed_at: 'When it was dismissed.'
     }
   },
   crm_party_split_history: {
@@ -650,12 +665,12 @@ const tables = {
     }
   },
   crm_point_event: {
-    usedBy: 'Points ledger (every earn, spend, adjustment); events; registrations; site activity.',
+    usedBy: 'Points ledger (every earn, spend, adjustment); events; registrations; service center activity.',
     fields: {
       point_event_id: 'Ledger entry key.', point_account_id: 'Account the entry belongs to.', point_event_type_id: 'Kind of entry.',
       point_rule_id: 'Rule that paid it.', points_delta: 'Points added (positive) or removed (negative).',
       pay_amount: 'Money amount the points relate to, when earned on a purchase.', points_balance_after: 'Balance right after this entry.',
-      related_product_registration_id: 'Registration that earned it.', related_service_center_activity_id: 'Site activity that earned it.',
+      related_product_registration_id: 'Registration that earned it.', related_service_center_activity_id: 'Service center activity that earned it.',
       performed_by_service_center_id: 'Site that recorded it.', performed_by_manager_id: 'Manager who recorded it.',
       description: 'What it was for.', device_ref: 'Device the action came from.', source_table_code: 'Legacy table it was migrated from.',
       external_event_id: 'Id in the source; unique, so re-imports do not pay twice.', ip_address: 'IP of the request, for fraud review.'
@@ -736,7 +751,7 @@ const tables = {
 
   /* ---------------------------------------------------------------- sites */
   crm_service_center: {
-    usedBy: 'Sites screen; site activity; events (pickup sites); service cases; Crystal import (agencies).',
+    usedBy: 'Sites screen; service center activity; events (pickup sites); service cases; Crystal import (agencies).',
     fields: {
       service_center_code: 'Stable code.', service_center_name: 'Name shown in the console.', service_center_kind: 'What sort of site it is.',
       operator_party_pk: 'Organization that runs the site.', address_line: 'Street address.', landmark: 'Nearby landmark to find it.',

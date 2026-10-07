@@ -113,6 +113,10 @@ const sheetUpload = multer({
 router.get('/parties/similar', read(PAGES.CUSTOMERS), crmController.parties.similar);
 router.get('/parties/import/template', read(PAGES.CUSTOMERS), crmController.parties.importTemplate);
 router.post('/parties/import', write(PAGES.CUSTOMERS), sheetUpload.single('file'), crmController.parties.importPeople);
+/* Rows of a customer import that failed the file check: kept with their reasons until dismissed. */
+const personImport = require('../services/crm/personImport.service');
+router.get('/import-errors', read(PAGES.CUSTOMERS), async (req, res) => require('../utils/response').ok(res, await personImport.importErrors(req.query)));
+router.post('/import-errors/:id/dismiss', write(PAGES.CUSTOMERS), async (req, res) => require('../utils/response').ok(res, await personImport.dismissImportError(req.params.id, req.actor)));
 router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicates);
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
 router.post('/duplicates/:id/accept', write(PAGES.CUSTOMERS), crmController.parties.acceptDuplicate);
@@ -123,6 +127,7 @@ router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.part
 const intake = require('../services/crm/registrationIntake.service');
 const response = require('../utils/response');
 router.get('/identity-intakes', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.list(req.query)));
+router.get('/identity-intakes/:id', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.detail(req.params.id)));
 router.post('/identity-intakes/:id/decide', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.decide(req.params.id, req.body, req.actor)));
 router.get('/parties/:id/unverified-accounts', read(PAGES.CUSTOMERS), async (req, res) => {
  if (!/^[1-9][0-9]*$/.test(String(req.params.id))) throw new HttpError(400, 'common.notFound');

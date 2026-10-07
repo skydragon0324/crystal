@@ -151,7 +151,7 @@ function listsOf(meta, translate) {
       ],
       emptyRow: { decimal_places: 3, is_dream_managed: true, is_active: true } },
 
-    { path: 'activity-types', title: 'Location activity types', pk: 'activity_type_id', sort: 'activity_type_id',
+    { path: 'activity-types', title: 'Service center activity types', pk: 'activity_type_id', sort: 'activity_type_id',
       columns: [
         { key: 'activity_code', label: 'Code' }, { key: 'activity_name', label: 'Name' },
         { key: 'activity_group', label: 'Group' }, { key: 'required_capability_code', label: 'Needs the service location to do' }, active

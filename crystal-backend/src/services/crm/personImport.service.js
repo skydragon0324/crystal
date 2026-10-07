@@ -14,10 +14,15 @@ const { HttpError } = require('../../utils/response');
 /** Excel rows use the shared weighted registration gate. Preview writes nothing;
  * import rechecks under the same lock as project and console registration.
  *
- * Phase 1 loads only complete people who already have an e-shop account. The
- * sheet's e-shop PK and ID are not trusted enough for crm_project_account:
- * they are kept with the registration and, once the person is resolved,
- * staged as an e-shop assignment an administrator verifies or rejects.
+ * Phase 1 loads only complete people who already have an e-shop account and
+ * a user-management (PLATFORM) account. The sheet's e-shop PK/ID and user
+ * PK/ID are not trusted enough for crm_project_account: they are kept with
+ * the registration and, once the person is resolved, staged as identifier
+ * assignments an administrator verifies or rejects.
+ *
+ * A row that fails the file check does not stop the others: valid rows are
+ * imported and failed rows are kept in crm_person_import_error with their
+ * reasons. Nothing is written until the import itself is run.
  */
 
 const PAGE = '/admin/crm/customers';
@@ -34,6 +39,10 @@ const COLUMNS = [
     aliases: ['eshop pk', 'eshop user pk'] },
   { key: 'eshop_id', header: 'E-shop ID', required: true, width: 18, note: 'The customer\'s login (user ID) in the e-shop. Kept as an unverified identifier.',
     aliases: ['eshop id', 'eshop login', 'eshop user id'] },
+  { key: 'user_pk', header: 'User PK', required: true, width: 14, note: 'The customer\'s user_pk in the user management system (PLATFORM, a number). Kept as an unverified identifier.',
+    aliases: ['user_pk', 'platform pk', 'platform user pk'] },
+  { key: 'user_id', header: 'User ID', required: true, width: 18, note: 'The customer\'s user_id (login) in the user management system (PLATFORM). Kept as an unverified identifier.',
+    aliases: ['user_id', 'platform id', 'platform user id', 'platform login'] },
   { key: 'full_name', header: 'Full name', required: true, width: 24, aliases: ['name'] },
   { key: 'gender', header: 'Gender', required: true, width: 10, note: 'M or F' },
   { key: 'birth_date', header: 'Birthday', required: true, width: 14, note: 'YYYY-MM-DD', aliases: ['birth date', 'date of birth'] },
@@ -41,9 +50,20 @@ const COLUMNS = [
   { key: 'location_id', header: 'Location ID', required: true, width: 14, note: 'A number from the ID column of the Locations sheet', aliases: ['location_pk', 'home_location_pk'] },
   { key: 'address', header: 'Address', required: true, width: 30, aliases: ['address line', 'home address'] },
   { key: 'job_title_id', header: 'Job title ID', width: 14, note: 'Optional. A number from the ID column of the Job titles sheet' },
-  { key: 'email', header: 'Email', width: 26, note: 'Optional' }
+  { key: 'origin_project', header: 'Origin project', width: 16,
+    note: 'Optional. The project the customer came from: a code or ID from the Projects sheet. Empty rows use the project chosen on the import screen.',
+    aliases: ['origin project id', 'origin project code', 'origin_project_id', 'project'] }
 ];
 const ESHOP_ID_MAX = 100;
+
+/*
+ * A sheet lists one row per phone number, so the same person can appear on
+ * several rows with different phones. For an Excel import the same user_pk
+ * (the user-management account) is the same person: the rows are merged
+ * automatically, every phone is kept on the one customer, and the account is
+ * not staged twice.
+ */
+const EXCEL_SCORING = { userPkMerges: true };
 
 function normaliseHeader(text) {
   return String(text === null || text === undefined ? '' : text).toLowerCase().replace(/[\s_*\-]+/g, '');
@@ -98,11 +118,17 @@ function checkedDate(iso) {
 
 /* ------------------------------------------------------------ the lists a row is matched against */
 
-/** The job list and the location list, keyed by id, to check each row's ids against. */
-async function loadLookups() {
-  const [jobs, places] = await Promise.all([
+/**
+ * The job, location and project lists, keyed, to check each row against.
+ * `originProjectId` is the project chosen on the import screen: the origin of
+ * every row whose Origin project cell is empty. Nothing is assumed when it is
+ * not chosen - such rows are errors.
+ */
+async function loadLookups(originProjectId) {
+  const [jobs, places, projects] = await Promise.all([
     db('crm_job_title').where('is_active', true).select('job_title_id', 'job_code', 'job_name'),
-    locations.all()
+    locations.all(),
+    db('crm_project').where('status', 'ACTIVE').select('project_id', 'project_code', 'project_name')
   ]);
 
   const jobById = {};
@@ -111,7 +137,20 @@ async function loadLookups() {
   const locationById = {};
   places.forEach(function (place) { locationById[place.location_pk] = place; });
 
-  return { jobById: jobById, locationById: locationById };
+  // A project is named in a cell by its ID or its code, in any case.
+  const projectByKey = {};
+  projects.forEach(function (project) {
+    projectByKey[String(project.project_id)] = project;
+    projectByKey[String(project.project_code).toUpperCase()] = project;
+  });
+
+  let defaultProject = null;
+  if (originProjectId !== undefined && originProjectId !== null && originProjectId !== '') {
+    defaultProject = projectByKey[String(originProjectId)];
+    if (!defaultProject || String(defaultProject.project_id) !== String(originProjectId)) throw new HttpError(400, 'crm.chooseAnActiveOriginProject');
+  }
+
+  return { jobById: jobById, locationById: locationById, projectByKey: projectByKey, defaultProject: defaultProject };
 }
 
 /**
@@ -186,6 +225,16 @@ function checkRow(record, lookups) {
   else if (eshopId.length > ESHOP_ID_MAX) errors.push('E-shop ID is longer than ' + ESHOP_ID_MAX + ' characters');
   else out.eshop_id = eshopId;
 
+  const userPk = cellText(raw.user_pk);
+  if (!userPk) errors.push('User PK is required');
+  else if (!/^[1-9][0-9]{0,17}$/.test(userPk)) errors.push('User PK "' + userPk + '" must be a whole number');
+  else out.user_pk = userPk;
+
+  const userId = cellText(raw.user_id);
+  if (!userId) errors.push('User ID is required');
+  else if (userId.length > ESHOP_ID_MAX) errors.push('User ID is longer than ' + ESHOP_ID_MAX + ' characters');
+  else out.user_id = userId;
+
   out.full_name = cellText(raw.full_name).replace(/\s+/g, ' ');
   if (!out.full_name) errors.push('Full name is required');
   else if (out.full_name.length > 250) errors.push('Full name is longer than 250 characters');
@@ -227,11 +276,12 @@ function checkRow(record, lookups) {
   if (!out.address_line) errors.push('Address is required');
   else if (out.address_line.length > 255) errors.push('Address is longer than 255 characters');
 
-  const emailText = cellText(raw.email);
-  if (emailText) {
-    if (rules.emailProblem(emailText, 'Email')) errors.push(rules.emailProblem(emailText, 'Email'));
-    out.email = emailText;
-  }
+  // The row's own origin project wins; an empty cell takes the one chosen on the import screen.
+  const originText = cellText(raw.origin_project);
+  const origin = originText ? lookups.projectByKey[originText.toUpperCase()] : lookups.defaultProject;
+  if (originText && !origin) errors.push('Origin project "' + originText + '" is not an active project code or ID');
+  else if (!origin) errors.push('Origin project is required: fill the Origin project column or choose a project on the import screen');
+  else { out.origin_project_id = origin.project_id; out.origin_project_code = origin.project_code; }
 
   return { values: out, errors: errors };
 }
@@ -242,24 +292,38 @@ function checkRow(record, lookups) {
  * else is an error in the file rather than something to stage.
  */
 function addEshopConflicts(checkedRows, records) {
-  const firstByPk = {};
-  checkedRows.forEach(function (checked, index) {
-    const pk = checked.values.eshop_pk;
-    if (!pk || checked.errors.length) return;
-    const first = firstByPk[pk];
-    if (first === undefined) { firstByPk[pk] = index; return; }
-    const earlier = checkedRows[first].values;
-    if (earlier.eshop_id !== checked.values.eshop_id || duplicates.score(earlier, checked.values).score < 70) {
-      checked.errors.push('E-shop PK ' + pk + ' is also on row ' + records[first].row_number + ' for a different person or E-shop ID');
-    }
+  // The same rule for both identifiers a row carries: [pk field, id field, label].
+  [['eshop_pk', 'eshop_id', 'E-shop'], ['user_pk', 'user_id', 'User']].forEach(function (identifier) {
+    const firstByPk = {};
+    checkedRows.forEach(function (checked, index) {
+      const pk = checked.values[identifier[0]];
+      if (!pk || checked.errors.length) return;
+      const first = firstByPk[pk];
+      if (first === undefined) { firstByPk[pk] = index; return; }
+      const earlier = checkedRows[first].values;
+      if (earlier[identifier[1]] !== checked.values[identifier[1]] || duplicates.score(earlier, checked.values, EXCEL_SCORING).score < duplicates.MERGE_FROM) {
+        checked.errors.push(identifier[2] + ' PK ' + pk + ' is also on row ' + records[first].row_number + ' for a different person or ' + identifier[2] + ' ID');
+      }
+    });
   });
   return checkedRows;
 }
 
-/** The identifiers a row claims, staged for review instead of committed. */
-function unverifiedAccounts(values, eshopProjectId) {
-  return [{ project_id: eshopProjectId, external_account_id: values.eshop_pk, external_login: values.eshop_id,
-    external_account_type: 'ESHOP_CUSTOMER', source: 'EXCEL_IMPORT' }];
+/** The identifiers a row claims - its e-shop account and its user-management account - staged for review instead of committed. */
+function unverifiedAccounts(values, projects) {
+  return [
+    { project_id: projects.eshop, external_account_id: values.eshop_pk, external_login: values.eshop_id,
+      external_account_type: 'ESHOP_CUSTOMER', source: 'EXCEL_IMPORT' },
+    { project_id: projects.platform, external_account_id: values.user_pk, external_login: values.user_id,
+      external_account_type: 'PLATFORM_USER', source: 'EXCEL_IMPORT' }
+  ];
+}
+
+/** Each cell of a failed row as text, keyed by column, so the row can be shown as it was written. */
+function cellsOf(record) {
+  const cells = {};
+  COLUMNS.forEach(function (column) { cells[column.key] = cellText(record.raw[column.key]); });
+  return cells;
 }
 
 /* ------------------------------------------------------------ preview and import */
@@ -268,27 +332,27 @@ function unverifiedAccounts(values, eshopProjectId) {
  * Every row with its verdict: NEW, DUPLICATE or ERROR. Writes nothing.
  * `summary` counts each; `rows` keeps the sheet's own row numbers.
  */
-async function preview(buffer) {
+async function preview(buffer, options) {
  const records = await readRows(buffer);
- const lookups = await loadLookups();
+ const lookups = await loadLookups((options || {}).origin_project_id);
  const checkedRows = addEshopConflicts(records.map(record => checkRow(record, lookups)), records);
- const context = await intake.candidateContext(db, checkedRows.filter(row => !row.errors.length).map(row => row.values));
+ const context = await intake.candidateContext(db, checkedRows.filter(row => !row.errors.length).map(row => row.values), EXCEL_SCORING);
  const earlier = duplicates.createIndex();
  const rows = [];
  for (let index = 0; index < records.length; index += 1) {
   const record = records[index];
   const checked = checkedRows[index];
   const result = { row_number: record.row_number, values: checked.values };
-  if (checked.errors.length) { result.status = 'ERROR'; result.errors = checked.errors; }
+  if (checked.errors.length) { result.status = 'ERROR'; result.errors = checked.errors; result.cells = cellsOf(record); }
   else {
    const found = await intake.candidates(db, checked.values, context);
    earlier.find(checked.values).forEach(other => {
-    const match = duplicates.score(checked.values, other);
-    if (match.score > 40) found.push(Object.assign({ row_number: other.row_number }, match));
+    const match = duplicates.score(checked.values, other, EXCEL_SCORING);
+    if (match.score >= duplicates.REVIEW_FROM) found.push(Object.assign({ row_number: other.row_number }, match));
    });
    found.sort((a,b) => b.score-a.score);
    result.similar = found;
-   const strong = found.filter(r => r.score >= 70);
+   const strong = found.filter(r => r.score >= duplicates.MERGE_FROM);
    result.status = strong.length === 1 && !strong[0].intake_id ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
    if (found.length && found[0].row_number) result.duplicate_of_row = found[0].row_number;
    earlier.set(record.row_number, Object.assign({}, checked.values, { row_number: record.row_number }));
@@ -298,41 +362,80 @@ async function preview(buffer) {
  const count = status => rows.filter(r => r.status === status).length;
  return { summary: { total: rows.length, new: count('NEW'), duplicate: count('DUPLICATE'), review: count('REVIEW'), error: count('ERROR') }, rows };
 }
-async function importPeople(buffer, actor) {
+async function importPeople(buffer, actor, options) {
  // Validate first, but do not repeat the read-only preview's duplicate pass:
  // submit performs the authoritative check under the registration lock below.
+ const opts = options || {};
  const records = await readRows(buffer);
- const lookups = await loadLookups();
+ const lookups = await loadLookups(opts.origin_project_id);
  const checkedRows = addEshopConflicts(records.map(record => checkRow(record, lookups)), records);
  const report = { rows: records.map((record, index) => {
   const checked = checkedRows[index];
-  return { row_number: record.row_number, values: checked.values, status: checked.errors.length ? 'ERROR' : 'NEW', errors: checked.errors };
+  return { row_number: record.row_number, values: checked.values, status: checked.errors.length ? 'ERROR' : 'NEW', errors: checked.errors, cells: cellsOf(record) };
  }) };
+ const valid = report.rows.filter(r => r.status !== 'ERROR');
  const failed = report.rows.filter(r => r.status === 'ERROR');
- if (failed.length) throw new HttpError(400, 'crm.fixTheRowsAndUploadAgain', failed);
- const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
- const eshop = await vocabulary.idOf('crm_project', 'ESHOP');
- if (!eshop) throw new HttpError(409, 'The ESHOP project is missing from the project list');
+ const projects = { eshop: await vocabulary.idOf('crm_project', 'ESHOP'), platform: await vocabulary.idOf('crm_project', 'PLATFORM') };
+ if (!projects.eshop) throw new HttpError(409, 'The ESHOP project is missing from the project list');
+ if (!projects.platform) throw new HttpError(409, 'The PLATFORM project is missing from the project list');
  const batch = crypto.createHash('sha256').update(buffer).digest('hex');
  await transaction(async trx => {
   await intake.lock(trx);
-  const context = await intake.candidateContext(trx, report.rows.map(row => row.values));
-  for (const row of report.rows) {
-   const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: crystal }];
-   if (row.values.email) contacts.push({ contact_type: 'EMAIL', contact_value: row.values.email, source_project_id: crystal });
-   const result = await intake.submit(trx, Object.assign({}, row.values, { party_type: 'PERSON', origin_project_id: crystal, contacts }),
-    { source_record_id: 'excel:' + batch + ':' + row.row_number, candidateContext: context, unverified_accounts: unverifiedAccounts(row.values, eshop) });
+  const context = await intake.candidateContext(trx, valid.map(row => row.values), EXCEL_SCORING);
+  for (const row of valid) {
+   const origin = row.values.origin_project_id;
+   const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: origin }];
+   const result = await intake.submit(trx, Object.assign({}, row.values, { party_type: 'PERSON', origin_project_id: origin, contacts }),
+    { source_record_id: 'excel:' + batch + ':' + row.row_number, candidateContext: context, unverified_accounts: unverifiedAccounts(row.values, projects) });
    await context.refresh(result);
    row.status = result.outcome === 'QUEUED' ? 'REVIEW' : result.outcome;
    row.party_pk = result.party_pk;
    row.intake_id = result.intake_id;
    if (result.candidates) row.similar = result.candidates;
   }
+  // Failed rows are kept, cells as written and every reason; the same file run again adds nothing new.
+  for (const row of failed) {
+   await trx('crm_person_import_error').insert({
+    batch_hash: batch, file_name: opts.file_name ? String(opts.file_name).slice(0, 255) : null, row_number: row.row_number,
+    cells: JSON.stringify(row.cells), errors: JSON.stringify(row.errors), imported_by_manager_id: actor ? actor.manager_id : null
+   }).onConflict(['batch_hash', 'row_number']).ignore();
+  }
  });
  const count = status => report.rows.filter(r => r.status === status).length;
- const summary = { total: report.rows.length, created: count('CREATED'), duplicate: count('MERGED'), review: count('REVIEW'), error: 0 };
+ const summary = { total: report.rows.length, created: count('CREATED'), duplicate: count('MERGED'), review: count('REVIEW'), error: failed.length };
  audit.imported(actor, 'crm_registration_intake', summary, PAGE);
  return { summary, rows: report.rows };
+}
+
+/* ------------------------------------------------------------ rows that failed, kept for review */
+
+async function importErrors(filters) {
+ const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
+ const page = Math.max(1, Number(filters.page) || 1);
+ const base = db('crm_person_import_error as failed').where('failed.status', filters.status === 'DISMISSED' ? 'DISMISSED' : 'OPEN');
+ // The file name, and any cell or reason of the row.
+ const term = String(filters.q || '').trim();
+ if (term) base.where(function () {
+  this.where('failed.file_name', 'ilike', '%' + term + '%')
+   .orWhereRaw('failed.cells::text ILIKE ?', ['%' + term + '%']).orWhereRaw('failed.errors::text ILIKE ?', ['%' + term + '%']);
+ });
+ const [count, rows] = await Promise.all([
+  base.clone().count({ total: '*' }).first(),
+  base.clone().leftJoin('managers as manager', 'manager.id', 'failed.imported_by_manager_id')
+   .select('failed.*', 'manager.name as imported_by').orderBy([{ column: 'failed.created_at', order: 'desc' }, { column: 'failed.row_number' }])
+   .limit(limit).offset((page - 1) * limit)
+ ]);
+ return { rows, total: Number(count.total), page, limit };
+}
+
+/** Put a failed row aside once it has been fixed (by importing it again) or is not wanted. */
+async function dismissImportError(id, actor) {
+ if (!/^[1-9][0-9]*$/.test(String(id))) throw new HttpError(404, 'common.notFound');
+ const rows = await db('crm_person_import_error').where({ import_error_id: id, status: 'OPEN' })
+  .update({ status: 'DISMISSED', dismissed_at: db.fn.now(), dismissed_by_manager_id: actor ? actor.manager_id : null }).returning('import_error_id');
+ if (!rows.length) throw new HttpError(404, 'common.notFound');
+ audit.updated(actor, 'crm_person_import_error', id, null, { status: 'DISMISSED' }, PAGE);
+ return { import_error_id: id, status: 'DISMISSED' };
 }
 
 /* ------------------------------------------------------------ the template */
@@ -348,9 +451,10 @@ async function importPeople(buffer, actor) {
  */
 async function template(options) {
   const templateOptions = options || {};
-  const [jobs, places] = await Promise.all([
+  const [jobs, places, projects] = await Promise.all([
     db('crm_job_title').where('is_active', true).orderBy(['sort_order', 'job_name']).select('job_title_id', 'job_name'),
-    locations.all()
+    locations.all(),
+    db('crm_project').where('status', 'ACTIVE').orderBy('project_id').select('project_id', 'project_code', 'project_name')
   ]);
 
   const book = new ExcelJS.Workbook();
@@ -373,10 +477,10 @@ async function template(options) {
   const firstJob = jobs[0] ? jobs[0].job_title_id : null;
   const secondJob = jobs[1] ? jobs[1].job_title_id : firstJob;
   const examples = templateOptions.examples || [
-    { eshop_pk: '100245', eshop_id: 'liwei88', full_name: 'Li Wei', gender: 'M', birth_date: new Date(Date.UTC(1988, 4, 17)), mobile: '+86 138 0013 8000',
-      location_id: firstPlace, address: '18 Tianhe Road', job_title_id: firstJob, email: 'li.wei@example.com' },
-    { eshop_pk: '100391', eshop_id: 'wangfang', full_name: 'Wang Fang', gender: 'F', birth_date: new Date(Date.UTC(1995, 10, 3)), mobile: '13900139000',
-      location_id: secondPlace, address: '7 Zhongshan Avenue', job_title_id: secondJob, email: '' }
+    { eshop_pk: '100245', eshop_id: 'liwei88', user_pk: '500245', user_id: 'liwei88', full_name: 'Li Wei', gender: 'M', birth_date: new Date(Date.UTC(1988, 4, 17)), mobile: '+86 138 0013 8000',
+      location_id: firstPlace, address: '18 Tianhe Road', job_title_id: firstJob },
+    { eshop_pk: '100391', eshop_id: 'wangfang', user_pk: '500391', user_id: 'wang.fang', full_name: 'Wang Fang', gender: 'F', birth_date: new Date(Date.UTC(1995, 10, 3)), mobile: '13900139000',
+      location_id: secondPlace, address: '7 Zhongshan Avenue', job_title_id: secondJob }
   ];
   examples.forEach(function (example) { sheet.addRow(example); });
 
@@ -397,9 +501,19 @@ async function template(options) {
   locationSheet.getRow(1).font = { bold: true };
   places.forEach(function (place) { locationSheet.addRow(place); });
 
-  // Dropdowns on gender, location ID and job title ID, so a value not on a list is caught while typing.
+  const projectSheet = book.addWorksheet('Projects');
+  projectSheet.columns = [
+    { header: 'Code', key: 'project_code', width: 14 },
+    { header: 'ID', key: 'project_id', width: 8 },
+    { header: 'Project', key: 'project_name', width: 30 }
+  ];
+  projectSheet.getRow(1).font = { bold: true };
+  projects.forEach(function (project) { projectSheet.addRow(project); });
+
+  // Dropdowns on gender, location ID, job title ID and origin project, so a value not on a list is caught while typing.
   const lastJobRow = Math.max(2, jobs.length + 1);
   const lastLocationRow = Math.max(2, places.length + 1);
+  const lastProjectRow = Math.max(2, projects.length + 1);
   const columnLetter = function (key) { return sheet.getColumn(key).letter; };
   for (let rowNumber = 2; rowNumber <= 1001; rowNumber += 1) {
     sheet.getCell(columnLetter('gender') + rowNumber).dataValidation = {
@@ -414,6 +528,10 @@ async function template(options) {
       type: 'list', allowBlank: true, formulae: ["'Job titles'!$A$2:$A$" + lastJobRow],
       showErrorMessage: true, errorTitle: 'Job title ID', error: 'Choose an ID from the Job titles sheet'
     };
+    sheet.getCell(columnLetter('origin_project') + rowNumber).dataValidation = {
+      type: 'list', allowBlank: true, formulae: ["'Projects'!$A$2:$A$" + lastProjectRow],
+      showErrorMessage: true, errorTitle: 'Origin project', error: 'Choose a code from the Projects sheet, or leave it empty'
+    };
   }
 
   return book.xlsx.writeBuffer();
@@ -423,5 +541,7 @@ module.exports = {
   COLUMNS: COLUMNS,
   preview: preview,
   importPeople: importPeople,
-  template: template
+  template: template,
+  importErrors: importErrors,
+  dismissImportError: dismissImportError
 };

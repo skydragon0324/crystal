@@ -334,8 +334,20 @@ async function detail(id) {
 }
 
 /** Parties sharing an active contact value, for the duplicate queue. */
-function pendingCandidates(paging) {
+function pendingCandidates(paging, filters) {
   const base = db('crm_identity_match_candidate as candidate').where('candidate.match_status', 'PENDING');
+  /* Either customer of the pair, by number or name. */
+  const term = String((filters && filters.q) || '').trim();
+  if (term) {
+    base.where(function () {
+      this.whereRaw('candidate.incoming_party_pk::text = ?', [term]).orWhereRaw('candidate.candidate_party_pk::text = ?', [term])
+        .orWhereExists(function () {
+          this.select(db.raw(1)).from('crm_party as named')
+            .whereRaw('named.party_pk IN (candidate.incoming_party_pk, candidate.candidate_party_pk)')
+            .where('named.display_name', 'ilike', '%' + term + '%');
+        });
+    });
+  }
 
   return Promise.all([
     base.clone().count({ total: '*' }).first(),

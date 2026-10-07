@@ -118,18 +118,22 @@ async function insertContact(trx, partyId, data) {
 
 /** Console registrations use the same pre-creation gate as imports and projects. */
 async function create(body, actor) {
-  const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
   const isPerson = body.party_type !== 'ORGANIZATION';
 
   rules.assert(await rules.check(body, 'create', isPerson ? 'PERSON' : 'ORGANIZATION'));
 
+  /* Where the customer came from is chosen on the form; no project is assumed. */
+  const origin = /^[1-9][0-9]*$/.test(String(body.origin_project_id || ''))
+    ? await db('crm_project').where({ project_id: body.origin_project_id, status: 'ACTIVE' }).first('project_id') : null;
+  if (!origin) rules.assert([{ field: 'origin_project_id', message: 'Choose the project the customer came from' }]);
+
   const contacts = [];
-  if (body.mobile) contacts.push({ contact_type: 'MOBILE', contact_value: body.mobile, source_project_id: crystal });
-  if (body.email) contacts.push({ contact_type: 'EMAIL', contact_value: body.email, source_project_id: crystal });
+  if (body.mobile) contacts.push({ contact_type: 'MOBILE', contact_value: body.mobile, source_project_id: origin.project_id });
+  if (body.email) contacts.push({ contact_type: 'EMAIL', contact_value: body.email, source_project_id: origin.project_id });
 
   const party = await transaction(async function (trx) {
     const created = await createParty(trx, Object.assign({}, body, {
-      origin_project_id: body.origin_project_id || crystal,
+      origin_project_id: origin.project_id,
       contacts: contacts
     }));
     return created;
@@ -588,6 +592,22 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       .update({ match_status: 'ACCEPTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
 
     await trx('crm_registration_intake').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId });
+    /* E-shop identifiers still waiting for review were proposed for the merged customer: propose them for the survivor. */
+    const proposals = (await trx('crm_registration_intake').where({ category: 'ESHOP', status: 'PENDING' }).select('intake_id', 'candidates'))
+      .filter(function (row) { return (row.candidates || []).some(function (candidate) { return String(candidate.party_pk) === String(mergedPartyId); }); });
+    for (let index = 0; index < proposals.length; index += 1) {
+      const seen = new Set();
+      const candidates = (proposals[index].candidates || []).map(function (candidate) {
+        return String(candidate.party_pk) === String(mergedPartyId) ? Object.assign({}, candidate, { party_pk: String(survivorPartyId), display_name: survivor.display_name }) : candidate;
+      }).filter(function (candidate) {
+        const key = String(candidate.party_pk || 'intake:' + candidate.intake_id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await trx('crm_registration_intake').where('intake_id', proposals[index].intake_id).update({ candidates: JSON.stringify(candidates) });
+    }
     await trx('crm_identity_resolution').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId, acknowledged_at: null });
     await trx('crm_party').where('party_pk', mergedPartyId).update({
       party_status: 'MERGED', merged_into_party_pk: survivorPartyId

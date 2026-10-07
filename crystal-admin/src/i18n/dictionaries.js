@@ -537,7 +537,7 @@ const en = {
     crmPoints: 'Reward points',
     crmEvents: 'Events',
     crmSites: 'Service network',
-    crmSiteActivity: 'Location activity',
+    crmSiteActivity: 'Service center activity',
     crmSegments: 'Segments',
     crmCampaigns: 'Campaigns',
     crmSettings: 'CRM basic data'
@@ -1680,7 +1680,7 @@ const zh = {
     crmPoints: '奖励积分',
     crmEvents: '活动',
     crmSites: '服务网络',
-    crmSiteActivity: '网点业务记录',
+    crmSiteActivity: '服务中心业务',
     crmSegments: '客户分群',
     crmCampaigns: '营销活动',
     crmSettings: 'CRM 基础数据'
@@ -2834,7 +2834,7 @@ const ru = {
     crmPoints: 'Бонусные баллы',
     crmEvents: 'Мероприятия',
     crmSites: 'Сервисная сеть',
-    crmSiteActivity: 'Деятельность на точках',
+    crmSiteActivity: 'Деятельность сервисных центров',
     crmSegments: 'Сегменты',
     crmCampaigns: 'Кампании',
     crmSettings: 'Базовые данные CRM'

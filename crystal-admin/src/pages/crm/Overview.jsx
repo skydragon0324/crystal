@@ -173,7 +173,7 @@ export default function Overview() {
           onClick={() => history.push('/admin/crm/events')}
         />
         <StatTile
-          label="Location activity (30 days)" value={number(sites.activities_30d)} icon={Md.MdTimeline}
+          label="Service center activity (30 days)" value={number(sites.activities_30d)} icon={Md.MdTimeline}
           hint={translate('crm.overview.sitesAndEvents', { sites: number(sites.active), events: number(sites.events_ahead) })}
           onClick={() => history.push('/admin/crm/site-activity')}
         />

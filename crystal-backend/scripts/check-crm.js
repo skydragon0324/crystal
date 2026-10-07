@@ -97,16 +97,16 @@ async function main() {
 
   console.log('\ncustomers');
   const mobile = '+86 139 ' + String(Date.now()).slice(-8);
-  const personAda = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile }));
+  const personAda = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile }));
 
   let review;
   await check('a 65-point match is staged without creating a party', async function () {
-    review = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile.replace(/ /g, ''), confirm_not_duplicate: true }));
+    review = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'PERSON', full_name: RUN + ' Ada', mobile: mobile.replace(/ /g, ''), confirm_not_duplicate: true }));
     return review.outcome === 'QUEUED' && !review.party_pk && !!review.intake_id;
   });
   // Explicit reviewed registration creates a second record for the legacy merge test below.
   const personAdaDuplicate = data(await admin.post('/crm/identity-intakes/' + review.intake_id + '/decide', { action: 'NEW' }));
-  const personBo = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Bo', email: RUN.toLowerCase() + '@example.com' }));
+  const personBo = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'PERSON', full_name: RUN + ' Bo', email: RUN.toLowerCase() + '@example.com' }));
 
   await check('a person is given a job from the job list and marked as checked by hand', async function () {
     const meta = data(await admin.get('/crm/meta'));
@@ -121,7 +121,9 @@ async function main() {
     return person.is_checked_manually === true ? true : 'not checked';
   });
 
-  const SHEET_HEADER = ['E-shop PK', 'E-shop ID', 'Full name', 'Gender', 'Birthday', 'Mobile', 'Location ID', 'Address', 'Job title ID', 'Email'];
+  const SHEET_HEADER = ['E-shop PK', 'E-shop ID', 'User PK', 'User ID', 'Full name', 'Gender', 'Birthday', 'Mobile', 'Location ID', 'Address', 'Job title ID'];
+  /* Each person's user-management account follows their e-shop account. */
+  const userPkOf = function (pk) { return pk ? String(Number(pk) + 500000000) : ''; };
   let eshopPk = null;
   let sheetPartyPk = null;
   await check('an Excel sheet checks matching rows and stages uncertain matches', async function () {
@@ -137,13 +139,14 @@ async function main() {
     const jobId = (lists.job_titles || []).filter(function (job) { return job.is_active; })[0].job_title_id;
     eshopPk = String(Date.now()).slice(-9);
     // Every row is complete; rows 1 and 3 are the same person with the same e-shop account.
-    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, '1 ' + RUN + ' Road', jobId, '']);
-    sheet.addRow([String(Number(eshopPk) + 1), RUN.toLowerCase() + '-ada', RUN + ' Ada', 'M', '1985-01-20', mobile, placeId, '9 ' + RUN + ' Lane', jobId, '']);
-    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh.replace(/ /g, ''), placeId, '1 ' + RUN + ' Road', '', '']);
+    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', userPkOf(eshopPk), RUN.toLowerCase() + '-user-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, '1 ' + RUN + ' Road', jobId]);
+    sheet.addRow([String(Number(eshopPk) + 1), RUN.toLowerCase() + '-ada', userPkOf(Number(eshopPk) + 1), RUN.toLowerCase() + '-user-ada', RUN + ' Ada', 'M', '1985-01-20', mobile, placeId, '9 ' + RUN + ' Lane', jobId]);
+    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', userPkOf(eshopPk), RUN.toLowerCase() + '-user-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh.replace(/ /g, ''), placeId, '1 ' + RUN + ' Road', '']);
     const buffer = await book.xlsx.writeBuffer();
     const send = function (dryRun) {
       const form = new FormData();
       form.append('file', Buffer.from(buffer), { filename: 'people.xlsx' });
+      form.append('origin_project_id', String(crystal.project_id));
       return admin.post('/crm/parties/import' + (dryRun ? '?dry_run=1' : ''), form, { headers: form.getHeaders() });
     };
 
@@ -159,12 +162,14 @@ async function main() {
     return true;
   });
 
-  await check('spreadsheet e-shop identifiers are staged for review, not linked', async function () {
+  await check('spreadsheet e-shop and user identifiers are staged for review, not linked', async function () {
     const detail = data(await admin.get('/crm/parties/' + sheetPartyPk));
     const linked = (detail.accounts || []).filter(function (account) { return account.external_account_id === eshopPk && !account.unlinked_at; });
     if (linked.length) return 'committed as an account';
     const listed = data(await admin.get('/crm/parties/' + sheetPartyPk + '/unverified-accounts'));
-    if (listed.length !== 1 || listed[0].external_account_id !== eshopPk || listed[0].review_status !== 'PENDING') return 'listed ' + JSON.stringify(listed);
+    const listedEshop = listed.filter(function (row) { return row.external_account_id === eshopPk; })[0];
+    const listedUser = listed.filter(function (row) { return row.external_account_id === userPkOf(eshopPk); })[0];
+    if (listed.length !== 2 || !listedEshop || !listedUser || listedEshop.review_status !== 'PENDING' || listedUser.review_status !== 'PENDING') return 'listed ' + JSON.stringify(listed);
     const queue = data(await admin.get('/crm/identity-intakes', { params: { category: 'ESHOP', limit: 100 } }));
     const assignment = queue.rows.filter(function (row) { return row.source_record_id === eshopPk; })[0];
     if (!assignment || String(assignment.candidates[0].party_pk) !== String(sheetPartyPk)) return 'not in the e-shop queue';
@@ -172,7 +177,8 @@ async function main() {
     const after = data(await admin.get('/crm/parties/' + sheetPartyPk));
     const assigned = (after.accounts || []).filter(function (account) { return account.external_account_id === eshopPk && !account.unlinked_at; });
     const relisted = data(await admin.get('/crm/parties/' + sheetPartyPk + '/unverified-accounts'));
-    return assigned.length === 1 && relisted[0].review_status === 'ASSIGNED' ? true : 'assignment did not link the account';
+    const relistedEshop = relisted.filter(function (row) { return row.external_account_id === eshopPk; })[0];
+    return assigned.length === 1 && relistedEshop && relistedEshop.review_status === 'ASSIGNED' ? true : 'assignment did not link the account';
   });
 
   /* What the forms may not save: each refusal is a 400 naming the field. */
@@ -187,10 +193,10 @@ async function main() {
     }
   };
   await check('a new customer needs a name', function () {
-    return refusedField(admin.post('/crm/parties', { party_type: 'PERSON', display_name: '  ', mobile: '+86 135 0000 0001' }), 'display_name');
+    return refusedField(admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'PERSON', display_name: '  ', mobile: '+86 135 0000 0001' }), 'display_name');
   });
   await check('a mobile that is not a phone number is refused', function () {
-    return refusedField(admin.post('/crm/parties', { party_type: 'PERSON', display_name: RUN + ' Bad Mobile', mobile: 'call me' }), 'mobile');
+    return refusedField(admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'PERSON', display_name: RUN + ' Bad Mobile', mobile: 'call me' }), 'mobile');
   });
   await check('a birthday in the future is refused', function () {
     return refusedField(admin.put('/crm/parties/' + personBo.party_pk, { birth_date: '2999-01-01' }), 'birth_date');
@@ -205,23 +211,25 @@ async function main() {
     return refusedField(admin.post('/crm/parties/' + personBo.party_pk + '/contacts', { contact_type: 'EMAIL', contact_value: 'not-an-email' }), 'contact_value');
   });
 
-  await check('a sheet with a bad row is refused as a whole, every bad row listed', async function () {
+  await check('bad rows do not stop a sheet: each is kept as an import error with its reasons', async function () {
     const ExcelJS = require('exceljs');
     const FormData = require('form-data');
     const book = new ExcelJS.Workbook();
     const sheet = book.addWorksheet('Customers');
     sheet.addRow(SHEET_HEADER);
-    sheet.addRow(['77', 'bad-one', RUN + ' Bad One', 'X', '1990-01-01', '+86 136 ' + String(Date.now() + 11).slice(-8), 1, '2 Road', 999999, '']);
-    sheet.addRow(['', '', '', '', '', '123', '', '', '', '']);
+    sheet.addRow(['77', 'bad-one', '78', 'bad-user', RUN + ' Bad One', 'X', '1990-01-01', '+86 136 ' + String(Date.now() + 11).slice(-8), 1, '2 Road', 999999]);
+    sheet.addRow(['', '', '', '', '', '', '', '123', '', '', '']);
     const form = new FormData();
     form.append('file', Buffer.from(await book.xlsx.writeBuffer()), { filename: 'bad.xlsx' });
-    try {
-      await admin.post('/crm/parties/import', form, { headers: form.getHeaders() });
-      return 'accepted';
-    } catch (err) {
-      const rows = (err.response && err.response.data && err.response.data.detail) || [];
-      return err.response && err.response.status === 400 && rows.length === 2 ? true : 'got ' + JSON.stringify(rows);
-    }
+    form.append('origin_project_id', String(crystal.project_id));
+    const done = data(await admin.post('/crm/parties/import', form, { headers: form.getHeaders() }));
+    if (done.summary.error !== 2 || done.summary.created !== 0) return 'summary ' + JSON.stringify(done.summary);
+    const kept = data(await admin.get('/crm/import-errors', { params: { limit: 100 } }));
+    const mine = kept.rows.filter(function (row) { return row.file_name === 'bad.xlsx' && (row.cells.full_name === RUN + ' Bad One' || row.cells.mobile === '123'); });
+    if (mine.length !== 2 || !mine.every(function (row) { return (row.errors || []).length > 0; })) return 'kept ' + JSON.stringify(mine);
+    await admin.post('/crm/import-errors/' + mine[0].import_error_id + '/dismiss');
+    const after = data(await admin.get('/crm/import-errors', { params: { limit: 100 } }));
+    return after.rows.some(function (row) { return row.import_error_id === mine[0].import_error_id; }) ? 'not dismissed' : true;
   });
 
   await check('a new customer exposes its numeric party_pk', function () {
@@ -562,8 +570,8 @@ async function main() {
   });
 
   console.log('\ncustomer 360');
-  const parentOrg = data(await admin.post('/crm/parties', { party_type: 'ORGANIZATION', legal_name: RUN + ' Group', trading_name: RUN + ' Group' }));
-  const childOrg = data(await admin.post('/crm/parties', { party_type: 'ORGANIZATION', legal_name: RUN + ' Shop', trading_name: RUN + ' Shop' }));
+  const parentOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', legal_name: RUN + ' Group', trading_name: RUN + ' Group' }));
+  const childOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', legal_name: RUN + ' Shop', trading_name: RUN + ' Shop' }));
   await check('the record\'s figures answer for a person and an organization', async function () {
     const personView = data(await admin.get('/crm/parties/' + personAda.party_pk + '/360'));
     const orgView = data(await admin.get('/crm/parties/' + childOrg.party_pk + '/360'));

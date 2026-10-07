@@ -10,7 +10,7 @@ const { publicParty } = require('./partyId');
 async function lock(trx) { await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', ['crm_identity_registration']); }
 // Request-scoped only. For writes, build this after taking the registration
 // lock and refresh affected evidence after every submission in that transaction.
-async function candidateContext(trx, people) {
+async function candidateContext(trx, people, options) {
  const persons = duplicates.createIndex(); const pending = duplicates.createIndex();
  const existing = await duplicates.loadCandidates(people, { trx });
  existing.forEach(row => persons.set(String(row.party_pk), row));
@@ -18,7 +18,7 @@ async function candidateContext(trx, people) {
  const addPending = row => pending.set(String(row.intake_id), Object.assign({}, row.payload.party, { intake_id: row.intake_id }));
  staged.forEach(addPending);
  return {
-  persons, pending,
+  persons, pending, scoring: options || {},
   async refresh(result) {
    if (result.party_pk) {
     const rows = await duplicates.loadCandidates([], { trx, partyPk: result.party_pk });
@@ -31,12 +31,13 @@ async function candidateContext(trx, people) {
  };
 }
 async function candidates(trx, data, context) {
- const found = context ? duplicates.rank(data, context.persons.find(data)) : await duplicates.findSimilar(data, { trx });
+ const scoring = context ? context.scoring : {};
+ const found = context ? duplicates.rank(data, context.persons.find(data), scoring) : await duplicates.findSimilar(data, { trx });
  const pending = context ? context.pending.find(data).map(party => ({ intake_id: party.intake_id, payload: { party } }))
   : await trx('crm_registration_intake').where({ status: 'PENDING', category: 'PERSON' });
  pending.forEach(row => {
-  const match = duplicates.score(data, row.payload.party);
-  if (match.score > 40) found.push(Object.assign({ intake_id: row.intake_id, display_name: row.payload.party.full_name || row.payload.party.display_name }, match));
+  const match = duplicates.score(data, row.payload.party, scoring);
+  if (match.score >= duplicates.REVIEW_FROM) found.push(Object.assign({ intake_id: row.intake_id, display_name: row.payload.party.full_name || row.payload.party.display_name }, match));
  });
  return found.sort((a,b) => b.score-a.score);
 }
@@ -51,7 +52,13 @@ async function addEvidence(trx, partyPk, data) {
   if (patch.birth_date && current.birth_year == null) patch.birth_year = Number(String(patch.birth_date).slice(0,4));
   if (Object.keys(patch).length) await trx('crm_person').where('party_pk', partyPk).update(patch);
  }
- for (const item of (data.contacts || [])) if (item && item.contact_value) await parties.insertContact(trx, partyPk, item);
+ // A merged person keeps every phone: numbers the customer already has are
+ // skipped by insertContact, new ones are added. A bare `mobile` with no
+ // matching contact row is added as well, so no entry path can lose it.
+ const contacts = (data.contacts || []).filter(item => item && item.contact_value);
+ const digits = value => String(value || '').replace(/\D/g, '');
+ if (data.mobile && !contacts.some(item => digits(item.contact_value) === digits(data.mobile))) contacts.push({ contact_type: 'MOBILE', contact_value: data.mobile });
+ for (const item of contacts) await parties.insertContact(trx, partyPk, item);
 }
 async function attachAccount(trx, partyPk, account, reviewed) {
  if (!account) return;
@@ -109,7 +116,7 @@ async function submit(trx, data, options) {
   if (!found.some(row => String(row.party_pk) === String(hint.party_pk))) found.push(Object.assign({ reason: 'Unverified project assignment' }, hint));
  });
  const [intake] = await trx('crm_registration_intake').insert({ source_project_id: project, source_record_id: source, category, payload: JSON.stringify({ party: data, account: opts.account || null, unverified_accounts: opts.unverified_accounts || [] }), candidates: JSON.stringify(found) }).returning('*');
- const strong = found.filter(row => row.score >= 70);
+ const strong = found.filter(row => row.score >= duplicates.MERGE_FROM);
  if (category !== 'ESHOP' && strong.length === 1 && strong[0].party_pk) {
   const party = await trx('crm_party').where('party_pk', strong[0].party_pk).first();
   return finish(trx, intake, party, 'MERGED');
@@ -124,6 +131,14 @@ async function list(filters) {
  const base = db('crm_registration_intake as intake').leftJoin('crm_project as project', 'project.project_id', 'intake.source_project_id');
  if (filters.status === 'RESOLVED') base.whereNot('intake.status', 'PENDING'); else base.where('intake.status', 'PENDING');
  if (filters.category) base.where('intake.category', filters.category);
+ // One box searches the registration number, the customer number, the source project and record, and
+ // everything the registration carried - name, phones, birthday, address, e-shop and user identifiers.
+ const term = String(filters.q || '').trim();
+ if (term) base.where(function () {
+  this.whereRaw('intake.intake_id::text = ?', [term]).orWhereRaw('intake.party_pk::text = ?', [term])
+   .orWhere('intake.source_record_id', 'ilike', '%' + term + '%').orWhere('project.project_name', 'ilike', '%' + term + '%')
+   .orWhereRaw('intake.payload::text ILIKE ?', ['%' + term + '%']).orWhereRaw('intake.candidates::text ILIKE ?', ['%' + term + '%']);
+ });
  const [count, rows] = await Promise.all([base.clone().count({ total: '*' }).first(), base.clone().select('intake.*','project.project_name').orderBy('intake.created_at','desc').limit(limit).offset((page-1)*limit)]);
  return { rows, total: Number(count.total), page, limit };
 }
@@ -198,6 +213,89 @@ async function unverifiedAccounts(partyPk) {
   };
  });
 }
+// EVERYTHING A REVIEWER COMPARES, for one staged registration: the incoming
+// person's basic information with the project it came from and the
+// identifiers it carries, and the same for every candidate - a customer's
+// linked project accounts and the unverified identifiers an Excel import
+// listed for them, or another pending registration's own payload.
+async function detail(id) {
+ if (!/^[1-9][0-9]*$/.test(String(id || ''))) throw new HttpError(404, 'common.notFound');
+ const intake = await db('crm_registration_intake').where('intake_id', id).first();
+ if (!intake) throw new HttpError(404, 'common.notFound');
+ const candidates = intake.candidates || [];
+ const partyPks = candidates.filter(c => c.party_pk).map(c => String(c.party_pk));
+ const intakeIds = candidates.filter(c => !c.party_pk && c.intake_id).map(c => String(c.intake_id));
+ const [projects, jobs, places, persons, contacts, accounts, others] = await Promise.all([
+  db('crm_project').select('project_id', 'project_code', 'project_name'),
+  db('crm_job_title').select('job_title_id', 'job_name'),
+  db('crm_location').select('location_pk', db.raw(require('./locations').fullNameOf('crm_location.location_pk') + ' AS full_name')),
+  partyPks.length ? db('crm_party as party').leftJoin('crm_person as person', 'person.party_pk', 'party.party_pk').whereIn('party.party_pk', partyPks)
+   .select('party.party_pk', 'party.display_name', 'party.party_status', 'party.origin_project_id', 'person.full_name', 'person.gender_code',
+    'person.birth_date', 'person.birth_year', 'person.home_location_pk', 'person.address_line', 'person.job_title_id') : [],
+  partyPks.length ? db('crm_contact_point').whereIn('party_pk', partyPks).where('status', 'ACTIVE').orderBy([{ column: 'is_primary', order: 'desc' }, 'contact_point_id'])
+   .select('party_pk', 'contact_type', 'contact_value') : [],
+  partyPks.length ? db('crm_project_account').whereIn('party_pk', partyPks).whereNull('unlinked_at')
+   .select('party_pk', 'project_id', 'external_account_id', 'external_login') : [],
+  intakeIds.length ? db('crm_registration_intake').whereIn('intake_id', intakeIds).select('intake_id', 'source_project_id', 'payload') : []
+ ]);
+ const projectName = pid => { const p = projects.find(row => String(row.project_id) === String(pid)); return p ? p.project_name : null; };
+ const jobName = jid => { const j = jobs.find(row => String(row.job_title_id) === String(jid)); return j ? j.job_name : null; };
+ const placeName = lid => { const l = places.find(row => String(row.location_pk) === String(lid)); return l ? l.full_name : null; };
+ const identifier = (account, kind) => ({ project_id: account.project_id, project_name: projectName(account.project_id),
+  account_pk: account.external_account_id, account_id: account.external_login || null, kind });
+ // One person's basic information, the same shape for the incoming row and every candidate.
+ const basic = (person, phones, emails, originProjectId) => ({
+  full_name: person.full_name || person.display_name || null, gender_code: person.gender_code || null,
+  birth_date: person.birth_date || null, birth_year: person.birth_year || null,
+  phones: Array.from(new Set(phones.filter(Boolean))), emails: Array.from(new Set(emails.filter(Boolean))),
+  location_id: person.home_location_pk || null, location_name: placeName(person.home_location_pk),
+  address_line: person.address_line || null, job_title_name: jobName(person.job_title_id),
+  origin_project_name: projectName(originProjectId)
+ });
+ const fromPayload = (payload, sourceProjectId) => {
+  const party = payload.party || {};
+  const list = (party.contacts || []);
+  const ids = [];
+  if (payload.account) ids.push(identifier(Object.assign({ project_id: payload.account.project_id || sourceProjectId }, payload.account), 'INCOMING'));
+  (payload.unverified_accounts || []).forEach(account => ids.push(identifier(account, 'CANDIDATE')));
+  return {
+   person: basic(party, [party.mobile].concat(list.filter(c => ['MOBILE', 'PHONE'].includes(c.contact_type)).map(c => c.contact_value)),
+    [party.email].concat(list.filter(c => c.contact_type === 'EMAIL').map(c => c.contact_value)), party.origin_project_id || sourceProjectId),
+   identifiers: ids
+  };
+ };
+ const incoming = fromPayload(intake.payload || {}, intake.source_project_id);
+ const enriched = await Promise.all(candidates.map(async candidate => {
+  const base = { party_pk: candidate.party_pk || null, intake_id: candidate.intake_id || null, score: candidate.score, reason: candidate.reason,
+   evidence: candidate.evidence || [], display_name: candidate.display_name || null };
+  if (candidate.party_pk) {
+   const pk = String(candidate.party_pk);
+   const person = persons.find(row => String(row.party_pk) === pk) || {};
+   const own = contacts.filter(row => String(row.party_pk) === pk);
+   const linked = accounts.filter(row => String(row.party_pk) === pk);
+   // An Excel identifier that has since been verified is listed once, as linked.
+   const listed = (await unverifiedAccounts(pk)).filter(row => !linked.some(account =>
+    String(account.project_id) === String(row.project_id) && String(account.external_account_id) === String(row.external_account_id)));
+   return Object.assign(base, {
+    party_status: person.party_status || null,
+    person: basic(person, own.filter(c => ['MOBILE', 'PHONE'].includes(c.contact_type)).map(c => c.contact_value),
+     own.filter(c => c.contact_type === 'EMAIL').map(c => c.contact_value), person.origin_project_id),
+    // Linked project accounts, then the unverified identifiers an Excel import listed for this customer.
+    identifiers: linked.map(row => identifier(row, 'LINKED'))
+     .concat(listed.map(row => Object.assign(identifier({ project_id: row.project_id, external_account_id: row.external_account_id, external_login: row.external_login }, 'CANDIDATE'),
+      { review_status: row.review_status })))
+   });
+  }
+  const other = others.find(row => String(row.intake_id) === String(candidate.intake_id));
+  return Object.assign(base, other ? fromPayload(other.payload || {}, other.source_project_id) : { person: null, identifiers: [] });
+ }));
+ return {
+  intake_id: intake.intake_id, category: intake.category, status: intake.status, created_at: intake.created_at,
+  party_pk: intake.party_pk, source_project_name: projectName(intake.source_project_id), source_record_id: intake.source_record_id,
+  incoming: incoming, candidates: enriched
+ };
+}
+
 // Link or reject one of those identifiers from the customer record itself.
 // It goes through the same assignment review as Customers > E-shop
 // assignments; an identifier never staged for review is staged first.
@@ -218,4 +316,4 @@ async function decideUnverified(partyPk, body, actor) {
  }
  return decide(reviewId, body.action === 'LINK' ? { action: 'ASSIGN', party_pk: partyPk } : { action: 'REJECT' }, actor);
 }
-module.exports = { unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
+module.exports = { detail, unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };

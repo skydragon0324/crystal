@@ -223,3 +223,75 @@ please rewrite crm-logic.md and crm-database.md file
 it would be better to show databases as tables
 if it is difficult to make it as table on md file, please make doc file
 -----------------------------------
+When a row is clicked in the "Orders" or "Service" tabs, detailed information is displayed on the current page via a modal.
+However, this functionality has not been implemented for the "Product" tab.
+Similarly, this feature is missing when clicking a row in the "Overview" section.
+In the "Notes" tab, clicking a row under "Recent Activity" currently navigates to the transaction or a separate page to show the details; this needs to be modified so that the modal appears on the same page instead.
+
+Another issue arises when the modal closes: the background screen shifts position.
+For instance, when viewing details from the "Orders" tab and closing the modal, the orders page shifts to the right, centering the order list.
+This behavior is unnecessary and should be removed.
+
+Additionally, the "Recent Activity" list in the "Notes" tab currently extends vertically as items accumulate; it would be better to set a fixed height and implement scrolling if the content exceeds that limit.
+
+I am also unclear about the purpose of the `crm_project_api_key` table.
+Did you design this database structure because you were asked to design an API that allows user lookups across the relevant systems?
+The requirement was simply to create and distribute an API for those systems; I do not understand why this specific table was created.
+-----------------------------------------------
+In the detail modal for both "pending registrations" and "resolved registrations," phone numbers are currently being displayed as duplicates.
+
+Additionally, regarding the "pending registrations" tab: when a row is selected to open the modal and the list of candidates is extensive, scrolling is currently implemented for the entire modal; however, the header and footer should remain fixed, with scrolling applied only to the candidate list within the modal.
+
+During duplicate checks, if the name and date of birth match but the phone numbers differ, merging the records (performed by an administrator) must result in a single user profile that retains both phone numbers.
+Furthermore, if the two accounts being merged have different `eshop_pk` or `eshop_id` values, these values ​​must also be added to the user's record of previous e-shop accounts.
+In other words, a single `party_pk` may be associated with two or more `eshop_pk` and `eshop_id` values.
+------------------------------------------------
+The `address_text` field was originally added to facilitate searching; however, when viewing user details, both the address derived from `location_id` and the `address_text` are currently displayed. Consequently, if `address_text` exists, the same address is shown redundantly.
+When importing data from Excel, a `location_id` is included, yet the system uses the address field—rather than this ID—to check for duplicates.
+The duplicate check should be performed using the `location_id`.
+Additionally, the import process currently uses a hardcoded value of "crystal" for the `origin_project_id`; instead, the system should either allow the inclusion of the origin project name or ID in the Excel file or enable the administrator to select the value during the import process.
+In short, using a hardcoded value in the code is fundamentally incorrect.
+-------------------------------------------------
+When importing data from Excel, the `user_pk` and `user_id` from the user management system must also be included.
+Like the e-shop identifiers, these should not be added directly to `project_account` but instead displayed in a candidate list.
+Please update the Excel template to include fields for `user_pk` and `user_id`;
+the email field can be removed.
+Also, the system performs a file check during the import process; encountering errors at this stage should not prevent the addition of valid data.
+Rows with errors should be displayed in a separate tab, while valid new users should still be eligible for addition.
+In other words, no data should be saved to the database until the "Add New Users" button is clicked; instead, data should be displayed in tabs on the frontend. Upon clicking the button, new users should be added with newly generated `party_pk` values, while entries requiring administrator review and those with errors should be stored separately.
+Furthermore, after the file check, the interface should display the data across tabs labeled "New Customers," "Review Customers," and "Errors," allowing users to identify exactly which entries caused errors before proceeding with the addition.
+----------------------------------------------------------------------
+when importing data from excel, why do you create party_id
+we have party_id fields on crm_party table, but on phase 1, we won't use that party_id
+I want to add another condition to the duplicate check logic when importing Excel data.
+Since a single user can have multiple phone numbers, they currently appear as separate rows in the Excel file.
+Therefore, I want to automatically merge records for users who share the same basic information but have different phone numbers; when merging, all the phone numbers need to be included.
+
+in the last session, we updated the excel, adding user_id and user_pk, and you already updated crm_customers_sample.xlsx file, 
+but, you haven't updated downloaded template excel file
+when I download template, it still doesn't have user_pk and user_id fields,
+
+If manual verification is required, when the corresponding row is opened, you must display all basic information about the user, as well as the project name and identifier (ID, pk) based on the incoming path.
+
+Similarly, for duplicate candidate information, you must display the project name, the IDs associated with the projects, and candidate IDs (only users imported via Excel possess these candidate IDs) along with the basic information.
+-------------------------------------------------------------------------------
+what is source record in pending registrations tab on customers page?
+now, we only have search option on all customers tab on customers page, please add search options on other tabs on customers page
+The logic for duplicate detection should be as follows:
+Same phone number: +40
+Same name: +25
+Same date of birth: +25
+Same address ID: +15
+Same occupation: +5
+Score of 70 or higher: Automatic merge
+Score of 50–69: Manual review, merge, and registration
+Score of 50 or lower: Register as new
+Currently, the same user appears as two separate rows during Excel import because they use multiple phone numbers.
+Therefore, if the `user_pk` is the same, they should be automatically merged—eliminating the need to manually add a `project_account`—but the two phone numbers must be linked together.
+-------------------------------------------------------------------------------
+what is location activity? - if you mean "service center's activity, please update it as Service Center's activity
+
+event vs campaign vs program?
+-------------------------------------------------------------------------------
+please delete all data in the CRM related tables
+and let's add new data, first, I will manage basic data including projects list

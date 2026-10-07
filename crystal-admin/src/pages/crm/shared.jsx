@@ -60,7 +60,7 @@ export const WORDS = {
   RESERVATION: 'Reservation', LOTTERY: 'Lottery', PRIZE_SERVICE: 'Prize service', PUZZLE: 'Puzzle',
   SURVEY_REWARD: 'Survey reward', EVENT_ATTENDANCE: 'Event attendance',
   SEGMENT: 'Segment', POINT_RANKING: 'Points ranking', CORPORATE_GRADE: 'Corporate grade',
-  PRODUCT_REGISTRATION: 'Product registration', LOCATION_ACTIVITY: 'Location activity', MANUAL: 'By hand',
+  PRODUCT_REGISTRATION: 'Product registration', SERVICE_CENTER_ACTIVITY: 'Service center activity', MANUAL: 'By hand',
   RANKING: 'Ranking', GRADE: 'Grade', REGISTRATION: 'Registration', LOCATION: 'Service location',
   NORMAL: 'Normal', REWARD: 'Reward',
   DELIVERABLE_GOODS: 'Goods to deliver', PICKUP_GOODS: 'Goods to collect', PRODUCT_COUPON: 'Product coupon',
@@ -331,6 +331,16 @@ export function Pending({ loading }) {
 }
 
 /** A customer as screens show it: its party_pk. */
+/**
+ * A person's address, shown once. The address text is the full written
+ * address (kept for search), so when there is one it is shown alone; the
+ * location name from the location list is only the fallback. Showing both
+ * printed the town twice.
+ */
+export function homeAddress(addressLine, locationName) {
+  return addressLine || locationName || '';
+}
+
 export function partyIdLabel(partyId) {
   return partyId || '';
 }

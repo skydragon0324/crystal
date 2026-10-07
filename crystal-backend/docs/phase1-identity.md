@@ -15,16 +15,17 @@ The same matcher serves console registration, Excel, and project adapters:
 | Same phone | 40 |
 | Same name | 25 |
 | Same full birthday | 25 |
-| Same home address | 15 |
+| Same home location (Location ID) | 15 |
 | Same occupation/job title | 5 |
 
-Missing values never match. Names and addresses ignore case and repeated
-whitespace. Phone punctuation is ignored; country prefixes are preserved.
-An address includes its location when supplied; a location alone is not an
-address. A birth year alone earns no birthday points.
+Missing values never match. Names ignore case and repeated whitespace. Phone
+punctuation is ignored; country prefixes are preserved. The home location is
+compared by its ID on the vendor location list; the written address text is
+kept for search and display and is not compared. A birth year alone earns no
+birthday points.
 
-- 0–40: create a party.
-- 41–69: stage the input without creating a party.
+- below 50: create a party.
+- 50–69: stage the input without creating a party.
 - 70–110: merge into a unique strong existing match. Multiple strong matches,
   or a match to an unresolved intake, remain staged for review.
 
@@ -85,8 +86,8 @@ SHA-256 of a key is stored.
   duplicate check, then returns `{ outcome, party_pk, intake_id }`:
   - account already linked: `EXISTING` with its `party_pk`;
   - one match of 70+: `MERGED`, account added to that customer;
-  - nothing above 40: `CREATED`, new customer with the account;
-  - 41–69 or conflicting strong matches: `QUEUED` with `party_pk: null`; the
+  - nothing of 50 or more: `CREATED`, new customer with the account;
+  - 50–69 or conflicting strong matches: `QUEUED` with `party_pk: null`; the
     account is added when an administrator decides.
 
   This applies to the e-shop too. Only legacy e-shop links taken from vendor

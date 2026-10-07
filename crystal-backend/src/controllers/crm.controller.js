@@ -221,7 +221,7 @@ module.exports = {
     },
     duplicates: async function (req, res) {
       const paging = readPaging(req.query, [], 'id');
-      return page(res, await parties.pendingCandidates(paging), paging);
+      return page(res, await parties.pendingCandidates(paging, req.query), paging);
     },
     scanDuplicates: async function (req, res) { return ok(res, await parties.scanDuplicates(req.actor)); },
     /* People already on file who look like the one being typed into the "new customer" form. */
@@ -233,8 +233,10 @@ module.exports = {
     importPeople: async function (req, res) {
       if (!req.file) throw new HttpError(400, 'crm.chooseAFile');
       const dryRun = String(req.query.dry_run || '') === '1' || req.query.dry_run === 'true';
-      if (dryRun) return ok(res, await personImport.preview(req.file.buffer));
-      return ok(res, await personImport.importPeople(req.file.buffer, req.actor), 'common.imported');
+      // The origin project chosen on the import screen, for rows whose Origin project cell is empty.
+      const options = { origin_project_id: (req.body && req.body.origin_project_id) || req.query.origin_project_id, file_name: req.file.originalname };
+      if (dryRun) return ok(res, await personImport.preview(req.file.buffer, options));
+      return ok(res, await personImport.importPeople(req.file.buffer, req.actor, options), 'common.imported');
     },
     importTemplate: async function (req, res) {
       const buffer = await personImport.template();

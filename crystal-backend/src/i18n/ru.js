@@ -364,6 +364,7 @@ module.exports = {
     thisIdCardHasAnEntry: 'по этому удостоверению уже есть запись в мероприятии',
     thisPartyWasMerged: 'этот клиент объединён с другим',
     chooseAGrade: 'выберите один из действующих корпоративных рейтингов',
+    chooseAnActiveOriginProject: 'выберите действующий проект как проект-источник',
     thisProductAlreadyHasAnOwner: 'этот товар уже принадлежит клиенту {holder}',
     thisProductIsOutOfService: 'товар аннулирован или списан',
     thisQuotaIsInUse: 'квота используется, удалить нельзя',

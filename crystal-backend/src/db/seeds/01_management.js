@@ -156,7 +156,7 @@ const PAGES = [
   ['/admin/crm/points', 'Reward points', 'MdStars', '/admin/crm'],
   ['/admin/crm/events', 'Events', 'MdEventAvailable', '/admin/crm'],
   ['/admin/crm/sites', 'Service network', 'MdPlace', '/admin/crm'],
-  ['/admin/crm/site-activity', 'Location activity', 'MdTimeline', '/admin/crm'],
+  ['/admin/crm/site-activity', 'Service center activity', 'MdTimeline', '/admin/crm'],
   ['/admin/crm/settings', 'CRM basic data', 'MdSettingsApplications', '/admin/crm']
 ];
 

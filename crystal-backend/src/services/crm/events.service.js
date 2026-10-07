@@ -36,7 +36,7 @@ const { searchId } = require('./partyId');
 const PAGE = '/admin/crm/events';
 
 const TYPES = ['RESERVATION', 'LOTTERY', 'PRIZE_SERVICE', 'PUZZLE', 'SURVEY_REWARD', 'EVENT_ATTENDANCE'];
-const BASES = ['SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'LOCATION_ACTIVITY', 'MANUAL', 'IMPORT', 'OPEN'];
+const BASES = ['SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'SERVICE_CENTER_ACTIVITY', 'MANUAL', 'IMPORT', 'OPEN'];
 
 const FLOW = {
   DRAFT: ['APPROVED', 'CANCELLED'],
@@ -498,8 +498,8 @@ async function buildTargets(eventId, actor) {
       break;
     }
 
-    case 'LOCATION_ACTIVITY': {
-      source = 'LOCATION';
+    case 'SERVICE_CENTER_ACTIVITY': {
+      source = 'SERVICE_CENTER';
       const typeId = rule.activity_code ? await vocabulary.idOf('crm_service_center_activity_type', rule.activity_code) : null;
       if (!typeId) throw new HttpError(409, 'crm.theRuleNeedsAnActivity');
       const since = Number(rule.since_days || 365);

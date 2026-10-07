@@ -39,7 +39,7 @@ Rules that run through everything:
 
 | Rule | What it means |
 |---|---|
-| `party_pk` is the customer key | All CRM foreign keys and department records use it. `crm_party.party_id` (a short public code) is kept but not used for links yet. |
+| `party_pk` is the customer key | All CRM foreign keys and department records use it. `crm_party.party_id` is reserved for a later phase: nothing generates or reads it in phase 1, so it is empty. |
 | History is closed, not overwritten | Holdings, relationships, segment memberships and account links end with `valid_to` / `unlinked_at`. Ledgers (points, consent) are append-only. |
 | Every import can be re-run | Rows keep their source key (`source_record_id`, `external_*`, `crystal_*`), so a second run updates instead of duplicating. |
 | Permissions are per screen | Each console screen is a page in the permission grid with READ or WRITE. Shared pickers (find a customer, a site, a product) need READ on any CRM page and return names only. |
@@ -56,7 +56,7 @@ Rules that run through everything:
 | Memberships | Each customer's status and tier per project. | `memberships.service.js` |
 | Reward points | Point balances, the ledger, manual adjustments, point rules. | `ledger.js`, `points.service.js` |
 | Service cases | Repairs, complaints and enquiries from every project. | `cases.service.js` |
-| Sites / Site activity | Physical places, what they may do, what happened there, targets. | `sites.service.js` |
+| Sites / Service center activity | Physical places, what they may do, what happened there, targets. | `sites.service.js` |
 | Events | Customer activity events with targets, quotas, reservations and awards. | `events.service.js` |
 | Segments / Campaigns | Customer groups and outreach. | `marketing.service.js` |
 | Analysis | Analysis runs, snapshots, score model, grade bands. | `analysisRun.service.js`, `analysis.service.js` |
@@ -84,8 +84,11 @@ find the project; do that only deliberately.
 - A customer is a `crm_party` row (PERSON or ORGANIZATION) plus `crm_person` or `crm_organization` details. A
   trigger refuses person details on an organization and vice versa.
 - A person has a full name, gender, birth date (or year only), job title (`crm_job_title`), home location
-  (`crm_location`, the vendor location list), street address, and `is_checked_manually` (set when a manager has
-  reviewed the person by hand).
+  (`crm_location`, the vendor location list), a written address (`address_line`, free text kept for search), and
+  `is_checked_manually` (set when a manager has reviewed the person by hand).
+- The address is shown once: the written address when there is one, otherwise the location name.
+- The project a customer came from (`origin_project_id`) is always chosen - on the New customer form, or per Excel
+  row - and never assumed.
 - **Phone numbers and other contacts** are rows of `crm_contact_point`, one per value, so a customer can have any
   number of phones. `normalized_value` (digits only for phones) is used for matching and search.
 
@@ -118,15 +121,24 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 | Same phone (any of the person's phones; punctuation ignored, country prefix kept) | 40 |
 | Same name (case and repeated spaces ignored) | 25 |
 | Same full birth date (a year alone earns nothing) | 25 |
-| Same home address (street + location; a shared town alone is not an address) | 15 |
+| Same home location (the Location ID on the vendor list; the written address text is not compared) | 15 |
 | Same occupation (job title) | 5 |
 
 | Score | Outcome |
 |---|---|
-| 0-40 | Different person: a new customer is created. |
-| 41-69 | Uncertain: the person is **staged** in `crm_registration_intake` and **no customer is created** until an administrator decides. |
+| below 50 | Different person: a new customer is created. |
+| 50-69 | Uncertain: the person is **staged** in `crm_registration_intake` and **no customer is created** until an administrator decides. |
 | 70-110 | Same person: merged into that customer, **if exactly one** strong match exists and it is not itself a pending intake. Several strong matches, or a match to a pending intake, also go to review. |
 
+- **Excel imports only:** the same **User PK** (with the same User ID) is the same person whatever the phone, because
+  a sheet lists one row per phone number. Such rows are merged automatically (scored 70) and every phone is kept on
+  the one customer; the account is staged once. This also matches a customer who already carries that User PK - a
+  linked user-management account, or a candidate ID from an earlier import. Without it, the score table decides.
+- *Source record* on the review tabs is the key the registration has in the system it came from: the account id for a
+  department API registration, the identifier for an account assignment, "Excel row N" for a spreadsheet row (stored
+  as `excel:<file hash>:<row>`), and a dash for a console entry.
+- Every review tab (and Existing duplicate records, Import errors) has a search box: name, phone, birthday, an e-shop
+  or user identifier, the registration or customer number, or the source.
 - Matching also compares against pending intakes, so two uncertain copies of one person cannot both slip through.
 - All registrations take one database advisory lock, so two simultaneous submissions of the same person cannot both
   create a customer.
@@ -136,10 +148,11 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 
 | Tab | What is reviewed | Decisions |
 |---|---|---|
-| Pending registrations | Staged people with their candidates, scores and evidence. | *Merge into selected* (a customer, or a pending registration resolved first) or *Register as new*. |
-| E-shop assignments | E-shop identifiers waiting to be confirmed. | *Assign identifier* links the account to the chosen customer (link method REVIEWED); *Reject assignment* discards it. |
+| Pending registrations | Staged people with their candidates, scores and evidence. Opening one shows the incoming person's basic information (name, gender, birthday, every phone, location, address, job, origin project) with the project and identifiers (Account PK / ID) it came with, and the same for every candidate: its linked project accounts and the candidate IDs an Excel import listed for it. | *Merge into selected* (a customer, or a pending registration resolved first) or *Register as new*. |
+| Account assignments | E-shop and user-management identifiers waiting to be confirmed. | *Assign identifier* links the account to the chosen customer (link method REVIEWED); *Reject assignment* discards it. |
 | Resolved registrations | History of decisions; each is available to the originating department. | - |
 | Existing duplicate records | Pairs among existing customers (`crm_identity_match_candidate`), found by *Look for duplicates*. | Merge, or keep apart. |
+| Import errors | Rows of customer Excel imports that failed the file check (`crm_person_import_error`), with the cells as written and every reason. | Correct and import again, then *Dismiss*. |
 
 Merging two customers moves their accounts, contacts, products, cases and points to the survivor, records the move in
 `crm_party_merge_history` (so a wrong merge can be split again), and repoints department results to the survivor.
@@ -152,7 +165,7 @@ as the candidate. The customer's **Accounts** tab lists them under *Previously l
 whoever handles an identity inquiry can compare what the caller says with what the person used before.
 
 A manager with WRITE on Customers can decide each one **on the customer record itself**, without going to the
-E-shop assignments tab (`POST /parties/:id/unverified-accounts/decide`):
+Account assignments tab (`POST /parties/:id/unverified-accounts/decide`):
 
 | Action | Effect |
 |---|---|
@@ -171,17 +184,27 @@ Screen: **Customers > Import from Excel**. Code: `personImport.service.js`. Temp
 |---|:---:|---|
 | E-shop PK | yes | Becomes the Account PK of the e-shop identifier. |
 | E-shop ID | yes | Becomes the Account ID. |
+| User PK | yes | The customer's user_pk in the user management system (the PLATFORM project). Becomes the Account PK of that identifier. |
+| User ID | yes | The customer's user_id (login) there. Becomes the Account ID. |
 | Full name, Gender (M/F), Birthday (YYYY-MM-DD), Mobile | yes | Used by the duplicate check. |
-| Location ID, Address | yes | Location IDs come from the template's Locations sheet. |
-| Job title ID, Email | no | Job title IDs come from the template's Job titles sheet. |
+| Location ID, Address | yes | Location IDs come from the template's Locations sheet; the duplicate check compares the Location ID. The Address text is kept for search and display. |
+| Origin project | no | A project code or ID from the template's Projects sheet. Empty cells take the **origin project chosen on the import screen**; with neither, the row is an error. |
+| Job title ID | no | Job title IDs come from the template's Job titles sheet. |
 
-- Phase 1 loads only **complete** people who **already have an e-shop account**.
-- *Check the file* previews every row as NEW, DUPLICATE (same as a customer or an earlier row), REVIEW or ERROR and
-  writes nothing. A file with any error is not imported; every bad row is listed with its reasons.
+- Phase 1 loads only **complete** people who **already have an e-shop account and a user-management account**.
+- *Check the file* writes nothing. It sorts every row into tabs: **New customers**, **Review customers**, **Already
+  customers** (a unique 70+ match with someone on file, shown only when there is one) and **Errors** (every reason,
+  with the cells as written).
+- *Add new users* is offered as soon as any row is valid; errors do not block it. New rows become customers with a new
+  `party_pk`, review rows wait under *Pending registrations*, matches are merged, and error rows are kept in
+  `crm_person_import_error` and listed under **Customers > Import errors** until dismissed. Nothing is saved before
+  the button is clicked.
 - Rows are checked against the file itself, existing customers and pending registrations, with the same scoring. Two
-  rows with the same E-shop PK must be the same person (70+) with the same E-shop ID, otherwise it is an error.
+  rows with the same E-shop PK (or the same User PK) must be the same person (70+) with the same E-shop ID (or User
+  ID), otherwise it is an error.
 - Re-importing the same file is safe: each row's intake is keyed by the file's hash and row number.
-- The e-shop identifiers become *Previously linked identifiers* (section 5.5); they are not linked directly.
+- Both identifiers - e-shop and user management - become *Previously linked identifiers* (section 5.5) and wait under
+  **Account assignments**; neither is linked directly.
 
 ### 5.7 Department API (registration and lookup from other systems)
 
@@ -202,8 +225,8 @@ project always comes from the key, never from the request.
 |---|---|
 | `EXISTING` | This account is already linked; its `party_pk` is returned. |
 | `MERGED` | Matched one customer (70+); the account is linked to it. |
-| `CREATED` | No match above 40; a new customer is created with the account. |
-| `QUEUED` | 41-69 or conflicting matches; an administrator decides, then the account is linked. |
+| `CREATED` | No match of 50 or more; a new customer is created with the account. |
+| `QUEUED` | 50-69 or conflicting matches; an administrator decides, then the account is linked. |
 
 This is a pull integration: after a QUEUED registration is decided (or a customer is merged) the department reads the
 customer key from the feed, stores it and acknowledges. No webhook is sent. The e-shop uses the same rules; only legacy
@@ -323,9 +346,9 @@ Screen: **Service cases** (also opened in place from a customer's Service tab). 
 
 ## 11. Sites, events, segments and campaigns
 
-### 11.1 Sites and site activity
+### 11.1 Sites and service center activity
 
-Screens: **Sites**, **Site activity**. Code: `sites.service.js`.
+Screens: **Sites**, **Service center activity** (formerly "Location activity"). Code: `sites.service.js`.
 
 | Part | What it is |
 |---|---|
@@ -341,7 +364,7 @@ marketing outreach (that is a campaign) and not activity history.
 
 | Part | What it is |
 |---|---|
-| Targets | Who may take part and how many entries each may take, built from the eligibility basis: a segment, a points ranking (top N by balance at a cutoff date), a corporate grade (the effective grade, section 12.3), products registered, site activity, a manual list, an import, or open to everyone. Each target records why it qualified. |
+| Targets | Who may take part and how many entries each may take, built from the eligibility basis: a segment, a points ranking (top N by balance at a cutoff date), a corporate grade (the effective grade, section 12.3), products registered, service center activity (`SERVICE_CENTER_ACTIVITY`), a manual list, an import, or open to everyone. Each target records why it qualified. |
 | Tiers | Classes inside an event by qualifying value, each with entries per target and its own number range. |
 | Quotas | How many entries exist overall, per entry type (NORMAL / REWARD), per tier or per site. A quota can never be overbooked. |
 | Reservations | Numbered entries (prefix + number + suffix) with the holder's name, phone and a hash of their ID card (one card, one entry), from PENDING / RESERVED to PAID and FULFILLED at a pickup site. An entry may cost points; cancelling refunds them. |
@@ -425,7 +448,7 @@ Screen: **Overview > Import**. Every import only reads its source and can be re-
 ## 14. Settings and internal organization
 
 **Settings** edits the basic lists: projects, currencies, product classes, project tiers, point types and point event
-types, site activity types, case types, service statuses and the status map, priorities, issue, fault, root-cause and
+types, service center activity types, case types, service statuses and the status map, priorities, issue, fault, root-cause and
 resolution categories, corporate grades, relationship types, purchase purposes, usage and acquisition types,
 registration questions, channels, communication purposes and options, organization types, contact roles, industries,
 tags, job titles, locations (refreshed from the vendor), metric definitions and departments.

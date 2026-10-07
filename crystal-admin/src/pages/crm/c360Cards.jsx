@@ -9,8 +9,9 @@ import * as Md from 'react-icons/md';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, money, number } from '../../utils/format';
-import { word } from './shared';
+import { homeAddress, word } from './shared';
 import { ProjectTags } from './ui';
+import { usePeek } from './peek';
 import { Card360, Empty360, Facts360, Initials, MiniBars, Pill, RfmHexagon, Sparkline, Tile, TrendBadge } from './ui360';
 
 /**
@@ -169,13 +170,13 @@ export function AccountsCard({ view, onViewAll, title, icon, action }) {
 
 export function RecentOrdersCard({ view, onViewAll }) {
   const translate = useT();
-  const history = useHistory();
+  const peek = usePeek();
   return (
     <Card360 icon={Md.MdReceipt} title={translate('crm.c360.recentOrders')} onViewAll={onViewAll}>
       <MiniTable
         rows={view.recent_orders || []}
         rowKey={(row) => row.transaction_id}
-        onRowClick={(row) => history.push('/admin/crm/transactions?txn=' + row.transaction_id)}
+        onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
         empty="crm.customer.noPurchases"
         columns={[
           { key: 'external_transaction_id', label: 'Order number', maxW: '10rem',
@@ -192,13 +193,13 @@ export function RecentOrdersCard({ view, onViewAll }) {
 
 export function ProductsCard({ view, onViewAll, title }) {
   const translate = useT();
-  const history = useHistory();
+  const peek = usePeek();
   return (
     <Card360 icon={Md.MdDevicesOther} title={title || translate('crm.c360.products')} onViewAll={onViewAll}>
       <MiniTable
         rows={view.products || []}
         rowKey={(row) => row.product_registration_id}
-        onRowClick={(row) => history.push('/admin/crm/products?instance=' + row.product_instance_id)}
+        onRowClick={(row) => peek('PRODUCT', row.product_instance_id)}
         columns={[
           { key: 'product_name', label: 'Product', maxW: '11rem',
             render: (row) => (
@@ -220,7 +221,7 @@ export function ProductsCard({ view, onViewAll, title }) {
 /** Interactions, open and resolved cases, response and resolution times, satisfaction. */
 export function ServiceSummaryCard({ view, onViewAll, withRecentCases }) {
   const translate = useT();
-  const history = useHistory();
+  const peek = usePeek();
   const service = view.service || {};
   const monthly = service.monthly || [];
   return (
@@ -245,7 +246,7 @@ export function ServiceSummaryCard({ view, onViewAll, withRecentCases }) {
           <MiniTable
             rows={service.recent_cases || []}
             rowKey={(row) => row.case_id}
-            onRowClick={(row) => history.push('/admin/crm/service-cases?case=' + row.case_id)}
+            onRowClick={(row) => peek('CASE', row.case_id)}
             empty="crm.customer.noCases"
             columns={[
               { key: 'external_case_id', label: 'Case', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_case_id || '#' + row.case_id}</Text> },
@@ -324,7 +325,7 @@ export function ContactPointsCard({ view, record, onManage }) {
   const surface = useSurface();
   const reach = view.reach || {};
   const person = (record && record.person) || {};
-  const address = [person.address_line, view.profile && view.profile.home_full_name].filter(Boolean).join(', ');
+  const address = homeAddress(person.address_line, view.profile && view.profile.home_full_name);
   const consentRow = (channel) => (
     <Flex key={channel.channel_code} justify="space-between" align="center" py={0.5}>
       <ChannelLabel code={channel.channel_code} />

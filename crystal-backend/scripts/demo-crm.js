@@ -475,7 +475,7 @@ async function run(options) {
     }
     summary.tierChanges = tierChanges;
 
-    /* ---------------------------------------------------------------- location activity */
+    /* ---------------------------------------------------------------- service center activity */
 
     const visitType = byCode('activity_types', 'activity_code', 'CUSTOMER_VISIT');
     let visits = 0;
@@ -734,7 +734,7 @@ async function run(options) {
     const openDay = await attempt('open day event', async function () {
       return data(await admin.post('/crm/events', {
         event_code: 'DEMO-OPEN-DAY', event_name: 'Service centre open day', event_type: 'EVENT_ATTENDANCE', project_id: projectId('CRYSTAL'),
-        eligibility_basis: 'LOCATION_ACTIVITY', eligibility_rule: { activity_code: 'REPAIR_INTAKE', since_days: 365, min_count: 1 },
+        eligibility_basis: 'SERVICE_CENTER_ACTIVITY', eligibility_rule: { activity_code: 'REPAIR_INTAKE', since_days: 365, min_count: 1 },
         summary: 'Customers who brought a device in this year are invited to a behind-the-scenes tour.',
         starts_at: daysAhead(14), ends_at: daysAhead(15)
       }));

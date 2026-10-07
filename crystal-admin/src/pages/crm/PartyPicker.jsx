@@ -29,9 +29,9 @@ import { useT } from '../../i18n';
 const MIN_LETTERS = 2;
 const WAIT_MS = 300;
 
-/** A customer's address: the street line, then the place it is in. */
+/** A customer's address, once: the address text, or the place it is in when there is none. */
 export function partyAddress(party) {
-  return [party.address_line, party.home_place].filter(Boolean).join(' ');
+  return party.address_line || party.home_place || '';
 }
 
 /** A customer on one line: party_pk, name, home address, every phone - comma-separated. */

@@ -420,7 +420,7 @@ function Targets({ event, tierOptions, ask, run, tick }) {
   const pid = event.event_id;
   const inSetup = SETUP.indexOf(event.status) !== -1;
   const list = useList((params) => crm.events.targets(pid, params), { page: 1, limit: 20 });
-  const buildable = ['SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'LOCATION_ACTIVITY']
+  const buildable = ['SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'SERVICE_CENTER_ACTIVITY']
     .indexOf(event.eligibility_basis) !== -1;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

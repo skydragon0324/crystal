@@ -11,7 +11,7 @@ Every CRM table and view, field by field. Business rules and screens are explain
 
 | Topic | Rule |
 |---|---|
-| **Customer key** | `party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is a reserved public id and is not used for links yet. |
+| **Customer key** | `party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is reserved for a later phase and is not generated or used in phase 1. |
 | **Project** | `project_id` names the Dream project (business system) a row came from or belongs to: PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA, ... An external id is only unique inside its project. |
 | **Who did it** | `*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives. |
 | **History** | `valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it. |
@@ -29,13 +29,13 @@ shows the foreign key (→) and the values the column's CHECK constraint allows.
 | 1 | [Projects and integration](#1-projects-and-integration) | Each Dream business system is one project. Department systems call the CRM with a key issued to their project. | 4 |
 | 2 | [Customers (parties)](#2-customers-parties) | A party is anyone the CRM knows: a person or an organization. Every other customer table hangs off `crm_party.party_pk`. | 15 |
 | 3 | [Organizations](#3-organizations) | Extra facts about ORGANIZATION parties: what kind of organization it is, its industries, and the people who work there with their roles. | 7 |
-| 4 | [Identity resolution (duplicate check, review, department accounts)](#4-identity-resolution-duplicate-check-review-department-accounts) | How an incoming person becomes a customer: weighted duplicate check, staging for review, merges, and the link from each project account to its customer. See crm-logic.md, section 5. | 6 |
+| 4 | [Identity resolution (duplicate check, review, department accounts)](#4-identity-resolution-duplicate-check-review-department-accounts) | How an incoming person becomes a customer: weighted duplicate check, staging for review, merges, and the link from each project account to its customer. See crm-logic.md, section 5. | 7 |
 | 5 | [Communication and consent](#5-communication-and-consent) | What each project may send, through which channel and for which purpose, and what each customer agreed to. Consent changes are kept as an append-only history. | 5 |
 | 6 | [Products, registrations and transfers](#6-products-registrations-and-transfers) | The product catalogue, concrete product instances (by serial, IMEI or licence key), who holds each instance over time, and requests to hand an instance to someone else. | 13 |
 | 7 | [Transactions](#7-transactions) | Sales, purchases, refunds and reversals from every project, with their lines and the customers involved. | 3 |
 | 8 | [Memberships and points](#8-memberships-and-points) | Each customer membership and tier in each project, and the points ledger: one append-only ledger, one balance per point currency. | 8 |
 | 9 | [Service cases](#9-service-cases) | A summary of every service contact (repair, complaint, enquiry) from any project, with its status and classification. | 10 |
-| 10 | [Sites (service centres) and site activity](#10-sites-service-centres-and-site-activity) | Physical places (service centres, agencies, shops), what each may do, what happened there, and the targets set for them. | 7 |
+| 10 | [Sites (service centres) and service center activity](#10-sites-service-centres-and-service-center-activity) | Physical places (service centres, agencies, shops), what each may do, what happened there, and the targets set for them. | 7 |
 | 11 | [Events (formerly "programs")](#11-events-formerly-programs) | Customer activity events: phone reservations, lotteries, prize services, puzzles, survey rewards, attendance events. An event decides who may take part (targets), how many entries exist (quotas), and what is handed out (rewards and awards). | 9 |
 | 12 | [Segments and campaigns](#12-segments-and-campaigns) | Versioned rules that group customers, and campaigns that freeze an audience, contact it and measure the result. | 12 |
 | 13 | [Analysis](#13-analysis) | Figures computed per customer on each analysis run, the corporate score and grade bands, and custom metrics. | 5 |
@@ -61,7 +61,7 @@ Registry of Dream projects. Each project is one operational source system and th
 | **Used by** | Settings > Projects; every import and the department API look projects up by `project_code`. |
 | **Primary key** | `project_id` |
 | **Unique** | (project_code) |
-| **Code** | `src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, events.service, identity.service, ledger, marketing.service, memberships.service, organizations.service, parties.service, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service, vendorImport.service |
+| **Code** | `src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, events.service, identity.service, ledger, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service, vendorImport.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -176,11 +176,11 @@ Central identity root. Every person and organization known to Dream gets one par
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
 | `party_pk` (PK) | bigint | yes | `identity` |  | Phase 1 customer key used by CRM foreign keys, URLs and department records. |
-| `party_id` | varchar(32) | yes | `crm_new_party_id()` |  | Reserved public identifier; not used as a foreign key in phase 1. |
+| `party_id` | varchar(32) |  |  |  | Reserved public identifier for a later phase. Not generated or used in phase 1: customers are identified by party_pk. |
 | `party_type` | varchar(20) | yes |  | `PERSON`, `ORGANIZATION` | PERSON (details in crm_person) or ORGANIZATION (details in crm_organization). |
 | `party_status` | varchar(20) | yes | `'ACTIVE'` | `ACTIVE`, `INACTIVE`, `MERGED`, `DELETED` | ACTIVE / INACTIVE customers are usable; MERGED points to the survivor; DELETED is kept for history. |
 | `display_name` | varchar(250) |  |  |  | Name shown everywhere; for a person the full name, for an organization its trading or legal name. |
-| `origin_project_id` | int |  |  | → `crm_project.project_id` | Project through which the customer first reached the CRM (CRYSTAL for console and Excel entries). |
+| `origin_project_id` | int |  |  | → `crm_project.project_id` | Project through which the customer first reached the CRM: chosen on the console form, and per Excel row (its Origin project column, or the project chosen on the import screen). Never assumed. |
 | `merged_into_party_pk` | bigint |  |  | → `crm_party.party_pk` | When MERGED: the surviving customer. Required exactly when status is MERGED. |
 | `first_seen_at` | timestamptz |  |  |  | First known activity anywhere. |
 | `last_seen_at` | timestamptz |  |  |  | Latest known activity anywhere. |
@@ -211,8 +211,8 @@ Person-only attributes for a PERSON party.
 | `birth_date` | date |  |  |  | Full date of birth; used by the duplicate check (+25 when equal). |
 | `birth_year` | smallint |  |  |  | Year of birth, kept when only the year is known; must equal the year of birth_date when both are set. |
 | `job_title_id` | int |  |  | → `crm_job_title.job_title_id` | Occupation (→ crm_job_title); used by the duplicate check (+5). |
-| `home_location_pk` | bigint |  |  | → `crm_location.location_pk` | Home area on the vendor location list (→ crm_location); part of the home address. |
-| `address_line` | varchar(255) |  |  |  | Street address; with home_location_pk it is the home address used by the duplicate check (+15). |
+| `home_location_pk` | bigint |  |  | → `crm_location.location_pk` | Home area on the vendor location list (→ crm_location). Used by the duplicate check (+15 when the same location ID). |
+| `address_line` | varchar(255) |  |  |  | The written address, free text, kept for search and display. When set it is the address shown (instead of the location name). Not used by the duplicate check. |
 | `is_checked_manually` | bool | yes | `false` |  | true once a manager has reviewed this person by hand. Who and when is in audit_log. |
 | `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
 | `updated_at` | timestamptz | yes | `now()` |  | When the row was last changed. |
@@ -254,7 +254,7 @@ Reusable contact values of a party. Replaces comma-joined phone columns in the v
 | **Primary key** | `contact_point_id` |
 | **Unique** | (party_pk, contact_type, normalized_value)<br>(party_pk, contact_type, (partial: is_primary)) |
 | **Rules** | `CHECK (((valid_to IS NULL) OR (valid_from IS NULL) OR (valid_to >= valid_from)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: contact, customer360.service, engagement.service, marketing.service, parties.service, personDuplicates, search.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: contact, customer360.service, engagement.service, marketing.service, parties.service, personDuplicates, registrationIntake.service, search.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -282,7 +282,7 @@ The job titles a person can be given. Seeded from the vendor JOBS list; edited a
 | **Used by** | Settings > Job titles; customer form; Excel template "Job titles" sheet. |
 | **Primary key** | `job_title_id` |
 | **Unique** | (job_code)<br>(job_name) |
-| **Code** | `scripts/`: crm-customers-sample, demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: customer360.service, personImport.service, personRules |
+| **Code** | `scripts/`: crm-customers-sample, demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: customer360.service, personImport.service, personRules, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -301,7 +301,7 @@ The vendor location list (ora_pid.locations), same columns and keys. Province = 
 | **Used by** | Every location picker; refreshed by Overview > Import (step "locations"); Excel template "Locations" sheet. |
 | **Primary key** | `location_pk` |
 | **Unique** | (location_code) |
-| **Code** | `scripts/`: crm-customers-sample<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, customer360.service, locations, personRules, sites.service |
+| **Code** | `scripts/`: crm-customers-sample<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, customer360.service, locations, personRules, registrationIntake.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -681,11 +681,12 @@ How an incoming person becomes a customer: weighted duplicate check, staging for
 | Table | Kind | Purpose |
 |---|---|---|
 | [crm_project_account](#crm_project_account) | table | Links a party to the account id a project issues. Main cross-project identity map. |
-| [crm_registration_intake](#crm_registration_intake) | table | Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 41-69, or matches several strong candidates, waits here without creating a customer. |
+| [crm_registration_intake](#crm_registration_intake) | table | Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer. |
 | [crm_identity_resolution](#crm_identity_resolution) | table | Results departments collect: for each resolved intake, the customer key to store in the department's own record. Read through the department API and acknowledged once saved. |
 | [crm_identity_match_candidate](#crm_identity_match_candidate) | table | Uncertain matches waiting for review before an incoming record is linked to an existing party. |
 | [crm_party_merge_history](#crm_party_merge_history) | table | Audit of duplicate parties merged into a survivor. |
 | [crm_party_split_history](#crm_party_split_history) | table | Audit of a wrongly merged party being split again. |
+| [crm_person_import_error](#crm_person_import_error) | table | Customer Excel import rows that failed the file check, with the cells as written and every reason. Valid rows of the same file are imported. |
 
 ### crm_project_account
 
@@ -697,7 +698,7 @@ Links a party to the account id a project issues. Main cross-project identity ma
 | **Primary key** | `project_account_id` |
 | **Unique** | (project_id, external_account_id, (partial: (unlinked_at IS NULL))) |
 | **Rules** | `CHECK (((link_confidence >= (0)) AND (link_confidence <= (1))))`<br>`CHECK (((unlinked_at IS NULL) OR (unlinked_at >= linked_at)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, customer360.service, identity.service, marketing.service, parties.service, personImport.service, registrationIntake.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service, vendorImport.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -721,14 +722,14 @@ Links a party to the account id a project issues. Main cross-project identity ma
 
 ### crm_registration_intake
 
-Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 41-69, or matches several strong candidates, waits here without creating a customer.
+Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.
 
 | About | |
 |---|---|
 | **Used by** | Customers > Pending registrations / E-shop assignments / Resolved registrations; department API; Excel import. |
 | **Primary key** | `intake_id` |
 | **Unique** | (source_project_id, source_record_id, category) |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: parties.service, personImport.service, registrationIntake.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: parties.service, personDuplicates, personImport.service, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -840,6 +841,31 @@ Audit of a wrongly merged party being split again.
 | `split_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Manager who split. |
 | `split_at` | timestamptz | yes | `now()` |  | When. |
 | `split_metadata` | jsonb |  |  |  | Extra details. |
+
+### crm_person_import_error
+
+Customer Excel import rows that failed the file check, with the cells as written and every reason. Valid rows of the same file are imported.
+
+| About | |
+|---|---|
+| **Used by** | Customers > Import errors; written by the customer Excel import for rows that failed the file check. |
+| **Primary key** | `import_error_id` |
+| **Unique** | (batch_hash, row_number) |
+| **Code** | `src/services/crm/`: personImport.service |
+
+| Field | Type | Req. | Default | Links to / allowed values | Meaning |
+|---|---|:---:|---|---|---|
+| `import_error_id` (PK) | bigint | yes | `identity` |  | Failed-row key. |
+| `batch_hash` | char(64) | yes |  |  | SHA-256 of the imported file; with row_number it keeps a re-run of the same file from adding the row twice. |
+| `file_name` | varchar(255) |  |  |  | Name of the uploaded file. |
+| `row_number` | int | yes |  |  | Row in the sheet, as Excel numbers it (the header is row 1). |
+| `cells` | jsonb | yes |  |  | Every cell of the row as text, keyed by column (eshop_pk, eshop_id, user_pk, user_id, full_name, ...), as it was written. |
+| `errors` | jsonb | yes |  |  | Every reason the row failed the check. |
+| `status` | varchar(20) | yes | `'OPEN'` | `OPEN`, `DISMISSED` | OPEN until an administrator dismisses it (DISMISSED) - after importing the corrected row, or deciding it is not wanted. |
+| `imported_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Manager who ran the import. |
+| `dismissed_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Manager who dismissed the row. |
+| `dismissed_at` | timestamptz |  |  |  | When it was dismissed. |
+| `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
 
 ## 5. Communication and consent
 
@@ -1516,7 +1542,7 @@ Append-only point ledger for every currency. Generalises crm_membership_point_ev
 
 | About | |
 |---|---|
-| **Used by** | Points ledger (every earn, spend, adjustment); events; registrations; site activity. |
+| **Used by** | Points ledger (every earn, spend, adjustment); events; registrations; service center activity. |
 | **Primary key** | `point_event_id` |
 | **Unique** | (project_id, source_table_code, external_event_id, (partial: (external_event_id IS NOT NULL))) |
 | **Rules** | `CHECK ((points_delta <> (0)))` |
@@ -1536,7 +1562,7 @@ Append-only point ledger for every currency. Generalises crm_membership_point_ev
 | `related_product_registration_id` | bigint |  |  | → `crm_product_registration.product_registration_id` | Registration that earned it. |
 | `related_reservation_id` | bigint |  |  | → `crm_activity_reservation.reservation_id` | Event reservation this row relates to (→ crm_activity_reservation). |
 | `related_award_id` | bigint |  |  | → `crm_activity_award.award_id` | Event award this row relates to (→ crm_activity_award). |
-| `related_service_center_activity_id` | bigint |  |  | → `crm_service_center_activity.service_center_activity_id` | Site activity that earned it. |
+| `related_service_center_activity_id` | bigint |  |  | → `crm_service_center_activity.service_center_activity_id` | Service center activity that earned it. |
 | `performed_by_service_center_id` | bigint |  |  | → `crm_service_center.service_center_id` | Site that recorded it. |
 | `performed_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Manager who recorded it. |
 | `description` | varchar(500) |  |  |  | What it was for. |
@@ -1849,7 +1875,7 @@ Selectable resolutions.
 | `display_name` | varchar(150) | yes |  |  | Name shown in the console. |
 | `is_active` | bool | yes | `true` |  | false hides the row from pickers and new use; existing references stay valid. |
 
-## 10. Sites (service centres) and site activity
+## 10. Sites (service centres) and service center activity
 
 Physical places (service centres, agencies, shops), what each may do, what happened there, and the targets set for them.
 
@@ -1869,7 +1895,7 @@ A service centre, sales agency, collection point, partner shop, office or event 
 
 | About | |
 |---|---|
-| **Used by** | Sites screen; site activity; events (pickup sites); service cases; Crystal import (agencies). |
+| **Used by** | Sites screen; service center activity; events (pickup sites); service cases; Crystal import (agencies). |
 | **Primary key** | `service_center_id` |
 | **Unique** | (service_center_code)<br>(crystal_agency_id)<br>(source_table_code, source_service_center_key, (partial: (source_service_center_key IS NOT NULL))) |
 | **Rules** | `CHECK (((closed_on IS NULL) OR (opened_on IS NULL) OR (closed_on >= opened_on)))` |
@@ -1934,7 +1960,7 @@ Dictionary of activities that can happen at a site.
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
-| `activity_type_id` (PK) | smallint | yes | `identity` |  | Kind of site activity (→ crm_service_center_activity_type). |
+| `activity_type_id` (PK) | smallint | yes | `identity` |  | Kind of service center activity (→ crm_service_center_activity_type). |
 | `activity_code` | varchar(40) | yes |  |  | Stable code. |
 | `activity_name` | varchar(120) | yes |  |  | Name shown in the console. |
 | `activity_group` | varchar(30) | yes |  | `SERVICE`, `SALES`, `SOFTWARE`, `EVENT`, `MARKETING`, `OPERATIONS` | Area the activity belongs to. |
@@ -1959,7 +1985,7 @@ One activity or service actually performed at a site: a repair taken in, a devic
 |---|---|:---:|---|---|---|
 | `service_center_activity_id` (PK) | bigint | yes | `identity` |  | Activity key. |
 | `service_center_id` | bigint | yes |  | → `crm_service_center.service_center_id` | Site (service centre, agency, shop, ...) concerned (→ crm_service_center). |
-| `activity_type_id` | smallint | yes |  | → `crm_service_center_activity_type.activity_type_id` | Kind of site activity (→ crm_service_center_activity_type). |
+| `activity_type_id` | smallint | yes |  | → `crm_service_center_activity_type.activity_type_id` | Kind of service center activity (→ crm_service_center_activity_type). |
 | `project_id` | int |  |  | → `crm_project.project_id` | The Dream project this row belongs to (→ crm_project). |
 | `service_center_event_id` | bigint |  |  | → `crm_service_center_event.service_center_event_id` | On-site event it happened at. |
 | `occurred_at` | timestamptz | yes |  |  | When the thing happened in the real world (not when it was recorded). |
@@ -1995,7 +2021,7 @@ Per-site targets for a period: e.g. 40 repair intakes and 25 device sales in Oct
 |---|---|:---:|---|---|---|
 | `service_center_activity_target_id` (PK) | bigint | yes | `identity` |  | Target key. |
 | `service_center_id` | bigint | yes |  | → `crm_service_center.service_center_id (cascade delete)` | Site (service centre, agency, shop, ...) concerned (→ crm_service_center). |
-| `activity_type_id` | smallint | yes |  | → `crm_service_center_activity_type.activity_type_id` | Kind of site activity (→ crm_service_center_activity_type). |
+| `activity_type_id` | smallint | yes |  | → `crm_service_center_activity_type.activity_type_id` | Kind of service center activity (→ crm_service_center_activity_type). |
 | `period_start` | date | yes |  |  | First day. |
 | `period_end` | date | yes |  |  | Last day. |
 | `target_quantity` | numeric(12,3) |  |  |  | Quantity to reach. |
@@ -2053,7 +2079,7 @@ View: each site target with the activity done so far in its period.
 | `service_center_activity_target_id` | bigint |  |  |  | Target. |
 | `service_center_id` | bigint |  |  |  | Site (service centre, agency, shop, ...) concerned (→ crm_service_center). |
 | `service_center_name` | varchar(200) |  |  |  | Site name. |
-| `activity_type_id` | smallint |  |  |  | Kind of site activity (→ crm_service_center_activity_type). |
+| `activity_type_id` | smallint |  |  |  | Kind of service center activity (→ crm_service_center_activity_type). |
 | `activity_code` | varchar(40) |  |  |  | Activity code. |
 | `period_start` | date |  |  |  | First day. |
 | `period_end` | date |  |  |  | Last day. |
@@ -2102,7 +2128,7 @@ One activity event: a new-phone reservation, a lottery, a year-end prize service
 | `summary` | varchar(120) |  |  |  | One-line summary for lists. |
 | `approval_no` | varchar(40) |  |  |  | Internal approval document number. |
 | `reserved_product_id` | bigint |  |  | → `crm_product_catalog.product_id` | For reservations: the product being reserved. |
-| `eligibility_basis` | varchar(30) | yes |  | `SEGMENT`, `POINT_RANKING`, `CORPORATE_GRADE`, `PRODUCT_REGISTRATION`, `LOCATION_ACTIVITY`, `MANUAL`, `IMPORT`, `OPEN` | How targets are chosen (segment, point ranking, grade, registration, site activity, manual, import, open to all). |
+| `eligibility_basis` | varchar(30) | yes |  | `SEGMENT`, `POINT_RANKING`, `CORPORATE_GRADE`, `PRODUCT_REGISTRATION`, `SERVICE_CENTER_ACTIVITY`, `MANUAL`, `IMPORT`, `OPEN` | How targets are chosen (segment, point ranking, grade, registration, site activity, manual, import, open to all). |
 | `eligibility_segment_id` | bigint |  |  | → `crm_segment.segment_id` | Segment whose members are targets (basis SEGMENT). |
 | `eligibility_rule` | jsonb |  |  |  | Extra eligibility rule. |
 | `ranking_point_type_id` | smallint |  |  | → `crm_point_type.point_type_id` | Point currency ranked (basis POINT_RANKING). |
@@ -2222,7 +2248,7 @@ The activity targets: who may take part, in which tier, how many times, and why.
 | `qualification_value` | numeric(20,4) |  |  |  | Value the target qualified with. |
 | `qualification_rank` | int |  |  |  | Rank in a point ranking. |
 | `qualification_reason` | jsonb |  |  |  | Why the party qualified (structured evidence). |
-| `source` | varchar(20) | yes |  | `SEGMENT`, `RANKING`, `GRADE`, `REGISTRATION`, `LOCATION`, `MANUAL`, `IMPORT` | How the target was added. |
+| `source` | varchar(20) | yes |  | `SEGMENT`, `RANKING`, `GRADE`, `REGISTRATION`, `SERVICE_CENTER`, `MANUAL`, `IMPORT` | How the target was added. |
 | `source_segment_membership_id` | bigint |  |  | → `crm_segment_membership.segment_membership_id (set null on delete)` | Segment membership the party qualified through (→ crm_segment_membership). |
 | `status` | varchar(20) | yes | `'ELIGIBLE'` | `ELIGIBLE`, `NOTIFIED`, `EXHAUSTED`, `REVOKED` | ELIGIBLE, NOTIFIED, EXHAUSTED or REVOKED. |
 | `added_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Manager who added it. |
@@ -2412,7 +2438,7 @@ Versioned rule of a segment.
 |---|---|
 | **Used by** | Segments (rule history). |
 | **Primary key** | `segment_version_id` |
-| **Unique** | (segment_version_id, segment_id)<br>(segment_id, version_no) |
+| **Unique** | (segment_id, version_no)<br>(segment_version_id, segment_id) |
 | **Rules** | `CHECK ((version_no > 0))`<br>`CHECK (((effective_to IS NULL) OR (effective_to >= effective_from)))` |
 | **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: marketing.service |
 

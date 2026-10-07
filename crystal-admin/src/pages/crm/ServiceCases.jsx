@@ -214,7 +214,8 @@ export function CaseDetail({ id, onClose }) {
   );
 
   return (
-    <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
+    /* No focus hand-back on close: focusing the opener scrolled the page (and a tab strip) sideways. */
+    <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside" returnFocusOnClose={false} preserveScrollBarGap>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>{serviceCase.external_case_id || serviceCase.title || translate('crm.cases.case')}</ModalHeader>

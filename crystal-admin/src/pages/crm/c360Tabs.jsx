@@ -17,9 +17,8 @@ import { date, dateTime, money, number } from '../../utils/format';
 import { Status, amount, rowsOf, word, partyIdLabel } from './shared';
 import { Amount, Dot, InfoList, Panel, ProjectTags, ScoreBreakdown, Timeline } from './ui';
 import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, ServiceSummaryCard, useRowSearch } from './c360Cards';
-import { TransactionDrawer } from './Transactions';
-import { CaseDetail } from './ServiceCases';
 import { Card360, Empty360, Initials, Pill, RfmHexagon } from './ui360';
+import { usePeek } from './peek';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -196,7 +195,7 @@ const ORDER_COLUMNS = [
 /* An order opens over the record, not on the Transactions screen: the manager stays with the customer. */
 export function OrdersTab({ record }) {
   const translate = useT();
-  const [openId, setOpenId] = useState(null);
+  const peek = usePeek();
   const columns = ORDER_COLUMNS.map((column) => (column.key === 'transaction_type_code'
     ? Object.assign({}, column, { render: (row) => word(translate, row.transaction_type_code) }) : column));
   const found = useRowSearch(record.transactions || [], columns, true);
@@ -209,38 +208,42 @@ export function OrdersTab({ record }) {
           rows={found.shown}
           rowKey={(row) => row.transaction_id}
           columns={columns}
-          onRowClick={(row) => setOpenId(row.transaction_id)}
+          onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
           emptyText={translate(found.searchable ? 'crm.ui.noMatches' : 'crm.customer.noPurchases')}
         />
       </Box>
-      <TransactionDrawer id={openId} onClose={() => setOpenId(null)} />
     </Card360>
   );
 }
 
 /* ================================================================ products */
 
+/* A product opens over the record, like an order or a case. */
 export function ProductsTab({ record }) {
   const translate = useT();
-  const history = useHistory();
+  const peek = usePeek();
+  const columns = [
+    { key: 'product_name', label: 'Product' },
+    { key: 'external_product_instance_id', label: 'Serial or key', render: (row) => row.serial_number || row.imei || row.external_product_instance_id || '-' },
+    { key: 'class_name', label: 'Product class', filter: true, render: (row) => translate(row.class_name || '-') },
+    { key: 'relationship_code', label: 'Held as', filter: true, render: (row) => word(translate, row.relationship_code) },
+    { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
+    { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
+    { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : translate('crm.customer.now')) }
+  ];
+  const found = useRowSearch(record.holdings || [], columns, true);
   return (
     <Stack spacing={4}>
       <Card360 icon={Md.MdDevicesOther} title={translate('crm.customer.holdings')} padded={false}>
-        <Box px={2}>
+        <Box px={2} pt={found.bar ? 2 : 0}>
+          {found.bar}
           <DataTable
             hidePagination
-            rows={record.holdings || []}
+            rows={found.shown}
             rowKey={(row) => row.product_registration_id}
-            columns={[
-              { key: 'product_name', label: 'Product' },
-              { key: 'external_product_instance_id', label: 'Serial or key', render: (row) => row.serial_number || row.imei || row.external_product_instance_id || '-' },
-              { key: 'class_name', label: 'Product class', render: (row) => translate(row.class_name || '-') },
-              { key: 'relationship_code', label: 'Held as', render: (row) => word(translate, row.relationship_code) },
-              { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
-              { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
-              { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : translate('crm.customer.now')) }
-            ]}
-            onRowClick={(row) => history.push('/admin/crm/products?instance=' + row.product_instance_id)}
+            columns={columns}
+            onRowClick={(row) => peek('PRODUCT', row.product_instance_id)}
+            emptyText={found.searchable ? translate('crm.ui.noMatches') : undefined}
           />
         </Box>
       </Card360>
@@ -292,7 +295,7 @@ function useInteractions(partyId, version) {
 export function ServiceTab({ record, view, act }) {
   const translate = useT();
   const interactions = useInteractions(record.party && record.party.party_pk, act.version);
-  const [openCase, setOpenCase] = useState(null);
+  const peek = usePeek();
   const caseColumns = [
     { key: 'external_case_id', label: 'Case', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_case_id || '#' + row.case_id}</Text> },
     { key: 'case_type_name', label: 'Type', filter: true, filterValue: (row) => row.case_type_name, render: (row) => translate(row.case_type_name || '-') },
@@ -343,13 +346,11 @@ export function ServiceTab({ record, view, act }) {
             rows={cases.shown}
             rowKey={(row) => row.case_id}
             columns={caseColumns}
-            onRowClick={(row) => setOpenCase(row.case_id)}
+            onRowClick={(row) => peek('CASE', row.case_id)}
             emptyText={translate(cases.searchable ? 'crm.ui.noMatches' : 'crm.customer.noCases')}
           />
         </Box>
       </Card360>
-      {/* Changes made in the case (classification, status) show here once the record reloads. */}
-      <CaseDetail id={openCase} onClose={() => { setOpenCase(null); act.refresh(); }} />
     </Stack>
   );
 }
@@ -857,7 +858,7 @@ const ENTITY_WORDS = {
 
 export function NotesFilesTab({ record, act }) {
   const translate = useT();
-  const history = useHistory();
+  const peek = usePeek();
   const partyId = record.party && record.party.party_pk;
   return (
     <Stack spacing={4}>
@@ -867,7 +868,10 @@ export function NotesFilesTab({ record, act }) {
       </Grid>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
         <Card360 icon={Md.MdTimeline} title={translate('crm.customer.recentActivity')} padded={false}>
-          <Timeline items={act.timeline || []} onOpen={(link) => history.push(link)} />
+          {/* A fixed height: the timeline grows with every order and case, so it scrolls instead of stretching the tab. */}
+          <Box maxH="28rem" overflowY="auto">
+            <Timeline items={act.timeline || []} onOpen={(target) => peek(target[0], target[1])} />
+          </Box>
         </Card360>
         <Card360 icon={Md.MdHistory} title={translate('crm.customer.changesByStaff')}>
           <MiniTable

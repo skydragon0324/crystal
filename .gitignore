@@ -44,3 +44,6 @@ Thumbs.db
 # one: `git add -A` would otherwise sweep in another company's source.
 vendor_backend/
 vendor_client/
+
+# Local database backups (customer data)
+crystal-backend/backups/

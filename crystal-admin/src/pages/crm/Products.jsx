@@ -315,7 +315,7 @@ function Catalogue() {
 }
 
 /** One product's whole story: every holder in order, every request, every repair. */
-function InstanceDetail({ id, onClose }) {
+export function InstanceDetail({ id, onClose }) {
   const translate = useT();
   const [detail, setDetail] = useState(null);
 
@@ -328,7 +328,8 @@ function InstanceDetail({ id, onClose }) {
   const instance = record.instance || {};
 
   return (
-    <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside">
+    /* No focus hand-back on close: focusing the opener scrolled the page (and a tab strip) sideways. */
+    <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside" returnFocusOnClose={false} preserveScrollBarGap>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>{instance.external_product_instance_id || translate('crm.products.product')}</ModalHeader>

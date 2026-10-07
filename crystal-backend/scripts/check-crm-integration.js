@@ -85,7 +85,7 @@ async function main() {
     return ids.indexOf(RUN + '-A1') !== -1 && ids.indexOf(RUN + '-A2') !== -1 ? true : 'accounts ' + ids.join(',');
   });
   let queued;
-  await check('an uncertain match (41-69) is queued and creates nobody', async function () {
+  await check('an uncertain match (50-69) is queued and creates nobody', async function () {
     const before = data(await admin.get('/crm/parties', { params: { q: RUN + ' Grace' } })).rows.length;
     queued = data(await appstore.post('/registrations', { external_account_id: RUN + '-A3',
       party: { full_name: RUN + ' Grace', mobile: person.mobile, birth_date: '1980-01-01' } }));
