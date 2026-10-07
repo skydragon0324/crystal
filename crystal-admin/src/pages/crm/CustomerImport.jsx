@@ -97,7 +97,8 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
         <ModalHeader>{translate('crm.customers.importTitle')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Text fontSize="sm" mb={3}>Rows are checked against this file, existing customers, and pending registrations. Scores above 40 wait for review; a unique match of 70 or more is merged.</Text>
+          <Text fontSize="sm" mb={3}>{translate('crm.review.importChecks')}</Text>
+          <Text fontSize="sm" mb={3}>{translate('crm.customers.importRequiredColumns')}</Text>
 
           <HStack spacing={3} mb={4} wrap="wrap">
             <Button size="sm" variant="outline" onClick={downloadTemplate}>{translate('crm.customers.downloadTemplate')}</Button>
@@ -152,7 +153,8 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                   <Tr>
                     <Th>{translate('Row')}</Th>
                     <Th>{translate('Result')}</Th>
-                    <Th>Customer key / source ID</Th>
+                    <Th>{translate('crm.customers.importCustomerKey')}</Th>
+                    <Th>{translate('crm.customers.importEshopKeys')}</Th>
                     <Th>{translate('Name')}</Th>
                     <Th>{translate('Mobile')}</Th>
                     <Th>{translate('Date of birth')}</Th>
@@ -166,7 +168,8 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                     <Tr key={row.row_number}>
                       <Td>{row.row_number}</Td>
                       <Td><Badge colorScheme={TONE[row.status] || 'gray'}>{STATUS[row.status] ? translate(STATUS[row.status]) : row.status}</Badge></Td>
-                      <Td>{row.party_pk || row.values.source_user_id || '-'}</Td>
+                      <Td>{row.party_pk || '-'}</Td>
+                      <Td>{row.values.eshop_pk ? row.values.eshop_pk + ' / ' + (row.values.eshop_id || '-') : '-'}</Td>
                       <Td>{row.values.full_name || '-'}</Td>
                       <Td>{row.values.mobile || '-'}</Td>
                       <Td>{row.values.birth_date ? date(row.values.birth_date) : (row.values.birth_year || '-')}</Td>
@@ -179,7 +182,9 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                           <Text key={match.party_pk || match.intake_id || match.row_number}>
                             <Text as={match.party_pk ? 'a' : 'span'} href={match.party_pk ? (process.env.PUBLIC_URL || '') + '/admin/crm/customers/' + match.party_pk : undefined}
                               target="_blank" rel="noopener noreferrer" color="brand.500">
-                              {match.display_name} {match.party_pk ? partyIdLabel(match.party_pk) : match.intake_id ? 'Pending #' + match.intake_id : 'Row ' + match.row_number}
+                              {match.display_name} {match.party_pk ? partyIdLabel(match.party_pk) : match.intake_id
+                                ? translate('crm.review.pendingNumber', { id: match.intake_id })
+                                : translate('crm.customers.rowNumber', { row: match.row_number })}
                             </Text>
                             {' - ' + match.reason}
                           </Text>

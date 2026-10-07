@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box, Flex, Grid, Text, Icon, Button, Popover, PopoverTrigger, PopoverContent,
   PopoverBody, Portal, useColorModeValue, useDisclosure
 } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, CloseIcon } from '@chakra-ui/icons';
 import { useI18n } from '../i18n';
+import useDismissOnOutside from '../hooks/useDismissOnOutside';
 import {
   toISODate, parseISODate, addMonths, startOfMonth, buildCalendarGrid,
   monthNames, weekdayNames, formatDisplayDate, isSameDay, isOutOfRange
@@ -35,6 +36,9 @@ export default function DatePicker({
 }) {
   const { t, intlLocale, weekStartsOn } = useI18n();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  useDismissOnOutside(isOpen, onClose, [triggerRef, panelRef]);
 
   const dims = SIZES[size] || SIZES.md;
   const selected = parseISODate(value);
@@ -161,6 +165,7 @@ export default function DatePicker({
     >
       <PopoverTrigger>
         <Flex
+          ref={triggerRef}
           role="button" tabIndex={isDisabled ? -1 : 0}
           aria-haspopup="dialog" aria-expanded={isOpen} aria-disabled={isDisabled}
           aria-label={t('datepicker.openCalendar')}
@@ -207,6 +212,7 @@ export default function DatePicker({
 
       <Portal>
         <PopoverContent
+          ref={panelRef}
           data-no-focus-lock
           /*
            * ABOVE the dialog that opened it.

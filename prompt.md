@@ -140,10 +140,6 @@ On the user details page, it is more accurate to display `party_pk` rather than 
 On the "Group details" page, under the "Contacts" tab, a new contact is added via the "Link contact" function, and a role can be selected during this process.
 However, after the contact is added, how do roles such as CEO, Nurse, IT Manager, or Sales Manager appear beneath the user's name?
 These roles differ from the one selected during the initial addition.
-----------------------------------------------------------------
-You removed `party_id` from crm_person
-we need to save it, but, we won't use it in phase 1
-
 ----------------------------------------
 let me check it later
 Why is it impossible to modify or delete records in the crm_projects table?
@@ -155,6 +151,9 @@ Regarding the next issue: as I mentioned previously, there is only one program p
 Therefore, there is no need to store "program" information separately.
 By any chance, does the "program" you designed for this CRM refer to a software store?
 -------------------------------------------
+You removed `party_id` from crm_person
+we need to save it, but, we won't use it in phase 1
+
 1. Why use Crystal for customer aggregation, and why use Platform for account-related tasks?
 
 2. [schema.sql (row 2800)](D:/sky/crystal/crystal-backend/sql/schema.sql:2800) allows only the following values:
@@ -170,3 +169,57 @@ To remove the limitation, we can add, update, or delete projects by admin.
 3. “program” means a customer activity: a reservation event, lottery, prize service, puzzle, survey reward, or attendance event. It manages participants, quotas, entries, and awards.
 
 We already have an activity management system called “campaign,” so why should we adopt “program”? I think you created a "program" to store and manage user activity history across various business systems, but if that is the intended meaning, the term "program" is not appropriate.
+-----------------------------------------------
+I plan to first add only those users for whom we have complete data (name, gender, date of birth, home address, phone number) and those who already have identifiers in the e-shop system.
+Therefore, for the Excel import process, I intend to import `eshop_pk` and `eshop_id` instead of just the email address.
+This means the import template needs to be changed, and the corresponding processing logic must be updated accordingly.
+Also, since the identifiers from the departmental systems linked to existing users cannot be considered 100% accurate, we should not directly commit the data to `crm_project_account`. Instead, store it as temporary data and display it to indicate that the user previously had this information in those departmental systems. This allows an administrator—when handling a user information inquiry requiring manual review—to verify the user's identity by referencing the previously linked identifiers.
+This specific functionality is required only when importing user data via Excel.
+For data arriving from departmental systems via API calls, the system should perform a duplicate check, then either link the data to an existing record or create a new one, while also attaching the relevant departmental user PK or ID.
+You can view this as a feature intended for the initial launch of the project.
+I briefly mentioned this before, but I am not sure if the feature was actually implemented.
+Please check the status carefully; if it hasn't been implemented or was implemented incorrectly, please make the necessary corrections.
+Additionally, please verify whether the API has been designed to allow user registration from the departmental systems.
+When a user lookup request comes in from a departmental system, the system must perform a duplicate check. Based on the logic, it should either link the request to a user already registered in the CRM or create a new user record, and then add the relevant data to `project_account`.
+---------------------------------------------------------------------------
+Please change "program" to "event."
+
+Also, does this mean an API accessible from external projects hasn't been created yet?
+I misspoke earlier; the `party_id` should be added to `crm_party`, not `crm_person`.
+So, please remove it from `crm_person` and add it to `crm_party`.
+Of course, we won't be using this `party_id` in Phase 1.
+We'll use `party_pk` to link with other tables.
+And why are you making it impossible to modify the project?
+The current data is purely for testing purposes; if we are to add actual data, we need to be able to modify or delete it.
+Making modification or deletion impossible is completely wrong.
+Of course, once the tables are populated and a project's code or ID is already being used in other tables, modification should be restricted. However, since we are currently in the initial stage, we need to be able to modify and delete records.
+If such operations are impossible—or if checking whether a project's code is used in other tables requires too much effort—then I would rather delete the existing data entirely.
+But right now, we can't even delete or modify the existing data in the database, can we?
+How are we supposed to add actual data?
+
+------------------------- 10 / 7 ------------------------------------
+Where and when is the "grade" field added on the Customers page?
+Is there no feature to assign a grade on the customer details page?
+If not, please add it.
+Also, regarding the filter options: when selecting from dropdowns, if you click one dropdown but don't make a selection and then click another, the previously clicked dropdown should collapse while the new one expands. Currently, however, the new dropdown opens while the old one remains expanded, which creates a poor UI/UX experience.
+This issue occurs not only on the Customers page but across all pages.
+Please investigate and fix these issues.
+
+Also, please check if admin can update or delete projects on crm_project table
+
+On customer details page, there is a feature that shows Previously linked identifiers
+manager can also link or reject that old account on details page
+and on service or orders tab, when I click one row to show details, it directs to transactions page or service case pages and open modal to show the details
+I don't think this is good UX design, 
+when I click one row, it shows a modal in the same page
+
+what is Log interaction for?
+
+on project accounts table, please change account_id as account_pk and login to account_id
+
+also, on orders and service tab, there is no search option
+---------------------------------------------------------------
+please rewrite crm-logic.md and crm-database.md file
+it would be better to show databases as tables
+if it is difficult to make it as table on md file, please make doc file
+-----------------------------------

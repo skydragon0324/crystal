@@ -202,6 +202,34 @@ async function setStatus(id, status, actor) {
   return partyIds.publicParty(after);
 }
 
+/**
+ * A corporate grade given by hand. While set it is the grade the record, the
+ * customer list, segments and event eligibility go by; the analysis run keeps
+ * computing its own grade on the snapshots underneath. An empty grade clears it.
+ */
+async function assignGrade(id, body, actor) {
+  const before = await repo.findParty(id);
+  if (!before) throw new HttpError(404, 'common.notFound');
+  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
+
+  const gradeId = body.corporate_grade_id === undefined || body.corporate_grade_id === null || body.corporate_grade_id === ''
+    ? null : Number(body.corporate_grade_id);
+  if (gradeId !== null) {
+    const grade = await db('crm_corporate_grade').where({ corporate_grade_id: gradeId, is_active: true }).first();
+    if (!grade) throw new HttpError(400, 'crm.chooseAGrade');
+  }
+
+  const [after] = await db('crm_party').where('party_pk', id).update({
+    assigned_grade_id: gradeId,
+    assigned_grade_reason: gradeId === null ? null : (String(body.reason || '').trim().slice(0, 500) || null),
+    assigned_grade_at: gradeId === null ? null : db.fn.now(),
+    assigned_grade_by_manager_id: gradeId === null ? null : (actor && actor.manager_id) || null,
+    updated_at: db.fn.now()
+  }).returning('*');
+  audit.updated(actor, 'crm_party', id, before, after, PAGE);
+  return partyIds.publicParty(after);
+}
+
 async function addContact(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
@@ -374,7 +402,7 @@ async function setConsent(partyId, body, actor) {
  *     project decides which account is real, not the CRM;
  *   a consent for an option the survivor already answered - the survivor's
  *     answer is newer information about the same person's wishes;
- *   a program entry for a program the survivor is also in - one person, one
+ *   an event entry for an event the survivor is also in - one person, one
  *     entry, and the survivor's is the one being used;
  *   campaign history - a frozen audience is a record of who was sent what,
  *     and rewriting it would be rewriting what happened.
@@ -501,14 +529,14 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     }
 
     /*
-     * Program entries. A reservation names its target through (target, program,
+     * Event entries. A reservation names its target through (target, event,
      * party), so the pair has to move together: the reservations let go of
      * their target, the target moves, the reservations follow and take it back.
      */
     const targets = await trx('crm_activity_target as moved_row').where('moved_row.party_pk', mergedPartyId)
       .whereNotExists(function () {
         this.select(trx.raw(1)).from('crm_activity_target as survivor_row')
-          .whereRaw('survivor_row.party_pk = ? AND survivor_row.activity_program_id = moved_row.activity_program_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
+          .whereRaw('survivor_row.party_pk = ? AND survivor_row.event_id = moved_row.event_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
       }).select('moved_row.activity_target_id');
     const targetIds = targets.map(function (target) { return target.activity_target_id; });
 
@@ -708,6 +736,7 @@ module.exports = {
   setChecked: setChecked,
   update: update,
   setStatus: setStatus,
+  assignGrade: assignGrade,
   addContact: addContact,
   updateContact: updateContact,
   linkAccount: linkAccount,

@@ -16,7 +16,7 @@ import { Status, choices, filtersFor, optionsFrom, useCrmMeta, word } from './sh
 
 export const PAGE = '/admin/crm/campaigns';
 
-export const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'PROGRAM_NOTICE', 'SURVEY'];
+export const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'EVENT_NOTICE', 'SURVEY'];
 
 /**
  * CAMPAIGNS - who is to be told what, on which channel, and whether they may be.

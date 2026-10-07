@@ -19,34 +19,34 @@ import { dateTime, number } from '../../utils/format';
 import {
   Fact, Facts, InstancePicker, PartyPicker, Pending, RecordHeader, Status, amount, choices, localInput,
   optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, useSiteOptions, word, filtersFor, partyIdLabel } from './shared';
-import { useProgramFields } from './programFields';
+import { useEventFields } from './eventFields';
 
-const PAGE = '/admin/crm/programs';
+const PAGE = '/admin/crm/events';
 
 const SETUP = ['DRAFT', 'APPROVED'];
 const LIVE = ['DRAFT', 'APPROVED', 'TARGETS_FROZEN', 'OPEN'];
 
 /* The buttons each status offers, in the order they are shown. */
 const MOVES = {
-  DRAFT: [['APPROVED', 'crm.program.approve'], ['CANCELLED', 'crm.program.cancelProgram']],
-  APPROVED: [['TARGETS_FROZEN', 'crm.program.freezeTargets'], ['DRAFT', 'crm.program.backToDraft'], ['CANCELLED', 'crm.program.cancelProgram']],
-  TARGETS_FROZEN: [['OPEN', 'crm.program.open'], ['CANCELLED', 'crm.program.cancelProgram']],
-  OPEN: [['CLOSED', 'crm.program.close'], ['CANCELLED', 'crm.program.cancelProgram']],
-  CLOSED: [['FULFILLED', 'crm.program.markFulfilled']]
+  DRAFT: [['APPROVED', 'crm.event.approve'], ['CANCELLED', 'crm.event.cancelEvent']],
+  APPROVED: [['TARGETS_FROZEN', 'crm.event.freezeTargets'], ['DRAFT', 'crm.event.backToDraft'], ['CANCELLED', 'crm.event.cancelEvent']],
+  TARGETS_FROZEN: [['OPEN', 'crm.event.open'], ['CANCELLED', 'crm.event.cancelEvent']],
+  OPEN: [['CLOSED', 'crm.event.close'], ['CANCELLED', 'crm.event.cancelEvent']],
+  CLOSED: [['FULFILLED', 'crm.event.markFulfilled']]
 };
 
 const MOVE_EXPLAINED = {
-  APPROVED: 'crm.program.approveExplained',
-  TARGETS_FROZEN: 'crm.program.freezeExplained',
-  OPEN: 'crm.program.openExplained',
-  CLOSED: 'crm.program.closeExplained',
-  FULFILLED: 'crm.program.fulfilExplained',
-  CANCELLED: 'crm.program.cancelExplained',
-  DRAFT: 'crm.program.backToDraftExplained'
+  APPROVED: 'crm.event.approveExplained',
+  TARGETS_FROZEN: 'crm.event.freezeExplained',
+  OPEN: 'crm.event.openExplained',
+  CLOSED: 'crm.event.closeExplained',
+  FULFILLED: 'crm.event.fulfilExplained',
+  CANCELLED: 'crm.event.cancelExplained',
+  DRAFT: 'crm.event.backToDraftExplained'
 };
 
 /**
- * ONE ACTIVITY PROGRAM, from setup to the last prize handed over.
+ * ONE ACTIVITY EVENT, from setup to the last prize handed over.
  *
  * SETUP is the tiers a target can fall in, the sites taking part, the quotas
  * that cap how many entries exist, and the rewards. TARGETS are who may take
@@ -55,10 +55,10 @@ const MOVE_EXPLAINED = {
  * handed out and how it reaches the winner.
  *
  * Every limit is enforced by the server, under locks - the buttons here are
- * hidden when the program's status would refuse them, which is a courtesy,
+ * hidden when the event's status would refuse them, which is a courtesy,
  * not the rule.
  */
-export default function ProgramDetail() {
+export default function EventDetail() {
   const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
@@ -78,12 +78,12 @@ export default function ProgramDetail() {
   const modal = useDisclosure();
 
   const record = detail || {};
-  const program = record.program;
-  const editFields = useProgramFields(!program || program.status === 'DRAFT');
+  const event = record.event;
+  const editFields = useEventFields(!event || event.status === 'DRAFT');
 
   const load = useCallback(() => {
     setLoading(true);
-    crm.programs.get(id)
+    crm.events.get(id)
       .then(({ data }) => setDetail(data || null))
       .catch(() => setDetail(null))
       .finally(() => setLoading(false));
@@ -91,15 +91,15 @@ export default function ProgramDetail() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (!program) return <Card><Pending loading={loading} /></Card>;
+  if (!event) return <Card><Pending loading={loading} /></Card>;
 
   const counts = record.counts || {};
   const tiers = record.tiers || [];
-  const status = program.status;
+  const status = event.status;
   const inSetup = SETUP.indexOf(status) !== -1;
   const live = LIVE.indexOf(status) !== -1;
-  const tierOptions = tiers.map((tier) => ({ value: tier.program_tier_id, label: tier.tier_name }));
-  const programSites = (record.locations || []).map((programLocation) => ({ value: programLocation.service_center_id, label: programLocation.service_center_name }));
+  const tierOptions = tiers.map((tier) => ({ value: tier.event_tier_id, label: tier.tier_name }));
+  const eventSites = (record.locations || []).map((eventLocation) => ({ value: eventLocation.service_center_id, label: eventLocation.service_center_name }));
 
   const ask = (title, fields, initial, submit) => { setDialog({ title: title, fields: fields, initial: initial || {}, submit: submit }); modal.onOpen(); };
 
@@ -127,16 +127,16 @@ export default function ProgramDetail() {
       body: translate(MOVE_EXPLAINED[next]),
       confirmLabel: translate(verb)
     });
-    if (agreed) run(() => crm.programs.transition(program.activity_program_id, next));
+    if (agreed) run(() => crm.events.transition(event.event_id, next));
   };
 
   const remove = async (title, detailText, work) => {
-    const agreed = await confirm({ tone: 'danger', title: translate(title), body: translate('crm.program.removeExplained'), detail: detailText, confirmLabel: translate('common.remove') });
+    const agreed = await confirm({ tone: 'danger', title: translate(title), body: translate('crm.event.removeExplained'), detail: detailText, confirmLabel: translate('common.remove') });
     if (agreed) run(work);
   };
 
-  const pid = program.activity_program_id;
-  const mine = String(program.created_by_manager_id) === String(currentManager.id);
+  const pid = event.event_id;
+  const mine = String(event.created_by_manager_id) === String(currentManager.id);
 
   const moves = (MOVES[status] || []).filter((transition) => !(transition[0] === 'APPROVED' && mine));
 
@@ -144,23 +144,23 @@ export default function ProgramDetail() {
     <Box>
       <RecordHeader
         onBack={() => history.push(PAGE)}
-        title={program.program_name}
-        subtitle={program.program_code + '  ·  ' + word(translate, program.program_type) + '  ·  ' +
-          translate('crm.program.chosenBy', { basis: word(translate, program.eligibility_basis) })}
+        title={event.event_name}
+        subtitle={event.event_code + '  ·  ' + word(translate, event.event_type) + '  ·  ' +
+          translate('crm.event.chosenBy', { basis: word(translate, event.eligibility_basis) })}
         badges={<Status value={status} />}
         actions={canWrite ? (
           <>
             {status === 'DRAFT' || live ? (
-              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.program.editProgram'), editFields,
-                Object.assign({}, program, {
-                  eligibility_rule: program.eligibility_rule ? JSON.stringify(program.eligibility_rule) : '',
-                  display_at: localInput(program.display_at),
-                  starts_at: localInput(program.starts_at),
-                  ends_at: localInput(program.ends_at),
-                  fulfilment_ends_at: localInput(program.fulfilment_ends_at),
-                  ranking_cutoff_at: localInput(program.ranking_cutoff_at)
+              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.event.editEvent'), editFields,
+                Object.assign({}, event, {
+                  eligibility_rule: event.eligibility_rule ? JSON.stringify(event.eligibility_rule) : '',
+                  display_at: localInput(event.display_at),
+                  starts_at: localInput(event.starts_at),
+                  ends_at: localInput(event.ends_at),
+                  fulfilment_ends_at: localInput(event.fulfilment_ends_at),
+                  ranking_cutoff_at: localInput(event.ranking_cutoff_at)
                 }),
-                (values) => run(() => crm.programs.update(pid, values)))}
+                (values) => run(() => crm.events.update(pid, values)))}
               >
                 {translate('common.edit')}
               </Button>
@@ -177,7 +177,7 @@ export default function ProgramDetail() {
       />
 
       {status === 'DRAFT' && mine && canWrite ? (
-        <Card mb={4}><Text fontSize="sm">{translate('crm.program.needsAnotherApprover')}</Text></Card>
+        <Card mb={4}><Text fontSize="sm">{translate('crm.event.needsAnotherApprover')}</Text></Card>
       ) : null}
 
       <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={4} mb={4}>
@@ -192,44 +192,44 @@ export default function ProgramDetail() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{translate('crm.program.setup')}</Tab>
-            <Tab fontSize="sm">{translate('crm.program.targets')}</Tab>
-            <Tab fontSize="sm">{translate('crm.program.entries')}</Tab>
-            <Tab fontSize="sm">{translate('crm.program.awards')}</Tab>
+            <Tab fontSize="sm">{translate('crm.event.setup')}</Tab>
+            <Tab fontSize="sm">{translate('crm.event.targets')}</Tab>
+            <Tab fontSize="sm">{translate('crm.event.entries')}</Tab>
+            <Tab fontSize="sm">{translate('crm.event.awards')}</Tab>
           </TabList>
           <TabPanels>
             {/* ---- setup ---- */}
             <TabPanel>
               <Stack spacing={6}>
                 <Facts>
-                  <Fact label="Project">{program.project_code}</Fact>
-                  <Fact label="Approval number">{program.approval_no}</Fact>
-                  <Fact label="Product being reserved">{program.reserved_product_name}</Fact>
-                  <Fact label="Segment">{program.segment_name}</Fact>
-                  <Fact label="Costs">{program.cost_points ? amount(program.cost_points) + ' ' + (program.cost_point_type_code || '') : null}</Fact>
+                  <Fact label="Project">{event.project_code}</Fact>
+                  <Fact label="Approval number">{event.approval_no}</Fact>
+                  <Fact label="Product being reserved">{event.reserved_product_name}</Fact>
+                  <Fact label="Segment">{event.segment_name}</Fact>
+                  <Fact label="Costs">{event.cost_points ? amount(event.cost_points) + ' ' + (event.cost_point_type_code || '') : null}</Fact>
                   <Fact label="Numbers">
-                    {(program.number_prefix || '') + (program.number_start === null ? '' : program.number_start) +
-                      (program.number_end === null || program.number_end === undefined ? '' : ' - ' + program.number_end) + (program.number_suffix || '')}
+                    {(event.number_prefix || '') + (event.number_start === null ? '' : event.number_start) +
+                      (event.number_end === null || event.number_end === undefined ? '' : ' - ' + event.number_end) + (event.number_suffix || '')}
                   </Fact>
-                  <Fact label="Opens">{dateTime(program.starts_at)}</Fact>
-                  <Fact label="Closes">{dateTime(program.ends_at)}</Fact>
-                  <Fact label="Written by">{program.created_by_name}</Fact>
-                  <Fact label="Approved by">{program.approved_by_name ? program.approved_by_name + '  ' + dateTime(program.approved_at) : null}</Fact>
-                  <Fact label="Ranked by">{program.ranking_point_type_code ? program.ranking_point_type_code + '  ' + dateTime(program.ranking_cutoff_at) : null}</Fact>
-                  <Fact label="Top how many">{program.ranking_top_n}</Fact>
+                  <Fact label="Opens">{dateTime(event.starts_at)}</Fact>
+                  <Fact label="Closes">{dateTime(event.ends_at)}</Fact>
+                  <Fact label="Written by">{event.created_by_name}</Fact>
+                  <Fact label="Approved by">{event.approved_by_name ? event.approved_by_name + '  ' + dateTime(event.approved_at) : null}</Fact>
+                  <Fact label="Ranked by">{event.ranking_point_type_code ? event.ranking_point_type_code + '  ' + dateTime(event.ranking_cutoff_at) : null}</Fact>
+                  <Fact label="Top how many">{event.ranking_top_n}</Fact>
                 </Facts>
-                {program.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{program.description}</Text> : null}
+                {event.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{event.description}</Text> : null}
 
                 <Block
-                  title={translate('crm.program.tiers')}
-                  hint={translate('crm.program.tiersExplained')}
-                  add={canWrite && inSetup ? () => ask(translate('crm.program.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
-                    (values) => run(() => crm.programs.saveTier(pid, null, values))) : null}
+                  title={translate('crm.event.tiers')}
+                  hint={translate('crm.event.tiersExplained')}
+                  add={canWrite && inSetup ? () => ask(translate('crm.event.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
+                    (values) => run(() => crm.events.saveTier(pid, null, values))) : null}
                 >
                   <DataTable
                     hidePagination
                     rows={tiers}
-                    rowKey={(row) => row.program_tier_id}
+                    rowKey={(row) => row.event_tier_id}
                     columns={[
                       { key: 'tier_code', label: 'Code' },
                       { key: 'tier_name', label: 'Tier' },
@@ -240,71 +240,71 @@ export default function ProgramDetail() {
                       { key: 'number_range_start', label: 'Numbers', render: (row) => (row.number_range_start === null ? '-' : row.number_range_start + ' - ' + (row.number_range_end === null ? '' : row.number_range_end)) }
                     ]}
                     actions={canWrite && inSetup ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editTier'), tierFields(), row,
-                        (values) => run(() => crm.programs.saveTier(pid, row.program_tier_id, values))) },
-                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.program.removeTier', row.tier_name,
-                        () => crm.programs.removeTier(pid, row.program_tier_id)) }
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editTier'), tierFields(), row,
+                        (values) => run(() => crm.events.saveTier(pid, row.event_tier_id, values))) },
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.event.removeTier', row.tier_name,
+                        () => crm.events.removeTier(pid, row.event_tier_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={translate('crm.program.sites')}
-                  hint={translate('crm.program.sitesExplained')}
-                  add={canWrite && live ? () => ask(translate('crm.program.addSite'), [
+                  title={translate('crm.event.sites')}
+                  hint={translate('crm.event.sitesExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.event.addSite'), [
                     { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
                     { name: 'service_center_role', label: 'Role', type: 'select', required: true, isClearable: false,
                       options: choices(['PICKUP', 'SALE', 'EVENT_VENUE', 'DELIVERY_HUB']) }
-                  ], { service_center_role: 'PICKUP' }, (values) => run(() => crm.programs.addLocation(pid, values))) : null}
+                  ], { service_center_role: 'PICKUP' }, (values) => run(() => crm.events.addLocation(pid, values))) : null}
                 >
                   <DataTable
                     hidePagination
                     rows={record.locations || []}
-                    rowKey={(row) => row.program_service_center_id}
+                    rowKey={(row) => row.event_service_center_id}
                     columns={[
                       { key: 'service_center_code', label: 'Code' },
                       { key: 'service_center_name', label: 'Service location' },
                       { key: 'service_center_role', label: 'Role', render: (row) => word(translate, row.service_center_role) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.program.removeSite', row.service_center_name,
-                        () => crm.programs.removeLocation(pid, row.program_service_center_id)) }
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.event.removeSite', row.service_center_name,
+                        () => crm.events.removeLocation(pid, row.event_service_center_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={translate('crm.program.quotas')}
-                  hint={translate('crm.program.quotasExplained')}
-                  add={canWrite && live ? () => ask(translate('crm.program.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
-                    (values) => run(() => crm.programs.saveQuota(pid, null, values))) : null}
+                  title={translate('crm.event.quotas')}
+                  hint={translate('crm.event.quotasExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.event.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
+                    (values) => run(() => crm.events.saveQuota(pid, null, values))) : null}
                 >
                   <DataTable
                     hidePagination
                     rows={record.quotas || []}
-                    rowKey={(row) => row.program_quota_id}
+                    rowKey={(row) => row.event_quota_id}
                     columns={[
                       { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.program.everyTier') },
-                      { key: 'service_center_name', label: 'Service location', render: (row) => row.service_center_name || translate('crm.program.everySite') },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.event.everyTier') },
+                      { key: 'service_center_name', label: 'Service location', render: (row) => row.service_center_name || translate('crm.event.everySite') },
                       { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.quota_count) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editQuota'), quotaFields(), row,
-                        (values) => run(() => crm.programs.saveQuota(pid, row.program_quota_id, values))) },
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editQuota'), quotaFields(), row,
+                        (values) => run(() => crm.events.saveQuota(pid, row.event_quota_id, values))) },
                       { key: 'remove', label: translate('common.remove'), hidden: (row) => row.used_count > 0,
-                        onClick: (row) => remove('crm.program.removeQuota', word(translate, row.entry_type), () => crm.programs.removeQuota(pid, row.program_quota_id)) }
+                        onClick: (row) => remove('crm.event.removeQuota', word(translate, row.entry_type), () => crm.events.removeQuota(pid, row.event_quota_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={translate('crm.program.rewards')}
-                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(translate('crm.program.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
-                    (values) => run(() => crm.programs.saveReward(pid, null, values))) : null}
+                  title={translate('crm.event.rewards')}
+                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(translate('crm.event.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
+                    (values) => run(() => crm.events.saveReward(pid, null, values))) : null}
                 >
                   <DataTable
                     hidePagination
@@ -313,16 +313,16 @@ export default function ProgramDetail() {
                     columns={[
                       { key: 'reward_name', label: 'Reward' },
                       { key: 'reward_type', label: 'Kind', render: (row) => word(translate, row.reward_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.program.everyTier') },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.event.everyTier') },
                       { key: 'points', label: 'Points', render: (row) => (row.points ? amount(row.points) + ' ' + (row.point_type_code || '') : '-') },
                       { key: 'product_name', label: 'Product' },
                       { key: 'quantity_awarded', label: 'Awarded', isNumeric: true, render: (row) => number(row.quantity_awarded) + ' / ' + number(row.quantity_total) }
                     ]}
                     actions={canWrite ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.program.editReward'), rewardFields(), row,
-                        (values) => run(() => crm.programs.saveReward(pid, row.reward_id, values))) },
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editReward'), rewardFields(), row,
+                        (values) => run(() => crm.events.saveReward(pid, row.reward_id, values))) },
                       { key: 'remove', label: translate('common.remove'), hidden: (row) => row.quantity_awarded > 0,
-                        onClick: (row) => remove('crm.program.removeReward', row.reward_name, () => crm.programs.removeReward(pid, row.reward_id)) }
+                        onClick: (row) => remove('crm.event.removeReward', row.reward_name, () => crm.events.removeReward(pid, row.reward_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
@@ -331,13 +331,13 @@ export default function ProgramDetail() {
             </TabPanel>
 
             <TabPanel px={0}>
-              <Targets program={program} tierOptions={tierOptions} ask={ask} run={run} tick={tick} />
+              <Targets event={event} tierOptions={tierOptions} ask={ask} run={run} tick={tick} />
             </TabPanel>
             <TabPanel px={0}>
-              <Entries program={program} programSites={programSites.length ? programSites : sites} ask={ask} run={run} tick={tick} />
+              <Entries event={event} eventSites={eventSites.length ? eventSites : sites} ask={ask} run={run} tick={tick} />
             </TabPanel>
             <TabPanel px={0}>
-              <Awards program={program} rewards={record.rewards || []} sites={programSites.length ? programSites : sites} ask={ask} run={run} tick={tick} />
+              <Awards event={event} rewards={record.rewards || []} sites={eventSites.length ? eventSites : sites} ask={ask} run={run} tick={tick} />
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -375,8 +375,8 @@ export default function ProgramDetail() {
     return [
       { name: 'entry_type', label: 'Entry', type: 'select', required: true, isClearable: false, options: choices(['NORMAL', 'REWARD']) },
       { name: 'quota_count', label: 'How many', type: 'number', required: true },
-      { name: 'program_tier_id', label: 'Only for tier', type: 'select', options: tierOptions },
-      { name: 'service_center_id', label: 'Only at service location', type: 'select', options: programSites.length ? programSites : sites, isSearchable: true }
+      { name: 'event_tier_id', label: 'Only for tier', type: 'select', options: tierOptions },
+      { name: 'service_center_id', label: 'Only at service location', type: 'select', options: eventSites.length ? eventSites : sites, isSearchable: true }
     ];
   }
 
@@ -386,7 +386,7 @@ export default function ProgramDetail() {
       { name: 'reward_type', label: 'Kind', type: 'select', required: true, isClearable: false,
         options: choices(['PICKUP_GOODS', 'DELIVERABLE_GOODS', 'PRODUCT_COUPON', 'POINTS', 'WALLET_CREDIT']) },
       { name: 'quantity_total', label: 'How many there are', type: 'number', required: true },
-      { name: 'program_tier_id', label: 'Only for tier', type: 'select', options: tierOptions },
+      { name: 'event_tier_id', label: 'Only for tier', type: 'select', options: tierOptions },
       { name: 'product_id', label: 'Product', type: 'select', options: catalog, isSearchable: true },
       { name: 'point_type_id', label: 'Point type', type: 'select', options: optionsFrom(meta.point_types, 'point_type_id', 'point_type_name') },
       { name: 'points', label: 'Points', type: 'number', step: '0.001' },
@@ -407,21 +407,21 @@ function Block({ title, hint, add, children }) {
           <Text fontSize="sm" fontWeight="600">{title}</Text>
           {hint ? <Text fontSize="xs">{hint}</Text> : null}
         </Box>
-        {add ? <Button size="xs" variant="subtle" onClick={add}>{translate('crm.program.add')}</Button> : null}
+        {add ? <Button size="xs" variant="subtle" onClick={add}>{translate('crm.event.add')}</Button> : null}
       </Box>
       {children}
     </Box>
   );
 }
 
-function Targets({ program, tierOptions, ask, run, tick }) {
+function Targets({ event, tierOptions, ask, run, tick }) {
   const translate = useT();
   const { canWrite } = usePermission(PAGE);
-  const pid = program.activity_program_id;
-  const inSetup = SETUP.indexOf(program.status) !== -1;
-  const list = useList((params) => crm.programs.targets(pid, params), { page: 1, limit: 20 });
+  const pid = event.event_id;
+  const inSetup = SETUP.indexOf(event.status) !== -1;
+  const list = useList((params) => crm.events.targets(pid, params), { page: 1, limit: 20 });
   const buildable = ['SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'LOCATION_ACTIVITY']
-    .indexOf(program.eligibility_basis) !== -1;
+    .indexOf(event.eligibility_basis) !== -1;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tick) list.reload(); }, [tick]);
@@ -440,24 +440,24 @@ function Targets({ program, tierOptions, ask, run, tick }) {
         actions={canWrite && inSetup ? (
           <>
             {buildable ? (
-              <Button size="sm" variant="subtle" onClick={() => run(() => crm.programs.buildTargets(pid).then(({ data }) => {
+              <Button size="sm" variant="subtle" onClick={() => run(() => crm.events.buildTargets(pid).then(({ data }) => {
                 list.reload();
                 return data;
-              }), 'crm.program.targetsBuilt')}>
-                {translate('crm.program.buildFromRule')}
+              }), 'crm.event.targetsBuilt')}>
+                {translate('crm.event.buildFromRule')}
               </Button>
             ) : null}
-            <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.addTarget'), [
+            <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.addTarget'), [
               { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
                 render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
               { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
-              { name: 'program_tier_id', label: 'Tier', type: 'select', options: tierOptions },
+              { name: 'event_tier_id', label: 'Tier', type: 'select', options: tierOptions },
               { name: 'allowed_count', label: 'Entries allowed', type: 'number' },
               { name: 'qualification_value', label: 'Qualifying value', type: 'number', step: '0.0001' },
               { name: 'note', label: 'Why', colSpan: 'full' }
-            ], { entry_type: 'NORMAL', allowed_count: 1 }, (values) => run(() => crm.programs.addTarget(pid, values).then(() => list.reload())))}
+            ], { entry_type: 'NORMAL', allowed_count: 1 }, (values) => run(() => crm.events.addTarget(pid, values).then(() => list.reload())))}
             >
-              {translate('crm.program.addTarget')}
+              {translate('crm.event.addTarget')}
             </Button>
           </>
         ) : null}
@@ -482,9 +482,9 @@ function Targets({ program, tierOptions, ask, run, tick }) {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.activity_target_id || row.id}
-          actions={canWrite && program.status !== 'FULFILLED' && program.status !== 'CANCELLED' ? [
-            { key: 'revoke', label: translate('crm.program.revoke'), hidden: (row) => row.status === 'REVOKED',
-              onClick: (row) => run(() => crm.programs.revokeTarget(pid, row.activity_target_id).then(() => list.reload())) }
+          actions={canWrite && event.status !== 'FULFILLED' && event.status !== 'CANCELLED' ? [
+            { key: 'revoke', label: translate('crm.event.revoke'), hidden: (row) => row.status === 'REVOKED',
+              onClick: (row) => run(() => crm.events.revokeTarget(pid, row.activity_target_id).then(() => list.reload())) }
           ] : []}
           actionsIconOnly={false}
         />
@@ -500,15 +500,15 @@ const ENTRY_MOVES = {
   PAID: ['FULFILLED', 'CANCELLED']
 };
 const ENTRY_VERBS = {
-  RESERVED: 'crm.program.confirmEntry', PAID: 'crm.program.markPaid', FULFILLED: 'crm.program.markCollected',
-  CANCELLED: 'crm.program.cancelEntry', EXPIRED: 'crm.program.markExpired', FAILED: 'crm.program.markFailed'
+  RESERVED: 'crm.event.confirmEntry', PAID: 'crm.event.markPaid', FULFILLED: 'crm.event.markCollected',
+  CANCELLED: 'crm.event.cancelEntry', EXPIRED: 'crm.event.markExpired', FAILED: 'crm.event.markFailed'
 };
 
-function Entries({ program, programSites, ask, run, tick }) {
+function Entries({ event, eventSites, ask, run, tick }) {
   const translate = useT();
   const { canWrite } = usePermission(PAGE);
-  const pid = program.activity_program_id;
-  const list = useList((params) => crm.programs.reservations(pid, params), { page: 1, limit: 20, dir: 'asc' });
+  const pid = event.event_id;
+  const list = useList((params) => crm.events.reservations(pid, params), { page: 1, limit: 20, dir: 'asc' });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tick) list.reload(); }, [tick]);
@@ -516,13 +516,13 @@ function Entries({ program, programSites, ask, run, tick }) {
   const moveEntry = (row, status) => {
     const fields = [];
     if (status === 'FULFILLED') {
-      fields.push({ name: 'service_center_id', label: 'Collected at', type: 'select', options: programSites, isSearchable: true });
+      fields.push({ name: 'service_center_id', label: 'Collected at', type: 'select', options: eventSites, isSearchable: true });
       fields.push({ name: 'product_instance_id', label: 'The unit handed over', type: 'custom', colSpan: 'full',
         render: (values, set) => <InstancePicker value={values.product_instance_id} onChange={(value) => set('product_instance_id', value)} /> });
     }
     fields.push({ name: 'note', label: 'Note', type: 'textarea', colSpan: 'full', required: status === 'CANCELLED' });
     ask(translate(ENTRY_VERBS[status]) + '  ' + row.reservation_code, fields, { service_center_id: row.service_center_id },
-      (values) => run(() => crm.programs.moveReservation(row.reservation_id, Object.assign({ status: status }, values)).then(() => list.reload())));
+      (values) => run(() => crm.events.moveReservation(row.reservation_id, Object.assign({ status: status }, values)).then(() => list.reload())));
   };
 
   const actions = canWrite ? Object.keys(ENTRY_VERBS).map((status) => ({
@@ -542,21 +542,21 @@ function Entries({ program, programSites, ask, run, tick }) {
             options: choices(['PENDING', 'RESERVED', 'PAID', 'FULFILLED', 'CANCELLED', 'EXPIRED', 'FAILED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) },
           { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
-            options: programSites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) }
+            options: eventSites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) }
         ])}
-        actions={canWrite && program.status === 'OPEN' ? (
-          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.takeAnEntry'), [
+        actions={canWrite && event.status === 'OPEN' ? (
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.takeAnEntry'), [
             { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
               render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
             { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
-            { name: 'service_center_id', label: 'Collect at', type: 'select', options: programSites, isSearchable: true },
+            { name: 'service_center_id', label: 'Collect at', type: 'select', options: eventSites, isSearchable: true },
             { name: 'holder_name', label: 'Name on the entry' },
             { name: 'holder_phone', label: 'Phone' },
             { name: 'holder_id_card', label: 'ID card number',
-              help: 'Kept only as a fingerprint and a masked copy. One ID card, one entry per program.' }
-          ], { entry_type: 'NORMAL' }, (values) => run(() => crm.programs.reserve(pid, values).then(() => list.reload()), 'crm.program.entryTaken'))}
+              help: 'Kept only as a fingerprint and a masked copy. One ID card, one entry per event.' }
+          ], { entry_type: 'NORMAL' }, (values) => run(() => crm.events.reserve(pid, values).then(() => list.reload()), 'crm.event.entryTaken'))}
           >
-            {translate('crm.program.takeAnEntry')}
+            {translate('crm.event.takeAnEntry')}
           </Button>
         ) : null}
       />
@@ -596,7 +596,7 @@ function EntryHistory({ reservationId }) {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     if (!reservationId) return;
-    crm.programs.reservationEvents(reservationId).then(({ data }) => setRows(rowsOf(data))).catch(() => setRows([]));
+    crm.events.reservationEvents(reservationId).then(({ data }) => setRows(rowsOf(data))).catch(() => setRows([]));
   }, [reservationId]);
   return (
     <DataTable
@@ -621,16 +621,16 @@ const AWARD_MOVES = {
   FAILED: ['PENDING', 'CANCELLED']
 };
 const AWARD_VERBS = {
-  READY: 'crm.program.readyToCollect', DISPATCHED: 'crm.program.dispatched', DELIVERED: 'crm.program.delivered',
-  PICKED_UP: 'crm.program.pickedUp', CREDITED: 'crm.program.credited', FAILED: 'crm.program.markFailed',
-  PENDING: 'crm.program.tryAgain', CANCELLED: 'crm.program.cancelAward'
+  READY: 'crm.event.readyToCollect', DISPATCHED: 'crm.event.dispatched', DELIVERED: 'crm.event.delivered',
+  PICKED_UP: 'crm.event.pickedUp', CREDITED: 'crm.event.credited', FAILED: 'crm.event.markFailed',
+  PENDING: 'crm.event.tryAgain', CANCELLED: 'crm.event.cancelAward'
 };
 
-function Awards({ program, rewards, sites, ask, run, tick }) {
+function Awards({ event, rewards, sites, ask, run, tick }) {
   const translate = useT();
   const { canWrite } = usePermission(PAGE);
-  const pid = program.activity_program_id;
-  const list = useList((params) => crm.programs.awards(pid, params), { page: 1, limit: 20, dir: 'desc' });
+  const pid = event.event_id;
+  const list = useList((params) => crm.events.awards(pid, params), { page: 1, limit: 20, dir: 'desc' });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tick) list.reload(); }, [tick]);
@@ -640,10 +640,10 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
     if (status === 'DISPATCHED') fields.push({ name: 'delivery_address', label: 'Delivery address', required: !row.delivery_address, colSpan: 'full' });
     if (status === 'CREDITED') fields.push({ name: 'external_credit_ref', label: 'Wallet transaction reference', required: true, colSpan: 'full' });
     if (!fields.length) {
-      return run(() => crm.programs.moveAward(row.award_id, { status: status }).then(() => list.reload()));
+      return run(() => crm.events.moveAward(row.award_id, { status: status }).then(() => list.reload()));
     }
     return ask(translate(AWARD_VERBS[status]), fields, { delivery_address: row.delivery_address },
-      (values) => run(() => crm.programs.moveAward(row.award_id, Object.assign({ status: status }, values)).then(() => list.reload())));
+      (values) => run(() => crm.events.moveAward(row.award_id, Object.assign({ status: status }, values)).then(() => list.reload())));
   };
 
   return (
@@ -656,8 +656,8 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
             options: choices(['PENDING', 'READY', 'DISPATCHED', 'DELIVERED', 'PICKED_UP', 'CREDITED', 'FAILED', 'CANCELLED']),
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
-        actions={canWrite && (program.status === 'OPEN' || program.status === 'CLOSED') ? (
-          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.program.giveAReward'), [
+        actions={canWrite && (event.status === 'OPEN' || event.status === 'CLOSED') ? (
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.giveAReward'), [
             { name: 'reward_id', label: 'Reward', type: 'select', required: true,
               options: rewards.map((reward) => ({ value: reward.reward_id, label: reward.reward_name + '  (' + number(reward.quantity_total - reward.quantity_awarded) + ')' })) },
             { name: 'party_pk', label: 'Customer', type: 'custom', colSpan: 'full',
@@ -668,9 +668,9 @@ function Awards({ program, rewards, sites, ask, run, tick }) {
             { name: 'recipient_name', label: 'Recipient' },
             { name: 'recipient_phone', label: 'Phone' },
             { name: 'delivery_address', label: 'Delivery address', colSpan: 'full' }
-          ], { fulfilment_method: 'PICKUP' }, (values) => run(() => crm.programs.award(pid, values).then(() => list.reload())))}
+          ], { fulfilment_method: 'PICKUP' }, (values) => run(() => crm.events.award(pid, values).then(() => list.reload())))}
           >
-            {translate('crm.program.giveAReward')}
+            {translate('crm.event.giveAReward')}
           </Button>
         ) : null}
       />

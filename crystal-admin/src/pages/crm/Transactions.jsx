@@ -106,7 +106,7 @@ export default function Transactions() {
   );
 }
 
-function TransactionDrawer({ id, onClose }) {
+export function TransactionDrawer({ id, onClose }) {
   const translate = useT();
   const history = useHistory();
   const [detail, setDetail] = useState(null);

@@ -18,7 +18,7 @@ import { PartyPicker, Status, amount, choices, dateInput, localInput, optionsFro
 
 export const PAGE = '/admin/crm/site-activity';
 
-const EVENT_TYPES = ['PROMOTION_DAY', 'PRODUCT_LAUNCH', 'ROADSHOW', 'TRAINING', 'INSPECTION', 'PROGRAM_PICKUP_DAY', 'COMMUNITY_EVENT'];
+const EVENT_TYPES = ['PROMOTION_DAY', 'PRODUCT_LAUNCH', 'ROADSHOW', 'TRAINING', 'INSPECTION', 'EVENT_PICKUP_DAY', 'COMMUNITY_EVENT'];
 const EVENT_STATUS = ['PLANNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
 /**
@@ -26,12 +26,12 @@ const EVENT_STATUS = ['PLANNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCE
  *
  * THE LOG is one row per thing done: a repair taken in or handed back (from
  * the Crystal import), a reservation collected or a prize handed over (from a
- * program), a registration done at the counter - and whatever a site records
+ * event), a registration done at the counter - and whatever a site records
  * here: a device sold, apps installed, a visitor at a promotion. A row
  * recorded in error is reversed, not deleted, and stops counting.
  *
  * EVENTS are planned days at a site: a launch, a roadshow, a collection day
- * for a program. TARGETS are set per site, activity and period, and read
+ * for an event. TARGETS are set per site, activity and period, and read
  * against the log as it stands.
  */
 export default function SiteActivity() {
@@ -225,7 +225,7 @@ function Events() {
             { key: 'title', label: 'Event', maxW: '16rem' },
             { key: 'event_type_code', label: 'Kind', render: (row) => word(translate, row.event_type_code) },
             { key: 'service_center_name', label: 'Service location' },
-            { key: 'program_name', label: 'Program' },
+            { key: 'event_name', label: 'Event' },
             { key: 'capacity', label: 'Capacity', isNumeric: true, render: (row) => number(row.capacity) },
             { key: 'attendee_count', label: 'Came', isNumeric: true, render: (row) => number(row.attendee_count) },
             { key: 'activity_cnt', label: 'Activities', isNumeric: true, render: (row) => number(row.activity_cnt) },

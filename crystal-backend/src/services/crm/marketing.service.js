@@ -11,11 +11,11 @@ const { searchId } = require('./partyId');
  * A SEGMENT is a rule with a stable name - "owns a class 9 phone and has not
  * been in a service centre this year" - and its membership is materialised
  * each time it is evaluated, with the date a party entered and left. The rule
- * is versioned: editing it starts a new version, so the members a program
+ * is versioned: editing it starts a new version, so the members an event
  * took its targets from can always be traced to the rule that chose them.
  *
  * A CAMPAIGN freezes an audience before it does anything: from a segment, a
- * program's targets, a rule, or a list. The frozen list is what was actually
+ * event's targets, a rule, or a list. The frozen list is what was actually
  * used, whatever the segment says tomorrow. Preparing an action decides, per
  * member, whether they may be contacted on that channel for that purpose -
  * consent and a usable contact - and records the reason when they may not.
@@ -130,8 +130,10 @@ const CONDITIONS = {
   corporate_grade: {
     params: ['min_rank'],
     sql: function (condition) {
-      return [`(SELECT grade.rank_no FROM crm_party_analysis_snapshot snapshot JOIN crm_corporate_grade grade ON grade.corporate_grade_id = snapshot.corporate_grade_id
-                WHERE snapshot.party_pk = party.party_pk AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1) >= ?`,
+      /* A grade set by hand on the record stands in for the computed one. */
+      return [`COALESCE((SELECT assigned.rank_no FROM crm_corporate_grade assigned WHERE assigned.corporate_grade_id = party.assigned_grade_id),
+                (SELECT grade.rank_no FROM crm_party_analysis_snapshot snapshot JOIN crm_corporate_grade grade ON grade.corporate_grade_id = snapshot.corporate_grade_id
+                WHERE snapshot.party_pk = party.party_pk AND snapshot.project_id IS NULL ORDER BY snapshot.reference_date DESC LIMIT 1)) >= ?`,
       [Number(condition.min_rank || 1)]];
     }
   },
@@ -384,7 +386,7 @@ async function newVersion(id, body, actor) {
  * RE-EVALUATE: who matches the current rule now.
  *
  * Newcomers get a membership row; parties who no longer match get their row
- * closed rather than deleted, so "who was in this segment when the program
+ * closed rather than deleted, so "who was in this segment when the event
  * froze its targets" stays answerable.
  */
 async function evaluate(id, actor) {
@@ -443,7 +445,7 @@ const CAMPAIGN_FLOW = {
   COMPLETED: [],
   CANCELLED: []
 };
-const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'PROGRAM_NOTICE', 'SURVEY'];
+const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'EVENT_NOTICE', 'SURVEY'];
 
 async function searchCampaigns(filters, paging) {
   const qb = function () {
@@ -482,9 +484,9 @@ async function campaignDetail(id) {
 
   const [audiences, actions, costs, funnel] = await Promise.all([
     db('crm_campaign_audience as audience').leftJoin('crm_segment as segment', 'segment.segment_id', 'audience.source_segment_id')
-      .leftJoin('crm_activity_program as program', 'program.activity_program_id', 'audience.source_activity_program_id')
+      .leftJoin('crm_event as event', 'event.event_id', 'audience.source_event_id')
       .where('audience.campaign_id', id).orderBy('audience.audience_id')
-      .select('audience.*', 'segment.segment_name', 'program.program_name'),
+      .select('audience.*', 'segment.segment_name', 'event.event_name'),
     db('crm_campaign_action as action')
       .join('crm_communication_channel as ch', 'ch.channel_id', 'action.channel_id')
       .join('crm_communication_purpose as pp', 'pp.purpose_id', 'action.purpose_id')
@@ -579,7 +581,7 @@ async function openCampaign(trx, id) {
 
 /** FREEZE AN AUDIENCE: the parties it names today are the ones it will always name. */
 async function addAudience(id, body, actor) {
-  const types = ['SEGMENT', 'RULE', 'MANUAL', 'PROGRAM_TARGETS'];
+  const types = ['SEGMENT', 'RULE', 'MANUAL', 'EVENT_TARGETS'];
   if (types.indexOf(body.audience_type) === -1) throw new HttpError(400, 'crm.chooseAnAudienceType');
   if (!body.audience_name) throw new HttpError(400, 'crm.nameTheAudience');
 
@@ -594,10 +596,10 @@ async function addAudience(id, body, actor) {
         .where('segment_member.segment_id', body.source_segment_id).whereNull('segment_member.unmatched_at').where('party.party_status', 'ACTIVE')
         .select('segment_member.party_pk', 'segment_member.segment_membership_id'))
         .map(function (row) { return { party_pk: row.party_pk, source_segment_membership_id: row.segment_membership_id }; });
-    } else if (body.audience_type === 'PROGRAM_TARGETS') {
-      if (!body.source_activity_program_id) throw new HttpError(400, 'crm.chooseAProgram');
+    } else if (body.audience_type === 'EVENT_TARGETS') {
+      if (!body.source_event_id) throw new HttpError(400, 'crm.chooseAnEvent');
       members = (await trx('crm_activity_target as target').join('crm_party as party', 'party.party_pk', 'target.party_pk')
-        .where('target.activity_program_id', body.source_activity_program_id).whereNot('target.status', 'REVOKED')
+        .where('target.event_id', body.source_event_id).whereNot('target.status', 'REVOKED')
         .where('party.party_status', 'ACTIVE')
         .select('target.party_pk', 'target.activity_target_id'))
         .map(function (row) { return { party_pk: row.party_pk, source_activity_target_id: row.activity_target_id }; });
@@ -621,7 +623,7 @@ async function addAudience(id, body, actor) {
       audience_name: body.audience_name,
       audience_type: body.audience_type,
       source_segment_id: body.audience_type === 'SEGMENT' ? body.source_segment_id : null,
-      source_activity_program_id: body.audience_type === 'PROGRAM_TARGETS' ? body.source_activity_program_id : null,
+      source_event_id: body.audience_type === 'EVENT_TARGETS' ? body.source_event_id : null,
       rule_expression: rule ? JSON.stringify(rule) : null,
       snapshot_at: trx.fn.now(),
       member_count: members.length

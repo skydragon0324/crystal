@@ -6,10 +6,10 @@
  * The same shape as scripts/check.js, and for the same reason: the rules
  * worth checking here only exist when the API and the database are both
  * involved - that the grid refuses a centre manager the points ledger, that a
- * program cannot be approved by the manager who wrote it, that a quota
+ * event cannot be approved by the manager who wrote it, that a quota
  * cannot be overbooked, that a cancelled reservation gives its points back.
  *
- * It WRITES: customers, a product, a program, a segment and a campaign, each
+ * It WRITES: customers, a product, an event, a segment and a campaign, each
  * coded CHK-<time> so a second run does not collide with the first. Run it
  * against a development or staging database, not production. A reseed
  * (`npm run db:reset`) clears everything it made.
@@ -91,7 +91,7 @@ async function main() {
     const overview = data(await admin.get('/crm/overview'));
     return overview.parties && overview.cases && overview.points ? true : 'incomplete';
   });
-  await check('a code the system uses cannot be renamed', function () {
+  await check('a project in use keeps its code', function () {
     return refused(admin.put('/crm/settings/projects/' + crystal.project_id, { project_code: 'RENAMED' }), 409);
   });
 
@@ -105,7 +105,7 @@ async function main() {
     return review.outcome === 'QUEUED' && !review.party_pk && !!review.intake_id;
   });
   // Explicit reviewed registration creates a second record for the legacy merge test below.
-  const personAdaDuplicate = data(await admin.post('/crm/registrations/' + review.intake_id + '/decide', { action: 'NEW' }));
+  const personAdaDuplicate = data(await admin.post('/crm/identity-intakes/' + review.intake_id + '/decide', { action: 'NEW' }));
   const personBo = data(await admin.post('/crm/parties', { party_type: 'PERSON', full_name: RUN + ' Bo', email: RUN.toLowerCase() + '@example.com' }));
 
   await check('a person is given a job from the job list and marked as checked by hand', async function () {
@@ -121,20 +121,25 @@ async function main() {
     return person.is_checked_manually === true ? true : 'not checked';
   });
 
+  const SHEET_HEADER = ['E-shop PK', 'E-shop ID', 'Full name', 'Gender', 'Birthday', 'Mobile', 'Location ID', 'Address', 'Job title ID', 'Email'];
+  let eshopPk = null;
+  let sheetPartyPk = null;
   await check('an Excel sheet checks matching rows and stages uncertain matches', async function () {
     const ExcelJS = require('exceljs');
     const FormData = require('form-data');
     const book = new ExcelJS.Workbook();
     const sheet = book.addWorksheet('Customers');
-    sheet.addRow(['Full name *', 'Gender', 'Birthday', 'Mobile *', 'Location ID', 'Job title ID', 'Address', 'Email']);
+    sheet.addRow(SHEET_HEADER);
     const fresh = '+86 137 ' + String(Date.now() + 7).slice(-8);
     /* The sheet takes IDs: any location and any job title on their lists. */
     const lists = data(await admin.get('/crm/meta'));
     const placeId = (lists.areas || []).length ? lists.areas[0].location_pk : '';
     const jobId = (lists.job_titles || []).filter(function (job) { return job.is_active; })[0].job_title_id;
-    sheet.addRow([RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, jobId, '1 Test Road', '']);
-    sheet.addRow([RUN + ' Ada', 'M', '1985-01-20', mobile, placeId, jobId, '', '']);
-    sheet.addRow([RUN + ' Sheet One', 'F', '1992-06-01', fresh.replace(/ /g, ''), '', '', '', '']);
+    eshopPk = String(Date.now()).slice(-9);
+    // Every row is complete; rows 1 and 3 are the same person with the same e-shop account.
+    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh, placeId, '1 ' + RUN + ' Road', jobId, '']);
+    sheet.addRow([String(Number(eshopPk) + 1), RUN.toLowerCase() + '-ada', RUN + ' Ada', 'M', '1985-01-20', mobile, placeId, '9 ' + RUN + ' Lane', jobId, '']);
+    sheet.addRow([eshopPk, RUN.toLowerCase() + '-one', RUN + ' Sheet One', 'F', '1992-06-01', fresh.replace(/ /g, ''), placeId, '1 ' + RUN + ' Road', '', '']);
     const buffer = await book.xlsx.writeBuffer();
     const send = function (dryRun) {
       const form = new FormData();
@@ -149,20 +154,25 @@ async function main() {
     const done = data(await send(false));
     if (done.summary.created !== 1 || done.summary.duplicate !== 1 || done.summary.review !== 1) return 'import ' + JSON.stringify(done.summary);
     const found = data(await admin.get('/crm/parties', { params: { q: RUN + ' Sheet One' } }));
-    return found.rows.length === 1 ? true : 'created row not found';
+    if (found.rows.length !== 1) return 'created row not found';
+    sheetPartyPk = done.rows[0].party_pk;
+    return true;
   });
 
-  await check('an imported source User ID is retained without becoming a party key', async function () {
-    const ExcelJS = require('exceljs');
-    const FormData = require('form-data');
-    const book = new ExcelJS.Workbook();
-    const sheet = book.addWorksheet('Customers');
-    sheet.addRow(['User ID', 'Full name *', 'Mobile *']);
-    sheet.addRow(['SOURCE-' + RUN, RUN + ' Source Person', '+86136' + String(Date.now()).slice(-8)]);
-    const form = new FormData();
-    form.append('file', Buffer.from(await book.xlsx.writeBuffer()), { filename: 'source.xlsx' });
-    const result = data(await admin.post('/crm/parties/import', form, { headers: form.getHeaders() }));
-    return /^[1-9][0-9]*$/.test(result.rows[0].party_pk) && result.rows[0].values.source_user_id === 'SOURCE-' + RUN;
+  await check('spreadsheet e-shop identifiers are staged for review, not linked', async function () {
+    const detail = data(await admin.get('/crm/parties/' + sheetPartyPk));
+    const linked = (detail.accounts || []).filter(function (account) { return account.external_account_id === eshopPk && !account.unlinked_at; });
+    if (linked.length) return 'committed as an account';
+    const listed = data(await admin.get('/crm/parties/' + sheetPartyPk + '/unverified-accounts'));
+    if (listed.length !== 1 || listed[0].external_account_id !== eshopPk || listed[0].review_status !== 'PENDING') return 'listed ' + JSON.stringify(listed);
+    const queue = data(await admin.get('/crm/identity-intakes', { params: { category: 'ESHOP', limit: 100 } }));
+    const assignment = queue.rows.filter(function (row) { return row.source_record_id === eshopPk; })[0];
+    if (!assignment || String(assignment.candidates[0].party_pk) !== String(sheetPartyPk)) return 'not in the e-shop queue';
+    await admin.post('/crm/identity-intakes/' + assignment.intake_id + '/decide', { action: 'ASSIGN', party_pk: sheetPartyPk });
+    const after = data(await admin.get('/crm/parties/' + sheetPartyPk));
+    const assigned = (after.accounts || []).filter(function (account) { return account.external_account_id === eshopPk && !account.unlinked_at; });
+    const relisted = data(await admin.get('/crm/parties/' + sheetPartyPk + '/unverified-accounts'));
+    return assigned.length === 1 && relisted[0].review_status === 'ASSIGNED' ? true : 'assignment did not link the account';
   });
 
   /* What the forms may not save: each refusal is a 400 naming the field. */
@@ -200,9 +210,9 @@ async function main() {
     const FormData = require('form-data');
     const book = new ExcelJS.Workbook();
     const sheet = book.addWorksheet('Customers');
-    sheet.addRow(['Full name', 'Mobile', 'Gender', 'Job title ID']);
-    sheet.addRow([RUN + ' Bad One', '+86 136 ' + String(Date.now() + 11).slice(-8), 'X', 999999]);
-    sheet.addRow(['', '123', '', '']);
+    sheet.addRow(SHEET_HEADER);
+    sheet.addRow(['77', 'bad-one', RUN + ' Bad One', 'X', '1990-01-01', '+86 136 ' + String(Date.now() + 11).slice(-8), 1, '2 Road', 999999, '']);
+    sheet.addRow(['', '', '', '', '', '123', '', '', '', '']);
     const form = new FormData();
     form.append('file', Buffer.from(await book.xlsx.writeBuffer()), { filename: 'bad.xlsx' });
     try {
@@ -315,43 +325,43 @@ async function main() {
     return drift.length === 0 ? true : drift.length + ' accounts drifted';
   });
 
-  console.log('\nactivity programs');
+  console.log('\nactivity events');
   const sites = data(await admin.get('/crm/sites/options'));
   const site = sites[0];
-  const program = data(await admin.post('/crm/programs', {
-    program_code: RUN + '-RSV', program_name: RUN + ' reservation', program_type: 'RESERVATION',
+  const event = data(await admin.post('/crm/events', {
+    event_code: RUN + '-RSV', event_name: RUN + ' reservation', event_type: 'RESERVATION',
     project_id: crystal.project_id, eligibility_basis: 'MANUAL',
     cost_point_type_id: activityPoints.point_type_id, cost_points: 30,
     number_prefix: RUN.slice(-7) + '-', number_start: 1, number_end: 9999
   }));
-  const pid = program.activity_program_id;
+  const pid = event.event_id;
 
-  await check('the manager who wrote a program cannot approve it', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/status', { status: 'APPROVED' }), 409);
+  await check('the manager who wrote an event cannot approve it', function () {
+    return refused(admin.post('/crm/events/' + pid + '/status', { status: 'APPROVED' }), 409);
   });
   await check('another manager can', async function () {
-    const approved = data(await ops.post('/crm/programs/' + pid + '/status', { status: 'APPROVED' }));
+    const approved = data(await ops.post('/crm/events/' + pid + '/status', { status: 'APPROVED' }));
     return approved.status === 'APPROVED' ? true : approved.status;
   });
 
-  await admin.post('/crm/programs/' + pid + '/targets', { party_pk: personAda.party_pk, allowed_count: 1 });
-  await admin.post('/crm/programs/' + pid + '/targets', { party_pk: personBo.party_pk, allowed_count: 3 });
-  await admin.post('/crm/programs/' + pid + '/quotas', { entry_type: 'NORMAL', quota_count: 2 });
-  await admin.post('/crm/programs/' + pid + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
+  await admin.post('/crm/events/' + pid + '/targets', { party_pk: personAda.party_pk, allowed_count: 1 });
+  await admin.post('/crm/events/' + pid + '/targets', { party_pk: personBo.party_pk, allowed_count: 3 });
+  await admin.post('/crm/events/' + pid + '/quotas', { entry_type: 'NORMAL', quota_count: 2 });
+  await admin.post('/crm/events/' + pid + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
   await admin.post('/crm/point-adjustments', {
     party_pk: personBo.party_pk, point_type_id: activityPoints.point_type_id, points_delta: 200, description: RUN
   });
-  await admin.post('/crm/programs/' + pid + '/status', { status: 'TARGETS_FROZEN' });
-  await admin.post('/crm/programs/' + pid + '/status', { status: 'OPEN' });
+  await admin.post('/crm/events/' + pid + '/status', { status: 'TARGETS_FROZEN' });
+  await admin.post('/crm/events/' + pid + '/status', { status: 'OPEN' });
 
   await check('a frozen list takes no new targets', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/targets', { party_pk: personAdaDuplicate.party_pk }), 409);
+    return refused(admin.post('/crm/events/' + pid + '/targets', { party_pk: personAdaDuplicate.party_pk }), 409);
   });
 
   let first;
   await check('an entry is numbered and costs its points', async function () {
     const before = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
-    first = data(await admin.post('/crm/programs/' + pid + '/reservations', {
+    first = data(await admin.post('/crm/events/' + pid + '/reservations', {
       party_pk: personAda.party_pk, holder_id_card: 'ID-' + RUN + '-A', service_center_id: site.service_center_id
     }));
     const after = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
@@ -359,41 +369,41 @@ async function main() {
       ? true : first.reservation_code + ' / ' + before.balance + ' -> ' + after.balance;
   });
   await check('a target with no entries left is refused', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personAda.party_pk }), 409);
+    return refused(admin.post('/crm/events/' + pid + '/reservations', { party_pk: personAda.party_pk }), 409);
   });
   await check('one ID card, one entry', function () {
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'id-' + RUN + '-a' }), 409);
+    return refused(admin.post('/crm/events/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'id-' + RUN + '-a' }), 409);
   });
   await check('the quota cannot be overbooked', async function () {
-    await admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-B' });
-    return refused(admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }), 409);
+    await admin.post('/crm/events/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-B' });
+    return refused(admin.post('/crm/events/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }), 409);
   });
   await check('cancelling gives back the entry, the quota and the points', async function () {
     const before = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     await admin.post('/crm/reservations/' + first.reservation_id + '/status', { status: 'CANCELLED', note: 'check' });
     const after = data(await admin.get('/crm/point-accounts', { params: { party_pk: personAda.party_pk, point_type_id: activityPoints.point_type_id } })).rows[0];
     if (Number(after.balance) - Number(before.balance) !== 30) return 'no refund';
-    const third = data(await admin.post('/crm/programs/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }));
+    const third = data(await admin.post('/crm/events/' + pid + '/reservations', { party_pk: personBo.party_pk, holder_id_card: 'ID-' + RUN + '-C' }));
     return third.reservation_no === 3 ? true : 'number ' + third.reservation_no;
   });
   await check('collecting an entry at a site is recorded as site activity', async function () {
-    const open = data(await admin.get('/crm/programs/' + pid + '/reservations', { params: { status: 'RESERVED' } })).rows[0];
+    const open = data(await admin.get('/crm/events/' + pid + '/reservations', { params: { status: 'RESERVED' } })).rows[0];
     await admin.post('/crm/reservations/' + open.reservation_id + '/status', { status: 'FULFILLED', service_center_id: site.service_center_id });
     const log = data(await admin.get('/crm/site-activities', { params: { service_center_id: site.service_center_id, limit: 5 } }));
     return log.rows.some(function (row) { return row.related_reservation_id === open.reservation_id && row.activity_code === 'RESERVATION_PICKUP'; })
       ? true : 'no activity';
   });
   await check('a points reward is paid at once, and runs out', async function () {
-    const reward = data(await admin.post('/crm/programs/' + pid + '/rewards', {
+    const reward = data(await admin.post('/crm/events/' + pid + '/rewards', {
       reward_name: RUN + ' bonus', reward_type: 'POINTS', point_type_id: activityPoints.point_type_id, points: 10, quantity_total: 1
     }));
-    const awarded = data(await admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personAda.party_pk }));
+    const awarded = data(await admin.post('/crm/events/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personAda.party_pk }));
     if (awarded.status !== 'CREDITED' || !awarded.point_event_id) return 'not credited';
-    return refused(admin.post('/crm/programs/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personBo.party_pk }), 409);
+    return refused(admin.post('/crm/events/' + pid + '/awards', { reward_id: reward.reward_id, party_pk: personBo.party_pk }), 409);
   });
-  await check('a program with open entries cannot be marked fulfilled', async function () {
-    await admin.post('/crm/programs/' + pid + '/status', { status: 'CLOSED' });
-    return refused(admin.post('/crm/programs/' + pid + '/status', { status: 'FULFILLED' }), 409);
+  await check('an event with open entries cannot be marked fulfilled', async function () {
+    await admin.post('/crm/events/' + pid + '/status', { status: 'CLOSED' });
+    return refused(admin.post('/crm/events/' + pid + '/status', { status: 'FULFILLED' }), 409);
   });
 
   console.log('\nsites');

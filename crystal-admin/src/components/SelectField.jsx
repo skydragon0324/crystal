@@ -6,6 +6,7 @@ import {
 } from '@chakra-ui/react';
 import { ChevronDownIcon, CheckIcon, CloseIcon, SearchIcon } from '@chakra-ui/icons';
 import { useI18n } from '../i18n';
+import useDismissOnOutside from '../hooks/useDismissOnOutside';
 
 /**
  * How many options are put in the DOM at a time.  The list grows by another
@@ -50,6 +51,9 @@ export default function SelectField({
   const [highlight, setHighlight] = useState(0);
   const searchRef = useRef(null);
   const listRef = useRef(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  useDismissOnOutside(isOpen, onClose, [triggerRef, panelRef]);
 
   const dims = SIZES[size] || SIZES.md;
   const list = useMemo(() => options || [], [options]);
@@ -238,6 +242,7 @@ export default function SelectField({
     >
       <PopoverTrigger>
         <Flex
+          ref={triggerRef}
           role="button" tabIndex={isDisabled ? -1 : 0}
           aria-haspopup="listbox" aria-expanded={isOpen} aria-disabled={isDisabled}
           data-name={name}
@@ -298,6 +303,7 @@ export default function SelectField({
 
       <Portal>
         <PopoverContent
+          ref={panelRef}
           data-no-focus-lock
           /*
            * ABOVE the dialog that opened it.

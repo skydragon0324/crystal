@@ -146,13 +146,14 @@ export function RfmHexagon({ score }) {
 }
 
 /** One of the five figures across the top of the record. */
-export function HeaderStat({ icon, iconColor, label, value, sub }) {
+export function HeaderStat({ icon, iconColor, label, value, sub, action }) {
   const surface = useSurface();
   return (
     <Box minW={0} px={{ base: 0, md: 3 }}>
       <HStack spacing={1.5} mb={1}>
         <Icon as={icon} color={iconColor || 'brand.500'} boxSize="1rem" />
         <Text fontSize="xs" color={surface.muted} noOfLines={1}>{label}</Text>
+        {action || null}
       </HStack>
       <Text fontSize="xl" fontWeight="800" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value === null || value === undefined || value === '' ? '-' : value}

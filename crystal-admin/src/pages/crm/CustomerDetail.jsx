@@ -3,7 +3,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
   Badge, Box, Breadcrumb, BreadcrumbItem, BreadcrumbLink, Button, ButtonGroup, Collapse, Divider, Flex, Grid, HStack, Icon,
   IconButton, Menu, MenuButton, MenuDivider, MenuItem, MenuList, SimpleGrid, Stack, Tab, TabList, TabPanel, TabPanels, Tabs,
-  Text, Wrap, WrapItem, useColorModeValue, useDisclosure, useToast
+  Text, Tooltip, Wrap, WrapItem, useColorModeValue, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
@@ -267,12 +267,28 @@ export default function CustomerDetail() {
   );
 
   /* ------------------------------------------------------------ the header, right: what they are worth */
+  /* Why a grade set by hand was set, and what the analysis would have given. */
+  const gradeNote = [header.assigned_grade_reason, header.computed_grade_code ? translate('crm.c360.gradeComputedWas', { grade: header.computed_grade_code }) : null].filter(Boolean).join(' · ');
   const figures = (
     <Box>
       <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
         <HeaderStat icon={Md.MdStars} iconColor="yellow.500" label={translate('crm.c360.customerGrade')}
+          action={editable ? (
+            <Tooltip label={translate('crm.c360.setGrade')} hasArrow>
+              <IconButton size="xs" variant="ghost" minW="1.25rem" h="1.25rem" icon={<Icon as={Md.MdEdit} boxSize="0.8rem" />} aria-label={translate('crm.c360.setGrade')}
+                onClick={() => open('grade', { corporate_grade_id: header.assigned_grade_id, reason: header.assigned_grade_reason || '' })} />
+            </Tooltip>
+          ) : null}
           value={header.grade_code ? <HStack spacing={2}><Text as="span">{translate(header.grade_name || header.grade_code)}</Text><Pill tone="purple">{header.grade_code}</Pill></HStack> : null}
-          sub={header.grade_since ? translate('crm.c360.sinceDate', { date: date(header.grade_since) }) : translate('crm.ui.notGradedYet')} />
+          sub={header.grade_assigned
+            ? (
+              <Tooltip hasArrow label={gradeNote} isDisabled={!gradeNote}>
+                <Text as="span">{header.assigned_grade_by
+                  ? translate('crm.c360.gradeSetBy', { who: header.assigned_grade_by, date: date(header.grade_since) })
+                  : translate('crm.c360.gradeSetOn', { date: date(header.grade_since) })}</Text>
+              </Tooltip>
+            )
+            : header.grade_since ? translate('crm.c360.sinceDate', { date: date(header.grade_since) }) : translate('crm.ui.notGradedYet')} />
         <HeaderStat icon={Md.MdAccountBalanceWallet} label={translate('crm.c360.totalSpend')} value={money(header.lifetime_spend)} sub={translate('crm.c360.lifetime')} />
         <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.c360.totalOrders')} value={number(header.orders_total)}
           sub={isPerson ? translate('crm.c360.last12Months', { n: number(header.orders_12m) }) : translate('crm.c360.last24Months', { n: number(header.orders_24m) })} />
@@ -337,6 +353,13 @@ export default function CustomerDetail() {
                   <MenuItem icon={<Icon as={Md.MdPeopleOutline} />} onClick={() => open('relationship')}>{translate('crm.c360.addRelationship')}</MenuItem>
                   {isPerson ? null : <MenuItem icon={<Icon as={Md.MdGroup} />} onClick={() => open('team')}>{translate('crm.c360.assignAccountTeam')}</MenuItem>}
                   <MenuItem icon={<Icon as={Md.MdForum} />} onClick={() => open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.c360.logInteraction')}</MenuItem>
+                  <MenuItem icon={<Icon as={Md.MdStars} />} onClick={() => open('grade', { corporate_grade_id: header.assigned_grade_id, reason: header.assigned_grade_reason || '' })}>{translate('crm.c360.setGrade')}</MenuItem>
+                  {header.grade_assigned ? (
+                    <MenuItem icon={<Icon as={Md.MdRestore} />}
+                      onClick={() => ask('crm.c360.clearGrade', 'crm.c360.clearGradeExplained', header.grade_code, () => crm.parties.assignGrade(party.party_pk, null), 'info')}>
+                      {translate('crm.c360.clearGrade')}
+                    </MenuItem>
+                  ) : null}
                   {isPerson ? (
                     <MenuItem icon={<Icon as={Md.MdVerifiedUser} />}
                       onClick={() => run(() => crm.parties.setChecked(party.party_pk, !person.is_checked_manually))}>
@@ -532,7 +555,7 @@ function timelineOf(record, translate) {
     title: tierChange.project_code + '  ·  ' + translate(tierChange.new_tier_name || '-'), detail: tierChange.change_reason
   }));
   (record.reservations || []).forEach((reservation) => items.push({
-    kind: 'ENTRY', id: reservation.reservation_id, at: reservation.reserved_at, title: reservation.program_name, detail: reservation.reservation_code + '  ·  ' + word(translate, reservation.status)
+    kind: 'ENTRY', id: reservation.reservation_id, at: reservation.reserved_at, title: reservation.event_name, detail: reservation.reservation_code + '  ·  ' + word(translate, reservation.status)
   }));
   return items.filter((item) => item.at).sort((first, second) => new Date(second.at) - new Date(first.at)).slice(0, 30);
 }
@@ -543,7 +566,7 @@ const INTERACTION_CHANNELS = ['PHONE', 'EMAIL', 'CHAT', 'SMS', 'IN_PERSON', 'APP
 const INTERACTION_TYPES = ['GENERAL_INQUIRY', 'PRODUCT_SUPPORT', 'ORDER_INQUIRY', 'COMPLAINT', 'FEEDBACK', 'SALES', 'FOLLOW_UP'];
 const OUTCOMES = ['ANSWERED', 'FOLLOW_UP', 'RESOLVED', 'CLOSED', 'NO_ANSWER'];
 const CASE_CHANNELS = ['PHONE', 'WALK_IN', 'APP', 'WEB', 'MAIL_IN', 'COURIER', 'ON_SITE', 'AGENCY'];
-const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'PROGRAM_NOTICE', 'SURVEY'];
+const CAMPAIGN_TYPES = ['PROMOTION', 'RETENTION', 'WIN_BACK', 'PRODUCT_LAUNCH', 'SERVICE', 'EVENT_NOTICE', 'SURVEY'];
 const MESSAGE_CHANNELS = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
 
 /** Every dialog the record can open, as FormModal configurations. */
@@ -593,8 +616,8 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       title: translate('crm.customer.linkAccount'),
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
-        { name: 'external_account_id', label: 'Account id in that project', required: true },
-        { name: 'external_login', label: 'Login' }
+        { name: 'external_account_id', label: 'Account PK in that project', required: true },
+        { name: 'external_login', label: 'Account ID' }
       ],
       submit: (values) => run(() => crm.parties.linkAccount(party.party_pk, values), 'Created')
     },
@@ -662,6 +685,17 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'note', label: 'Note', colSpan: 'full' }
       ],
       submit: (values) => run(() => crm.customer360.addRelationship(party.party_pk, values), 'Created')
+    },
+    grade: {
+      title: translate('crm.c360.setGrade'),
+      fields: [
+        { name: 'corporate_grade_id', label: 'Corporate grade', type: 'select', required: true, isClearable: false, colSpan: 'full',
+          options: (meta.corporate_grades || []).filter((grade) => grade.is_active !== false)
+            .map((grade) => ({ value: grade.corporate_grade_id, label: grade.grade_code + '  ' + translate(grade.grade_name) })),
+          help: translate('crm.c360.gradeSetExplained') },
+        { name: 'reason', label: 'Reason', type: 'textarea', colSpan: 'full' }
+      ],
+      submit: (values) => run(() => crm.parties.assignGrade(party.party_pk, values.corporate_grade_id, values.reason))
     },
     interaction: {
       title: translate('crm.c360.logInteraction'),

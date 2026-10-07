@@ -21,16 +21,20 @@ const personImport = require('../src/services/crm/personImport.service');
 
 const OUT = process.argv[2] || path.join(__dirname, '..', 'docs', 'samples', 'crm-customers-sample.xlsx');
 
-/* Made-up people. Phone numbers are in the 138 0000 test block. */
+/*
+ * Made-up people, each complete (phase 1 imports only complete people who
+ * already have an e-shop account). Phone numbers are in the 138 0000 test
+ * block; e-shop PKs and IDs are invented.
+ */
 const PEOPLE = [
-  ['Zhang Wei', 'M', [1985, 2, 14], '+86 138 0000 0101', 'Beijing', 'Engineer', '21 Chaoyang Road', 'zhang.wei@example.com'],
-  ['Liu Yang', 'F', [1992, 7, 3], '+86 138 0000 0102', 'Shanghai', 'Teacher', '9 Huaihai Road', ''],
-  ['Chen Jie', 'M', [1978, 11, 21], '13800000103', 'Guangdong', 'Doctor', '', 'chen.jie@example.com'],
-  ['Huang Min', 'F', [2001, 4, 9], '13800000104', 'Zhejiang', 'Student', '3 Wensan Road', ''],
-  ['Zhao Lei', 'M', [1969, 9, 30], '+86 138 0000 0105', 'Jiangsu', 'Farmer', '', ''],
-  ['Wu Ting', 'F', [1988, 1, 17], '+86 138 0000 0106', 'Sichuan', 'Employee', '77 Renmin South Road', 'wu.ting@example.com'],
-  ['Zhou Bin', 'M', [1995, 12, 2], '13800000107', 'Guangdong', 'Worker', '', ''],
-  ['Sun Li', 'F', [1983, 6, 25], '+86 138 0000 0108', 'Shanghai', 'Scientist', '120 Zhangjiang Road', '']
+  ['Zhang Wei', 'M', [1985, 2, 14], '+86 138 0000 0101', 'Beijing', 'Engineer', '21 Chaoyang Road', 'zhang.wei@example.com', '500101', 'zhangwei85'],
+  ['Liu Yang', 'F', [1992, 7, 3], '+86 138 0000 0102', 'Shanghai', 'Teacher', '9 Huaihai Road', '', '500102', 'liuyang'],
+  ['Chen Jie', 'M', [1978, 11, 21], '13800000103', 'Guangdong', 'Doctor', '45 Tianhe North Road', 'chen.jie@example.com', '500103', 'chenjie'],
+  ['Huang Min', 'F', [2001, 4, 9], '13800000104', 'Zhejiang', 'Student', '3 Wensan Road', '', '500104', 'huangmin01'],
+  ['Zhao Lei', 'M', [1969, 9, 30], '+86 138 0000 0105', 'Jiangsu', 'Farmer', '12 Zhongshan East Road', '', '500105', 'zhaolei'],
+  ['Wu Ting', 'F', [1988, 1, 17], '+86 138 0000 0106', 'Sichuan', 'Employee', '77 Renmin South Road', 'wu.ting@example.com', '500106', 'wuting88'],
+  ['Zhou Bin', 'M', [1995, 12, 2], '13800000107', 'Guangdong', 'Worker', '8 Binjiang Road', '', '500107', 'zhoubin'],
+  ['Sun Li', 'F', [1983, 6, 25], '+86 138 0000 0108', 'Shanghai', 'Scientist', '120 Zhangjiang Road', '', '500108', 'sunli83']
 ];
 
 async function main() {
@@ -50,10 +54,10 @@ async function main() {
     return match ? match[idKey] : null;
   };
 
-  const examples = PEOPLE.map(function (person, index) {
+  const examples = PEOPLE.map(function (person) {
     return {
-      // Half the sample brings its own User ID (the customer's party_pk); the rest get one made.
-      user_id: index % 2 === 0 ? 'U' + (10001 + index) : '',
+      eshop_pk: person[8],
+      eshop_id: person[9],
       full_name: person[0],
       gender: person[1],
       birth_date: new Date(Date.UTC(person[2][0], person[2][1] - 1, person[2][2])),

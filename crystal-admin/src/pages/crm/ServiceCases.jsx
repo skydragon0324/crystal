@@ -154,7 +154,7 @@ export default function ServiceCases() {
   );
 }
 
-function CaseDetail({ id, onClose }) {
+export function CaseDetail({ id, onClose }) {
   const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();

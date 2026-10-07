@@ -258,7 +258,10 @@ async function register(body, actor, options) {
       }
     }
 
-    const now = new Date();
+    // The database's clock, as endRegistration uses for valid_to: an app-server
+    // clock running ahead would put valid_from after a valid_to written moments
+    // later and trip chk_crm_reg_period.
+    const now = trx.fn.now();
     const [registration] = await trx('crm_product_registration').insert({
       party_pk: party.party_pk,
       product_instance_id: instance.product_instance_id,

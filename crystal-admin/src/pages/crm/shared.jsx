@@ -43,7 +43,7 @@ export const WORDS = {
 
   /* point movements */
   EARN: 'Earned', REDEEM: 'Redeemed', EXPIRE: 'Expired points', ADJUST: 'Adjustment', REFUND: 'Refund',
-  RESERVATION_COST: 'Reservation cost', PROGRAM_AWARD: 'Program award', MERGE_CARRY_OVER: 'Carried over on merge',
+  RESERVATION_COST: 'Reservation cost', EVENT_AWARD: 'Event award', MERGE_CARRY_OVER: 'Carried over on merge',
   MOBILE: 'Mobile', EMAIL: 'Email', PHONE: 'Phone', SIM_CID: 'SIM card', WECHAT_ID: 'WeChat ID',
   WHATSAPP: 'WhatsApp number', PUSH_TOKEN: 'Push token',
 
@@ -56,7 +56,7 @@ export const WORDS = {
   TRANSFER: 'Transfer', ASSIGNMENT_END: 'Assignment ended', RETURNED: 'Returned', MERGE: 'Merge',
   APP: 'App', WEB: 'Web', AGENCY: 'At a service location', CONSOLE: 'Console', IMPORT: 'Import',
 
-  /* programs */
+  /* events */
   RESERVATION: 'Reservation', LOTTERY: 'Lottery', PRIZE_SERVICE: 'Prize service', PUZZLE: 'Puzzle',
   SURVEY_REWARD: 'Survey reward', EVENT_ATTENDANCE: 'Event attendance',
   SEGMENT: 'Segment', POINT_RANKING: 'Points ranking', CORPORATE_GRADE: 'Corporate grade',
@@ -72,8 +72,8 @@ export const WORDS = {
   SERVICE_CENTER: 'Service centre', SALES_AGENCY: 'Sales agency', COLLECTION_POINT: 'Collection point',
   PARTNER_SHOP: 'Partner shop', OFFICE: 'Office',
   PROMOTION_DAY: 'Promotion day', PRODUCT_LAUNCH: 'Product launch', ROADSHOW: 'Roadshow', TRAINING: 'Training',
-  INSPECTION: 'Inspection', PROGRAM_PICKUP_DAY: 'Collection day', COMMUNITY_EVENT: 'Community event',
-  SERVICE: 'Service', SALES: 'Sales', SOFTWARE: 'Software', PROGRAM: 'Program', MARKETING: 'Marketing',
+  INSPECTION: 'Inspection', EVENT_PICKUP_DAY: 'Collection day', COMMUNITY_EVENT: 'Community event',
+  SERVICE: 'Service', SALES: 'Sales', SOFTWARE: 'Software', EVENT: 'Event', MARKETING: 'Marketing',
   OPERATIONS: 'Operations',
 
   /* the analysis */
@@ -107,8 +107,8 @@ export const WORDS = {
   WALK_IN: 'Walk-in', MAIL_IN: 'Mail-in', ON_SITE: 'On site', COURIER: 'Courier', PHONE_CALL: 'Phone call',
 
   /* campaigns */
-  PROMOTION: 'Promotion', RETENTION: 'Retention', WIN_BACK: 'Win-back', PROGRAM_NOTICE: 'Program notice',
-  SURVEY: 'Survey', RULE: 'Rule', PROGRAM_TARGETS: 'Program targets',
+  PROMOTION: 'Promotion', RETENTION: 'Retention', WIN_BACK: 'Win-back', EVENT_NOTICE: 'Event notice',
+  SURVEY: 'Survey', RULE: 'Rule', EVENT_TARGETS: 'Event targets',
   SEND_MESSAGE: 'Send a message', CALL: 'Call', PUSH: 'Push notification', IN_APP: 'In the app', SMS: 'SMS',
   NO_OPTION: 'Not offered', OPTED_OUT: 'Opted out', NO_CONSENT: 'No consent', NO_CONTACT: 'No contact',
   MEDIA: 'Media', EMAIL_PROVIDER: 'Email provider', COUPON: 'Coupon', PRIZE: 'Prize', OTHER: 'Other',

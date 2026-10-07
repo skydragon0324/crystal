@@ -16,7 +16,7 @@ const config = require('../config');
  * cannot open a customer's point ledger.
  *
  * A few reads are SHARED between screens: the vocabularies, and the pickers
- * that find a customer, a site, a product or a segment. A program screen
+ * that find a customer, a site, a product or a segment. An event screen
  * needs to pick a site and a site-activity screen needs to pick a customer.
  * Those are guarded by "may open at least one CRM screen" rather than by any
  * single page, and they return names and codes, never a record.
@@ -30,7 +30,7 @@ const PAGES = {
   TRANSFERS: '/admin/crm/transfers',
   CASES: '/admin/crm/service-cases',
   POINTS: '/admin/crm/points',
-  PROGRAMS: '/admin/crm/programs',
+  EVENTS: '/admin/crm/events',
   SITES: '/admin/crm/sites',
   ACTIVITY: '/admin/crm/site-activity',
   SEGMENTS: '/admin/crm/segments',
@@ -64,7 +64,7 @@ router.get('/catalog/lookup', anyCrm, crmController.products.catalogLookup);
 router.get('/sites/options', anyCrm, crmController.sites.options);
 router.get('/segments/options', anyCrm, crmController.segments.options);
 router.get('/segments/fields', anyCrm, crmController.segments.fields);
-router.get('/programs/options', anyCrm, crmController.programs.options);
+router.get('/events/options', anyCrm, crmController.events.options);
 router.get('/campaigns/options', anyCrm, crmController.campaigns.options);
 
 /* ---- overview ---- */
@@ -117,29 +117,25 @@ router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicate
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
 router.post('/duplicates/:id/accept', write(PAGES.CUSTOMERS), crmController.parties.acceptDuplicate);
 router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.parties.rejectDuplicate);
-// Registrations remain staged until identity is resolved. Departments poll and acknowledge results.
+// Identity intakes remain staged until an administrator resolves them. Departments
+// submit and poll through /api/integration/crm (crmIntegration.routes.js), not here.
+// Not under /registrations: that path belongs to product registrations below.
 const intake = require('../services/crm/registrationIntake.service');
 const response = require('../utils/response');
-router.get('/registrations', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.list(req.query)));
-router.post('/registrations/:id/decide', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.decide(req.params.id, req.body, req.actor)));
-router.get('/identity-resolutions', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.resolutions(req.query.project_id)));
-router.post('/identity-resolutions/:id/acknowledge', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.acknowledge(req.params.id, req.body.project_id)));
-router.post('/registrations', write(PAGES.CUSTOMERS), async (req, res) => {
- const body = req.body || {};
- if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'Project and source record ID are required');
- const data = body.party || {};
- const rules = require('../services/crm/personRules');
- rules.assert(await rules.check(data, 'create', 'PERSON'));
- const result = await require('../repositories/shared/transaction').transaction(trx => require('../services/crm/identity.service').resolveAccount(trx, {
-  project_id: body.project_id, external_account_id: body.external_account_id,
-  party: Object.assign({}, data, { party_type: 'PERSON' }),
-  contacts: [data.mobile ? { contact_type: 'MOBILE', contact_value: data.mobile } : null, data.email ? { contact_type: 'EMAIL', contact_value: data.email } : null].filter(Boolean)
- }));
- return response.ok(res, result);
+router.get('/identity-intakes', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.list(req.query)));
+router.post('/identity-intakes/:id/decide', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.decide(req.params.id, req.body, req.actor)));
+router.get('/parties/:id/unverified-accounts', read(PAGES.CUSTOMERS), async (req, res) => {
+ if (!/^[1-9][0-9]*$/.test(String(req.params.id))) throw new HttpError(400, 'common.notFound');
+ return response.ok(res, await intake.unverifiedAccounts(req.params.id));
+});
+router.post('/parties/:id/unverified-accounts/decide', write(PAGES.CUSTOMERS), async (req, res) => {
+ if (!/^[1-9][0-9]*$/.test(String(req.params.id))) throw new HttpError(400, 'common.notFound');
+ return response.ok(res, await intake.decideUnverified(req.params.id, req.body || {}, req.actor));
 });
 router.get('/parties/:id', read(PAGES.CUSTOMERS), crmController.parties.detail);
 router.put('/parties/:id', write(PAGES.CUSTOMERS), crmController.parties.update);
 router.post('/parties/:id/status', write(PAGES.CUSTOMERS), crmController.parties.setStatus);
+router.put('/parties/:id/grade', write(PAGES.CUSTOMERS), crmController.parties.assignGrade);
 router.post('/parties/:id/checked', write(PAGES.CUSTOMERS), crmController.parties.setChecked);
 router.post('/parties/:id/contacts', write(PAGES.CUSTOMERS), crmController.parties.addContact);
 router.put('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.updateContact);
@@ -226,34 +222,34 @@ router.get('/point-events', read(PAGES.POINTS), crmController.points.events);
 router.get('/point-drift', read(PAGES.POINTS), crmController.points.drift);
 router.post('/point-adjustments', write(PAGES.POINTS), crmController.points.adjust);
 
-/* ---- activity programs ---- */
-router.get('/programs', read(PAGES.PROGRAMS), crmController.programs.list);
-router.post('/programs', write(PAGES.PROGRAMS), crmController.programs.create);
-router.get('/programs/:id', read(PAGES.PROGRAMS), crmController.programs.detail);
-router.put('/programs/:id', write(PAGES.PROGRAMS), crmController.programs.update);
-router.post('/programs/:id/status', write(PAGES.PROGRAMS), crmController.programs.transition);
-router.post('/programs/:id/tiers', write(PAGES.PROGRAMS), crmController.programs.saveTier);
-router.put('/programs/:id/tiers/:tierId', write(PAGES.PROGRAMS), crmController.programs.saveTier);
-router.delete('/programs/:id/tiers/:tierId', write(PAGES.PROGRAMS), crmController.programs.removeTier);
-router.post('/programs/:id/locations', write(PAGES.PROGRAMS), crmController.programs.addLocation);
-router.delete('/programs/:id/locations/:rowId', write(PAGES.PROGRAMS), crmController.programs.removeLocation);
-router.post('/programs/:id/quotas', write(PAGES.PROGRAMS), crmController.programs.saveQuota);
-router.put('/programs/:id/quotas/:quotaId', write(PAGES.PROGRAMS), crmController.programs.saveQuota);
-router.delete('/programs/:id/quotas/:quotaId', write(PAGES.PROGRAMS), crmController.programs.removeQuota);
-router.post('/programs/:id/rewards', write(PAGES.PROGRAMS), crmController.programs.saveReward);
-router.put('/programs/:id/rewards/:rewardId', write(PAGES.PROGRAMS), crmController.programs.saveReward);
-router.delete('/programs/:id/rewards/:rewardId', write(PAGES.PROGRAMS), crmController.programs.removeReward);
-router.get('/programs/:id/targets', read(PAGES.PROGRAMS), crmController.programs.targets);
-router.post('/programs/:id/targets', write(PAGES.PROGRAMS), crmController.programs.addTarget);
-router.post('/programs/:id/targets/build', write(PAGES.PROGRAMS), crmController.programs.buildTargets);
-router.post('/programs/:id/targets/:targetId/revoke', write(PAGES.PROGRAMS), crmController.programs.revokeTarget);
-router.get('/programs/:id/reservations', read(PAGES.PROGRAMS), crmController.programs.reservations);
-router.post('/programs/:id/reservations', write(PAGES.PROGRAMS), crmController.programs.reserve);
-router.get('/reservations/:reservationId/events', read(PAGES.PROGRAMS), crmController.programs.reservationEvents);
-router.post('/reservations/:reservationId/status', write(PAGES.PROGRAMS), crmController.programs.transitionReservation);
-router.get('/programs/:id/awards', read(PAGES.PROGRAMS), crmController.programs.awards);
-router.post('/programs/:id/awards', write(PAGES.PROGRAMS), crmController.programs.award);
-router.post('/awards/:awardId/status', write(PAGES.PROGRAMS), crmController.programs.transitionAward);
+/* ---- activity events ---- */
+router.get('/events', read(PAGES.EVENTS), crmController.events.list);
+router.post('/events', write(PAGES.EVENTS), crmController.events.create);
+router.get('/events/:id', read(PAGES.EVENTS), crmController.events.detail);
+router.put('/events/:id', write(PAGES.EVENTS), crmController.events.update);
+router.post('/events/:id/status', write(PAGES.EVENTS), crmController.events.transition);
+router.post('/events/:id/tiers', write(PAGES.EVENTS), crmController.events.saveTier);
+router.put('/events/:id/tiers/:tierId', write(PAGES.EVENTS), crmController.events.saveTier);
+router.delete('/events/:id/tiers/:tierId', write(PAGES.EVENTS), crmController.events.removeTier);
+router.post('/events/:id/locations', write(PAGES.EVENTS), crmController.events.addLocation);
+router.delete('/events/:id/locations/:rowId', write(PAGES.EVENTS), crmController.events.removeLocation);
+router.post('/events/:id/quotas', write(PAGES.EVENTS), crmController.events.saveQuota);
+router.put('/events/:id/quotas/:quotaId', write(PAGES.EVENTS), crmController.events.saveQuota);
+router.delete('/events/:id/quotas/:quotaId', write(PAGES.EVENTS), crmController.events.removeQuota);
+router.post('/events/:id/rewards', write(PAGES.EVENTS), crmController.events.saveReward);
+router.put('/events/:id/rewards/:rewardId', write(PAGES.EVENTS), crmController.events.saveReward);
+router.delete('/events/:id/rewards/:rewardId', write(PAGES.EVENTS), crmController.events.removeReward);
+router.get('/events/:id/targets', read(PAGES.EVENTS), crmController.events.targets);
+router.post('/events/:id/targets', write(PAGES.EVENTS), crmController.events.addTarget);
+router.post('/events/:id/targets/build', write(PAGES.EVENTS), crmController.events.buildTargets);
+router.post('/events/:id/targets/:targetId/revoke', write(PAGES.EVENTS), crmController.events.revokeTarget);
+router.get('/events/:id/reservations', read(PAGES.EVENTS), crmController.events.reservations);
+router.post('/events/:id/reservations', write(PAGES.EVENTS), crmController.events.reserve);
+router.get('/reservations/:reservationId/events', read(PAGES.EVENTS), crmController.events.reservationEvents);
+router.post('/reservations/:reservationId/status', write(PAGES.EVENTS), crmController.events.transitionReservation);
+router.get('/events/:id/awards', read(PAGES.EVENTS), crmController.events.awards);
+router.post('/events/:id/awards', write(PAGES.EVENTS), crmController.events.award);
+router.post('/awards/:awardId/status', write(PAGES.EVENTS), crmController.events.transitionAward);
 
 /* ---- service centres ---- */
 router.get('/sites', read(PAGES.SITES), crmController.sites.list);
@@ -327,6 +323,46 @@ function protectCodes(table, primaryKey, codeColumn, codes) {
   return guard;
 }
 
+/** The tables holding rows that point at this row, read from the foreign keys themselves. */
+async function tablesReferencing(table, id) {
+  const keys = await db.raw(
+    "SELECT c.conrelid::regclass::text AS table_name, a.attname AS column_name"
+    + " FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]"
+    + " WHERE c.contype = 'f' AND c.confrelid = ?::regclass AND array_length(c.conkey, 1) = 1", [table]);
+  const used = [];
+  for (const key of keys.rows) {
+    // eslint-disable-next-line no-await-in-loop
+    const row = await db(key.table_name).where(key.column_name, id).first(db.raw('1 AS used'));
+    if (row && used.indexOf(key.table_name) === -1) used.push(key.table_name);
+  }
+  return used;
+}
+
+/**
+ * A ROW IN USE keeps its code and cannot be deleted; one nothing points at can
+ * be changed or deleted freely. Used for projects: while the CRM is filled with
+ * test data an administrator must be able to correct or remove any project,
+ * but once accounts, products or cases carry a project_id, renaming its code
+ * would cut them off from the features that look the project up by code.
+ */
+function guardInUse(table, primaryKey, codeColumn) {
+  const guard = Router();
+  const check = async function (req, res, next) {
+    const row = await db(table).where(primaryKey, req.params.id).first(codeColumn + ' as code');
+    if (!row) return next();
+    const changesCode = req.method === 'PUT' && req.body && req.body[codeColumn] !== undefined && req.body[codeColumn] !== row.code;
+    if (req.method !== 'DELETE' && !changesCode) return next();
+    const used = await tablesReferencing(table, req.params.id);
+    if (!used.length) return next();
+    return next(new HttpError(409, req.method === 'DELETE' ? 'crm.inUseCannotDelete' : 'crm.inUseCannotChangeCode', null,
+      { code: row.code, tables: used.join(', ') }));
+  };
+  guard.put('/:id', check);
+  guard.delete('/:id', check);
+  guard.delete('/:id/permanent', check);
+  return guard;
+}
+
 /**
  * Each list is a plain master table, so each is the CRUD factory - the same
  * one the rest of the console uses. `softDelete: false` because none of them
@@ -336,7 +372,7 @@ function protectCodes(table, primaryKey, codeColumn, codes) {
 const VOCABULARIES = [
   { path: 'projects', table: 'crm_project', pk: 'project_id', code: 'project_code',
     columns: ['project_code', 'project_name', 'project_type_code', 'source_system_code', 'legal_entity_code', 'status'],
-    system: ['PLATFORM', 'CRYSTAL', 'EPRODUCT', 'ESHOP', 'APPSTORE', 'KARAOKE', 'BMEDIA'] },
+    guardInUse: true },
   { path: 'product-classes', table: 'crm_product_class', pk: 'product_class_id', code: 'class_code',
     columns: ['class_code', 'class_name', 'parent_product_class_id', 'product_domain', 'rank_no', 'legacy_column', 'description', 'is_active'],
     system: ['SMARTPHONE', 'EPRODUCT', 'SOFTWARE', 'STB', 'PC', 'CAMERA', 'KARAOKE_LICENCE', 'MEDIA_LICENCE'] },
@@ -407,7 +443,7 @@ const VOCABULARIES = [
       'POINTS_BALANCE', 'IS_MULTI_PROJECT', 'LAST_SERVICE_DATE'] },
   { path: 'point-event-types', table: 'crm_point_event_type', pk: 'point_event_type_id', code: 'event_code',
     columns: ['event_code', 'display_name', 'direction'],
-    system: ['EARN', 'REDEEM', 'EXPIRE', 'ADJUST', 'REFUND', 'RESERVATION_COST', 'PROGRAM_AWARD', 'MERGE_CARRY_OVER'] },
+    system: ['EARN', 'REDEEM', 'EXPIRE', 'ADJUST', 'REFUND', 'RESERVATION_COST', 'EVENT_AWARD', 'MERGE_CARRY_OVER'] },
   { path: 'tags', table: 'crm_tag', pk: 'tag_id', code: 'tag_code',
     columns: ['tag_code', 'tag_name', 'color_scheme', 'description', 'is_active'] },
   { path: 'relationship-types', table: 'crm_party_relationship_type', pk: 'relationship_type_code', code: 'relationship_type_code',
@@ -421,6 +457,7 @@ const VOCABULARIES = [
 
 VOCABULARIES.forEach(function (vocabulary) {
   if (vocabulary.system) router.use('/settings/' + vocabulary.path, protectCodes(vocabulary.table, vocabulary.pk, vocabulary.code, vocabulary.system));
+  if (vocabulary.guardInUse) router.use('/settings/' + vocabulary.path, guardInUse(vocabulary.table, vocabulary.pk, vocabulary.code));
 
   router.use('/settings/' + vocabulary.path, crudFactory({
     table: vocabulary.table,
@@ -511,7 +548,7 @@ router.use(function (err, req, res, next) {
   }
   /*
    * A code column declared plain UNIQUE gets a name PostgreSQL makes up -
-   * crm_activity_program_program_code_key - which is not written anywhere in
+   * crm_event_event_code_key - which is not written anywhere in
    * schema.sql for middleware/error.js's map to name. Any such clash on a CRM
    * table is a code somebody already used.
    */

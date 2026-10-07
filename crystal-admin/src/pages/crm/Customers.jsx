@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Box, Button, HStack, Icon, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useDisclosure, useToast
+  Box, Button, HStack, Icon, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
@@ -50,10 +50,10 @@ export default function Customers() {
       <Tabs defaultIndex={initialTab} isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
           <Tab fontSize="sm">{translate('crm.customers.allCustomers')}</Tab>
-          <Tab fontSize="sm">Pending registrations</Tab>
-          <Tab fontSize="sm">E-shop assignments</Tab>
-          <Tab fontSize="sm">Resolved registrations</Tab>
-          <Tab fontSize="sm">Existing duplicate records</Tab>
+          <Tab fontSize="sm">{translate('crm.review.pendingTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.review.eshopTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.review.resolvedTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.review.duplicatesTab')}</Tab>
         </TabList>
         <TabPanels>
           <TabPanel px={0}><CustomerList key={revision} grade={new URLSearchParams(location.search).get('grade') ? Number(new URLSearchParams(location.search).get('grade')) : undefined} /></TabPanel>
@@ -90,7 +90,7 @@ function CustomerList({ grade }) {
       const payload = Object.assign({}, submitted);
       if (payload.party_type !== 'ORGANIZATION') payload.full_name = payload.display_name;
       const { data } = await crm.parties.create(payload);
-      toast({ title: data && data.outcome === 'QUEUED' ? 'Saved for review; no customer created' : data && data.outcome === 'MERGED' ? 'Matched to existing customer' : translate('Created'), status: 'success', duration: 4000 });
+      toast({ title: translate(data && data.outcome === 'QUEUED' ? 'crm.review.savedForReview' : data && data.outcome === 'MERGED' ? 'crm.review.matchedExisting' : 'crm.customers.rowsCreated'), status: 'success', duration: 4000 });
       form.onClose();
       if (data && data.party_pk) history.push(PAGE + '/' + data.party_pk);
       else list.reload();
@@ -168,7 +168,11 @@ function CustomerList({ grade }) {
                   </Box>
                 </HStack>
               ) },
-            { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => <GradeBadge code={row.grade_code} /> },
+            { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => (row.grade_assigned ? (
+              <Tooltip hasArrow label={translate('crm.customers.gradeSetByHand')}>
+                <HStack spacing={1} display="inline-flex"><GradeBadge code={row.grade_code} /><Icon as={Md.MdPanTool} boxSize="0.7rem" color="gray.500" /></HStack>
+              </Tooltip>
+            ) : <GradeBadge code={row.grade_code} />) },
             { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> },
             { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
             { key: 'activity_status', label: 'Activity', sortable: false, render: (row) => (row.activity_status ? <Dot value={row.activity_status} /> : '-') },
@@ -277,7 +281,7 @@ function Duplicates() {
   return (
     <Box>
       <HStack px={5} py={3} justify="space-between" wrap="wrap">
-        <Text fontSize="sm" maxW="44rem">Review pairs that were already registered. New uncertain registrations wait in the Pending registrations tab.</Text>
+        <Text fontSize="sm" maxW="44rem">{translate('crm.review.duplicatesIntro')}</Text>
         {canWrite ? (
           <Button size="sm" variant="subtle" isLoading={busy} onClick={scan}>{translate('crm.customers.scanForDuplicates')}</Button>
         ) : null}

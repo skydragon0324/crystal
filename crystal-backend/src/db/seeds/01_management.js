@@ -152,9 +152,9 @@ const PAGES = [
   ['/admin/crm/analysis', 'Analysis and grades', 'MdInsertChart', '/admin/crm'],
   ['/admin/crm/segments', 'Segments', 'MdGroupWork', '/admin/crm'],
   ['/admin/crm/campaigns', 'Campaigns', 'MdRecordVoiceOver', '/admin/crm'],
-  /* What the vendor ran that the design did not have: points, programs, its service network. */
+  /* What the vendor ran that the design did not have: points, events, its service network. */
   ['/admin/crm/points', 'Reward points', 'MdStars', '/admin/crm'],
-  ['/admin/crm/programs', 'Activity programs', 'MdEventAvailable', '/admin/crm'],
+  ['/admin/crm/events', 'Events', 'MdEventAvailable', '/admin/crm'],
   ['/admin/crm/sites', 'Service network', 'MdPlace', '/admin/crm'],
   ['/admin/crm/site-activity', 'Location activity', 'MdTimeline', '/admin/crm'],
   ['/admin/crm/settings', 'CRM basic data', 'MdSettingsApplications', '/admin/crm']
@@ -195,7 +195,7 @@ const ROLES = [
       /*
        * Runs the CRM day to day, and reads its settings rather than editing
        * them: a point type or a tier changed mid-year changes what every
-       * balance and every program already means.
+       * balance and every event already means.
        */
       ['/admin/crm', 2],
       ['/admin/crm/settings', 1]

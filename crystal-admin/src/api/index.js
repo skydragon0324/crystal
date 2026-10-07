@@ -315,7 +315,7 @@ export const wallets = {
  *
  * One object with a group per screen, because the CRM is one module with its
  * own prefix on the API - /admin/crm - and a screen reads more naturally as
- * `crm.programs.reserve(id, body)` than as thirty exports that all start with
+ * `crm.events.reserve(id, body)` than as thirty exports that all start with
  * the same four letters. The vocabularies under `settings` are the generic
  * seven, as every other master table in the console is.
  */
@@ -417,6 +417,8 @@ export const crm = {
     importTemplate: () => client.get(CRM + '/parties/import/template', { responseType: 'blob' }),
     update: (id, payload) => client.put(CRM + '/parties/' + id, payload),
     setStatus: (id, status) => client.post(CRM + '/parties/' + id + '/status', { party_status: status }),
+    /* A grade set by hand; null clears it and the computed grade shows again. */
+    assignGrade: (id, gradeId, reason) => client.put(CRM + '/parties/' + id + '/grade', { corporate_grade_id: gradeId, reason: reason }),
     setChecked: (id, checked) => client.post(CRM + '/parties/' + id + '/checked', { is_checked_manually: checked }),
     addContact: (id, payload) => client.post(CRM + '/parties/' + id + '/contacts', payload),
     updateContact: (id, contactId, payload) => client.put(CRM + '/parties/' + id + '/contacts/' + contactId, payload),
@@ -424,8 +426,11 @@ export const crm = {
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
     merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_pk: mergedId, merge_reason: reason }),
-    registrations: (params) => client.get(CRM + '/registrations', { params }),
-    decideRegistration: (id, payload) => client.post(CRM + '/registrations/' + id + '/decide', payload),
+    registrations: (params) => client.get(CRM + '/identity-intakes', { params }),
+    decideRegistration: (id, payload) => client.post(CRM + '/identity-intakes/' + id + '/decide', payload),
+    unverifiedAccounts: (id) => client.get(CRM + '/parties/' + id + '/unverified-accounts'),
+    /* action: LINK or REJECT, for one { project_id, external_account_id } listed there. */
+    decideUnverified: (id, payload) => client.post(CRM + '/parties/' + id + '/unverified-accounts/decide', payload),
     duplicates: (params) => client.get(CRM + '/duplicates', { params }),
     scanDuplicates: () => client.post(CRM + '/duplicates/scan'),
     acceptDuplicate: (id) => client.post(CRM + '/duplicates/' + id + '/accept'),
@@ -466,37 +471,37 @@ export const crm = {
   },
   pointRules: createResource(CRM + '/point-rules'),
 
-  programs: {
-    list: (params) => client.get(CRM + '/programs', { params }),
-    options: () => client.get(CRM + '/programs/options'),
-    get: (id) => client.get(CRM + '/programs/' + id),
-    create: (payload) => client.post(CRM + '/programs', payload),
-    update: (id, payload) => client.put(CRM + '/programs/' + id, payload),
-    transition: (id, status) => client.post(CRM + '/programs/' + id + '/status', { status: status }),
+  events: {
+    list: (params) => client.get(CRM + '/events', { params }),
+    options: () => client.get(CRM + '/events/options'),
+    get: (id) => client.get(CRM + '/events/' + id),
+    create: (payload) => client.post(CRM + '/events', payload),
+    update: (id, payload) => client.put(CRM + '/events/' + id, payload),
+    transition: (id, status) => client.post(CRM + '/events/' + id + '/status', { status: status }),
     saveTier: (id, tierId, payload) => (tierId
-      ? client.put(CRM + '/programs/' + id + '/tiers/' + tierId, payload)
-      : client.post(CRM + '/programs/' + id + '/tiers', payload)),
-    removeTier: (id, tierId) => client.delete(CRM + '/programs/' + id + '/tiers/' + tierId),
-    addLocation: (id, payload) => client.post(CRM + '/programs/' + id + '/locations', payload),
-    removeLocation: (id, rowId) => client.delete(CRM + '/programs/' + id + '/locations/' + rowId),
+      ? client.put(CRM + '/events/' + id + '/tiers/' + tierId, payload)
+      : client.post(CRM + '/events/' + id + '/tiers', payload)),
+    removeTier: (id, tierId) => client.delete(CRM + '/events/' + id + '/tiers/' + tierId),
+    addLocation: (id, payload) => client.post(CRM + '/events/' + id + '/locations', payload),
+    removeLocation: (id, rowId) => client.delete(CRM + '/events/' + id + '/locations/' + rowId),
     saveQuota: (id, quotaId, payload) => (quotaId
-      ? client.put(CRM + '/programs/' + id + '/quotas/' + quotaId, payload)
-      : client.post(CRM + '/programs/' + id + '/quotas', payload)),
-    removeQuota: (id, quotaId) => client.delete(CRM + '/programs/' + id + '/quotas/' + quotaId),
+      ? client.put(CRM + '/events/' + id + '/quotas/' + quotaId, payload)
+      : client.post(CRM + '/events/' + id + '/quotas', payload)),
+    removeQuota: (id, quotaId) => client.delete(CRM + '/events/' + id + '/quotas/' + quotaId),
     saveReward: (id, rewardId, payload) => (rewardId
-      ? client.put(CRM + '/programs/' + id + '/rewards/' + rewardId, payload)
-      : client.post(CRM + '/programs/' + id + '/rewards', payload)),
-    removeReward: (id, rewardId) => client.delete(CRM + '/programs/' + id + '/rewards/' + rewardId),
-    targets: (id, params) => client.get(CRM + '/programs/' + id + '/targets', { params }),
-    addTarget: (id, payload) => client.post(CRM + '/programs/' + id + '/targets', payload),
-    buildTargets: (id) => client.post(CRM + '/programs/' + id + '/targets/build'),
-    revokeTarget: (id, targetId) => client.post(CRM + '/programs/' + id + '/targets/' + targetId + '/revoke'),
-    reservations: (id, params) => client.get(CRM + '/programs/' + id + '/reservations', { params }),
-    reserve: (id, payload) => client.post(CRM + '/programs/' + id + '/reservations', payload),
+      ? client.put(CRM + '/events/' + id + '/rewards/' + rewardId, payload)
+      : client.post(CRM + '/events/' + id + '/rewards', payload)),
+    removeReward: (id, rewardId) => client.delete(CRM + '/events/' + id + '/rewards/' + rewardId),
+    targets: (id, params) => client.get(CRM + '/events/' + id + '/targets', { params }),
+    addTarget: (id, payload) => client.post(CRM + '/events/' + id + '/targets', payload),
+    buildTargets: (id) => client.post(CRM + '/events/' + id + '/targets/build'),
+    revokeTarget: (id, targetId) => client.post(CRM + '/events/' + id + '/targets/' + targetId + '/revoke'),
+    reservations: (id, params) => client.get(CRM + '/events/' + id + '/reservations', { params }),
+    reserve: (id, payload) => client.post(CRM + '/events/' + id + '/reservations', payload),
     reservationEvents: (reservationId) => client.get(CRM + '/reservations/' + reservationId + '/events'),
     moveReservation: (reservationId, payload) => client.post(CRM + '/reservations/' + reservationId + '/status', payload),
-    awards: (id, params) => client.get(CRM + '/programs/' + id + '/awards', { params }),
-    award: (id, payload) => client.post(CRM + '/programs/' + id + '/awards', payload),
+    awards: (id, params) => client.get(CRM + '/events/' + id + '/awards', { params }),
+    award: (id, payload) => client.post(CRM + '/events/' + id + '/awards', payload),
     moveAward: (awardId, payload) => client.post(CRM + '/awards/' + awardId + '/status', payload)
   },
 

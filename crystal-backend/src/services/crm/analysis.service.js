@@ -15,7 +15,7 @@ const db = require('../../config/db');
  *
  * One row per party and class - which is what replaces a column per class -
  * and every class ROLLS UP into its parents: a PHONE_9 is also a SMARTPHONE,
- * so a program for "anyone who owns a smartphone" does not have to know the
+ * so an event for "anyone who owns a smartphone" does not have to know the
  * four phone classes by name.
  *
  * Only ownership counts (OWNER, LICENSEE). A phone a company has assigned to
@@ -81,7 +81,7 @@ async function overview() {
     return db.raw(sql, bindings || []).then(function (result) { return result.rows[0] || {}; });
   };
 
-  const [parties, holdings, cases, points, programs, sites, marketing, byProject, byClass, recentActivity] = await Promise.all([
+  const [parties, holdings, cases, points, events, sites, marketing, byProject, byClass, recentActivity] = await Promise.all([
     one(`SELECT COUNT(*) FILTER (WHERE party_status = 'ACTIVE')::int AS active,
                 COUNT(*) FILTER (WHERE party_type = 'PERSON' AND party_status = 'ACTIVE')::int AS persons,
                 COUNT(*) FILTER (WHERE party_type = 'ORGANIZATION' AND party_status = 'ACTIVE')::int AS organizations,
@@ -109,7 +109,7 @@ async function overview() {
                 COUNT(*) FILTER (WHERE status IN ('DRAFT', 'APPROVED'))::int AS preparing,
                 (SELECT COUNT(*) FROM crm_activity_reservation WHERE status IN ('RESERVED', 'PAID'))::int AS reservations_open,
                 (SELECT COUNT(*) FROM crm_activity_award WHERE status IN ('PENDING', 'READY', 'DISPATCHED'))::int AS awards_open
-           FROM crm_activity_program`),
+           FROM crm_event`),
     one(`SELECT COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS active,
                 (SELECT COUNT(*) FROM crm_service_center_activity
                   WHERE status = 'COMPLETED' AND occurred_at >= now() - interval '30 days')::int AS activities_30d,
@@ -142,7 +142,7 @@ async function overview() {
     holdings: holdings,
     cases: cases,
     points: points,
-    programs: programs,
+    events: events,
     sites: sites,
     marketing: marketing,
     by_project: byProject,

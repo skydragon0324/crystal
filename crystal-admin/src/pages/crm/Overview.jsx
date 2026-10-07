@@ -58,7 +58,7 @@ export default function Overview() {
   const holdings = overview.holdings || {};
   const cases = overview.cases || {};
   const points = overview.points || {};
-  const programs = overview.programs || {};
+  const events = overview.events || {};
   const sites = overview.sites || {};
   const marketing = overview.marketing || {};
 
@@ -168,9 +168,9 @@ export default function Overview() {
           onClick={() => history.push('/admin/crm/points')}
         />
         <StatTile
-          label="Programs running" value={number(programs.running)} icon={Md.MdEventAvailable}
-          hint={translate('crm.overview.openEntries', { n: number(programs.reservations_open), awards: number(programs.awards_open) })}
-          onClick={() => history.push('/admin/crm/programs')}
+          label="Events running" value={number(events.running)} icon={Md.MdEventAvailable}
+          hint={translate('crm.overview.openEntries', { n: number(events.reservations_open), awards: number(events.awards_open) })}
+          onClick={() => history.push('/admin/crm/events')}
         />
         <StatTile
           label="Location activity (30 days)" value={number(sites.activities_30d)} icon={Md.MdTimeline}

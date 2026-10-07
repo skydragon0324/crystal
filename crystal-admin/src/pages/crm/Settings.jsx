@@ -96,9 +96,8 @@ function listsOf(meta, translate) {
       ],
       fields: [
         { name: 'project_code', label: 'Code', required: true }, { name: 'project_name', label: 'Name', required: true },
-        { name: 'project_type_code', label: 'Kind', type: 'select',
-          options: [{ value: 'PLATFORM', label: 'Platform' }, { value: 'COMMERCE', label: 'Commerce' }, { value: 'SERVICE', label: 'Service' },
-            { value: 'SOFTWARE', label: 'Software' }, { value: 'CONTENT', label: 'Content' }] },
+        /* A free label (PLATFORM, COMMERCE, CRM, ...): the database no longer fixes the list. */
+        { name: 'project_type_code', label: 'Kind' },
         { name: 'source_system_code', label: 'Source system' }, { name: 'legal_entity_code', label: 'Legal entity' },
         { name: 'status', label: 'Status', type: 'select', options: choices(['ACTIVE', 'INACTIVE']) }
       ],
@@ -160,7 +159,7 @@ function listsOf(meta, translate) {
       fields: [
         { name: 'activity_code', label: 'Code', required: true }, { name: 'activity_name', label: 'Name', required: true },
         { name: 'activity_group', label: 'Group', type: 'select', required: true,
-          options: choices(['SERVICE', 'SALES', 'SOFTWARE', 'PROGRAM', 'MARKETING', 'OPERATIONS']) },
+          options: choices(['SERVICE', 'SALES', 'SOFTWARE', 'EVENT', 'MARKETING', 'OPERATIONS']) },
         { name: 'required_capability_code', label: 'Needs the service location to do' },
         { name: 'counts_quantity', label: 'Counts a quantity', type: 'checkbox' },
         { name: 'counts_amount', label: 'Counts an amount of money', type: 'checkbox' }, activeField

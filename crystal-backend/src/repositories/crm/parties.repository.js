@@ -39,7 +39,8 @@ const LATEST = `LEFT JOIN LATERAL (
 function narrowed(filters) {
   const qb = db('crm_party as party').joinRaw(LATEST);
 
-  if (filters.corporate_grade_id) qb.where('snapshot.corporate_grade_id', filters.corporate_grade_id);
+  // A grade set by hand stands in for the computed one.
+  if (filters.corporate_grade_id) qb.whereRaw('COALESCE(party.assigned_grade_id, snapshot.corporate_grade_id) = ?', [filters.corporate_grade_id]);
   if (filters.activity_status) qb.where('snapshot.activity_status', filters.activity_status);
 
   if (filters.party_status) qb.where('party.party_status', filters.party_status);
@@ -125,7 +126,8 @@ async function search(filters, paging) {
       db.raw(`(SELECT COUNT(*) FROM crm_service_case sc
                 WHERE sc.party_pk = party.party_pk)::int AS case_cnt`),
       'snapshot.corporate_score', 'snapshot.purchase_amount_12m', 'snapshot.activity_status', 'snapshot.transaction_count_12m',
-      db.raw('(SELECT grade.grade_code FROM crm_corporate_grade grade WHERE grade.corporate_grade_id = snapshot.corporate_grade_id) AS grade_code')
+      db.raw('(SELECT grade.grade_code FROM crm_corporate_grade grade WHERE grade.corporate_grade_id = COALESCE(party.assigned_grade_id, snapshot.corporate_grade_id)) AS grade_code'),
+      db.raw('(party.assigned_grade_id IS NOT NULL) AS grade_assigned')
     )
     .orderByRaw((SORTABLE[paging.sort] || 'party.party_pk') + ' ' + (paging.dir === 'asc' ? 'ASC' : 'DESC') + ' NULLS LAST')
     .limit(paging.limit)
@@ -256,20 +258,20 @@ async function detail(id) {
       .join('crm_project as project', 'project.project_id', 'point_event.project_id')
       .where('account.party_pk', id).orderBy([{ column: 'point_event.occurred_at', order: 'desc' }, { column: 'point_event.point_event_id', order: 'desc' }]).limit(30)
       .select('point_event.*', 'point_type.point_type_code', 'et.event_code', 'project.project_code'),
-    db('crm_activity_target as target').join('crm_activity_program as program', 'program.activity_program_id', 'target.activity_program_id')
-      .leftJoin('crm_activity_program_tier as tier', 'tier.program_tier_id', 'target.program_tier_id')
+    db('crm_activity_target as target').join('crm_event as event', 'event.event_id', 'target.event_id')
+      .leftJoin('crm_event_tier as tier', 'tier.event_tier_id', 'target.event_tier_id')
       .where('target.party_pk', id).orderBy('target.created_at', 'desc').limit(50)
-      .select('target.*', 'program.program_code', 'program.program_name', 'program.program_type', 'program.status as program_status', 'tier.tier_name'),
-    db('crm_activity_reservation as reservation').join('crm_activity_program as program', 'program.activity_program_id', 'reservation.activity_program_id')
+      .select('target.*', 'event.event_code', 'event.event_name', 'event.event_type', 'event.status as event_status', 'tier.tier_name'),
+    db('crm_activity_reservation as reservation').join('crm_event as event', 'event.event_id', 'reservation.event_id')
       .leftJoin('crm_service_center as center', 'center.service_center_id', 'reservation.service_center_id')
       .where('reservation.party_pk', id).orderBy('reservation.created_at', 'desc').limit(50)
       .select('reservation.reservation_id', 'reservation.reservation_code', 'reservation.entry_type', 'reservation.status', 'reservation.reserved_at',
-        'reservation.fulfilled_at', 'program.program_name', 'program.program_code', 'center.service_center_name'),
+        'reservation.fulfilled_at', 'event.event_name', 'event.event_code', 'center.service_center_name'),
     db('crm_activity_award as award').join('crm_activity_reward as rw', 'rw.reward_id', 'award.reward_id')
-      .join('crm_activity_program as program', 'program.activity_program_id', 'award.activity_program_id')
+      .join('crm_event as event', 'event.event_id', 'award.event_id')
       .where('award.party_pk', id).orderBy('award.awarded_at', 'desc').limit(50)
       .select('award.award_id', 'award.status', 'award.fulfilment_method', 'award.awarded_at', 'award.fulfilled_at',
-        'rw.reward_name', 'rw.reward_type', 'program.program_name'),
+        'rw.reward_name', 'rw.reward_type', 'event.event_name'),
     db('crm_service_center_activity as activity')
       .join('crm_service_center_activity_type as activity_type', 'activity_type.activity_type_id', 'activity.activity_type_id')
       .join('crm_service_center as center', 'center.service_center_id', 'activity.service_center_id')

@@ -376,6 +376,13 @@ async function overview(partyId) {
   const party = await db('crm_party').where('party_pk', partyId).first();
   if (!party) throw new HttpError(404, 'common.notFound');
   const isOrganization = party.party_type === 'ORGANIZATION';
+  /* A grade a manager set by hand, with who set it; it stands in for the computed grade below. */
+  const assigned = party.assigned_grade_id ? await db('crm_corporate_grade').where('corporate_grade_id', party.assigned_grade_id)
+    .first('corporate_grade_id', 'grade_code', 'grade_name') : null;
+  if (assigned && party.assigned_grade_by_manager_id) {
+    const manager = await db('managers').where('id', party.assigned_grade_by_manager_id).first('name');
+    assigned.manager_name = manager ? manager.name : null;
+  }
 
   const [
     purchases, monthly, yearly, service, accounts, reach, relationships, campaigns, snapshots,
@@ -493,9 +500,15 @@ async function overview(partyId) {
     party_type: party.party_type,
     profile: organization || null,
     header: {
-      grade_code: latest ? latest.grade_code : null,
-      grade_name: latest ? latest.grade_name : null,
-      grade_since: gradeSince,
+      grade_code: assigned ? assigned.grade_code : latest ? latest.grade_code : null,
+      grade_name: assigned ? assigned.grade_name : latest ? latest.grade_name : null,
+      grade_since: assigned ? party.assigned_grade_at : gradeSince,
+      grade_assigned: !!assigned,
+      assigned_grade_id: assigned ? assigned.corporate_grade_id : null,
+      assigned_grade_reason: assigned ? party.assigned_grade_reason : null,
+      assigned_grade_by: assigned ? assigned.manager_name : null,
+      computed_grade_code: latest ? latest.grade_code : null,
+      computed_grade_name: latest ? latest.grade_name : null,
       corporate_score: latest ? latest.corporate_score : null,
       activity_status: latest ? latest.activity_status : null,
       reference_date: latest ? latest.reference_date : null,

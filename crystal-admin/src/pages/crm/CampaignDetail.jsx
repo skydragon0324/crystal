@@ -48,7 +48,7 @@ export default function CampaignDetail() {
   const [dialog, setDialog] = useState(null);
   const [saving, setSaving] = useState(false);
   const [segments, setSegments] = useState([]);
-  const [programs, setPrograms] = useState([]);
+  const [events, setEvents] = useState([]);
   const [rule, setRule] = useState({ all: [] });
   const modal = useDisclosure();
 
@@ -63,7 +63,7 @@ export default function CampaignDetail() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     crm.segments.options().then(({ data }) => setSegments(Array.isArray(data) ? data : [])).catch(() => {});
-    crm.programs.options().then(({ data }) => setPrograms(Array.isArray(data) ? data : [])).catch(() => {});
+    crm.events.options().then(({ data }) => setEvents(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
 
   const record = detail || {};
@@ -115,11 +115,11 @@ export default function CampaignDetail() {
     ask(translate('crm.campaign.addAudience'), [
       { name: 'audience_name', label: 'Audience', required: true, colSpan: 'full' },
       { name: 'audience_type', label: 'Taken from', type: 'select', required: true, isClearable: false,
-        options: choices(['SEGMENT', 'PROGRAM_TARGETS', 'RULE', 'MANUAL']) },
+        options: choices(['SEGMENT', 'EVENT_TARGETS', 'RULE', 'MANUAL']) },
       { name: 'source_segment_id', label: 'Segment', type: 'select',
         options: segments.map((segment) => ({ value: segment.segment_id, label: segment.segment_name + '  (' + number(segment.member_count) + ')' })) },
-      { name: 'source_activity_program_id', label: 'Program', type: 'select',
-        options: programs.map((program) => ({ value: program.activity_program_id, label: program.program_name })) },
+      { name: 'source_event_id', label: 'Event', type: 'select',
+        options: events.map((event) => ({ value: event.event_id, label: event.event_name })) },
       { name: 'party_pks', label: 'Customer ids, for a list by hand', type: 'textarea', colSpan: 'full' },
       { name: 'rule', label: 'Rule, for a rule audience', type: 'custom', colSpan: 'full',
         render: () => <RuleEditor value={rule} onChange={setRule} /> }
@@ -210,7 +210,7 @@ export default function CampaignDetail() {
             columns={[
               { key: 'audience_name', label: 'Audience' },
               { key: 'audience_type', label: 'Taken from', render: (row) => word(translate, row.audience_type) },
-              { key: 'segment_name', label: 'Source', render: (row) => row.segment_name || row.program_name || '-' },
+              { key: 'segment_name', label: 'Source', render: (row) => row.segment_name || row.event_name || '-' },
               { key: 'member_count', label: 'Members', isNumeric: true, render: (row) => number(row.member_count) },
               { key: 'snapshot_at', label: 'Frozen', render: (row) => dateTime(row.snapshot_at) }
             ]}

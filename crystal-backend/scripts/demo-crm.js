@@ -9,13 +9,13 @@
  * already know: customers, accounts, purchases, devices, repair tickets,
  * points. What no project knows yet is what the CRM itself is for - the
  * organizations behind the agencies, what each customer agreed to be sent,
- * how a complaint was classified, a programme with entries and prizes, a
+ * how a complaint was classified, an eventme with entries and prizes, a
  * campaign that went out and what came back. This script adds that, so every
  * screen and every tab has something on it to try.
  *
  * IT GOES THROUGH THE API, NOT AROUND IT. The app is mounted on a private port
  * inside this process and every change is a request a manager could have
- * made: a programme or campaign is written by one manager and approved by
+ * made: an eventme or campaign is written by one manager and approved by
  * another, an entry costs its quota, a campaign checks consent before it
  * sends. Only what would come from outside the console is written straight
  * to the tables - the consents customers ticked in the apps, the answers to
@@ -605,7 +605,7 @@ async function run(options) {
     }
     summary.segments = Object.keys(segments).filter(function (code) { return segments[code]; }).length;
 
-    /* ---------------------------------------------------------------- activity programs */
+    /* ---------------------------------------------------------------- activity events */
 
     let pickupSites = await db('crm_service_center_capability as capability').join('crm_service_center as center', 'center.service_center_id', 'capability.service_center_id')
       .where({ 'capability.capability_code': 'RESERVATION_PICKUP', 'capability.is_active': true, 'center.status': 'ACTIVE' })
@@ -631,45 +631,45 @@ async function run(options) {
     }
 
     /* 1. A launch reservation: owners of a smartphone reserve the new model, collect it at a centre, and get a gift. */
-    const launch = await attempt('launch program', async function () {
-      const program = data(await admin.post('/crm/programs', {
-        program_code: 'DEMO-P9-LAUNCH', program_name: 'Phone 9 launch - reserve yours first', program_type: 'RESERVATION',
+    const launch = await attempt('launch event', async function () {
+      const event = data(await admin.post('/crm/events', {
+        event_code: 'DEMO-P9-LAUNCH', event_name: 'Phone 9 launch - reserve yours first', event_type: 'RESERVATION',
         project_id: projectId('CRYSTAL'), eligibility_basis: 'PRODUCT_REGISTRATION', eligibility_rule: { product_class_code: 'SMARTPHONE', min_count: 1 },
         summary: 'Owners of a smartphone may reserve the Phone 9 before the public launch.',
         description: 'One entry per owner, two for owners of more than one device. Collect at a participating centre.',
         number_prefix: 'P9-', number_start: 1, number_end: 500, starts_at: daysAgo(10), ends_at: daysAhead(30), fulfilment_ends_at: daysAhead(45)
       }));
-      const programId = program.activity_program_id;
-      await admin.post('/crm/programs/' + programId + '/tiers', { tier_code: 'OWNER', tier_name: 'Owner', rank_no: 1, min_value: 1, max_value: 2, entries_per_target: 1 });
-      await admin.post('/crm/programs/' + programId + '/tiers', { tier_code: 'LOYAL', tier_name: 'Loyal owner', rank_no: 2, min_value: 2, entries_per_target: 2 });
+      const eventId = event.event_id;
+      await admin.post('/crm/events/' + eventId + '/tiers', { tier_code: 'OWNER', tier_name: 'Owner', rank_no: 1, min_value: 1, max_value: 2, entries_per_target: 1 });
+      await admin.post('/crm/events/' + eventId + '/tiers', { tier_code: 'LOYAL', tier_name: 'Loyal owner', rank_no: 2, min_value: 2, entries_per_target: 2 });
       for (const site of pickupSites) {
         // eslint-disable-next-line no-await-in-loop
-        await admin.post('/crm/programs/' + programId + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
+        await admin.post('/crm/events/' + eventId + '/locations', { service_center_id: site.service_center_id, service_center_role: 'PICKUP' });
       }
-      await admin.post('/crm/programs/' + programId + '/quotas', { entry_type: 'NORMAL', quota_count: 40 });
-      await admin.post('/crm/programs/' + programId + '/rewards', {
+      await admin.post('/crm/events/' + eventId + '/quotas', { entry_type: 'NORMAL', quota_count: 40 });
+      await admin.post('/crm/events/' + eventId + '/rewards', {
         reward_name: 'Launch gift box', reward_type: 'PICKUP_GOODS', quantity_total: 25, unit_value: 15, currency_code: 'USD', note: 'Case and charger'
       });
-      await ops.post('/crm/programs/' + programId + '/status', { status: 'APPROVED' });
-      await admin.post('/crm/programs/' + programId + '/targets/build');
-      let targets = rowsOf(data(await admin.get('/crm/programs/' + programId + '/targets', { params: { limit: 100 } })));
+      await ops.post('/crm/events/' + eventId + '/status', { status: 'APPROVED' });
+      await admin.post('/crm/events/' + eventId + '/targets/build');
+      let targets = rowsOf(data(await admin.get('/crm/events/' + eventId + '/targets', { params: { limit: 100 } })));
       if (targets.length < 6) {
         for (const person of people.slice(0, 10)) {
           // eslint-disable-next-line no-await-in-loop
-          await attempt('launch target', function () { return admin.post('/crm/programs/' + programId + '/targets', { party_pk: person.party_pk, allowed_count: 1 }); });
+          await attempt('launch target', function () { return admin.post('/crm/events/' + eventId + '/targets', { party_pk: person.party_pk, allowed_count: 1 }); });
         }
-        targets = rowsOf(data(await admin.get('/crm/programs/' + programId + '/targets', { params: { limit: 100 } })));
+        targets = rowsOf(data(await admin.get('/crm/events/' + eventId + '/targets', { params: { limit: 100 } })));
       }
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'TARGETS_FROZEN' });
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'OPEN' });
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'TARGETS_FROZEN' });
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'OPEN' });
 
-      const reward = rowsOf(data(await admin.get('/crm/programs/' + programId)).rewards)[0];
+      const reward = rowsOf(data(await admin.get('/crm/events/' + eventId)).rewards)[0];
       let position = 0;
       for (const target of targets.slice(0, 12)) {
         position += 1;
         // eslint-disable-next-line no-await-in-loop
         const reservation = await attempt('reservation', async function () {
-          return data(await admin.post('/crm/programs/' + programId + '/reservations', {
+          return data(await admin.post('/crm/events/' + eventId + '/reservations', {
             party_pk: target.party_pk, holder_id_card: 'DEMO-ID-' + target.party_pk,
             service_center_id: pickupSites.length ? pickupSites[position % pickupSites.length].service_center_id : null
           }));
@@ -685,7 +685,7 @@ async function run(options) {
           if (reward) {
             // eslint-disable-next-line no-await-in-loop
             await attempt('gift', async function () {
-              const awarded = data(await admin.post('/crm/programs/' + programId + '/awards', {
+              const awarded = data(await admin.post('/crm/events/' + eventId + '/awards', {
                 reward_id: reward.reward_id, party_pk: target.party_pk, reservation_id: reservation.reservation_id,
                 fulfilment_method: 'PICKUP', pickup_service_center_id: prizeSites.length ? prizeSites[0].service_center_id : null
               }));
@@ -700,46 +700,46 @@ async function run(options) {
           });
         }
       }
-      return program;
+      return event;
     });
 
     /* 2. A thank-you draw for the best customers, already paid out. */
     const draw = await attempt('thank-you draw', async function () {
-      const program = data(await admin.post('/crm/programs', {
-        program_code: 'DEMO-VIP-DRAW', program_name: 'VIP thank-you draw', program_type: 'LOTTERY', project_id: projectId('PLATFORM'),
+      const event = data(await admin.post('/crm/events', {
+        event_code: 'DEMO-VIP-DRAW', event_name: 'VIP thank-you draw', event_type: 'LOTTERY', project_id: projectId('PLATFORM'),
         eligibility_basis: 'CORPORATE_GRADE', eligibility_rule: { min_grade_rank: 4 },
         summary: 'Every AA and AAA customer is in the draw for 200 activity points.', starts_at: daysAgo(40), ends_at: daysAgo(5)
       }));
-      const programId = program.activity_program_id;
-      await admin.post('/crm/programs/' + programId + '/tiers', { tier_code: 'AA', tier_name: 'AA customers', rank_no: 1, min_value: 0, max_value: 80, entries_per_target: 1 });
-      await admin.post('/crm/programs/' + programId + '/tiers', { tier_code: 'AAA', tier_name: 'AAA customers', rank_no: 2, min_value: 80, entries_per_target: 2 });
-      const reward = data(await admin.post('/crm/programs/' + programId + '/rewards', {
+      const eventId = event.event_id;
+      await admin.post('/crm/events/' + eventId + '/tiers', { tier_code: 'AA', tier_name: 'AA customers', rank_no: 1, min_value: 0, max_value: 80, entries_per_target: 1 });
+      await admin.post('/crm/events/' + eventId + '/tiers', { tier_code: 'AAA', tier_name: 'AAA customers', rank_no: 2, min_value: 80, entries_per_target: 2 });
+      const reward = data(await admin.post('/crm/events/' + eventId + '/rewards', {
         reward_name: '200 activity points', reward_type: 'POINTS', point_type_id: activityPoints.point_type_id, points: 200, quantity_total: 8
       }));
-      await ops.post('/crm/programs/' + programId + '/status', { status: 'APPROVED' });
-      await admin.post('/crm/programs/' + programId + '/targets/build');
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'TARGETS_FROZEN' });
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'OPEN' });
-      const winners = rowsOf(data(await admin.get('/crm/programs/' + programId + '/targets', { params: { limit: 100 } })));
+      await ops.post('/crm/events/' + eventId + '/status', { status: 'APPROVED' });
+      await admin.post('/crm/events/' + eventId + '/targets/build');
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'TARGETS_FROZEN' });
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'OPEN' });
+      const winners = rowsOf(data(await admin.get('/crm/events/' + eventId + '/targets', { params: { limit: 100 } })));
       for (const winner of winners.slice(0, 6)) {
         // eslint-disable-next-line no-await-in-loop
-        await attempt('draw prize', function () { return admin.post('/crm/programs/' + programId + '/awards', { reward_id: reward.reward_id, party_pk: winner.party_pk }); });
+        await attempt('draw prize', function () { return admin.post('/crm/events/' + eventId + '/awards', { reward_id: reward.reward_id, party_pk: winner.party_pk }); });
       }
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'CLOSED' });
-      await admin.post('/crm/programs/' + programId + '/status', { status: 'FULFILLED' });
-      return program;
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'CLOSED' });
+      await admin.post('/crm/events/' + eventId + '/status', { status: 'FULFILLED' });
+      return event;
     });
 
     /* 3. An open day still waiting for a second manager to approve it. */
-    const openDay = await attempt('open day program', async function () {
-      return data(await admin.post('/crm/programs', {
-        program_code: 'DEMO-OPEN-DAY', program_name: 'Service centre open day', program_type: 'EVENT_ATTENDANCE', project_id: projectId('CRYSTAL'),
+    const openDay = await attempt('open day event', async function () {
+      return data(await admin.post('/crm/events', {
+        event_code: 'DEMO-OPEN-DAY', event_name: 'Service centre open day', event_type: 'EVENT_ATTENDANCE', project_id: projectId('CRYSTAL'),
         eligibility_basis: 'LOCATION_ACTIVITY', eligibility_rule: { activity_code: 'REPAIR_INTAKE', since_days: 365, min_count: 1 },
         summary: 'Customers who brought a device in this year are invited to a behind-the-scenes tour.',
         starts_at: daysAhead(14), ends_at: daysAhead(15)
       }));
     });
-    summary.programs = [launch, draw, openDay].filter(Boolean).length;
+    summary.events = [launch, draw, openDay].filter(Boolean).length;
 
     /* ---------------------------------------------------------------- campaigns */
 
@@ -858,7 +858,7 @@ async function run(options) {
     const eventCampaign = campaigns.filter(function (campaign) { return campaign.campaign_code === 'DEMO-VIP-LAUNCH'; })[0];
     const eventDefinitions = [
       ['PRODUCT_LAUNCH', 'Phone 9 launch day', 'CONFIRMED', 6, 120, null, { campaign_id: eventCampaign ? eventCampaign.campaign_id : null }],
-      ['PROGRAM_PICKUP_DAY', 'Phone 9 reservation pickup', 'PLANNED', 12, 80, null, { activity_program_id: launch ? launch.activity_program_id : null }],
+      ['EVENT_PICKUP_DAY', 'Phone 9 reservation pickup', 'PLANNED', 12, 80, null, { event_id: launch ? launch.event_id : null }],
       ['PROMOTION_DAY', 'Weekend trade-in promotion', 'COMPLETED', -9, 60, 47, {}],
       ['TRAINING', 'Technician training: Phone 9 repairs', 'COMPLETED', -20, 15, 14, {}],
       ['COMMUNITY_EVENT', 'Repair cafe with Bright Future School', 'PLANNED', 21, 40, null, {}],

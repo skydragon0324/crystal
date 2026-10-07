@@ -18,7 +18,7 @@ import { PartyPicker, Status, amount, choices, optionsFrom, rowsOf, useCatalogOp
 export const PAGE = '/admin/crm/points';
 
 const TRIGGERS = ['PRODUCT_REGISTRATION', 'DAILY_LOGIN', 'DUTY', 'PURCHASE', 'LICENCE_PURCHASE', 'APP_PURCHASE',
-  'REPAIR', 'SURVEY', 'BLOG', 'MANUAL', 'PROGRAM_AWARD'];
+  'REPAIR', 'SURVEY', 'BLOG', 'MANUAL', 'EVENT_AWARD'];
 
 /**
  * REWARD POINTS - every currency, one ledger.

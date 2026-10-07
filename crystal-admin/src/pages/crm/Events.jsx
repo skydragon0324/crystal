@@ -13,39 +13,39 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime, number } from '../../utils/format';
 import { Status, choices, word, filtersFor } from './shared';
-import { useProgramFields } from './programFields';
+import { useEventFields } from './eventFields';
 
-export const PAGE = '/admin/crm/programs';
+export const PAGE = '/admin/crm/events';
 
 export const TYPES = ['RESERVATION', 'LOTTERY', 'PRIZE_SERVICE', 'PUZZLE', 'SURVEY_REWARD', 'EVENT_ATTENDANCE'];
 export const STATUSES = ['DRAFT', 'APPROVED', 'TARGETS_FROZEN', 'OPEN', 'CLOSED', 'FULFILLED', 'CANCELLED'];
 
 /**
- * ACTIVITY PROGRAMS - reservations, lotteries, prize services, puzzles.
+ * ACTIVITY EVENTS - reservations, lotteries, prize services, puzzles.
  *
  * What the vendor ran as a table per campaign type is one kind of record
  * here, with one lifecycle: written, approved by a second manager, its target
- * list frozen, opened, closed and fulfilled. Opening a program shows its
+ * list frozen, opened, closed and fulfilled. Opening an event shows its
  * setup, its targets, the numbered entries taken, and what was awarded.
  */
-export default function Programs() {
+export default function Events() {
   const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const form = useDisclosure();
   const { canWrite } = usePermission(PAGE);
   const [saving, setSaving] = useState(false);
-  const fields = useProgramFields(true);
+  const fields = useEventFields(true);
 
-  const list = useList((params) => crm.programs.list(params), { page: 1, limit: 20, sort: 'created_at', dir: 'desc' });
+  const list = useList((params) => crm.events.list(params), { page: 1, limit: 20, sort: 'created_at', dir: 'desc' });
 
   const create = async (values) => {
     setSaving(true);
     try {
-      const { data } = await crm.programs.create(values);
+      const { data } = await crm.events.create(values);
       toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
-      if (data && data.activity_program_id) history.push(PAGE + '/' + data.activity_program_id);
+      if (data && data.event_id) history.push(PAGE + '/' + data.event_id);
       else list.reload();
       return true;
     } catch (error) {
@@ -64,21 +64,21 @@ export default function Programs() {
         filters={filtersFor(translate, [
           { key: 'status', label: 'Status', value: list.params.status, options: choices(STATUSES),
             onChange: (value) => list.setFilter({ status: value || undefined }) },
-          { key: 'program_type', label: 'Type', value: list.params.program_type, options: choices(TYPES),
-            onChange: (value) => list.setFilter({ program_type: value || undefined }) }
+          { key: 'event_type', label: 'Type', value: list.params.event_type, options: choices(TYPES),
+            onChange: (value) => list.setFilter({ event_type: value || undefined }) }
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {translate('crm.programs.newProgram')}
+            {translate('crm.events.newEvent')}
           </Button>
         ) : null}
       />
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
-            { key: 'program_code', label: 'Code' },
-            { key: 'program_name', label: 'Program', maxW: '16rem' },
-            { key: 'program_type', label: 'Type', sortable: false, render: (row) => word(translate, row.program_type) },
+            { key: 'event_code', label: 'Code' },
+            { key: 'event_name', label: 'Event', maxW: '16rem' },
+            { key: 'event_type', label: 'Type', sortable: false, render: (row) => word(translate, row.event_type) },
             { key: 'eligibility_basis', label: 'Who may take part', sortable: false, render: (row) => word(translate, row.eligibility_basis) },
             { key: 'status', label: 'Status', sortable: false, render: (row) => <Status value={row.status} /> },
             { key: 'target_cnt', label: 'Targets', sortable: false, isNumeric: true, render: (row) => number(row.target_cnt) },
@@ -97,8 +97,8 @@ export default function Programs() {
           onSort={list.setSort}
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.activity_program_id || row.id}
-          onRowClick={(row) => history.push(PAGE + '/' + (row.activity_program_id || row.id))}
+          rowKey={(row) => row.event_id || row.id}
+          onRowClick={(row) => history.push(PAGE + '/' + (row.event_id || row.id))}
           storageKey={PAGE}
         />
       </Box>
@@ -106,8 +106,8 @@ export default function Programs() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={translate('crm.programs.newProgram')}
-        initial={{ program_type: 'RESERVATION', eligibility_basis: 'MANUAL', number_start: 1 }}
+        title={translate('crm.events.newEvent')}
+        initial={{ event_type: 'RESERVATION', eligibility_basis: 'MANUAL', number_start: 1 }}
         onSubmit={create}
         saving={saving}
         size="3xl"

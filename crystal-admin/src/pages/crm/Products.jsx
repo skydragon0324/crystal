@@ -34,7 +34,7 @@ const END_REASONS = ['RETURNED', 'LOST', 'SCRAPPED', 'EXPIRED', 'CANCELLED', 'AS
  *
  * The catalogue tab is the CRM's own product list - the level of detail it
  * needs, across every project - and is where a product is given its class,
- * which is what the points rules and the programs read.
+ * which is what the points rules and the events read.
  */
 export default function Products() {
   const translate = useT();
@@ -306,7 +306,7 @@ function Catalogue() {
         { name: 'list_price', label: 'List price', type: 'number', step: '0.01' },
         { name: 'currency_code', label: 'Currency', type: 'select',
           options: optionsFrom(meta.currencies, 'currency_code', 'currency_code') },
-        { name: 'is_reservable', label: 'Can be reserved in a program', type: 'checkbox' },
+        { name: 'is_reservable', label: 'Can be reserved in an event', type: 'checkbox' },
         { name: 'status', label: 'Status', type: 'select', options: choices(['ACTIVE', 'INACTIVE', 'DISCONTINUED']) }
       ]}
       emptyRow={{ product_kind: 'DEVICE', status: 'ACTIVE' }}

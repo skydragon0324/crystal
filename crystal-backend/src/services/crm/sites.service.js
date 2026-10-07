@@ -27,10 +27,10 @@ const ACTIVITY_PAGE = '/admin/crm/site-activity';
 const KINDS = ['SERVICE_CENTER', 'SALES_AGENCY', 'COLLECTION_POINT', 'PARTNER_SHOP', 'OFFICE', 'EVENT_VENUE'];
 const SITE_COLUMNS = ['service_center_code', 'service_center_name', 'service_center_kind', 'operator_party_pk', 'location_pk',
   'address_line', 'landmark', 'map_position', 'rating', 'status', 'opened_on', 'closed_on'];
-const EVENT_TYPES = ['PROMOTION_DAY', 'PRODUCT_LAUNCH', 'ROADSHOW', 'TRAINING', 'INSPECTION', 'PROGRAM_PICKUP_DAY', 'COMMUNITY_EVENT'];
+const EVENT_TYPES = ['PROMOTION_DAY', 'PRODUCT_LAUNCH', 'ROADSHOW', 'TRAINING', 'INSPECTION', 'EVENT_PICKUP_DAY', 'COMMUNITY_EVENT'];
 const EVENT_STATUS = ['PLANNED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 const EVENT_COLUMNS = ['service_center_id', 'event_type_code', 'title', 'description', 'project_id',
-  'activity_program_id', 'campaign_id', 'planned_start_at', 'planned_end_at', 'actual_start_at',
+  'event_id', 'campaign_id', 'planned_start_at', 'planned_end_at', 'actual_start_at',
   'actual_end_at', 'capacity', 'attendee_count', 'status', 'owner_manager_id', 'outcome_note'];
 
 function pick(body, columns) {
@@ -91,19 +91,19 @@ async function siteDetail(id) {
       'project.project_code as source_project_code');
   if (!site) throw new HttpError(404, 'common.notFound');
 
-  const [capabilities, programs] = await Promise.all([
+  const [capabilities, events] = await Promise.all([
     db('crm_service_center_capability as capability')
       .leftJoin('crm_project as project', 'project.project_id', 'capability.project_id')
       .where('capability.service_center_id', id)
       .orderBy([{ column: 'capability.is_active', order: 'desc' }, { column: 'capability.capability_code' }])
       .select('capability.*', 'project.project_code'),
-    db('crm_activity_program_service_center as program_center')
-      .join('crm_activity_program as program', 'program.activity_program_id', 'program_center.activity_program_id')
-      .where('program_center.service_center_id', id).orderBy('program.activity_program_id', 'desc').limit(20)
-      .select('program.activity_program_id', 'program.program_code', 'program.program_name', 'program.status',
-        'program_center.service_center_role')
+    db('crm_event_service_center as event_center')
+      .join('crm_event as event', 'event.event_id', 'event_center.event_id')
+      .where('event_center.service_center_id', id).orderBy('event.event_id', 'desc').limit(20)
+      .select('event.event_id', 'event.event_code', 'event.event_name', 'event.status',
+        'event_center.service_center_role')
   ]);
-  return { site: site, capabilities: capabilities, programs: programs };
+  return { site: site, capabilities: capabilities, events: events };
 }
 
 async function saveSite(id, body, actor) {
@@ -246,7 +246,7 @@ async function searchEvents(filters, paging) {
   const qb = function () {
     const query = db('crm_service_center_event as center_event')
       .join('crm_service_center as center', 'center.service_center_id', 'center_event.service_center_id')
-      .leftJoin('crm_activity_program as program', 'program.activity_program_id', 'center_event.activity_program_id')
+      .leftJoin('crm_event as event', 'event.event_id', 'center_event.event_id')
       .leftJoin('crm_campaign as campaign', 'campaign.campaign_id', 'center_event.campaign_id')
       .leftJoin('managers as manager', 'manager.id', 'center_event.owner_manager_id');
     if (filters.service_center_id) query.where('center_event.service_center_id', filters.service_center_id);
@@ -262,7 +262,7 @@ async function searchEvents(filters, paging) {
   };
   const count = await qb().count({ total: '*' }).first();
   const rows = await qb()
-    .select('center_event.*', 'center.service_center_name', 'program.program_name', 'campaign.campaign_name',
+    .select('center_event.*', 'center.service_center_name', 'event.event_name', 'campaign.campaign_name',
       'manager.name as owner_name',
       db.raw(`(SELECT COUNT(*) FROM crm_service_center_activity activity
                 WHERE activity.service_center_event_id = center_event.service_center_event_id

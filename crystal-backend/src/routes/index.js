@@ -16,6 +16,7 @@ const remote = require('../config/remote');
  *   /api/account     the member centre, guarded by a member token
  *   /api/admin/auth  the console signing in
  *   /api/admin       the console, guarded by an admin token and the grid
+ *   /api/integration department systems, guarded by a project API key
  *   /api/...         the customer website, open and read only
  *
  * The storefront is mounted LAST because it owns the root of the prefix -
@@ -71,6 +72,9 @@ router.get('/health', async function (req, res) {
 /* ---- the console ---- */
 router.use('/admin/auth', require('./auth.routes'));
 router.use('/admin', require('./admin.routes'));
+
+/* ---- department systems, by project API key ---- */
+router.use('/integration/crm', require('./crmIntegration.routes'));
 
 /* ---- members ---- */
 router.use('/auth', require('./memberAuth.routes'));

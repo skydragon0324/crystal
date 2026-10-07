@@ -13,7 +13,11 @@ const { HttpError } = require('../../utils/response');
 
 /** Excel rows use the shared weighted registration gate. Preview writes nothing;
  * import rechecks under the same lock as project and console registration.
- * Source User IDs are retained as provenance, never used as CRM foreign keys.
+ *
+ * Phase 1 loads only complete people who already have an e-shop account. The
+ * sheet's e-shop PK and ID are not trusted enough for crm_project_account:
+ * they are kept with the registration and, once the person is resolved,
+ * staged as an e-shop assignment an administrator verifies or rejects.
  */
 
 const PAGE = '/admin/crm/customers';
@@ -26,17 +30,20 @@ const MAX_ROWS = 2000;
  * home_location_pk.
  */
 const COLUMNS = [
-  { key: 'user_id', header: 'User ID', width: 16, note: 'Optional source User ID. This is not a CRM party_pk.',
-    aliases: ['userid', 'source user id', 'customer id'] },
+  { key: 'eshop_pk', header: 'E-shop PK', required: true, width: 14, note: 'The customer\'s user_pk in the e-shop (a number). Kept as an unverified identifier.',
+    aliases: ['eshop pk', 'eshop user pk'] },
+  { key: 'eshop_id', header: 'E-shop ID', required: true, width: 18, note: 'The customer\'s login (user ID) in the e-shop. Kept as an unverified identifier.',
+    aliases: ['eshop id', 'eshop login', 'eshop user id'] },
   { key: 'full_name', header: 'Full name', required: true, width: 24, aliases: ['name'] },
-  { key: 'gender', header: 'Gender', width: 10, note: 'M or F' },
-  { key: 'birth_date', header: 'Birthday', width: 14, note: 'YYYY-MM-DD, or a year alone' , aliases: ['birth date', 'date of birth'] },
+  { key: 'gender', header: 'Gender', required: true, width: 10, note: 'M or F' },
+  { key: 'birth_date', header: 'Birthday', required: true, width: 14, note: 'YYYY-MM-DD', aliases: ['birth date', 'date of birth'] },
   { key: 'mobile', header: 'Mobile', required: true, width: 18, aliases: ['phone', 'phone number', 'mobile number'] },
-  { key: 'location_id', header: 'Location ID', width: 14, note: 'A number from the ID column of the Locations sheet', aliases: ['location_pk', 'home_location_pk'] },
-  { key: 'job_title_id', header: 'Job title ID', width: 14, note: 'A number from the ID column of the Job titles sheet' },
-  { key: 'address', header: 'Address', width: 30, aliases: ['address line'] },
-  { key: 'email', header: 'Email', width: 26 }
+  { key: 'location_id', header: 'Location ID', required: true, width: 14, note: 'A number from the ID column of the Locations sheet', aliases: ['location_pk', 'home_location_pk'] },
+  { key: 'address', header: 'Address', required: true, width: 30, aliases: ['address line', 'home address'] },
+  { key: 'job_title_id', header: 'Job title ID', width: 14, note: 'Optional. A number from the ID column of the Job titles sheet' },
+  { key: 'email', header: 'Email', width: 26, note: 'Optional' }
 ];
+const ESHOP_ID_MAX = 100;
 
 function normaliseHeader(text) {
   return String(text === null || text === undefined ? '' : text).toLowerCase().replace(/[\s_*\-]+/g, '');
@@ -169,9 +176,15 @@ function checkRow(record, lookups) {
   const errors = [];
   const out = {};
 
-  const userId = cellText(raw.user_id);
-  if (userId.length > 128) errors.push('User ID is longer than 128 characters');
-  if (userId) out.source_user_id = userId;
+  const eshopPk = cellText(raw.eshop_pk);
+  if (!eshopPk) errors.push('E-shop PK is required');
+  else if (!/^[1-9][0-9]{0,17}$/.test(eshopPk)) errors.push('E-shop PK "' + eshopPk + '" must be a whole number');
+  else out.eshop_pk = eshopPk;
+
+  const eshopId = cellText(raw.eshop_id);
+  if (!eshopId) errors.push('E-shop ID is required');
+  else if (eshopId.length > ESHOP_ID_MAX) errors.push('E-shop ID is longer than ' + ESHOP_ID_MAX + ' characters');
+  else out.eshop_id = eshopId;
 
   out.full_name = cellText(raw.full_name).replace(/\s+/g, ' ');
   if (!out.full_name) errors.push('Full name is required');
@@ -183,15 +196,20 @@ function checkRow(record, lookups) {
   out.mobile = mobileText;
 
   const gender = parseGender(cellText(raw.gender));
-  if (gender.error) errors.push(gender.error); else out.gender_code = gender.value;
+  if (gender.error) errors.push(gender.error);
+  else if (!gender.value) errors.push('Gender is required');
+  else out.gender_code = gender.value;
 
+  // Matching needs the full date; a year alone is not a complete birthday.
   const birthday = parseBirthday(raw.birth_date);
   if (birthday.error) errors.push(birthday.error);
-  else { out.birth_date = birthday.value; out.birth_year = birthday.year || null; }
+  else if (!birthday.value) errors.push('Birthday is required as YYYY-MM-DD');
+  else { out.birth_date = birthday.value; out.birth_year = birthday.year; }
 
   const locationId = parseId(raw.location_id, 'Location ID');
   if (locationId.error) errors.push(locationId.error);
-  else if (locationId.value !== null) {
+  else if (locationId.value === null) errors.push('Location ID is required');
+  else {
     const place = lookups.locationById[locationId.value];
     if (!place) errors.push('Location ID ' + locationId.value + ' is not on the location list');
     else { out.home_location_pk = place.location_pk; out.location_label = place.full_name || place.location_name; }
@@ -205,7 +223,9 @@ function checkRow(record, lookups) {
     else { out.job_title_id = job.job_title_id; out.job_name = job.job_name; }
   }
 
-  out.address_line = cellText(raw.address).slice(0, 255) || null;
+  out.address_line = cellText(raw.address).replace(/\s+/g, ' ');
+  if (!out.address_line) errors.push('Address is required');
+  else if (out.address_line.length > 255) errors.push('Address is longer than 255 characters');
 
   const emailText = cellText(raw.email);
   if (emailText) {
@@ -214,6 +234,32 @@ function checkRow(record, lookups) {
   }
 
   return { values: out, errors: errors };
+}
+
+/*
+ * One e-shop account belongs to one person. Rows that repeat an E-shop PK must
+ * describe the same person (a strong match) with the same E-shop ID; anything
+ * else is an error in the file rather than something to stage.
+ */
+function addEshopConflicts(checkedRows, records) {
+  const firstByPk = {};
+  checkedRows.forEach(function (checked, index) {
+    const pk = checked.values.eshop_pk;
+    if (!pk || checked.errors.length) return;
+    const first = firstByPk[pk];
+    if (first === undefined) { firstByPk[pk] = index; return; }
+    const earlier = checkedRows[first].values;
+    if (earlier.eshop_id !== checked.values.eshop_id || duplicates.score(earlier, checked.values).score < 70) {
+      checked.errors.push('E-shop PK ' + pk + ' is also on row ' + records[first].row_number + ' for a different person or E-shop ID');
+    }
+  });
+  return checkedRows;
+}
+
+/** The identifiers a row claims, staged for review instead of committed. */
+function unverifiedAccounts(values, eshopProjectId) {
+  return [{ project_id: eshopProjectId, external_account_id: values.eshop_pk, external_login: values.eshop_id,
+    external_account_type: 'ESHOP_CUSTOMER', source: 'EXCEL_IMPORT' }];
 }
 
 /* ------------------------------------------------------------ preview and import */
@@ -225,7 +271,7 @@ function checkRow(record, lookups) {
 async function preview(buffer) {
  const records = await readRows(buffer);
  const lookups = await loadLookups();
- const checkedRows = records.map(record => checkRow(record, lookups));
+ const checkedRows = addEshopConflicts(records.map(record => checkRow(record, lookups)), records);
  const context = await intake.candidateContext(db, checkedRows.filter(row => !row.errors.length).map(row => row.values));
  const earlier = duplicates.createIndex();
  const rows = [];
@@ -257,13 +303,16 @@ async function importPeople(buffer, actor) {
  // submit performs the authoritative check under the registration lock below.
  const records = await readRows(buffer);
  const lookups = await loadLookups();
- const report = { rows: records.map(record => {
-  const checked = checkRow(record, lookups);
+ const checkedRows = addEshopConflicts(records.map(record => checkRow(record, lookups)), records);
+ const report = { rows: records.map((record, index) => {
+  const checked = checkedRows[index];
   return { row_number: record.row_number, values: checked.values, status: checked.errors.length ? 'ERROR' : 'NEW', errors: checked.errors };
  }) };
  const failed = report.rows.filter(r => r.status === 'ERROR');
  if (failed.length) throw new HttpError(400, 'crm.fixTheRowsAndUploadAgain', failed);
  const crystal = await vocabulary.idOf('crm_project', 'CRYSTAL');
+ const eshop = await vocabulary.idOf('crm_project', 'ESHOP');
+ if (!eshop) throw new HttpError(409, 'The ESHOP project is missing from the project list');
  const batch = crypto.createHash('sha256').update(buffer).digest('hex');
  await transaction(async trx => {
   await intake.lock(trx);
@@ -272,7 +321,7 @@ async function importPeople(buffer, actor) {
    const contacts = [{ contact_type: 'MOBILE', contact_value: row.values.mobile, source_project_id: crystal }];
    if (row.values.email) contacts.push({ contact_type: 'EMAIL', contact_value: row.values.email, source_project_id: crystal });
    const result = await intake.submit(trx, Object.assign({}, row.values, { party_type: 'PERSON', origin_project_id: crystal, contacts }),
-    { source_record_id: 'excel:' + batch + ':' + row.row_number, candidateContext: context });
+    { source_record_id: 'excel:' + batch + ':' + row.row_number, candidateContext: context, unverified_accounts: unverifiedAccounts(row.values, eshop) });
    await context.refresh(result);
    row.status = result.outcome === 'QUEUED' ? 'REVIEW' : result.outcome;
    row.party_pk = result.party_pk;
@@ -324,10 +373,10 @@ async function template(options) {
   const firstJob = jobs[0] ? jobs[0].job_title_id : null;
   const secondJob = jobs[1] ? jobs[1].job_title_id : firstJob;
   const examples = templateOptions.examples || [
-    { user_id: 'U10001', full_name: 'Li Wei', gender: 'M', birth_date: new Date(Date.UTC(1988, 4, 17)), mobile: '+86 138 0013 8000',
-      location_id: firstPlace, job_title_id: firstJob, address: '18 Tianhe Road', email: 'li.wei@example.com' },
-    { user_id: '', full_name: 'Wang Fang', gender: 'F', birth_date: new Date(Date.UTC(1995, 10, 3)), mobile: '13900139000',
-      location_id: secondPlace, job_title_id: secondJob, address: '', email: '' }
+    { eshop_pk: '100245', eshop_id: 'liwei88', full_name: 'Li Wei', gender: 'M', birth_date: new Date(Date.UTC(1988, 4, 17)), mobile: '+86 138 0013 8000',
+      location_id: firstPlace, address: '18 Tianhe Road', job_title_id: firstJob, email: 'li.wei@example.com' },
+    { eshop_pk: '100391', eshop_id: 'wangfang', full_name: 'Wang Fang', gender: 'F', birth_date: new Date(Date.UTC(1995, 10, 3)), mobile: '13900139000',
+      location_id: secondPlace, address: '7 Zhongshan Avenue', job_title_id: secondJob, email: '' }
   ];
   examples.forEach(function (example) { sheet.addRow(example); });
 

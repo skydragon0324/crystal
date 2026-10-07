@@ -48,7 +48,7 @@ const PARAM_WORDS = {
  * A rule is a list of conditions that must all (or any) hold. It is compiled
  * on the server from a fixed list of conditions - this editor offers exactly
  * those - and evaluated into membership: who joined, who left and when. A
- * changed rule is a new version, so the members a program or a campaign took
+ * changed rule is a new version, so the members an event or a campaign took
  * can always be traced back to the rule that chose them.
  */
 export default function Segments() {

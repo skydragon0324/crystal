@@ -236,13 +236,13 @@ function SiteDetail({ id, onClose }) {
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.sites.programsHere')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.sites.eventsHere')}</Text>
               <DataTable
                 hidePagination
-                rows={record.programs || []}
-                rowKey={(row) => row.activity_program_id + '-' + row.service_center_role}
+                rows={record.events || []}
+                rowKey={(row) => row.event_id + '-' + row.service_center_role}
                 columns={[
-                  { key: 'program_name', label: 'Program' },
+                  { key: 'event_name', label: 'Event' },
                   { key: 'service_center_role', label: 'Role', render: (row) => word(translate, row.service_center_role) },
                   { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
                 ]}

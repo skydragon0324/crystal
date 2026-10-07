@@ -46,42 +46,58 @@ function filterValue(column, row) {
   return value === null || value === undefined || value === '' ? '' : String(value);
 }
 
-export function MiniTable({ columns, rows, rowKey, onRowClick, empty, maxH = '24rem' }) {
+/**
+ * A search box and a choice per `filter: true` column over rows already
+ * loaded. `always` shows it however few the rows; otherwise it appears from
+ * SEARCH_FROM rows up. Returns the rows that pass and the bar to render.
+ */
+export function useRowSearch(rows, columns, always) {
   const translate = useT();
   const surface = useSurface();
   const [search, setSearch] = useState('');
   const [chosen, setChosen] = useState({});
-  if (!rows || !rows.length) return <Empty360>{translate(empty || 'crm.ui.nothingYet')}</Empty360>;
+  const list = rows || [];
 
-  const searchable = rows.length >= SEARCH_FROM;
+  const searchable = list.length > 0 && (always || list.length >= SEARCH_FROM);
   const filterColumns = searchable ? columns.filter((column) => column.filter) : [];
   const term = search.trim().toLowerCase();
-  const shown = rows.filter((row) => (!term || rowText(row).indexOf(term) !== -1)
+  const shown = list.filter((row) => (!term || rowText(row).indexOf(term) !== -1)
     && filterColumns.every((column) => !chosen[column.key] || filterValue(column, row) === chosen[column.key]));
+
+  const bar = searchable ? (
+    <Flex mb={2} gap="0.5rem" data-gap="8" data-gap-wrap wrap="wrap" align="center">
+      <InputGroup size="sm" maxW="16rem">
+        <InputLeftElement pointerEvents="none"><Icon as={Md.MdSearch} color={surface.muted} /></InputLeftElement>
+        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={translate('crm.ui.searchThese')}
+          aria-label={translate('crm.ui.searchThese')} borderRadius="md" />
+      </InputGroup>
+      {filterColumns.map((column) => {
+        const values = Array.from(new Set(list.map((row) => filterValue(column, row)).filter(Boolean))).sort();
+        return (
+          <Select key={column.key} size="sm" maxW="12rem" borderRadius="md" value={chosen[column.key] || ''}
+            aria-label={translate('crm.ui.filterBy', { column: translate(column.label) })}
+            onChange={(event) => setChosen(Object.assign({}, chosen, { [column.key]: event.target.value }))}>
+            <option value="">{translate(column.label)}: {translate('crm.ui.allValues')}</option>
+            {values.map((value) => <option key={value} value={value}>{word(translate, value)}</option>)}
+          </Select>
+        );
+      })}
+      <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.ui.shownOf', { shown: shown.length, total: list.length })}</Text>
+    </Flex>
+  ) : null;
+
+  return { shown: shown, searchable: searchable, bar: bar };
+}
+
+export function MiniTable({ columns, rows, rowKey, onRowClick, empty, maxH = '24rem' }) {
+  const translate = useT();
+  const surface = useSurface();
+  const { shown, searchable, bar } = useRowSearch(rows, columns);
+  if (!rows || !rows.length) return <Empty360>{translate(empty || 'crm.ui.nothingYet')}</Empty360>;
 
   return (
     <Box>
-      {searchable ? (
-        <Flex mb={2} gap="0.5rem" data-gap="8" data-gap-wrap wrap="wrap" align="center">
-          <InputGroup size="sm" maxW="16rem">
-            <InputLeftElement pointerEvents="none"><Icon as={Md.MdSearch} color={surface.muted} /></InputLeftElement>
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={translate('crm.ui.searchThese')}
-              aria-label={translate('crm.ui.searchThese')} borderRadius="md" />
-          </InputGroup>
-          {filterColumns.map((column) => {
-            const values = Array.from(new Set(rows.map((row) => filterValue(column, row)).filter(Boolean))).sort();
-            return (
-              <Select key={column.key} size="sm" maxW="12rem" borderRadius="md" value={chosen[column.key] || ''}
-                aria-label={translate('crm.ui.filterBy', { column: translate(column.label) })}
-                onChange={(event) => setChosen(Object.assign({}, chosen, { [column.key]: event.target.value }))}>
-                <option value="">{translate(column.label)}: {translate('crm.ui.allValues')}</option>
-                {values.map((value) => <option key={value} value={value}>{word(translate, value)}</option>)}
-              </Select>
-            );
-          })}
-          <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.ui.shownOf', { shown: shown.length, total: rows.length })}</Text>
-        </Flex>
-      ) : null}
+      {bar}
       {!shown.length ? <Empty360>{translate('crm.ui.noMatches')}</Empty360> : (
     <Box overflow="auto" maxH={maxH} borderWidth={searchable ? '1px' : 0} borderColor={surface.border} borderRadius="md">
       <Table size="sm" variant="simple">

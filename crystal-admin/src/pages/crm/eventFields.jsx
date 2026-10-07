@@ -6,15 +6,15 @@ const TYPES = ['RESERVATION', 'LOTTERY', 'PRIZE_SERVICE', 'PUZZLE', 'SURVEY_REWA
 const BASES = ['MANUAL', 'SEGMENT', 'POINT_RANKING', 'CORPORATE_GRADE', 'PRODUCT_REGISTRATION', 'LOCATION_ACTIVITY', 'IMPORT', 'OPEN'];
 
 /**
- * THE PROGRAM FORM, for the new-program dialog and the edit on the program
+ * THE EVENT FORM, for the new-event dialog and the edit on the event
  * itself.
  *
- * `full` is false once a program has been approved: from then on only what a
+ * `full` is false once an event has been approved: from then on only what a
  * participant reads may change - the description, when it is shown, how long
  * collection runs. Who may take part, what it costs and how entries are
  * numbered are what the approver signed off, so they are not offered.
  */
-export function useProgramFields(full) {
+export function useEventFields(full) {
   const meta = useCrmMeta();
   const catalog = useCatalogOptions();
   const [segments, setSegments] = useState([]);
@@ -38,10 +38,10 @@ export function useProgramFields(full) {
   if (!full) return always;
 
   return [
-    { type: 'section', label: 'The program' },
-    { name: 'program_code', label: 'Code', required: true },
-    { name: 'program_name', label: 'Program', required: true },
-    { name: 'program_type', label: 'Type', type: 'select', required: true, isClearable: false, options: choices(TYPES) },
+    { type: 'section', label: 'The event' },
+    { name: 'event_code', label: 'Code', required: true },
+    { name: 'event_name', label: 'Event', required: true },
+    { name: 'event_type', label: 'Type', type: 'select', required: true, isClearable: false, options: choices(TYPES) },
     { name: 'project_id', label: 'Project', type: 'select', options: optionsFrom(meta.projects, 'project_id', 'project_name') },
     { name: 'approval_no', label: 'Approval number' },
     { name: 'reserved_product_id', label: 'Product being reserved', type: 'select', options: catalog, isSearchable: true },
@@ -68,10 +68,10 @@ export function useProgramFields(full) {
     { name: 'number_end', label: 'Last number', type: 'number' },
     { name: 'starts_at', label: 'Opens', type: 'datetime-local' },
     { name: 'ends_at', label: 'Closes', type: 'datetime-local' },
-    { name: 'is_test', label: 'Test program', type: 'checkbox' },
+    { name: 'is_test', label: 'Test event', type: 'checkbox' },
 
     { type: 'section', label: 'What participants read' }
   ].concat(always);
 }
 
-export default useProgramFields;
+export default useEventFields;

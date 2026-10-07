@@ -9,7 +9,7 @@ const parties = require('../services/crm/parties.service');
 const products = require('../services/crm/products.service');
 const cases = require('../services/crm/cases.service');
 const points = require('../services/crm/points.service');
-const programs = require('../services/crm/programs.service');
+const events = require('../services/crm/events.service');
 const sites = require('../services/crm/sites.service');
 const marketing = require('../services/crm/marketing.service');
 const vendorImport = require('../services/crm/vendorImport.service');
@@ -198,6 +198,9 @@ module.exports = {
     setStatus: async function (req, res) {
       return ok(res, await parties.setStatus(req.params.id, req.body.party_status, req.actor), 'common.updated');
     },
+    assignGrade: async function (req, res) {
+      return ok(res, await parties.assignGrade(req.params.id, req.body || {}, req.actor), 'common.updated');
+    },
     addContact: async function (req, res) {
       return ok(res, await parties.addContact(req.params.id, req.body, req.actor), 'common.created');
     },
@@ -302,71 +305,71 @@ module.exports = {
     drift: async function (req, res) { return ok(res, await points.drift()); }
   },
 
-  /* ---- activity programs ---- */
-  programs: {
-    list: lister(programs.search, ['starts_at', 'program_code', 'created_at'], 'created_at'),
+  /* ---- activity events ---- */
+  events: {
+    list: lister(events.search, ['starts_at', 'event_code', 'created_at'], 'created_at'),
     options: async function (req, res) {
-      return ok(res, await require('../config/db')('crm_activity_program').orderBy('activity_program_id', 'desc').limit(500)
-        .select('activity_program_id', 'program_code', 'program_name', 'status'));
+      return ok(res, await require('../config/db')('crm_event').orderBy('event_id', 'desc').limit(500)
+        .select('event_id', 'event_code', 'event_name', 'status'));
     },
-    detail: async function (req, res) { return ok(res, await programs.detail(req.params.id)); },
-    create: async function (req, res) { return ok(res, await programs.create(req.body, req.actor), 'common.created'); },
-    update: async function (req, res) { return ok(res, await programs.update(req.params.id, req.body, req.actor), 'common.updated'); },
+    detail: async function (req, res) { return ok(res, await events.detail(req.params.id)); },
+    create: async function (req, res) { return ok(res, await events.create(req.body, req.actor), 'common.created'); },
+    update: async function (req, res) { return ok(res, await events.update(req.params.id, req.body, req.actor), 'common.updated'); },
     transition: async function (req, res) {
-      return ok(res, await programs.transition(req.params.id, req.body.status, req.actor), 'common.updated');
+      return ok(res, await events.transition(req.params.id, req.body.status, req.actor), 'common.updated');
     },
     saveTier: async function (req, res) {
-      return ok(res, await programs.saveTier(req.params.id, req.params.tierId, req.body, req.actor), 'common.updated');
+      return ok(res, await events.saveTier(req.params.id, req.params.tierId, req.body, req.actor), 'common.updated');
     },
     removeTier: async function (req, res) {
-      await programs.removeTier(req.params.id, req.params.tierId, req.actor);
+      await events.removeTier(req.params.id, req.params.tierId, req.actor);
       return ok(res, null, 'common.deleted');
     },
     addLocation: async function (req, res) {
-      return ok(res, await programs.addLocation(req.params.id, req.body, req.actor), 'common.created');
+      return ok(res, await events.addLocation(req.params.id, req.body, req.actor), 'common.created');
     },
     removeLocation: async function (req, res) {
-      await programs.removeLocation(req.params.id, req.params.rowId, req.actor);
+      await events.removeLocation(req.params.id, req.params.rowId, req.actor);
       return ok(res, null, 'common.deleted');
     },
     saveQuota: async function (req, res) {
-      return ok(res, await programs.saveQuota(req.params.id, req.params.quotaId, req.body, req.actor), 'common.updated');
+      return ok(res, await events.saveQuota(req.params.id, req.params.quotaId, req.body, req.actor), 'common.updated');
     },
     removeQuota: async function (req, res) {
-      await programs.removeQuota(req.params.id, req.params.quotaId, req.actor);
+      await events.removeQuota(req.params.id, req.params.quotaId, req.actor);
       return ok(res, null, 'common.deleted');
     },
     saveReward: async function (req, res) {
-      return ok(res, await programs.saveReward(req.params.id, req.params.rewardId, req.body, req.actor), 'common.updated');
+      return ok(res, await events.saveReward(req.params.id, req.params.rewardId, req.body, req.actor), 'common.updated');
     },
     removeReward: async function (req, res) {
-      await programs.removeReward(req.params.id, req.params.rewardId, req.actor);
+      await events.removeReward(req.params.id, req.params.rewardId, req.actor);
       return ok(res, null, 'common.deleted');
     },
-    targets: scopedLister(programs.searchTargets),
+    targets: scopedLister(events.searchTargets),
     addTarget: async function (req, res) {
-      return ok(res, await programs.addTarget(req.params.id, req.body, req.actor), 'common.created');
+      return ok(res, await events.addTarget(req.params.id, req.body, req.actor), 'common.created');
     },
     buildTargets: async function (req, res) {
-      return ok(res, await programs.buildTargets(req.params.id, req.actor), 'crm.targetsBuilt');
+      return ok(res, await events.buildTargets(req.params.id, req.actor), 'crm.targetsBuilt');
     },
     revokeTarget: async function (req, res) {
-      return ok(res, await programs.revokeTarget(req.params.id, req.params.targetId, req.actor), 'common.updated');
+      return ok(res, await events.revokeTarget(req.params.id, req.params.targetId, req.actor), 'common.updated');
     },
-    reservations: scopedLister(programs.searchReservations),
+    reservations: scopedLister(events.searchReservations),
     reserve: async function (req, res) {
-      return ok(res, await programs.reserve(req.params.id, req.body, req.actor), 'common.created');
+      return ok(res, await events.reserve(req.params.id, req.body, req.actor), 'common.created');
     },
     transitionReservation: async function (req, res) {
-      return ok(res, await programs.transitionReservation(req.params.reservationId, req.body.status, req.body, req.actor), 'common.updated');
+      return ok(res, await events.transitionReservation(req.params.reservationId, req.body.status, req.body, req.actor), 'common.updated');
     },
     reservationEvents: async function (req, res) {
-      return ok(res, await programs.reservationEvents(req.params.reservationId));
+      return ok(res, await events.reservationEvents(req.params.reservationId));
     },
-    awards: scopedLister(programs.searchAwards),
-    award: async function (req, res) { return ok(res, await programs.award(req.params.id, req.body, req.actor), 'common.created'); },
+    awards: scopedLister(events.searchAwards),
+    award: async function (req, res) { return ok(res, await events.award(req.params.id, req.body, req.actor), 'common.created'); },
     transitionAward: async function (req, res) {
-      return ok(res, await programs.transitionAward(req.params.awardId, req.body.status, req.body, req.actor), 'common.updated');
+      return ok(res, await events.transitionAward(req.params.awardId, req.body.status, req.body, req.actor), 'common.updated');
     }
   },
 

@@ -9,7 +9,7 @@ const { points: roundPoints } = require('../../utils/query');
  * wallets.point_balance is of point_logs - and a cache is only as good as the
  * discipline of the code that writes beside it. So every movement in the CRM
  * comes through here: a manual adjustment, a registration reward, a
- * reservation paid for in points and its refund, a program award, the Crystal
+ * reservation paid for in points and its refund, an event award, the Crystal
  * import. There is no second path to get wrong.
  *
  * What it guarantees, inside the caller's transaction:

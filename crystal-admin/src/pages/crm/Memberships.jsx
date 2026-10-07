@@ -20,7 +20,7 @@ export const PAGE = '/admin/crm/memberships';
 /**
  * MEMBERSHIPS AND PROJECT TIERS (design 3.6 / 9).
  *
- * Each project runs its own ladder - Eshop card levels, a programme's grades -
+ * Each project runs its own ladder - Eshop card levels, an eventme's grades -
  * and a membership is one customer's place on one project's ladder. The cards
  * at the top are those ladders side by side, deliberately NOT added together:
  * an Eshop level 3 and another project's level 3 are not the same thing. The

@@ -4,7 +4,7 @@
  * DEMO DATA FOR EVERY CRM SCREEN, after the imports in 09_crm.
  *
  * The imports bring what the projects know; scripts/demo-crm.js adds what the
- * CRM itself is for - organizations, consents, classified cases, programs,
+ * CRM itself is for - organizations, consents, classified cases, events,
  * segments, campaigns and their results, events and targets - through the
  * same API the console uses. See that file for what is added and why.
  *

@@ -122,8 +122,8 @@ const CrmProducts = deferred(() => import(/* webpackChunkName: "admin-crm" */ '.
 const CrmTransfers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Transfers'));
 const CrmServiceCases = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/ServiceCases'));
 const CrmPoints = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Points'));
-const CrmPrograms = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Programs'));
-const CrmProgramDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/ProgramDetail'));
+const CrmEvents = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Events'));
+const CrmEventDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/EventDetail'));
 const CrmSites = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Sites'));
 const CrmSiteActivity = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/SiteActivity'));
 const CrmSegments = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Segments'));
@@ -236,8 +236,8 @@ const routes = [
   { path: '/admin/crm/transfers', component: CrmTransfers },
   { path: '/admin/crm/service-cases', component: CrmServiceCases },
   { path: '/admin/crm/points', component: CrmPoints },
-  { path: '/admin/crm/programs/:id', component: CrmProgramDetail },
-  { path: '/admin/crm/programs', component: CrmPrograms },
+  { path: '/admin/crm/events/:id', component: CrmEventDetail },
+  { path: '/admin/crm/events', component: CrmEvents },
   { path: '/admin/crm/sites', component: CrmSites },
   { path: '/admin/crm/site-activity', component: CrmSiteActivity },
   { path: '/admin/crm/segments', component: CrmSegments },

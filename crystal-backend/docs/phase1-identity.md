@@ -49,24 +49,59 @@ next run after resolution. Platform suggestions from other projects are also
 review candidates. Only the internal PLATFORM alias of an already resolved
 Crystal person is attached directly.
 
+## Excel import (phase 1 initial load)
+
+Phase 1 loads only people with complete data who already have an e-shop
+account. Required columns: E-shop PK, E-shop ID, Full name, Gender, Birthday
+(full YYYY-MM-DD), Mobile, Location ID, Address. Job title ID and Email are
+optional. A row missing any required value is an error and the file is not
+imported. Two rows with the same E-shop PK must be the same person (score 70+)
+with the same E-shop ID; otherwise the later row is reported as an error.
+
+The sheet's e-shop identifiers are **not** written to `crm_project_account`.
+They are kept on the person's registration intake (`payload.unverified_accounts`)
+and, once that person is created or merged (immediately, or after review), each
+is staged as an ESHOP intake with that customer as the candidate. An
+administrator verifies it under Customers > E-shop assignments (`ASSIGN` commits
+the account with link method `REVIEWED`) or rejects it. The customer's Accounts
+tab lists these identifiers under "Previously linked identifiers (unverified)"
+with their review state, for identity checks during manual inquiries
+(`GET /api/admin/crm/parties/:party_pk/unverified-accounts`).
+
 ## Department integration
 
-These endpoints use existing Customers read/write permissions under
-`/api/admin/crm`:
+Department systems call `/api/integration/crm` with a key issued to their
+project, sent as `Authorization: Bearer crmk_...` (or `X-Api-Key`). The project
+always comes from the key; a request cannot act for another project. Only the
+SHA-256 of a key is stored.
 
-- `POST /registrations`: `{ project_id, external_account_id, party: {
-  full_name, mobile, birth_date, address_line, home_location_pk, job_title_id,
-  email } }`. Returns `party_pk` when resolved, otherwise
-  `{ outcome: "QUEUED", intake_id, party_pk: null }`.
-- `GET /registrations?category=PERSON` (or `ESHOP`), with `status=RESOLVED` for
-  history, lists intakes using the standard paged response.
-- `POST /registrations/:id/decide`: `{ action: "MERGE", party_pk }`,
-  `{ action: "MERGE", candidate_intake_id }`, or `{ action: "NEW" }`.
-  E-shop decisions use `ASSIGN` with `party_pk`, or `REJECT`.
-- `GET /identity-resolutions?project_id=...`: up to 500 unacknowledged results,
-  each carrying source record, `party_pk`, outcome, and resolution ID.
-- `POST /identity-resolutions/:id/acknowledge`: `{ project_id }`, after the
-  department saves the key in its source record.
+    npm run crm:api-key -- issue ESHOP "Eshop production"   # prints the key once
+    npm run crm:api-key -- list
+    npm run crm:api-key -- revoke <api_key_id>
+
+- `POST /registrations`: `{ external_account_id, external_login?,
+  external_account_type?, party: { full_name, gender_code, birth_date, mobile,
+  email, address_line, home_location_pk, job_title_id } }`. Runs the weighted
+  duplicate check, then returns `{ outcome, party_pk, intake_id }`:
+  - account already linked: `EXISTING` with its `party_pk`;
+  - one match of 70+: `MERGED`, account added to that customer;
+  - nothing above 40: `CREATED`, new customer with the account;
+  - 41–69 or conflicting strong matches: `QUEUED` with `party_pk: null`; the
+    account is added when an administrator decides.
+
+  This applies to the e-shop too. Only legacy e-shop links taken from vendor
+  data (a `known_party_pk` hint) are queued as e-shop assignments.
+- `GET /accounts/:external_account_id`: `{ status: "LINKED", party_pk }`, or the
+  registration's status and `intake_id`; 404 when unknown.
+- `GET /identity-resolutions`: up to 500 unacknowledged results for the caller's
+  project, each with source record, `party_pk`, outcome and resolution ID.
+- `POST /identity-resolutions/:id/acknowledge`, after the department saves the key.
+
+Review in the console uses `GET /api/admin/crm/identity-intakes` and
+`POST /api/admin/crm/identity-intakes/:id/decide` with `{ action: "MERGE", party_pk }`,
+`{ action: "MERGE", candidate_intake_id }` or `{ action: "NEW" }`, and for e-shop
+assignments `{ action: "ASSIGN", party_pk }` or `{ action: "REJECT" }`. (These were
+under `/registrations`, which collided with the product registration routes.)
 
 Resolution records are committed with the decision. Repeated submissions for
 one project/account reuse the intake or active account. Full party merges
@@ -77,8 +112,15 @@ integration; no outbound department webhook has been configured.
 
 ## Deployment and verification
 
-Deploy the backend and admin together with migration
-`20261005090000_phase1_identity_intake.js` (`043_phase1_identity_intake.sql`).
+Deploy the backend and admin together with migrations
+`20261005090000_phase1_identity_intake.js` (`043_phase1_identity_intake.sql`) and
+`20261006090000_free_project_types_and_department_keys.js` (`044_...sql`: the
+`crm_project.project_type_code` CHECK dropped, `crm_project_api_key` added) and
+`20261006100000_programs_are_events.js` (`045_programs_are_events.sql`: every
+"program" table, column, constraint and code value renamed to "event", and the
+console page moved to `/admin/crm/events` keeping its permissions).
+Department clients that used `/api/admin/crm/registrations` move to
+`/api/integration/crm/registrations` with an issued key.
 Existing API clients must change their party reference fields and URLs to
 numeric `party_pk`. Run `npm run migrate` from the backend before starting the
 updated API. The migration preserves existing links by mapping public IDs back

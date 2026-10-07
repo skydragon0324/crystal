@@ -11,7 +11,10 @@ async function resolveAccount(trx, input) {
   return { party_pk: linked.party_pk, outcome: 'EXISTING' };
  }
  const project = await trx('crm_project').where('project_id', input.project_id).first();
- const eshop = project && project.project_code === 'ESHOP';
+ // A legacy e-shop link (known_party_pk from the vendor data) is a candidate
+ // for review. An e-shop account the department registers itself is matched
+ // like any other project's account and linked when the match is certain.
+ const eshop = project && project.project_code === 'ESHOP' && input.known_party_pk != null;
  // The PLATFORM alias is written only after Crystal has resolved this person.
  // Other project hints are candidates and must pass matching or review.
  if (input.resolved_party_pk && project && project.project_code === 'PLATFORM') {

@@ -66,9 +66,21 @@ async function attachAccount(trx, partyPk, account, reviewed) {
  ['external_login','external_account_type','account_status','crystal_user_id','source_created_at','source_updated_at'].forEach(k => { if (account[k] != null) values[k] = account[k]; });
  await trx('crm_project_account').insert(Object.assign(values, key, { party_pk: partyPk, is_primary: !primary, link_method: reviewed ? 'REVIEWED' : 'MATCHED' }));
 }
+// Identifiers a spreadsheet claims for a person are not trusted enough for
+// crm_project_account. Once the person is resolved they become assignment
+// candidates for that party, which an administrator verifies or rejects.
+async function stageUnverifiedAccounts(trx, party, accounts) {
+ for (const account of (accounts || [])) {
+  const linked = await trx('crm_project_account').where({ project_id: account.project_id, external_account_id: String(account.external_account_id), party_pk: party.party_pk }).whereNull('unlinked_at').first();
+  if (linked) continue;
+  await submit(trx, { display_name: party.display_name }, { project_id: account.project_id, source_record_id: account.external_account_id, category: 'ESHOP', account,
+   candidates: [{ party_pk: String(party.party_pk), display_name: party.display_name, reason: 'Listed for this customer in an imported spreadsheet (unverified)' }] });
+ }
+}
 async function finish(trx, intake, party, status, actor) {
  await addEvidence(trx, party.party_pk, intake.payload.party || {});
  await attachAccount(trx, party.party_pk, intake.payload.account, !!actor);
+ await stageUnverifiedAccounts(trx, party, intake.payload.unverified_accounts);
  await trx('crm_registration_intake').where('intake_id', intake.intake_id).update({ status, party_pk: party.party_pk, reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor ? actor.manager_id : null });
  await trx('crm_identity_resolution').insert({ intake_id: intake.intake_id, source_project_id: intake.source_project_id, source_record_id: intake.source_record_id, party_pk: party.party_pk, outcome: status }).onConflict('intake_id').ignore();
  return Object.assign({}, publicParty(party), { intake_id: intake.intake_id, outcome: status });
@@ -96,7 +108,7 @@ async function submit(trx, data, options) {
  if (category !== 'ESHOP') (opts.candidates || []).forEach(hint => {
   if (!found.some(row => String(row.party_pk) === String(hint.party_pk))) found.push(Object.assign({ reason: 'Unverified project assignment' }, hint));
  });
- const [intake] = await trx('crm_registration_intake').insert({ source_project_id: project, source_record_id: source, category, payload: JSON.stringify({ party: data, account: opts.account || null }), candidates: JSON.stringify(found) }).returning('*');
+ const [intake] = await trx('crm_registration_intake').insert({ source_project_id: project, source_record_id: source, category, payload: JSON.stringify({ party: data, account: opts.account || null, unverified_accounts: opts.unverified_accounts || [] }), candidates: JSON.stringify(found) }).returning('*');
  const strong = found.filter(row => row.score >= 70);
  if (category !== 'ESHOP' && strong.length === 1 && strong[0].party_pk) {
   const party = await trx('crm_party').where('party_pk', strong[0].party_pk).first();
@@ -154,4 +166,56 @@ async function acknowledge(id, projectId) {
  if (!rows.length) throw new HttpError(404, 'common.notFound');
  return rows[0];
 }
-module.exports = { submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
+// Department identifiers recorded for a customer without being committed as
+// project accounts, with where each assignment review stands. Shown on the
+// customer record so an administrator can check a caller's identity.
+async function unverifiedAccounts(partyPk) {
+ const intakes = await db('crm_registration_intake').where({ party_pk: partyPk, category: 'PERSON' })
+  .whereRaw("jsonb_array_length(COALESCE(payload->'unverified_accounts', '[]'::jsonb)) > 0").orderBy('created_at').select('intake_id', 'payload', 'created_at');
+ // Rows merged into one customer may repeat an identifier; list each once, as first recorded.
+ const listed = []; const seen = new Set();
+ intakes.forEach(row => row.payload.unverified_accounts.forEach(account => {
+  const key = account.project_id + ':' + account.external_account_id;
+  if (seen.has(key)) return;
+  seen.add(key);
+  listed.push({ account, intake_id: row.intake_id, recorded_at: row.created_at });
+ }));
+ if (!listed.length) return [];
+ const [reviews, projects] = await Promise.all([
+  db('crm_registration_intake').where('category', 'ESHOP').whereIn('source_record_id', Array.from(new Set(listed.map(item => String(item.account.external_account_id)))))
+   .select('intake_id', 'source_project_id', 'source_record_id', 'status', 'party_pk'),
+  db('crm_project').whereIn('project_id', Array.from(new Set(listed.map(item => item.account.project_id)))).select('project_id', 'project_name')
+ ]);
+ return listed.map(item => {
+  const review = reviews.find(row => String(row.source_project_id) === String(item.account.project_id) && row.source_record_id === String(item.account.external_account_id));
+  const project = projects.find(row => String(row.project_id) === String(item.account.project_id));
+  return {
+   project_id: item.account.project_id, project_name: project ? project.project_name : null,
+   external_account_id: item.account.external_account_id, external_login: item.account.external_login || null,
+   recorded_at: item.recorded_at, registration_intake_id: item.intake_id, review_intake_id: review ? review.intake_id : null,
+   // PENDING, REJECTED, ASSIGNED (to this customer) or ASSIGNED_ELSEWHERE.
+   review_status: !review ? null : review.status === 'ASSIGNED' && String(review.party_pk) !== String(partyPk) ? 'ASSIGNED_ELSEWHERE' : review.status
+  };
+ });
+}
+// Link or reject one of those identifiers from the customer record itself.
+// It goes through the same assignment review as Customers > E-shop
+// assignments; an identifier never staged for review is staged first.
+async function decideUnverified(partyPk, body, actor) {
+ if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'Choose link or reject');
+ const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_account_id) === String(body.external_account_id));
+ if (!item) throw new HttpError(404, 'common.notFound');
+ if (item.review_status && item.review_status !== 'PENDING') throw new HttpError(409, 'crm.alreadyDecided');
+ let reviewId = item.review_intake_id;
+ if (!reviewId) {
+  const party = await db('crm_party').where('party_pk', partyPk).first();
+  const account = { project_id: item.project_id, external_account_id: item.external_account_id, external_login: item.external_login };
+  await transaction(trx => stageUnverifiedAccounts(trx, party, [account]));
+  const staged = await db('crm_registration_intake').where({ category: 'ESHOP', source_project_id: item.project_id, source_record_id: String(item.external_account_id) }).first('intake_id');
+  // Already linked to this customer: staging had nothing to do.
+  if (!staged) throw new HttpError(409, 'crm.alreadyDecided');
+  reviewId = staged.intake_id;
+ }
+ return decide(reviewId, body.action === 'LINK' ? { action: 'ASSIGN', party_pk: partyPk } : { action: 'REJECT' }, actor);
+}
+module.exports = { unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
