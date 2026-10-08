@@ -6570,3 +6570,44 @@ Advanced effects:
 
 This specification should be given to Claude together with the Crystal project source. The most important architectural decision is: **do not code animations directly into each page; build one reusable `ImageAnimator` component driven by JSON animation scenes.** This will allow the same animation system to power all four areas of your website.
 ```
+
+-----------------------------------------------------------------------
+
+- For scene animation, I'd like to repeat everytime it shows, I mean repeat infinitely.
+- I'd like to update the about page on crystal-web.
+On Growth section, the real figures are like this.
+year  business  engineers   income  benefit   total-growth
+2015  100       100         0       0         100
+2016  135       107         100     100       114
+2017  169       200         95      47        128
+2018  217       244         111     58        170
+2019  318       267         168     81        201
+2020  354       300         137     26        248
+2021  371       311         7       5         310
+2022  427       411         28      139       379
+2023  528       556         523     633       561
+2024  588       1778        1226    1157      979
+2025  793       3122        2020    1969      1594
+according to this table, I'd like to make a chart, while use real figure, not x multiple of 2015. Also I dont want to show the exact numbers on y-axis, only show (%) as the top of y-axis.
+Dont show exact value on the growth chart header, you need to only describe which color meaning. Also remove 'The axis is a percentage of 2015. Point at a year ...' string.
+- On mobile view, I'd like to show hamburger icon to the right, not on left.
+- on Overview section, on mobile view, I'd like to show overview image before the text 'Crystal designes and build the electronics it sells"
+Also the overview image should have scene, so it should shown with animation. I want to set the animation repeat infinitely, but it can be stop by code.
+I changed the overview image, but it was showing not streched to the width on mobile.
+On mobile view, the overview image should be under the heading, not on the top of section.
+- on History section, the year order should be desc. and on mobile view, 2025 year content should be shown as default and others should be collapsed, only when it is clicked then it can be shown. Only one year can be selected, while the others should be collapsed.
+Sometimes, on mobile view, when clicking the section on the header, its not going to correct section.
+The facts 3 milestones are center aligned.
+- On recognition section, I'd like to show the certificates as carousel, because it can be added more afterwards. So on mobile view, these should shown as carousel, while on desktop, its also the carousel but it should be multi-carousel, I mean on desktop view, 4 certificates are shown and auto-played so the remaining 4 certificates are also shown as candidate.
+- On ResearchSection, the institute image should shown on the first part of the section. and the institute image should be more narrow, I mean lower height.
+On our own technology section, I'd like to show all images relative with the technology name. So on mobile view, it should be shown as carousel, each carousel item should show image with the name of technology under the image.
+On desktop view, the current view is good, but when the image played, the relevant matching technology is highlighted.
+- On factory section, on desktop view, the string 'Forty thousand square metres.." can be shown left to the factory image.
+The quality certifications should be shown next to the factory image. Also we may add more certifications every year, so I'd like to show certifications as caruousel. It should also shown as carousel on mobile, multi-carousel with about 4 certifications auto-played on desktop.
+- When changing image on about page, its showing covered and I'm not sure where to update the code to show the image as fully, not covered.
+- Please describe that where I can find the page to update the advert image scene.
+- For carousel on 04 recognition section, our technology section, quality certifications section, could you stop animation when mouse hover?
+- Please make mock overview image with a scene with about 3 layers?
+- Overview picture animated but when mouse hover and out, its restarts. The animation should be not related with mouse.
+- On about page, hide eyebrow (not remove code, only hide it) and hide ChapterNavigation.
+- /auth/reganam is standalone url, while when clicking signin button on the header of desktop view, x509 login is processed according to the original code.

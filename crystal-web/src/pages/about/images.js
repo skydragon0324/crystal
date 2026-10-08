@@ -27,7 +27,7 @@
  *
  * ONE FILE PER SLOT, NAMED AFTER IT. `institute.research.software` is
  * institute-research-software.svg; a slot holding a carousel numbers its files
- * from the second (institute-technology-2.svg). Every file here is a generated
+ * from the second (shop-floor-1-2.svg). Every file here is a generated
  * placeholder at the moment, so that naming is the whole of what tells
  * whoever drops the real photographs in which picture goes where.
  *
@@ -46,6 +46,8 @@
  */
 
 import overview from '@assets/images/about/overview.svg';
+import overviewSkyline from '@assets/images/about/overview-skyline.svg';
+import overviewHandset from '@assets/images/about/overview-handset.svg';
 
 import institute from '@assets/images/about/institute.svg';
 import instituteResearchSoftware from '@assets/images/about/institute-research-software.svg';
@@ -54,10 +56,13 @@ import instituteResearchCrystalOs from '@assets/images/about/institute-research-
 import instituteResearchImaging from '@assets/images/about/institute-research-imaging.svg';
 import instituteResearchIot from '@assets/images/about/institute-research-iot.svg';
 import instituteResearchSecurity from '@assets/images/about/institute-research-security.svg';
-import instituteTechnology from '@assets/images/about/institute-technology.svg';
-import instituteTechnology_2 from '@assets/images/about/institute-technology-2.svg';
-import instituteTechnology_3 from '@assets/images/about/institute-technology-3.svg';
-import instituteTechnology_4 from '@assets/images/about/institute-technology-4.svg';
+import instituteTechnology_crystalOs from '@assets/images/about/institute-technology-crystal-os.svg';
+import instituteTechnology_smarttvOs from '@assets/images/about/institute-technology-smarttv-os.svg';
+import instituteTechnology_computerBios from '@assets/images/about/institute-technology-computer-bios.svg';
+import instituteTechnology_cameraSecurity from '@assets/images/about/institute-technology-camera-security.svg';
+import instituteTechnology_printAuthentication from '@assets/images/about/institute-technology-print-authentication.svg';
+import instituteTechnology_exfatFirmware from '@assets/images/about/institute-technology-exfat-firmware.svg';
+import instituteTechnology_cordlessPhoneEncryption from '@assets/images/about/institute-technology-cordless-phone-encryption.svg';
 
 import factory from '@assets/images/about/factory.svg';
 import factoryFlowComponents from '@assets/images/about/factory-flow-components.svg';
@@ -106,7 +111,61 @@ import presenceShop from '@assets/images/about/presence-shop.svg';
  * either side. The order here is the order the slides are shown in.
  */
 const ABOUT_IMAGES = {
-'overview': [ { src: overview, dark: null, alt: 'The main entrance and reception', caption: null } ],
+  /*
+   * THE OVERVIEW SLOT IS A SCENE, which is why it holds three files.
+   *
+   * `layer` is the only place on the page where a picture carries its own
+   * GEOMETRY, and it belongs here rather than in content.js: where a cut-out
+   * sits in the frame is a property of the artwork, not of the sentence
+   * beside it. AboutScene reads these positionally - the first picture is
+   * the background and the rest arrive over it - and a slot with one file
+   * and no `layer` is still drawn as a single drifting plate.
+   *
+   * THE NUMBERS ARE SCENE UNITS, not pixels: the frame is 1200 wide and as
+   * tall as the chapter asks (4:3, so 900), and the engine scales the whole
+   * thing to whatever width it is given. That is what makes one set of
+   * coordinates right on a desktop and on a phone.
+   */
+  'overview': [
+    {
+      src: overview,
+      dark: null,
+      alt: 'The main entrance and reception',
+      caption: null,
+      /* The ground. `cover` so no edge of the frame is ever uncovered. */
+      layer: { fit: 'cover', animation: 'zoom-out', duration: 9000 }
+    },
+    {
+      src: overviewSkyline,
+      dark: null,
+      alt: 'The city around it',
+      caption: null,
+      /*
+       * Along the bottom, rising in. A little parallax, because it is the
+       * middle distance - the ground behind it gets none and the handset in
+       * front gets more, which is what reads as depth.
+       */
+      layer: {
+        x: 0, y: 600, width: 1200, height: 300,
+        animation: 'slide-bottom', delay: 300, duration: 1300, parallax: 0.12
+      }
+    },
+    {
+      src: overviewHandset,
+      dark: null,
+      alt: 'A Crystal handset',
+      caption: null,
+      /*
+       * The subject, arriving last and nearest. The sheen is the light
+       * sweep across the screen, which is the one place on this page where
+       * it is doing something a still could not.
+       */
+      layer: {
+        x: 790, y: 170, width: 300, height: 553,
+        animation: 'zoom-in', delay: 1000, duration: 1100, parallax: 0.4, sheen: true
+      }
+    }
+  ],
 
   'institute': [ { src: institute, dark: null, alt: 'Engineers at work in the IT institute', caption: null } ],
   'institute.research.software': [ { src: instituteResearchSoftware, dark: null, alt: 'Software development', caption: null } ],
@@ -115,12 +174,13 @@ const ABOUT_IMAGES = {
   'institute.research.imaging': [ { src: instituteResearchImaging, dark: null, alt: 'Imaging and AI', caption: null } ],
   'institute.research.iot': [ { src: instituteResearchIot, dark: null, alt: 'IoT and connected devices', caption: null } ],
   'institute.research.security': [ { src: instituteResearchSecurity, dark: null, alt: 'Security and updates', caption: null } ],
-  'institute.technology': [
-    { src: instituteTechnology, dark: null, alt: 'A technology certificate', caption: null },
-    { src: instituteTechnology_2, dark: null, alt: 'A technology certificate', caption: null },
-    { src: instituteTechnology_3, dark: null, alt: 'A technology certificate', caption: null },
-    { src: instituteTechnology_4, dark: null, alt: 'A technology certificate', caption: null }
-  ],
+  'institute.technology.crystal-os': [ { src: instituteTechnology_crystalOs, dark: null, alt: 'Crystal OS, developed in-house', caption: null } ],
+  'institute.technology.smarttv-os': [ { src: instituteTechnology_smarttvOs, dark: null, alt: 'SmartTV OS, developed in-house', caption: null } ],
+  'institute.technology.computer-bios': [ { src: instituteTechnology_computerBios, dark: null, alt: 'Computer BIOS, developed in-house', caption: null } ],
+  'institute.technology.camera-security': [ { src: instituteTechnology_cameraSecurity, dark: null, alt: 'Camera Security, developed in-house', caption: null } ],
+  'institute.technology.print-authentication': [ { src: instituteTechnology_printAuthentication, dark: null, alt: 'Print Authentication, developed in-house', caption: null } ],
+  'institute.technology.exfat-firmware': [ { src: instituteTechnology_exfatFirmware, dark: null, alt: 'exFAT Firmware, developed in-house', caption: null } ],
+  'institute.technology.cordless-phone-encryption': [ { src: instituteTechnology_cordlessPhoneEncryption, dark: null, alt: 'Cordless Phone Encryption, developed in-house', caption: null } ],
 
   'factory': [ { src: factory, dark: null, alt: 'The factory seen from the yard', caption: null } ],
   'factory.flow.components': [ { src: factoryFlowComponents, dark: null, alt: 'Incoming component inspection', caption: null } ],

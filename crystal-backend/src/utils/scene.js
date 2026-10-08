@@ -122,6 +122,20 @@ function layerOf(layer, index) {
     clean.height = clamp(raw.height, 1, MAX_DIMENSION, 100);
   }
 
+  /*
+   * THE EFFECTS THE ENGINE READS, kept rather than quietly dropped.
+   *
+   * The console's form does not offer these yet - a scene built by hand or
+   * by a future preset does - and a field this sanitiser does not name is a
+   * field the save silently deletes. So they are named: a depth between 0
+   * and 1, and the light sweep on or off.
+   */
+  const parallax = Math.min(1, Math.max(0, Number(raw.parallax) || 0));
+  /* Written only when it is on: a stored scene should say what it does, not
+     carry a default for every effect it declined. */
+  if (parallax) clean.parallax = parallax;
+  if (raw.sheen) clean.sheen = true;
+
   if (type === 'text') {
     clean.text = String(raw.text || '').slice(0, MAX_TEXT);
     clean.fontSize = clamp(raw.fontSize, 8, 400, 64);
@@ -134,6 +148,8 @@ function layerOf(layer, index) {
   } else {
     clean.src = pictureOf(raw.src, what);
     clean.alt = String(raw.alt || '').slice(0, MAX_TEXT);
+    /* A layer that fills the frame is covered, not letterboxed inside it. */
+    if (raw.fit === 'cover') clean.fit = 'cover';
   }
 
   return clean;

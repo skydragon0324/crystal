@@ -17,6 +17,10 @@ router.post('/login', controller.login);
 /* Desktop sign-in with an X.509 certificate, through the member's certificate agent. */
 router.post('/x509/primary_data', controller.x509PrimaryData);
 router.post('/x509/x509_login', controller.x509Login);
+/* Phone sign-in with the SIM's own MIK certificate, through the customised browser. */
+router.post('/mik/register', controller.mikRegister);
+router.post('/mik/challenge', controller.mikChallenge);
+router.post('/mik/login', controller.mikLogin);
 router.post('/otp/request', controller.requestOtp);
 router.post('/otp/verify', controller.verifyOtp);
 router.post('/refresh', controller.refresh);

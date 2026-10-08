@@ -84,3 +84,25 @@ export const SCROLL_OFFSET = { base: 116, md: 148 };
 
 /** The About navigator's own height, on each of the two layouts. */
 export const NAV_HEIGHT = { base: '52px', md: '56px' };
+
+/**
+ * TWO PIECES OF FURNITURE THE PAGE CAN DRAW AND DOES NOT SHOW.
+ *
+ * Both are switched off by request, and both are switched off HERE rather
+ * than deleted from the components that draw them: the eyebrow is part of
+ * every chapter's heading and the between-chapter links are part of the
+ * page's structure, so removing either means unpicking it from nine files
+ * and writing it back from memory if it is ever wanted again.
+ *
+ *   SHOW_EYEBROWS covers the small capitalised label at the top of a chapter
+ *   AND the large faint number beside it, because they are one line on the
+ *   page - hiding the words and leaving "03" floating above a heading is not
+ *   what "hide the eyebrow" asks for. The numbers themselves are untouched
+ *   and still name each chapter for the navigator.
+ *
+ *   SHOW_CHAPTER_NAVIGATION covers the "next chapter" links between bands.
+ *   The two navigators - the desktop rail and the phone drawer - are not
+ *   affected; they are how the page is navigated.
+ */
+export const SHOW_EYEBROWS = false;
+export const SHOW_CHAPTER_NAVIGATION = false;

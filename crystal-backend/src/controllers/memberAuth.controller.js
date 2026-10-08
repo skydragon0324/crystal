@@ -54,6 +54,24 @@ async function x509Login(req, res) {
   return ok(res, session, 'common.signedIn');
 }
 
+/*
+ * THE PHONE'S SIM, in three steps: register the card, ask it for a
+ * signature, then sign the member in with it. See the MIK note in
+ * services/memberAuth.service.js.
+ */
+async function mikRegister(req, res) {
+  return ok(res, await service.registerCard(req.body || {}), 'common.saved');
+}
+
+async function mikChallenge(req, res) {
+  return ok(res, await service.mikChallenge(req.body || {}));
+}
+
+async function mikLogin(req, res) {
+  const session = await service.loginWithMik(req.body || {}, detected(req));
+  return ok(res, session, 'common.signedIn');
+}
+
 async function requestOtp(req, res) {
   return ok(res, await service.requestOtp(req.body.phone, req.body.purpose), 'common.sent');
 }
@@ -104,6 +122,9 @@ module.exports = {
   login: login,
   x509PrimaryData: x509PrimaryData,
   x509Login: x509Login,
+  mikRegister: mikRegister,
+  mikChallenge: mikChallenge,
+  mikLogin: mikLogin,
   requestOtp: requestOtp,
   verifyOtp: verifyOtp,
   refresh: refresh,

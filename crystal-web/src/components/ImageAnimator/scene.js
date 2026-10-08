@@ -60,6 +60,16 @@ export function normaliseLayer(layer, index, scene) {
     id: raw.id || ('layer-' + (index + 1)),
     type: raw.type === 'text' ? 'text' : 'image',
     src: raw.src || '',
+    /*
+     * HOW THE PICTURE SITS IN ITS LAYER.
+     *
+     * `contain` by default, because a layer is normally a CUT-OUT at a size
+     * the scene chose, and cropping one trims the edge off a cloud. A layer
+     * that IS the whole frame - a chapter photograph, a background plate -
+     * wants `cover` instead, or it is letterboxed inside the very box it was
+     * put there to fill.
+     */
+    fit: raw.fit === 'cover' ? 'cover' : 'contain',
     text: raw.text || '',
     alt: raw.alt || '',
 

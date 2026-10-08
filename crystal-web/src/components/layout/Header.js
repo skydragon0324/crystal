@@ -285,16 +285,6 @@ export default function Header() {
         <Container maxW="container.site" h="100%">
           <Flex align="center" justify="space-between" h="100%" gap="4" data-gap="16">
             <Flex align="center" gap={{ base: 2, lg: 8 }} data-gap="8" data-gap-lg="32" minW="0">
-              <IconButton
-                display={{ base: 'inline-flex', lg: 'none' }}
-                aria-label={mobile.isOpen ? t('layout.header.closeMenu') : t('layout.header.openMenu')}
-                aria-expanded={mobile.isOpen}
-                aria-controls={MOBILE_NAV_ID}
-                icon={mobile.isOpen ? <CloseIcon boxSize="3" /> : <HamburgerIcon />}
-                variant="ghost"
-                onClick={mobile.isOpen ? mobile.onClose : mobile.onOpen}
-              />
-
               <Link
                 as={RouterLink}
                 to="/"
@@ -436,6 +426,9 @@ export default function Header() {
               {/*
                 THE BELL, and it is not the compare button that used to be
                 here.
+
+                (The menu button is at the END of this row rather than the
+                start of the bar - see the note on it below.)
 
                 Comparing handsets belongs to the smartphone pages: the tray
                 and the compare page only ever hold phones, and an icon in the
@@ -591,6 +584,31 @@ export default function Header() {
                   {t('common.signIn')}
                 </Button>
               )}
+
+              {/*
+                THE MENU BUTTON, ON THE RIGHT, AND LAST.
+
+                It used to open the bar, on the left, which is where a menu
+                button has traditionally gone - and which is the hardest
+                corner of a large phone for the hand holding it to reach. It
+                is the control a visitor presses most on a phone, so it sits
+                where the thumb already is, at the end of the row with the
+                other controls.
+
+                Still the LAST thing in the tab order of this row and still
+                `aria-controls` the sheet, so nothing about how it is
+                announced or reached by keyboard changes - only which side of
+                the bar it is drawn on.
+              */}
+              <IconButton
+                display={{ base: 'inline-flex', lg: 'none' }}
+                aria-label={mobile.isOpen ? t('layout.header.closeMenu') : t('layout.header.openMenu')}
+                aria-expanded={mobile.isOpen}
+                aria-controls={MOBILE_NAV_ID}
+                icon={mobile.isOpen ? <CloseIcon boxSize="3" /> : <HamburgerIcon />}
+                variant="ghost"
+                onClick={mobile.isOpen ? mobile.onClose : mobile.onOpen}
+              />
             </HStack>
           </Flex>
         </Container>

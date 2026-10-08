@@ -3,7 +3,7 @@ import { Box, Flex, Heading, Text } from '@chakra-ui/react';
 
 import Prose from './Prose';
 import SectionHeading from './SectionHeading';
-import { chapterNumber } from '../constants';
+import { chapterNumber, SHOW_EYEBROWS } from '../constants';
 import { useSurface } from '@/theme/tokens';
 
 /**
@@ -86,7 +86,7 @@ export default function BusinessesSection({ vision, section, businesses }) {
           borderBottom="1px solid"
           borderColor={surface.border}
         >
-          {vision.eyebrow && (
+          {SHOW_EYEBROWS && vision.eyebrow && (
             <Text
               fontSize="xs"
               fontWeight="800"

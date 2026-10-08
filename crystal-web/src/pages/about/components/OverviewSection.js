@@ -1,10 +1,10 @@
 import React from 'react';
-import { Box, Heading, SimpleGrid, Text } from '@chakra-ui/react';
+import { Box, Grid, Heading, SimpleGrid, Text } from '@chakra-ui/react';
 
-import ResponsiveMedia from './ResponsiveMedia';
+import AboutScene from './AboutScene';
 import { useSurface } from '@/theme/tokens';
 import Prose from './Prose';
-import { chapterNumber } from '../constants';
+import { chapterNumber, SHOW_EYEBROWS } from '../constants';
 
 /**
  * 01 — WHO WE ARE.
@@ -14,11 +14,24 @@ import { chapterNumber } from '../constants';
  * first picture on a page is a blank rectangle in the one place nobody will
  * wait for.
  *
- * The desktop composition is text and picture side by side at 55/45 - the
- * copy is the longer of the two and gets the wider column - and on a phone
- * they stack in reading order, with the three milestones in a row under
- * both. That order is deliberate: the headline and the sentence that explains
- * it come before the photograph, not after it.
+ * THREE PIECES, PLACED BY NAME: the heading, the picture, and the prose.
+ *
+ *   DESKTOP is two columns at 55/45. The heading and the prose stack in the
+ *   wider one - the copy is the longer of the two - and the picture sits
+ *   beside them both, spanning the pair.
+ *
+ *   MOBILE puts the picture BETWEEN the heading and the prose. Not above the
+ *   heading: a chapter that opens with a photograph and no words has nothing
+ *   to tell a reader what they are looking at, and the h1 is what the page
+ *   opens with. Not below the prose either, which is where it used to be -
+ *   that put a headline, a subtitle and a paragraph above the fold before
+ *   anything was shown.
+ *
+ * `templateAreas` RATHER THAN `order`, and that is the whole reason this is a
+ * Grid. The picture has to land between two pieces of text on a phone and
+ * beside both of them on a desktop - which is a move from one column to
+ * another, and `order` only reshuffles within one. Naming the areas says the
+ * arrangement once per layout instead of a flag on each child.
  */
 export default function OverviewSection({ section, facts }) {
   const surface = useSurface();
@@ -26,14 +39,22 @@ export default function OverviewSection({ section, facts }) {
 
   return (
     <Box>
-      <SimpleGrid
-        columns={{ base: 1, lg: 2 }}
-        spacing={{ base: 8, lg: 14 }}
-        alignItems="center"
+      <Grid
         templateColumns={{ base: '1fr', lg: '55fr 45fr' }}
+        templateAreas={{
+          base: '"head" "picture" "body"',
+          lg: '"head picture" "body picture"'
+        }}
+        /*
+         * Separate row and column gaps: the column gap is the space between
+         * the copy and the photograph, and the row gap is the space between a
+         * headline and the sentence under it. One number cannot be both.
+         */
+        gridColumnGap={{ lg: 14 }}
+        gridRowGap={{ base: 6, lg: 4 }}
       >
-        <Box order={{ base: 1, lg: 1 }}>
-          {section.eyebrow && (
+        <Box gridArea="head">
+          {SHOW_EYEBROWS && section.eyebrow && (
             <Text
               fontSize="xs"
               fontWeight="800"
@@ -61,9 +82,30 @@ export default function OverviewSection({ section, facts }) {
           >
             {section.title}
           </Heading>
+        </Box>
 
+        {/*
+          * THE PICTURE, WITH MOTION IN IT - see AboutScene. It spans both text
+          * rows on a desktop, so it is centred against the pair rather than
+          * tied to the height of either.
+          */}
+        <Box gridArea="picture" alignSelf="center">
+          <AboutScene
+            desktop={section.image_desktop}
+            mobile={section.image_mobile}
+            desktopDark={section.image_desktop_dark}
+            mobileDark={section.image_mobile_dark}
+            alt={section.title}
+            ratio={4 / 3}
+            /* Three files in this slot, so this chapter is a composition - see
+               images.js. */
+            layers={section.images}
+          />
+        </Box>
+
+        <Box gridArea="body">
           {section.subtitle && (
-            <Text fontSize={{ base: 'lg', md: 'xl' }} color={surface.strong} mt="4">
+            <Text fontSize={{ base: 'lg', md: 'xl' }} color={surface.strong}>
               {section.subtitle}
             </Text>
           )}
@@ -74,19 +116,7 @@ export default function OverviewSection({ section, facts }) {
             </Prose>
           )}
         </Box>
-
-        <Box order={{ base: 2, lg: 2 }}>
-          <ResponsiveMedia
-            desktop={section.image_desktop}
-            mobile={section.image_mobile}
-            desktopDark={section.image_desktop_dark}
-            mobileDark={section.image_mobile_dark}
-            alt={section.title}
-            ratio={4 / 3}
-            eager
-          />
-        </Box>
-      </SimpleGrid>
+      </Grid>
 
       {facts && facts.length > 0 && (
         <SimpleGrid
@@ -99,7 +129,10 @@ export default function OverviewSection({ section, facts }) {
           borderColor={surface.border}
         >
           {facts.map((fact) => (
-            <Box key={fact.id}>
+            /* Centred: three short figures in a row read as a set when they
+               share an axis, and ragged left edges under uneven numbers do
+               not give them one. */
+            <Box key={fact.id} textAlign="center">
               <Text
                 fontSize={{ base: 'xl', sm: '2xl', md: '4xl' }}
                 fontWeight="800"

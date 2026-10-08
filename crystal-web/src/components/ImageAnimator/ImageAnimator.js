@@ -48,7 +48,8 @@ import { isScene, normaliseScene, sourcesOf } from './scene';
  */
 const ImageAnimator = React.forwardRef(function ImageAnimator(props, ref) {
   const {
-    scene, isPlaying, autoplay, onDuration, ratio, borderRadius, ariaLabel, fill
+    scene, isPlaying, autoplay, onDuration, ratio, borderRadius, ariaLabel, fill, loop,
+    verified
   } = props;
 
   const normalised = useMemo(() => (isScene(scene) ? normaliseScene(scene) : null), [scene]);
@@ -139,29 +140,91 @@ const ImageAnimator = React.forwardRef(function ImageAnimator(props, ref) {
     setRunId((current) => current + 1);
   }, [sceneId]);
 
+  /*
+   * IT PLAYS AGAIN EVERY TIME IT IS SHOWN, AND KEEPS PLAYING.
+   *
+   * A CSS animation runs once and stops at its last frame, so a scene that
+   * had been seen was a still picture ever after: coming back to a carousel
+   * slide showed the settled end of the animation rather than the animation.
+   * Re-assigning the same animation to a live element does nothing, so the
+   * only way to replay it is to mount it again - which is what `runId` is.
+   *
+   * TWO THINGS RESTART IT. Becoming visible, so a slide returned to plays
+   * from the beginning; and the scene's own length, so it loops for as long
+   * as it is on screen.
+   *
+   * `loop={false}` turns the second one off for a scene that should settle
+   * and stay settled, and `isPlaying` stops both - which is what "stoppable
+   * by code" needs, and why the timer is torn down rather than paused: a
+   * paused timer that fires on resume would restart a scene somebody had
+   * deliberately frozen.
+   */
+  const duration = normalised ? normalised.duration : 0;
+  const isRunning = (isPlaying === undefined ? running : isPlaying) && !reduced;
+
+  useEffect(() => {
+    if (!isRunning) return undefined;
+
+    /* Shown again: back to the first frame. */
+    setRunId((current) => current + 1);
+
+    if (loop === false || !duration) return undefined;
+
+    const timer = setInterval(function () {
+      setRunId((current) => current + 1);
+    }, duration);
+
+    return () => clearInterval(timer);
+  }, [isRunning, duration, loop]);
+
   /* What the scene is worth on a carousel's clock - see HeroCarousel. */
   useEffect(() => {
     if (normalised && onDuration) onDuration(normalised.duration);
   }, [normalised, onDuration]);
 
-  const sources = useMemo(() => sourcesOf(scene), [scene]);
+  /*
+   * SIGNED ARTWORK, OR THE PAGE'S OWN.
+   *
+   * An advert's layers are UPLOADS: somebody could replace the file on the
+   * server, so each one is checked against its signature before it is drawn,
+   * and that is the default here.
+   *
+   * The About page's pictures are not uploads at all - they are bundled into
+   * the build (pages/about/images.js), served from the same origin as the
+   * code that draws them, and have no signature because there is nothing an
+   * attacker could swap without replacing the build itself. Those scenes pass
+   * `verified={false}` and are drawn from their own addresses, which is
+   * exactly what HeroCarousel already does for the same pictures.
+   */
+  const verifying = verified !== false;
+
+  const sources = useMemo(() => (verifying ? sourcesOf(scene) : []), [scene, verifying]);
   const verification = useVerifiedImages(
     sources.map((src) => ({ integrity: integrityFor(scene, src), expectedPath: src }))
   );
 
+  /*
+   * UNDEFINED, NOT NULL, and the difference is the whole of it: Picture
+   * treats the PRESENCE of `verification` as "this is a signed picture" and
+   * an absent answer as "still checking", so handing it null would leave
+   * every unsigned layer waiting for a verdict that is never coming. Absent
+   * means absent, and Picture draws `src`.
+   */
   const answerFor = useCallback((src) => {
+    if (!verifying) return undefined;
     const at = sources.indexOf(src);
     return at === -1 ? null : verification[at];
-  }, [sources, verification]);
+  }, [sources, verification, verifying]);
 
   if (!normalised) return null;
 
-  const playing = (isPlaying === undefined ? running : isPlaying) && !reduced;
+  const playing = isRunning;
   const scale = frameWidth ? frameWidth / normalised.width : 0;
 
   const background = normalised.background;
   const backgroundAnswer = background && background.src ? answerFor(background.src) : null;
-  const backgroundRefused = !!background
+  const backgroundRefused = verifying
+    && !!background
     && !!background.src
     && !!backgroundAnswer
     && backgroundAnswer.state !== STATES.CHECKING
@@ -244,7 +307,7 @@ const ImageAnimator = React.forwardRef(function ImageAnimator(props, ref) {
             const answer = layer.type === 'image' && layer.src ? answerFor(layer.src) : null;
 
             /* A picture that failed its signature is left out; the rest plays. */
-            if (answer && answer.state !== STATES.CHECKING && answer.state !== STATES.VERIFIED) {
+            if (verifying && answer && answer.state !== STATES.CHECKING && answer.state !== STATES.VERIFIED) {
               return null;
             }
 

@@ -17,7 +17,7 @@ import ShopSection from './components/ShopSection';
 import ServiceSection from './components/ServiceSection';
 import PresenceSection from './components/PresenceSection';
 import useActiveAboutSection from './hooks/useActiveAboutSection';
-import { CHAPTER_ALIASES, SCROLL_OFFSET } from './constants';
+import { CHAPTER_ALIASES, SCROLL_OFFSET, SHOW_CHAPTER_NAVIGATION } from './constants';
 import { scrollToSection, writeHash } from './utils';
 import { useI18n } from '@/i18n';
 import { buildAbout } from './content';
@@ -218,8 +218,9 @@ export default function AboutPage() {
           {chapter.render()}
 
           {/* Not after the last one: there is nothing next, and a lone
-              backward link under the final chapter reads as a dead end. */}
-          {index < all.length - 1 && (
+              backward link under the final chapter reads as a dead end.
+              Hidden entirely at the moment - see SHOW_CHAPTER_NAVIGATION. */}
+          {SHOW_CHAPTER_NAVIGATION && index < all.length - 1 && (
             <ChapterNavigation id={chapter.id} onSelect={go} />
           )}
         </Section>

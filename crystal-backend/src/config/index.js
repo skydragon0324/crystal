@@ -245,6 +245,41 @@ const config = {
   },
 
   /*
+   * THE SIM'S OWN CERTIFICATE, which is the phone's half of the same idea.
+   *
+   * The desktop has a certificate agent; a phone has the card already in it,
+   * and the customised browser can ask it to sign. Both are X.509 and both
+   * are verified by utils/x509.js - what is separate is the CA they chain to,
+   * because a SIM's MIK certificate is issued by a different authority from
+   * the personal certificates the desktop agent holds.
+   *
+   * OFF BY DEFAULT. A deployment with no MIK chain configured answers "not
+   * enabled" and the phone sign-in form is exactly what it was.
+   */
+  mik: {
+    enabled: bool('MIK_LOGIN', false),
+    /* The CA chain a card's certificate must verify against. */
+    caChain: str('MIK_CA_CHAIN', ''),
+    /*
+     * The certificate policies a card may carry. Empty means "do not check",
+     * which is the honest default until the issuer's OIDs are known - the
+     * chain and the signature are still required.
+     */
+    policyIds: list('MIK_POLICY_IDS', ''),
+    /* How long a challenge may wait for its signature. */
+    challengeSeconds: int('MIK_CHALLENGE_SECONDS', 120),
+    /*
+     * Whether the cid must appear in the certificate's subject.
+     *
+     * A card that signs for a cid it does not name is a card vouching for
+     * somebody else's number, so this is on - but it is a switch, because a
+     * MIK profile that carries the cid somewhere other than the subject would
+     * otherwise refuse every valid card until this file knew where to look.
+     */
+    requireCidInSubject: bool('MIK_REQUIRE_CID_IN_SUBJECT', true)
+  },
+
+  /*
    * SIGNED CONTENT - notices, FAQs and uploaded images carry a signature the
    * storefront checks before it renders them. See docs/content-signing.md.
    *

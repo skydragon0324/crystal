@@ -81,12 +81,30 @@ export default function AnimationLayer({ layer, scene, verification, isPlaying, 
    * offset into it would fight the keyframes for it every frame. So depth
    * moves the wrapper and the animation moves what is inside, and the two
    * compose instead of overwriting each other.
+   *
+   * THE WRAPPER'S EXISTENCE DOES NOT DEPEND ON THE POINTER, and that is a
+   * fix rather than a style. It used to be rendered only while a pointer was
+   * over the scene, so the first mouse move wrapped the layer and leaving
+   * unwrapped it - and re-parenting an element unmounts and remounts it,
+   * which is exactly how this engine replays an animation on purpose (see
+   * `runId`). Every hover restarted the scene, twice.
+   *
+   * A layer that declares parallax is wrapped for as long as it is drawn.
+   * With no pointer the wrapper simply sits at the origin, which is where the
+   * transition returns it to when the pointer leaves - the movement the
+   * feature is for, and none of the remounting.
    */
-  const depth = layer.parallax && pointer && !reduced
+  const moves = !!layer.parallax && !reduced;
+
+  /* No pointer is the origin, which is one offset rather than two strings. */
+  const shift = {
+    x: pointer ? pointer.x * layer.parallax * -1 : 0,
+    y: pointer ? pointer.y * layer.parallax * -1 : 0
+  };
+
+  const depth = moves
     ? {
-      transform: 'translate3d('
-        + (pointer.x * layer.parallax * -1) + 'px, '
-        + (pointer.y * layer.parallax * -1) + 'px, 0)',
+      transform: 'translate3d(' + shift.x + 'px, ' + shift.y + 'px, 0)',
       transition: 'transform 220ms ease-out',
       willChange: 'transform'
     }
@@ -140,11 +158,11 @@ export default function AnimationLayer({ layer, scene, verification, isPlaying, 
           bg="transparent"
           skeleton={false}
           /*
-           * `contain`, because a layer is a cut-out at a size the scene chose:
-           * cropping it would trim the edges off a cloud or a phone body,
-           * which is exactly what a transparent layer is drawn to avoid.
+           * `contain` unless the layer asked for `cover` - see `fit` in
+           * scene.js. A cut-out must not be cropped; a layer that fills
+           * the frame must not be letterboxed inside it.
            */
-          fit="contain"
+          fit={layer.fit}
           eager
         />
       )}

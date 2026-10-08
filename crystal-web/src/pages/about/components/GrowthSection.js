@@ -5,38 +5,28 @@ import SectionHeading from './SectionHeading';
 import { chapterNumber } from '../constants';
 import { useSurface } from '@/theme/tokens';
 import { useT } from '@/i18n';
-import { number } from '@/utils/format';
 
 /**
  * ELEVEN YEARS, AS ONE CHART.
  *
- * THE PROBLEM THIS SOLVES, because it is the whole design.
+ * THE FIGURES ARE PLOTTED AS THEY ARE GIVEN, and the reason is in the data:
+ * every series in content.js GROWTH is already an INDEX, 2015 = 100. They
+ * arrive on one scale, so the chart does no arithmetic at all - 793 on the
+ * business line is 793% of 2015, and the line's height is that number.
  *
- * Employees run to eighteen hundred, engineers to four hundred, revenue to
- * two hundred million dollars. Three quantities, three units, one pair of
- * axes. There are only three ways to draw that, and two of them are wrong:
+ * THIS REPLACED A CHART THAT DIVIDED EACH SERIES BY ITS OWN FIRST YEAR to
+ * put three different units on one axis. That was right for the figures it
+ * had and is impossible for these: income and benefit both START at zero,
+ * and a series indexed against zero is a division by zero, not a line.
  *
- *   A SECOND Y-AXIS is the worst thing a chart can do. Where the lines cross
- *   is decided by whoever picked the two scales, so the reader sees a
- *   relationship that is an artefact of the drawing.
+ * THE AXIS CARRIES NO NUMBERS, only "(%)" at the top of it. The gridlines
+ * still say how the heights compare, which is what a reader actually uses
+ * them for; the exact figure for any year is one hover away in the legend,
+ * where it can be read as a number instead of guessed off an axis.
  *
- *   ONE SHARED AXIS OF RAW VALUES puts revenue and engineers along the
- *   bottom as flat lines, because 412 next to 1820 is not a shape.
- *
- *   EACH SERIES AS A MULTIPLE OF ITS OWN FIRST YEAR is the third, and it is
- *   the honest one. Every line starts at 1 and the axis means "how many
- *   times bigger than {first year}" - which is the question a growth chart
- *   is asked. The units cancel, so the comparison is legitimate: revenue is
- *   up 48x against headcount's 15x, and that is a real fact about the
- *   company rather than an accident of scaling.
- *
- * THE RAW NUMBERS ARE STILL ON SCREEN. Indexing answers "how fast" and
- * destroys "how many", so the actual figures are in the legend: the latest
- * year by default, and whichever year is under the pointer.
- *
- * THERE IS NO TABLE UNDER IT ANY MORE. It repeated every figure a second time
- * and made the chapter twice as tall as the story it tells. The numbers
- * themselves live in content.js, GROWTH.years - that is where to change them.
+ * THERE IS NO TABLE UNDER IT. It repeated every figure a second time and
+ * made the chapter twice as tall as the story it tells. The numbers live in
+ * content.js, GROWTH.years - that is where to change them.
  *
  * DRAWN AS SVG BY HAND. The site targets Chrome 72 and adds no dependency for
  * one figure; eleven points and a path string is less code than the wrapper
@@ -61,40 +51,14 @@ const PAD = { top: 18, right: 18, bottom: 36, left: 46 };
  * anyone reading a screenshot.
  */
 const HUES = {
-  employees: '#0072B2',
-  engineers: '#009E73',
-  income: '#D55E00'
+  total: '#0072B2',
+  business: '#009E73',
+  engineers: '#56B4E9',
+  income: '#D55E00',
+  benefit: '#CC79A7'
 };
 
 const FALLBACK_HUE = '#6E7781';
-
-/**
- * A raw value, written the way its series writes it.
- *
- * PRECISION COMES FROM THE VALUE, not from its magnitude. This used to round
- * anything at or above a hundred to a whole number, which is defensible for a
- * headcount and wrong for money: revenue of 201.5 million was printed as
- * $202m in a legend that was supposed to be exact.
- * A count is an integer and prints as one; a figure with a decimal keeps it.
- */
-function format(value, series) {
-  const exact = Number(value);
-
-  /*
-   * THE SITE'S OWN NUMBER SHAPE, not the browser's: thousands grouped with a
-   * space, and no trailing zero after the point. toLocaleString followed the
-   * reader's browser rather than the language they chose in the header, so the
-   * same chart was 40,000 to one reader and 40.000 to another.
-   */
-  const text = number(exact);
-
-  return (series.prefix || '') + text + (series.suffix || '');
-}
-
-/** A multiple, to one decimal place unless it is large enough not to need one. */
-function formatMultiple(value) {
-  return (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10) + '×';
-}
 
 /**
  * Every series in plot coordinates, sharing one y-scale.
@@ -107,22 +71,29 @@ function plot(years, series) {
   const usableW = W - PAD.left - PAD.right;
   const usableH = H - PAD.top - PAD.bottom;
 
-  /* Each series against its own first year, so the units cancel. */
-  const multiples = series.map((entry) => {
-    const base = Number(years[0][entry.key]) || 1;
-    return years.map((row) => (Number(row[entry.key]) || 0) / base);
-  });
+  /*
+   * THE VALUES THEMSELVES. They are already percentages of 2015 - see the
+   * note at the top - so there is nothing to scale and nothing that can be
+   * distorted by scaling.
+   */
+  const values = series.map((entry) => years.map((row) => Number(row[entry.key]) || 0));
 
-  const highest = multiples.reduce(
+  const highest = values.reduce(
     (top, list) => Math.max(top, Math.max.apply(null, list)), 1
   );
 
-  /* A round number above the highest line, so the axis labels are readable. */
-  const step = highest <= 10 ? 2 : highest <= 25 ? 5 : 10;
+  /*
+   * Five gridlines, at a round number above the highest line. The reader
+   * never sees these numbers - the axis is unlabelled by design - so the step
+   * is chosen to divide the plot evenly rather than to read well.
+   */
+  const rough = highest / 4;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+  const step = Math.ceil(rough / magnitude) * magnitude;
   const top = Math.ceil(highest / step) * step;
 
   const xOf = (index) => PAD.left + (index / (years.length - 1)) * usableW;
-  const yOf = (multiple) => PAD.top + usableH - (multiple / top) * usableH;
+  const yOf = (value) => PAD.top + usableH - (value / top) * usableH;
 
   const ticks = [];
   for (let at = 0; at <= top; at += step) ticks.push(at);
@@ -135,11 +106,11 @@ function plot(years, series) {
     lines: series.map((entry, position) => ({
       series: entry,
       hue: HUES[entry.key] || FALLBACK_HUE,
-      points: multiples[position].map((multiple, index) => ({
+      base: values[position][0],
+      points: values[position].map((value, index) => ({
         x: xOf(index),
-        y: yOf(multiple),
-        multiple,
-        value: Number(years[index][entry.key]) || 0,
+        y: yOf(value),
+        value,
         year: years[index].year
       }))
     }))
@@ -156,6 +127,14 @@ export default function GrowthSection({ growth }) {
   if (!growth || !growth.years || growth.years.length < 2) return null;
 
   const years = growth.years;
+
+  /*
+   * THE UNIT COMES FROM THE CONTENT, not from this file. It is the only
+   * word on the axis, and the content files for every language carry it
+   * (content.zh, content.ru) - a hardcoded one here would be the single
+   * untranslated mark on a translated chart.
+   */
+  const percent = (growth.unit && growth.unit.percent) || String.fromCharCode(37);
   const first = years[0];
   const last = years[years.length - 1];
 
@@ -179,62 +158,39 @@ export default function GrowthSection({ growth }) {
 
       <Box mt="8" p={{ base: 4, md: 6 }} borderRadius="16px" bg={surface.raised}>
         {/*
-          * THE LEGEND CARRIES THE NUMBERS.
+          * THE LEGEND IS A COLOUR KEY, AND ONLY THAT.
           *
-          * The chart's axis is a multiple, which is the one thing a reader
-          * should not have to convert back in their head. So each series
-          * names itself, its latest real figure, and its growth in one row -
-          * and hovering the chart swaps the figures for that year rather
-          * than opening a tooltip that follows the cursor.
+          * It used to carry each series' latest figure and its growth as a
+          * multiple, and swap them for whichever year was under the pointer.
+          * Five names, five figures and five multiples above a five-line
+          * chart is the chart written out again in words: the reader has to
+          * choose which of the two to believe, and the numbers win - at which
+          * point the chart is decoration.
+          *
+          * So this says which colour is which measure, and the plot says how
+          * much. The year under the pointer still shows ON the chart, where
+          * the reader is looking, rather than here.
           */}
         <Flex
           gap="6" data-gap="24" data-gap-wrap
           wrap="wrap"
           mb="4"
-          align="baseline"
+          align="center"
         >
-          {chart.lines.map((line) => {
-            const point = activeIndex === -1
-              ? line.points[line.points.length - 1]
-              : line.points[activeIndex];
-
-            return (
-              <Flex key={line.series.key} align="baseline" gap="2" data-gap="8">
-                <Box
-                  w="10px"
-                  h="10px"
-                  borderRadius="2px"
-                  bg={line.hue}
-                  flexShrink={0}
-                  transform="translateY(-1px)"
-                />
-                <Box>
-                  <Text fontSize="xs" color={surface.muted} fontWeight="600">
-                    {t(line.series.label)}
-                  </Text>
-                  <Flex align="baseline" gap="2" data-gap="8">
-                    <Text
-                      fontSize="xl"
-                      fontWeight="800"
-                      color={surface.text}
-                      letterSpacing="-0.02em"
-                      lineHeight="1.2"
-                      style={{ fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {format(point.value, line.series)}
-                    </Text>
-                    <Text fontSize="xs" fontWeight="700" color={line.hue}>
-                      {formatMultiple(point.multiple)}
-                    </Text>
-                  </Flex>
-                </Box>
-              </Flex>
-            );
-          })}
-
-          <Text fontSize="xs" color={surface.muted} ml="auto">
-            {activeIndex === -1 ? last.year : years[activeIndex].year}
-          </Text>
+          {chart.lines.map((line) => (
+            <Flex key={line.series.key} align="center" gap="2" data-gap="8">
+              <Box
+                w="10px"
+                h="10px"
+                borderRadius="2px"
+                bg={line.hue}
+                flexShrink={0}
+              />
+              <Text fontSize="sm" color={surface.text} fontWeight="600">
+                {t(line.series.label)}
+              </Text>
+            </Flex>
+          ))}
         </Flex>
 
         <Box
@@ -256,28 +212,38 @@ export default function GrowthSection({ growth }) {
             * exactly what a gridline is for.
             */}
           {chart.ticks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={PAD.left}
-                y1={chart.yOf(tick)}
-                x2={W - PAD.right}
-                y2={chart.yOf(tick)}
-                stroke="currentColor"
-                strokeOpacity={tick === 0 ? 0.24 : 0.08}
-                strokeWidth="1"
-              />
-              <text
-                x={PAD.left - 8}
-                y={chart.yOf(tick) + 3.5}
-                textAnchor="end"
-                fontSize="10"
-                fill="currentColor"
-                fillOpacity="0.5"
-              >
-                {tick + '×'}
-              </text>
-            </g>
+            <line
+              key={tick}
+              x1={PAD.left}
+              y1={chart.yOf(tick)}
+              x2={W - PAD.right}
+              y2={chart.yOf(tick)}
+              stroke="currentColor"
+              strokeOpacity={tick === 0 ? 0.24 : 0.08}
+              strokeWidth="1"
+            />
           ))}
+
+          {/*
+            * THE AXIS SAYS WHAT IT IS, AND NOTHING ELSE.
+            *
+            * One "(%)" at the top, where an axis label belongs, and no
+            * numbers down the side. The gridlines still carry the comparison
+            * - which line is twice another's height - and a reader who wants
+            * a figure gets the real one in the legend by pointing at a year,
+            * rather than estimating it against a tick.
+            */}
+          <text
+            x={PAD.left - 8}
+            y={PAD.top - 4}
+            textAnchor="end"
+            fontSize="11"
+            fontWeight="600"
+            fill="currentColor"
+            fillOpacity="0.55"
+          >
+            {'(' + percent + ')'}
+          </text>
 
           {/* The year under the pointer, behind the lines so it never hides one. */}
           {activeIndex !== -1 && (
@@ -366,9 +332,6 @@ export default function GrowthSection({ growth }) {
           ))}
         </Box>
 
-        <Text fontSize="xs" color={surface.muted} mt="3">
-          {t('about.components.growthsection.theAxisIsAMultiple', { year: first.year })}
-        </Text>
       </Box>
     </Box>
   );
