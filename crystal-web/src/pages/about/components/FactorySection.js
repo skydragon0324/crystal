@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Heading, SimpleGrid, Text } from '@chakra-ui/react';
 
-import CertificateGrid from './CertificateGrid';
+import CertificateCarousel from './CertificateCarousel';
 import Prose from './Prose';
 import ResponsiveMedia from './ResponsiveMedia';
 import SectionHeading from './SectionHeading';
@@ -17,10 +17,19 @@ import { useT } from '@/i18n';
  * block of four "capabilities" in the first and a block of four more in the
  * second, plus an eight-stage diagram. It is one story now, told in order:
  *
- *   the building     its photograph and what it is
+ *   the building     what it is, READ BESIDE its photograph, and the quality
+ *                    marks under both - the evidence for the claim the
+ *                    sentence makes, next to the sentence rather than at the
+ *                    far end of the chapter
  *   the six steps    from components to a sealed box, each with its own
  *                    picture, numbered so they read as a sequence
- *   the marks        the quality certificates, each with its own scan
+ *
+ * THE DESCRIPTION SITS BESIDE THE PHOTOGRAPH on a desktop. Under it, a 21:9
+ * band left a single paragraph alone on a very wide line - the full width of
+ * the page for three sentences - and pushed the marks that back them up a
+ * screen further down. Side by side, the sentence and the building are read
+ * together, which is what they are for. On a phone they stack, photograph
+ * first.
  *
  * The old #manufacturing anchor lands here (see CHAPTER_ALIASES).
  */
@@ -41,16 +50,58 @@ export default function FactorySection({ section, manufacturing, certificates })
         description={section.subtitle}
       />
 
-      <ResponsiveMedia
-        desktop={section.image_desktop}
-        mobile={section.image_mobile}
-        alt={section.image_alt || section.title}
-        ratio={21 / 9}
-      />
+      <SimpleGrid
+        columns={{ base: 1, lg: 2 }}
+        spacing={{ base: 6, lg: 12 }}
+        alignItems="center"
+        /* The words get the narrower column: the photograph is the thing
+           being described, and a paragraph is easier to read short. */
+        templateColumns={{ base: '1fr', lg: '45fr 55fr' }}
+      >
+        <Box order={{ base: 2, lg: 1 }}>
+          <Prose color={surface.muted} fontSize={{ base: 'md', md: 'lg' }}>
+            {section.description}
+          </Prose>
+        </Box>
 
-      <Prose color={surface.muted} fontSize={{ base: 'md', md: 'lg' }} mt={{ base: 6, md: 8 }} maxW="820px">
-        {section.description}
-      </Prose>
+        <Box order={{ base: 1, lg: 2 }}>
+          <ResponsiveMedia
+            desktop={section.image_desktop}
+            mobile={section.image_mobile}
+            alt={section.image_alt || section.title}
+            ratio={16 / 10}
+          />
+        </Box>
+      </SimpleGrid>
+
+      {/*
+        * THE MARKS, DIRECTLY UNDER THE BUILDING THEY CERTIFY.
+        *
+        * They used to close the chapter, after the six steps - thirteen cards
+        * in a grid, which is a screen and a half of scrolling between the
+        * claim and its evidence. As a row beside the photograph they are part
+        * of the same statement, and four of them are visible at a desktop
+        * width with the rest arriving.
+        */}
+      {certificates && certificates.length > 0 && (
+        <Box mt={{ base: 10, md: 12 }}>
+          <Heading
+            as="h3"
+            size="sm"
+            color={surface.muted}
+            letterSpacing="0.12em"
+            textTransform="uppercase"
+            mb="5"
+          >
+            {t('about.components.factorysection.qualityCertifications')}
+          </Heading>
+
+          <CertificateCarousel
+            certificates={certificates}
+            ariaLabel={t('about.components.factorysection.qualityCertifications')}
+          />
+        </Box>
+      )}
 
       {flow.length > 0 && (
         <Box mt={{ base: 12, md: 16 }}>
@@ -103,22 +154,6 @@ export default function FactorySection({ section, manufacturing, certificates })
         </Box>
       )}
 
-      {/* Hidden entirely when there are none. */}
-      {certificates && certificates.length > 0 && (
-        <Box mt={{ base: 12, md: 16 }}>
-          <Heading
-            as="h3"
-            size="sm"
-            color={surface.muted}
-            letterSpacing="0.12em"
-            textTransform="uppercase"
-            mb="5"
-          >
-            {t('about.components.factorysection.qualityCertifications')}
-          </Heading>
-          <CertificateGrid certificates={certificates} />
-        </Box>
-      )}
     </Box>
   );
 }

@@ -310,6 +310,22 @@ describe('the scene format', () => {
     expect(scene.width).toBe(1920);
   });
 
+  test('a cut-out is never cropped, and a full-frame layer never letterboxed', () => {
+    const scene = normaliseScene({
+      layers: [
+        { src: '/uploads/cloud.png' },
+        { src: '/uploads/photo.jpg', fit: 'cover' },
+        { src: '/uploads/odd.jpg', fit: 'stretch' }
+      ]
+    });
+
+    /* The default protects the cut-out, which is the common layer. */
+    expect(scene.layers[0].fit).toBe('contain');
+    expect(scene.layers[1].fit).toBe('cover');
+    /* Anything else is not a choice the engine offers. */
+    expect(scene.layers[2].fit).toBe('contain');
+  });
+
   test('a stagger spaces the layers that did not ask for a delay', () => {
     const scene = normaliseScene({
       stagger: 200,

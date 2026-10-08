@@ -1,11 +1,11 @@
 import React from 'react';
-import { Box, Flex, Grid, Heading, SimpleGrid, Text } from '@chakra-ui/react';
+import { Box, Flex, SimpleGrid, Text } from '@chakra-ui/react';
 import * as FiIcons from 'react-icons/fi';
 
 import Prose from './Prose';
 import ResponsiveMedia from './ResponsiveMedia';
 import SectionHeading from './SectionHeading';
-import SlotCarousel from './SlotCarousel';
+import TechnologyShowcase from './TechnologyShowcase';
 import { chapterNumber } from '../constants';
 import { useSurface } from '@/theme/tokens';
 
@@ -22,14 +22,16 @@ import { useSurface } from '@/theme/tokens';
  *
  * THREE PARTS, READ IN ORDER:
  *
- *   the institute     its picture and its description, which may mark the
- *                     figures worth noticing in bold
+ *   the institute     its picture, WIDE AND SHALLOW across the whole chapter,
+ *                     then the description - which may mark the figures worth
+ *                     noticing in bold. The picture led the chapter rather
+ *                     than sitting in a column beside the words because it is
+ *                     the building this chapter is about; at 21:9 it
+ *                     establishes the place in a band rather than taking a
+ *                     screenful to do it.
  *   research areas    six cards, each with its own bundled picture - or icon
- *   our technology    the technologies as a list of titles, with ONE carousel
- *                     of their certificates beside it. A certificate is a
- *                     portrait scan, so the frame is portrait and the scan is
- *                     contained rather than cropped: a certificate with its
- *                     seal cut off proves nothing.
+ *   our technology    each technology with its OWN picture, and the one on
+ *                     screen highlighting its line - see TechnologyShowcase
  */
 
 function iconOf(name) {
@@ -88,20 +90,34 @@ export default function InstituteSection({ section, researchAreas, technology })
         description={section.subtitle}
       />
 
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={{ base: 8, lg: 14 }} alignItems="center">
-        <Prose color={surface.strong} fontSize={{ base: 'md', md: 'lg' }} lineHeight="1.8">
-          {section.description}
-        </Prose>
+      {/*
+        * THE PICTURE FIRST, AND LOW.
+        *
+        * It was a 4:3 picture in the right-hand column of a two-column band.
+        * That shape is nearly square, so beside a paragraph it took the
+        * height of the paragraph and then some - the chapter opened with a
+        * tall photograph and the words that explain it pushed down beside it.
+        * Across the full width at 21:9 it is a band: the building is
+        * established, and the description starts where a reader looks next.
+        */}
+      <ResponsiveMedia
+        desktop={section.image_desktop}
+        mobile={section.image_mobile}
+        desktopDark={section.image_desktop_dark}
+        mobileDark={section.image_mobile_dark}
+        alt={section.image_alt || section.title}
+        ratio={21 / 9}
+      />
 
-        <ResponsiveMedia
-          desktop={section.image_desktop}
-          mobile={section.image_mobile}
-          desktopDark={section.image_desktop_dark}
-          mobileDark={section.image_mobile_dark}
-          alt={section.image_alt || section.title}
-          ratio={4 / 3}
-        />
-      </SimpleGrid>
+      <Prose
+        color={surface.strong}
+        fontSize={{ base: 'md', md: 'lg' }}
+        lineHeight="1.8"
+        mt={{ base: 6, md: 8 }}
+        maxW="820px"
+      >
+        {section.description}
+      </Prose>
 
       {areas.length > 0 && (
         <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: 5, md: 6 }} mt={{ base: 10, md: 14 }}>
@@ -122,55 +138,10 @@ export default function InstituteSection({ section, researchAreas, technology })
             />
           )}
 
-          {/*
-            THE TITLES ON THE LEFT, ONE CAROUSEL ON THE RIGHT.
-
-            There are fewer certificates than technologies, so a carousel
-            per row left most rows beside an empty frame. The certificates
-            belong to the block, and cycle beside the whole list. On a phone
-            the list comes first and the carousel under it.
-          */}
-          <Grid
-            templateColumns={{ base: '1fr', md: 'minmax(0, 1fr) 260px', lg: 'minmax(0, 1fr) 300px' }}
-            gridGap={{ base: 8, md: 12 }}
-            alignItems="center"
-          >
-            <Box as="ul" listStyleType="none" borderTop="1px solid" borderColor={surface.border}>
-              {techItems.map((item, index) => (
-                <Flex
-                  as="li"
-                  key={item.id}
-                  align="center"
-                  py={{ base: 3, md: 4 }}
-                  borderBottom="1px solid"
-                  borderColor={surface.border}
-                >
-                  <Text
-                    fontSize="xs"
-                    fontWeight="800"
-                    color="brand.500"
-                    w="2.5rem"
-                    flexShrink={0}
-                    letterSpacing="0.1em"
-                  >
-                    {String(index + 1).padStart(2, '0')}
-                  </Text>
-                  <Heading as="h4" size="sm" color={surface.text} letterSpacing="-0.01em">
-                    {item.title}
-                  </Heading>
-                </Flex>
-              ))}
-            </Box>
-
-            <Box w="100%" maxW={{ base: '280px', md: 'none' }} mx={{ base: 'auto', md: '0' }}>
-              <SlotCarousel
-                images={tech.overview ? tech.overview.images : []}
-                ratio="133%"
-                fit="contain"
-                alt={tech.overview ? tech.overview.title : undefined}
-              />
-            </Box>
-          </Grid>
+          <TechnologyShowcase
+            items={techItems}
+            title={tech.overview ? tech.overview.title : undefined}
+          />
         </Box>
       )}
     </Box>

@@ -57,11 +57,10 @@ const en = {
         qualityCertifications: 'Quality certifications'
       },
       growthsection: {
-        eachMeasureFromTo: 'Employees, engineers and revenue from {from} to {to}, each drawn as a multiple of its {from} value.',
+        eachMeasureFromTo: 'Business, engineers, income and benefit from {from} to {to}, each as a percentage of its {from} figure.',
         elevenYearsOnOneScale: 'Eleven years, on one scale.',
-        everyMeasureAsAMultiple: 'From {from} to {to}. Three quantities counted in different units, so each is drawn as a multiple of where it started.',
+        everyMeasureAsAMultiple: 'From {from} to {to}. Every measure as a percentage of where it stood in {from}, so five quantities share one scale.',
         growth: 'Growth',
-        theAxisIsAMultiple: 'The axis is a multiple of {year}, not a count — the real figures are in the legend and the table.',
         year: 'Year'
       }
     }
@@ -1275,11 +1274,10 @@ const zh = {
         qualityCertifications: '质量认证'
       },
       growthsection: {
-        eachMeasureFromTo: '{from} 年至 {to} 年的员工、工程师与营收，均以各自 {from} 年数值的倍数绘制。',
+        eachMeasureFromTo: '{from} 年至 {to} 年的业务、工程师、收入与利润，均以各自 {from} 年数值的百分比表示。',
         elevenYearsOnOneScale: '十一年，同一标尺。',
-        everyMeasureAsAMultiple: '{from} 年至 {to} 年。三项指标计量单位不同，因此均以其起始年的倍数绘制。',
+        everyMeasureAsAMultiple: '{from} 年至 {to} 年。每项指标均以 {from} 年为 100% 计算，因此五项数据共用一个标尺。',
         growth: '成长',
-        theAxisIsAMultiple: '纵轴是相对 {year} 年的倍数，而非绝对数量——真实数字见图例与下表。',
         year: '年份'
       }
     }
@@ -2505,11 +2503,10 @@ const ru = {
         qualityCertifications: 'Сертификаты качества'
       },
       growthsection: {
-        eachMeasureFromTo: 'Сотрудники, инженеры и выручка с {from} по {to} год — каждый показатель как кратное своему значению за {from} год.',
+        eachMeasureFromTo: 'Бизнес, инженеры, доход и прибыль с {from} по {to} год, каждый показатель в процентах от уровня {from} года.',
         elevenYearsOnOneScale: 'Одиннадцать лет в одном масштабе.',
-        everyMeasureAsAMultiple: 'С {from} по {to} год. Три величины измеряются в разных единицах, поэтому каждая показана как кратное своей отправной точки.',
+        everyMeasureAsAMultiple: 'С {from} по {to} год. Каждый показатель — в процентах от уровня {from} года, поэтому все пять умещаются на одной шкале.',
         growth: 'Рост',
-        theAxisIsAMultiple: 'Ось — это кратность к {year} году, а не абсолютные значения: реальные цифры в легенде и в таблице.',
         year: 'Год'
       }
     }

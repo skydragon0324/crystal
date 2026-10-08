@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Flex, Heading, Text } from '@chakra-ui/react';
 
 import { useSurface } from '@/theme/tokens';
+import { SHOW_EYEBROWS } from '../constants';
 
 /**
  * THE TOP OF A CHAPTER: its number, its eyebrow, its heading and its standfirst.
@@ -15,6 +16,10 @@ import { useSurface } from '@/theme/tokens';
  * the visually-hidden text of the heading's own eyebrow - a screen reader
  * should hear "Chapter six, Eproduct Factory", not "zero six" as a paragraph
  * of its own.
+ *
+ * THE EYEBROW ROW IS CURRENTLY HIDDEN - see SHOW_EYEBROWS in constants.js.
+ * The whole row goes, number included, rather than the row surviving as an
+ * empty flex box with its own bottom margin.
  */
 export default function SectionHeading({ number, eyebrow, title, description, align, as }) {
   const surface = useSurface();
@@ -27,6 +32,7 @@ export default function SectionHeading({ number, eyebrow, title, description, al
       textAlign={centred ? 'center' : 'left'}
       mb={{ base: 8, md: 12 }}
     >
+      {SHOW_EYEBROWS && (number || eyebrow) && (
       <Flex
         align="baseline"
         gap="3" data-gap="12"
@@ -59,6 +65,7 @@ export default function SectionHeading({ number, eyebrow, title, description, al
           </Text>
         )}
       </Flex>
+      )}
 
       <Heading
         as={as || 'h2'}

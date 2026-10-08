@@ -67,20 +67,37 @@ test('a carousel slot delivers every picture in it, in order', () => {
     { id: 1, src: '/a.png' }, { id: 2, src: '/b.png' }, { id: 3, src: '/c.png' }
   ];
 
-  const page = buildAbout({
-    'shop.floor.2': three,
-    'institute.technology': three
-  }, 'en');
+  const page = buildAbout({ 'shop.floor.2': three }, 'en');
 
   const second = page.shop.floors.filter((floor) => floor.floor === 2)[0];
   expect(second.images.map((p) => p.src)).toEqual(['/a.png', '/b.png', '/c.png']);
+});
 
+test('each technology carries its own picture, in the order of the list', () => {
   /*
-   * ONE carousel for the whole technology block: there are fewer certificates
-   * than technologies, so they belong to the block and the items are titles.
+   * THE PICTURE AND THE TITLE ARE ONE ROW, which is what lets the chapter
+   * highlight the technology whose picture is on screen (TechnologyShowcase).
+   * The block used to hold one carousel of certificates for all seven, and
+   * nothing connected a picture to a line.
    */
-  expect(page.institute.technology.overview.images).toHaveLength(3);
-  expect(page.institute.technology.items.filter((item) => item.slot)).toEqual([]);
+  const page = buildAbout({
+    'institute.technology.computer-bios': picture('/uploads/about/bios.png')
+  }, 'en');
+
+  const items = page.institute.technology.items;
+
+  /* Every technology names a slot of its own, and no two name the same one. */
+  const slots = items.map((item) => item.slot);
+  expect(slots.filter(Boolean)).toHaveLength(items.length);
+  expect(slots.filter((slot, index) => slots.indexOf(slot) !== index)).toEqual([]);
+
+  /* The picture lands on ITS row rather than on the block. */
+  const bios = items.filter((item) => item.slot === 'institute.technology.computer-bios')[0];
+  expect(bios.images[0].src).toBe('/uploads/about/bios.png');
+  expect(items.filter((item) => item.images && item.images.length).length).toBe(1);
+
+  /* And the block itself has no picture to show. */
+  expect(page.institute.technology.overview.images).toEqual([]);
 });
 
 test('a certificate shows its own scan', () => {

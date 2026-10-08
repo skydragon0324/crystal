@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Flex, Text, Wrap, WrapItem } from '@chakra-ui/react';
+import { Box, Collapse, Flex, Icon, Text, Wrap, WrapItem } from '@chakra-ui/react';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 
 import Prose from './Prose';
 import SectionHeading from './SectionHeading';
@@ -14,18 +15,33 @@ import { useSurface } from '@/theme/tokens';
  * it keeps its line breaks, so several sentences read as several lines rather
  * than one run-on paragraph - the first line does the work the title did.
  *
+ * NEWEST FIRST, on both layouts. A reader arriving here wants to know where
+ * the company IS, and then how it got there - so the list opens on the
+ * current year and runs backwards. Told forwards, the eleventh entry is the
+ * only one that answers the first question.
+ *
  * TWO DIFFERENT ANSWERS, not one layout at two sizes.
  *
  *   DESKTOP is a year picker with a detail panel. Eleven years is too many to
  *   read at once and exactly right to choose from.
  *
- *   MOBILE is a vertical timeline, every year expanded. A picker on a phone
- *   hides ten of the eleven behind a control; scrolling down a column IS the
- *   timeline.
+ *   MOBILE is a timeline of FOLDED years: the current one open, the rest
+ *   closed, one open at a time. Every year expanded was eleven passages of
+ *   prose in a single column - a chapter that took longer to scroll past than
+ *   the rest of the page together - and folding it turns that back into a
+ *   list a thumb can cross. Unlike the desktop picker it still shows every
+ *   year, which is the part of a timeline worth keeping on a phone.
  *
  * EVENTS ARE GROUPED BY YEAR rather than assumed to be one each, so two things
  * that happened in the same year both show.
  */
+
+/** "Chosen, and chosen shut" - a state no year number can express. */
+const CLOSED = 'none';
+
+/** The prefix for a folded year's panel id, which its own button points at. */
+const PANEL = 'history-year-';
+
 export default function HistorySection({ section, events }) {
   const surface = useSurface();
 
@@ -41,16 +57,28 @@ export default function HistorySection({ section, events }) {
       byYear[event.year].push(event);
     });
 
-    order.sort((a, b) => a - b);
+    /* Newest first - see the note above. The content file may be in any order. */
+    order.sort((a, b) => b - a);
     return order.map((year) => ({ year: year, events: byYear[year] }));
   }, [events]);
 
   const [selected, setSelected] = useState(null);
 
+  /*
+   * WHICH YEAR IS UNFOLDED ON A PHONE.
+   *
+   * `null` means nobody has chosen yet, which opens the newest year; CLOSED
+   * means chosen and chosen shut. The two have to be distinguishable, because
+   * folding the open year away is not the same as never having touched it -
+   * and a year number cannot say either.
+   */
+  const [opened, setOpened] = useState(null);
+
   if (!years.length) return null;
 
-  /* Opens on the most recent year: where the company is now. */
-  const active = years.filter((entry) => entry.year === selected)[0] || years[years.length - 1];
+  /* Both layouts open on the most recent year: where the company is now. */
+  const active = years.filter((entry) => entry.year === selected)[0] || years[0];
+  const openYear = opened === null ? years[0].year : opened;
 
   return (
     <Box>
@@ -139,32 +167,104 @@ export default function HistorySection({ section, events }) {
         </Flex>
       </Box>
 
-      {/* ------------------------------------------------ mobile timeline */}
+      {/* ---------------------------------------------- mobile folded years */}
       <Box display={{ base: 'block', lg: 'none' }}>
-        {years.map((entry, index) => (
-          <Flex key={entry.year} align="stretch">
-            {/* The rail: a dot per year and a line between them. Margin, not
-                a flex gap - Chrome 72. */}
-            <Flex direction="column" align="center" flexShrink={0} w="14px" mr="4">
-              <Box boxSize="12px" borderRadius="full" bg="brand.500" mt="6px" />
-              {index < years.length - 1 && (
-                <Box w="2px" flex="1" bg={surface.border} />
-              )}
+        {years.map((entry, index) => {
+          const isOpen = entry.year === openYear;
+          const panelId = PANEL + entry.year;
+
+          return (
+            <Flex key={entry.year} align="stretch">
+              {/* The rail: a dot per year and a line between them. Margin, not
+                  a flex gap - Chrome 72. */}
+              <Flex direction="column" align="center" flexShrink={0} w="14px" mr="4">
+                <Box
+                  boxSize="12px"
+                  borderRadius="full"
+                  /*
+                   * The filled dot marks the year that is open, so the rail
+                   * answers "which one am I reading" on its own - the fold
+                   * state is not left to the colour of a heading.
+                   */
+                  bg={isOpen ? 'brand.500' : surface.border}
+                  mt="14px"
+                  flexShrink={0}
+                  transition="background 160ms ease"
+                />
+                {index < years.length - 1 && (
+                  <Box w="2px" flex="1" bg={surface.border} />
+                )}
+              </Flex>
+
+              <Box
+                minW="0"
+                flex="1"
+                borderBottom={index < years.length - 1 ? '1px solid' : undefined}
+                borderColor={surface.border}
+              >
+                <Flex
+                  as="button"
+                  type="button"
+                  w="100%"
+                  align="center"
+                  justify="space-between"
+                  py="3"
+                  textAlign="left"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  /*
+                   * ONE YEAR AT A TIME: choosing a year replaces the open one
+                   * rather than joining it, and choosing the open year folds
+                   * it away. Holding a set of open years would be a different
+                   * control, and would bring back the column this replaced.
+                   */
+                  onClick={() => setOpened(isOpen ? CLOSED : entry.year)}
+                >
+                  <Text
+                    fontSize="lg"
+                    fontWeight="800"
+                    color={isOpen ? 'brand.500' : surface.text}
+                    lineHeight="1.2"
+                    transition="color 160ms ease"
+                  >
+                    {entry.year}
+                  </Text>
+
+                  <Icon
+                    as={ChevronDownIcon}
+                    boxSize="5"
+                    color={surface.muted}
+                    flexShrink={0}
+                    transform={isOpen ? 'rotate(180deg)' : 'none'}
+                    transition="transform 160ms ease"
+                  />
+                </Flex>
+
+                {/*
+                  * A FOLDED YEAR IS STILL ON THE PAGE. Collapse animates its
+                  * height rather than unmounting it, so find-in-page reaches
+                  * a year nobody has opened, and its prose is not rebuilt
+                  * every time another year is chosen.
+                  */}
+                <Collapse in={isOpen} animateOpacity>
+                  <Box id={panelId} pb="5">
+                    {entry.events.map((event, at) => (
+                      <Prose
+                        key={event.id}
+                        fontSize="sm"
+                        color={surface.muted}
+                        lineHeight="1.7"
+                        mt={at === 0 ? '0' : '3'}
+                      >
+                        {event.description}
+                      </Prose>
+                    ))}
+                  </Box>
+                </Collapse>
+              </Box>
             </Flex>
-
-            <Box pb="8" minW="0" flex="1">
-              <Text fontSize="lg" fontWeight="800" color="brand.500" lineHeight="1.2">
-                {entry.year}
-              </Text>
-
-              {entry.events.map((event) => (
-                <Prose key={event.id} fontSize="sm" color={surface.muted} mt="2" lineHeight="1.7">
-                  {event.description}
-                </Prose>
-              ))}
-            </Box>
-          </Flex>
-        ))}
+          );
+        })}
       </Box>
     </Box>
   );

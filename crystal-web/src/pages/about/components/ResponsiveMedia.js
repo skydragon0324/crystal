@@ -21,9 +21,21 @@ import { useSurface } from '@/theme/tokens';
  * is lazy-loaded, and a lazy image with no reserved height changes the height
  * of the page as it loads - which on a page navigated entirely by anchors
  * means scrolling to a chapter and landing somewhere else a second later.
+ *
+ * CROPPED OR WHOLE, PER PICTURE: that is `fit`.
+ *
+ * The frame has a fixed shape and a photograph rarely has the same one, so
+ * something has to give. `cover` fills the frame and trims the overhang,
+ * which is right for a photograph - a factory floor, a laboratory - where the
+ * edges carry nothing. It is wrong for artwork that must be seen entire: a
+ * product shot, a diagram, a certificate with a border. Those pass
+ * `fit="contain"` and are shown whole, letterboxed against the frame.
+ *
+ * `cover` stays the default because eight of the nine chapters are
+ * photographs, and changing a default is a change to every caller.
  */
 export default function ResponsiveMedia({
-  desktop, mobile, desktopDark, mobileDark, alt, ratio, eager, rounded, ...rest
+  desktop, mobile, desktopDark, mobileDark, alt, ratio, eager, rounded, fit, ...rest
 }) {
   const { colorMode } = useColorMode();
   const surface = useSurface();
@@ -54,7 +66,7 @@ export default function ResponsiveMedia({
         <Image
           src={src}
           alt={alt || ''}
-          objectFit="cover"
+          objectFit={fit === 'contain' ? 'contain' : 'cover'}
           w="100%"
           h="100%"
           /*

@@ -213,12 +213,14 @@ export const CERTIFICATES = {
 };
 
 export const GROWTH = {
-  unit: { people: '人', income: '百万美元' },
+  unit: { percent: '%' },
 
   series: [
-    { label: '员工' },
+    { label: '总体增长' },
+    { label: '业务' },
     { label: '工程师' },
-    { label: '营收' }
+    { label: '收入' },
+    { label: '利润' }
   ]
 };
 

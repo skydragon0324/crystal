@@ -117,17 +117,22 @@ export const SECTIONS = {
 
   /*
    * Inside the Institute chapter: the technologies Crystal develops itself,
-   * as a list of titles beside ONE carousel of the certificates behind them.
-   * There are fewer certificates than technologies, so a carousel per row
-   * would leave most rows with an empty frame - the certificates are the
-   * block's, not any one line's.
+   * EACH WITH ITS OWN PICTURE.
+   *
+   * It was a list of seven titles beside one carousel of four certificate
+   * scans, on the reasoning that the scans belonged to the block rather than
+   * to any single line. That cost the reader the connection: a picture
+   * cycling beside a list says nothing about which line it belongs to.
+   *
+   * Every technology names its own slot now (ITEMS.TECHNOLOGY below), the
+   * picture on screen highlights the line it belongs to, and the block itself
+   * has no picture - which is why there is no `slot` here.
    */
   TECHNOLOGY: {
     eyebrow: 'Our own technology',
     title: 'Built in-house, certified independently.',
     subtitle: 'The platforms and protections Crystal develops itself.',
-    description: null,
-    slot: 'institute.technology'
+    description: null
   },
 
   FACTORY: {
@@ -261,13 +266,13 @@ export const ITEMS = {
 
   /* The titles only; the certificates are one carousel beside the list. */
   TECHNOLOGY: [
-    { title: 'Crystal OS' },
-    { title: 'SmartTV OS' },
-    { title: 'Computer BIOS' },
-    { title: 'Camera Security' },
-    { title: 'Print Authentication' },
-    { title: 'exFAT Firmware' },
-    { title: 'Cordless Phone Encryption' }
+    { title: 'Crystal OS', slot: 'institute.technology.crystal-os' },
+    { title: 'SmartTV OS', slot: 'institute.technology.smarttv-os' },
+    { title: 'Computer BIOS', slot: 'institute.technology.computer-bios' },
+    { title: 'Camera Security', slot: 'institute.technology.camera-security' },
+    { title: 'Print Authentication', slot: 'institute.technology.print-authentication' },
+    { title: 'exFAT Firmware', slot: 'institute.technology.exfat-firmware' },
+    { title: 'Cordless Phone Encryption', slot: 'institute.technology.cordless-phone-encryption' }
   ],
 
   /* Six steps, in order. Read left to right, then down. */
@@ -480,36 +485,50 @@ export const CERTIFICATES = {
  * a figure and its line moves. There is no table on the page any more, so
  * these are the only copy of the numbers anywhere.
  *
- * `income` is in millions of dollars. Naming the unit here rather than in the
- * chart is deliberate - the axis label and the value have to agree, and they
- * cannot if each side decides its own scale.
+ * Every figure is a PERCENTAGE OF 2015, which is how the business keeps
+ * them. The chart says so once, on the axis, rather than printing a unit
+ * against every number.
  */
 export const GROWTH = {
-  unit: { people: 'people', income: '$m' },
+  /*
+   * THESE ARE INDEX FIGURES, NOT COUNTS, and that is what makes the chart
+   * honest without any arithmetic in the drawing. 2015 is 100 for every
+   * series, and every later figure is that year against it - so 793 in the
+   * business row means business is 7.9 times its 2015 size.
+   *
+   * THE CHART PLOTS THEM AS GIVEN. An earlier version divided each series by
+   * its own first year to put them on one scale, which these figures cannot
+   * survive: income and benefit START at 0, and dividing by zero is not a
+   * line. They arrive already on one scale, so there is nothing to do to
+   * them.
+   */
+  unit: { percent: '%' },
 
   years: [
-    { year: 2015, employees: 120, engineers: 18, income: 4.2 },
-    { year: 2016, employees: 210, engineers: 34, income: 9.6 },
-    { year: 2017, employees: 340, engineers: 61, income: 18.4 },
-    { year: 2018, employees: 470, engineers: 95, income: 31.0 },
-    { year: 2019, employees: 610, engineers: 134, income: 47.5 },
-    { year: 2020, employees: 690, engineers: 168, income: 52.1 },
-    { year: 2021, employees: 880, engineers: 214, income: 78.9 },
-    { year: 2022, employees: 1120, engineers: 268, income: 104.3 },
-    { year: 2023, employees: 1340, engineers: 312, income: 133.7 },
-    { year: 2024, employees: 1580, engineers: 366, income: 168.2 },
-    { year: 2025, employees: 1820, engineers: 412, income: 201.5 }
+    { year: 2015, business: 100, engineers: 100, income: 0, benefit: 0, total: 100 },
+    { year: 2016, business: 135, engineers: 107, income: 100, benefit: 100, total: 114 },
+    { year: 2017, business: 169, engineers: 200, income: 95, benefit: 47, total: 128 },
+    { year: 2018, business: 217, engineers: 244, income: 111, benefit: 58, total: 170 },
+    { year: 2019, business: 318, engineers: 267, income: 168, benefit: 81, total: 201 },
+    { year: 2020, business: 354, engineers: 300, income: 137, benefit: 26, total: 248 },
+    { year: 2021, business: 371, engineers: 311, income: 7, benefit: 5, total: 310 },
+    { year: 2022, business: 427, engineers: 411, income: 28, benefit: 139, total: 379 },
+    { year: 2023, business: 528, engineers: 556, income: 523, benefit: 633, total: 561 },
+    { year: 2024, business: 588, engineers: 1778, income: 1226, benefit: 1157, total: 979 },
+    { year: 2025, business: 793, engineers: 3122, income: 2020, benefit: 1969, total: 1594 }
   ],
 
   /**
-   * ONE CHART, THREE LINES, INDEXED TO THE FIRST YEAR - see GrowthSection for
-   * why. `key` is the field, `label` names it, `prefix`/`suffix` are how a raw
-   * value is written in the legend.
+   * FIVE LINES, ONE SCALE. `key` is the field and `label` names it. There is
+   * no prefix or suffix any more: every figure on this chart is a percentage
+   * of 2015, which the axis says once rather than every value repeating it.
    */
   series: [
-    { key: 'employees', label: 'Employees', suffix: '' },
-    { key: 'engineers', label: 'Engineers', suffix: '' },
-    { key: 'income', label: 'Revenue', suffix: 'm', prefix: '$' }
+    { key: 'total', label: 'Total growth' },
+    { key: 'business', label: 'Business' },
+    { key: 'engineers', label: 'Engineers' },
+    { key: 'income', label: 'Income' },
+    { key: 'benefit', label: 'Benefit' }
   ]
 };
 
@@ -596,7 +615,7 @@ export function buildAbout(images, locale) {
 
     return rows.map((row, index) => {
       const said = say(row, translated && translated[index]);
-      /* CertificateGrid reads `image`: the locally bundled scan. */
+      /* The card reads `image`: the locally bundled scan. */
       const scan = picturesOf(row.slot)[0];
       return identify(kind, { ...said, image: scan ? scan.src : null }, index);
     });

@@ -194,12 +194,14 @@ export const CERTIFICATES = {
 };
 
 export const GROWTH = {
-  unit: { people: 'чел.', income: 'млн $' },
+  unit: { percent: '%' },
 
   series: [
-    { label: 'Сотрудники' },
+    { label: 'Общий рост' },
+    { label: 'Бизнес' },
     { label: 'Инженеры' },
-    { label: 'Выручка' }
+    { label: 'Доход' },
+    { label: 'Прибыль' }
   ]
 };
 

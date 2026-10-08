@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Box, Container, Drawer, DrawerBody, DrawerCloseButton, DrawerContent,
   DrawerHeader, DrawerOverlay, Flex, Icon, Text, useDisclosure
@@ -23,6 +23,18 @@ import { useT } from '@/i18n';
  * is there" - and only one of them is worth 52 pixels on a phone.
  *
  * The drawer comes from the BOTTOM, which is where a thumb is.
+ *
+ * THE JUMP WAITS FOR THE DRAWER TO FINISH CLOSING, and that is not a polish
+ * detail - it is the whole reason this used to land on the wrong chapter.
+ * A Chakra drawer BLOCKS BODY SCROLLING while it is open and releases the
+ * lock when its exit animation completes, so scrolling in the same tick as
+ * the close scrolled a document that could not scroll: the page either did
+ * not move or moved partly, and then returned to where the reader had been
+ * when the lock lifted. Choosing "Factory" left them in Growth.
+ *
+ * So the chosen chapter is held, the drawer is closed, and the jump happens
+ * on `onCloseComplete` - one frame later again, because the measurement that
+ * follows reads the layout the released lock has just changed.
  */
 export default function AboutMobileNav({ active, onSelect }) {
   const t = useT();
@@ -32,9 +44,26 @@ export default function AboutMobileNav({ active, onSelect }) {
   const index = Math.max(0, ABOUT_SECTIONS.findIndex((section) => section.id === active));
   const current = ABOUT_SECTIONS[index];
 
+  /* The chapter chosen, held until the drawer has finished getting out of
+     the way. See the note above. */
+  const pending = useRef(null);
+
   const choose = (id) => {
+    pending.current = id;
     drawer.onClose();
-    onSelect(id);
+  };
+
+  const jump = () => {
+    const id = pending.current;
+    if (!id) return;
+    pending.current = null;
+
+    /*
+     * One frame after the lock is released, so the scroll is measured against
+     * a document that is scrollable and laid out. Without it the measurement
+     * is taken from the locked layout and lands short by the scrollbar gap.
+     */
+    window.requestAnimationFrame(function () { onSelect(id); });
   };
 
   return (
@@ -87,7 +116,12 @@ export default function AboutMobileNav({ active, onSelect }) {
         </Container>
       </Box>
 
-      <Drawer isOpen={drawer.isOpen} onClose={drawer.onClose} placement="bottom">
+      <Drawer
+        isOpen={drawer.isOpen}
+        onClose={drawer.onClose}
+        onCloseComplete={jump}
+        placement="bottom"
+      >
         <DrawerOverlay />
         <DrawerContent
           bg={surface.card}
