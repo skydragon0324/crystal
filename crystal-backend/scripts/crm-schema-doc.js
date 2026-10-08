@@ -19,7 +19,6 @@ const path = require('path');
 const db = require('../src/config/db');
 
 const ROOT = path.join(__dirname, '..');
-const ADMIN = path.join(ROOT, '..', 'crystal-admin', 'src');
 const SCHEMA = 'crm_doc_build';
 const OUT = path.join(ROOT, 'docs', 'crm-database.md');
 

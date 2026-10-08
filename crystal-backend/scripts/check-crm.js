@@ -258,7 +258,7 @@ async function main() {
     project_id: crystal.project_id, product_code: RUN + '-P9', product_name: RUN + ' Phone 9',
     product_kind: 'DEVICE', product_class_id: phone9.product_class_id, status: 'ACTIVE'
   }));
-  const rule = data(await admin.post('/crm/point-rules', {
+  data(await admin.post('/crm/point-rules', {
     rule_code: RUN + '-REG', rule_name: RUN + ' registration', point_type_id: activityPoints.point_type_id,
     trigger_code: 'PRODUCT_REGISTRATION', product_id: product.product_id, points: 100, is_active: true
   }));

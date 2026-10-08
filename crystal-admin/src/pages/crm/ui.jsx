@@ -24,7 +24,7 @@ const GRADE_COLOUR = { AAA: 'purple', AA: 'blue', A: 'teal', B: 'orange', C: 'gr
 
 export function GradeBadge({ code, size }) {
   const translate = useT();
-  if (!code) return <Text as="span" fontSize="xs" color="gray.500">{translate('crm.ui.notGraded')}</Text>;
+  if (!code) return <Text as="span" fontSize="xs" color="gray.500">{translate('crm.components.notGraded')}</Text>;
   const big = size === 'lg';
   return (
     <Badge
@@ -157,7 +157,7 @@ export function Timeline({ items, onOpen }) {
   const surface = useSurface();
   const line = useColorModeValue('gray.200', 'whiteAlpha.200');
   const translate = useT();
-  if (!items.length) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.ui.nothingYet')}</Text>;
+  if (!items.length) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.common.nothingYet')}</Text>;
   return (
     <Stack spacing={0} px={4} py={3}>
       {items.map((item, index) => (
@@ -194,7 +194,7 @@ export function ScoreBreakdown({ components, model }) {
     value: 'Spend, 12 months', frequency: 'Purchase days, 12 months', recency: 'How recently',
     breadth: 'Projects active in', ownership: 'Products held', care: 'Complaints'
   };
-  if (!components) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.ui.notGradedYet')}</Text>;
+  if (!components) return <Text fontSize="sm" color={surface.muted} p={4}>{translate('crm.common.notGradedYet')}</Text>;
   return (
     <Stack spacing={2.5} px={4} py={3}>
       {keys.map((key) => {

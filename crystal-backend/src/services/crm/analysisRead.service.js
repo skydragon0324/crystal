@@ -34,7 +34,7 @@ function snapshotQuery(filters, date) {
   }
   // One customer's rows: the Snapshots screen opens a Dream-wide row onto that customer's projects.
   if (filters.party_pk !== undefined) {
-    if (!/^\d{1,18}$/.test(String(filters.party_pk))) throw new HttpError(400, 'crm.checkTheDetails', [{ field: 'party_pk', message: 'party_pk must be a number' }]);
+    if (!/^\d{1,18}$/.test(String(filters.party_pk))) throw new HttpError(400, 'crm.common.checkTheDetails', [{ field: 'party_pk', message: 'party_pk must be a number' }]);
     qb.where('snapshot.party_pk', filters.party_pk);
   }
   if (filters.corporate_grade_id) qb.where('snapshot.corporate_grade_id', filters.corporate_grade_id);

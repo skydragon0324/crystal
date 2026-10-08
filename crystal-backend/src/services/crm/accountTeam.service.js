@@ -36,13 +36,13 @@ function team(partyId) {
 
 async function assign(partyId, body, actor) {
   await requireParty(partyId);
-  if (ROLES.indexOf(body.team_role) === -1) throw new HttpError(400, 'crm.chooseATeamRole');
+  if (ROLES.indexOf(body.team_role) === -1) throw new HttpError(400, 'crm.customers.chooseATeamRole');
   const manager = await db('managers').where({ id: body.manager_id || null, is_deleted: false }).first('id', 'status');
-  if (!manager) throw new HttpError(400, 'crm.chooseAStaffMember');
+  if (!manager) throw new HttpError(400, 'crm.customers.chooseAStaffMember');
 
   const row = await transaction(async function (trx) {
     const current = await trx('crm_party_team_member').where({ party_pk: partyId, team_role: body.team_role }).whereNull('ended_at').forUpdate().first();
-    if (current && current.manager_id === manager.id) throw new HttpError(409, 'crm.theyAlreadyHaveThatRole');
+    if (current && current.manager_id === manager.id) throw new HttpError(409, 'crm.customers.theyAlreadyHaveThatRole');
     if (current) await trx('crm_party_team_member').where('team_member_id', current.team_member_id).update({ ended_at: trx.fn.now() });
     const [created] = await trx('crm_party_team_member').insert({
       party_pk: partyId, manager_id: manager.id, team_role: body.team_role, assigned_by_manager_id: actor.manager_id
@@ -73,23 +73,23 @@ async function saveAgreement(partyId, agreementId, body, actor) {
   const data = {};
   ['agreement_no', 'agreement_type', 'title', 'start_date', 'end_date', 'renewal_date', 'status', 'annual_value', 'currency_code', 'note']
     .forEach(function (column) { if (body[column] !== undefined) data[column] = body[column] === '' ? null : body[column]; });
-  if (data.agreement_type !== undefined && AGREEMENT_TYPES.indexOf(data.agreement_type) === -1) throw new HttpError(400, 'crm.chooseAnAgreementType');
-  if (data.status !== undefined && AGREEMENT_STATUS.indexOf(data.status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+  if (data.agreement_type !== undefined && AGREEMENT_TYPES.indexOf(data.agreement_type) === -1) throw new HttpError(400, 'crm.customers.chooseAnAgreementType');
+  if (data.status !== undefined && AGREEMENT_STATUS.indexOf(data.status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
   if (data.annual_value !== undefined && data.annual_value !== null && !data.currency_code) data.currency_code = 'USD';
 
   if (agreementId) {
     const before = await db('crm_party_agreement').where({ agreement_id: agreementId, party_pk: partyId }).first();
     if (!before) throw new HttpError(404, 'common.notFound');
     const merged = Object.assign({}, before, data);
-    if (merged.end_date && new Date(merged.end_date) < new Date(merged.start_date)) throw new HttpError(400, 'crm.itCannotEndBeforeItStarts');
+    if (merged.end_date && new Date(merged.end_date) < new Date(merged.start_date)) throw new HttpError(400, 'crm.customers.itCannotEndBeforeItStarts');
     const [after] = await db('crm_party_agreement').where('agreement_id', agreementId)
       .update(Object.assign(data, { updated_at: db.fn.now() })).returning('*');
     audit.updated(actor, 'crm_party_agreement', agreementId, before, after, PAGE);
     return after;
   }
 
-  if (!data.agreement_type || !data.start_date) throw new HttpError(400, 'crm.typeAndStartAreRequired');
-  if (data.end_date && new Date(data.end_date) < new Date(data.start_date)) throw new HttpError(400, 'crm.itCannotEndBeforeItStarts');
+  if (!data.agreement_type || !data.start_date) throw new HttpError(400, 'crm.customers.typeAndStartAreRequired');
+  if (data.end_date && new Date(data.end_date) < new Date(data.start_date)) throw new HttpError(400, 'crm.customers.itCannotEndBeforeItStarts');
   const [row] = await db('crm_party_agreement').insert(Object.assign({ party_pk: partyId, created_by_manager_id: actor.manager_id }, data)).returning('*');
   audit.created(actor, 'crm_party_agreement', row.agreement_id, row, PAGE);
   return row;

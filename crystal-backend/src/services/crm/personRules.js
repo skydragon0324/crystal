@@ -137,7 +137,7 @@ async function check(values, mode, partyType, current) {
 
 /** 400 with every problem in `detail`, or nothing. */
 function assert(problems) {
-  if (problems && problems.length) throw new HttpError(400, 'crm.checkTheDetails', problems);
+  if (problems && problems.length) throw new HttpError(400, 'crm.common.checkTheDetails', problems);
 }
 
 module.exports = {

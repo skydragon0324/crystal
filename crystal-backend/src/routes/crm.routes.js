@@ -106,7 +106,7 @@ const sheetUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.storage.maxUploadBytes, files: 1 },
   fileFilter: function (req, file, done) {
-    if (!/\.xlsx$/i.test(file.originalname || '')) return done(new HttpError(400, 'crm.thisIsNotAnExcelFile'));
+    if (!/\.xlsx$/i.test(file.originalname || '')) return done(new HttpError(400, 'crm.common.thisIsNotAnExcelFile'));
     return done(null, true);
   }
 });
@@ -316,9 +316,9 @@ function protectCodes(table, primaryKey, codeColumn, codes) {
   const check = async function (req, res, next) {
     const row = await db(table).where(primaryKey, req.params.id).first(codeColumn + ' as code');
     if (!row || codes.indexOf(row.code) === -1) return next();
-    if (req.method === 'DELETE') return next(new HttpError(409, 'crm.thisCodeIsUsedByTheSystem', null, { code: row.code }));
+    if (req.method === 'DELETE') return next(new HttpError(409, 'crm.settings.thisCodeIsUsedByTheSystem', null, { code: row.code }));
     if (req.body && req.body[codeColumn] !== undefined && req.body[codeColumn] !== row.code) {
-      return next(new HttpError(409, 'crm.thisCodeIsUsedByTheSystem', null, { code: row.code }));
+      return next(new HttpError(409, 'crm.settings.thisCodeIsUsedByTheSystem', null, { code: row.code }));
     }
     return next();
   };
@@ -359,7 +359,7 @@ function guardInUse(table, primaryKey, codeColumn) {
     if (req.method !== 'DELETE' && !changesCode) return next();
     const used = await tablesReferencing(table, req.params.id);
     if (!used.length) return next();
-    return next(new HttpError(409, req.method === 'DELETE' ? 'crm.inUseCannotDelete' : 'crm.inUseCannotChangeCode', null,
+    return next(new HttpError(409, req.method === 'DELETE' ? 'crm.settings.inUseCannotDelete' : 'crm.settings.inUseCannotChangeCode', null,
       { code: row.code, tables: used.join(', ') }));
   };
   guard.put('/:id', check);
@@ -376,7 +376,7 @@ function guardInUse(table, primaryKey, codeColumn) {
  */
 const VOCABULARIES = [
   { path: 'projects', table: 'crm_project', pk: 'project_id', code: 'project_code',
-    columns: ['project_code', 'project_name', 'project_type_code', 'source_system_code', 'legal_entity_code', 'status'],
+    columns: ['project_code', 'project_name', 'project_type_code', 'source_system_code', 'legal_entity_code', 'status', 'identity_role'],
     guardInUse: true },
   { path: 'product-classes', table: 'crm_product_class', pk: 'product_class_id', code: 'class_code',
     columns: ['class_code', 'class_name', 'parent_product_class_id', 'product_domain', 'rank_no', 'legacy_column', 'description', 'is_active'],
@@ -451,7 +451,7 @@ const VOCABULARIES = [
     system: ['EARN', 'REDEEM', 'EXPIRE', 'ADJUST', 'REFUND', 'RESERVATION_COST', 'EVENT_AWARD', 'MERGE_CARRY_OVER'] },
   { path: 'tags', table: 'crm_tag', pk: 'tag_id', code: 'tag_code',
     columns: ['tag_code', 'tag_name', 'color_scheme', 'description', 'is_active'] },
-  { path: 'relationship-types', table: 'crm_party_relationship_type', pk: 'relationship_type_code', code: 'relationship_type_code',
+  { path: 'party-relationship-types', table: 'crm_party_relationship_type', pk: 'relationship_type_code', code: 'relationship_type_code',
     columns: ['relationship_type_code', 'relationship_name', 'inverse_code', 'applies_to', 'is_hierarchy', 'sort_order', 'is_active'],
     sort: 'sort_order',
     system: ['SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'RELATIVE', 'REFERRER', 'REFERRAL', 'PARENT_COMPANY', 'SUBSIDIARY', 'AFFILIATE', 'PARTNER'] },
@@ -459,6 +459,19 @@ const VOCABULARIES = [
     columns: ['project_id', 'product_class_id', 'question_code', 'question_label', 'answer_type', 'is_required', 'sort_order', 'is_active'],
     sort: 'sort_order' }
 ];
+
+/*
+ * The vendor's location list, copied again on its own (the same step the
+ * Crystal import starts with): new locations are added, changed ones updated,
+ * none removed.
+ */
+router.post('/settings/locations/refresh', write(PAGES.SETTINGS), async function (req, res) {
+  const result = await require('../repositories/shared/transaction').transaction(function (trx) {
+    return require('../services/crm/crystalImport.service').importLocations(trx);
+  });
+  require('../services/audit.service').updated(req.actor, 'crm_location', null, null, result, PAGES.SETTINGS);
+  return require('../utils/response').ok(res, result);
+});
 
 VOCABULARIES.forEach(function (vocabulary) {
   if (vocabulary.system) router.use('/settings/' + vocabulary.path, protectCodes(vocabulary.table, vocabulary.pk, vocabulary.code, vocabulary.system));
@@ -518,7 +531,7 @@ router.get('/settings/status-map', read(PAGES.SETTINGS), async function (req, re
 router.put('/settings/status-map', write(PAGES.SETTINGS), async function (req, res) {
   const body = req.body || {};
   if (!body.project_id || !body.source_status_code || !body.service_status_id) {
-    throw new HttpError(400, 'crm.projectCodeAndStatusAreRequired');
+    throw new HttpError(400, 'crm.settings.projectCodeAndStatusAreRequired');
   }
   await db.raw(`
     INSERT INTO crm_service_status_map (project_id, source_status_code, service_status_id, source_status_label)
@@ -549,7 +562,7 @@ router.delete('/settings/status-map/:projectId/:code', write(PAGES.SETTINGS), as
 // eslint-disable-next-line no-unused-vars
 router.use(function (err, req, res, next) {
   if (err && err.code === '22001') {
-    return next(new HttpError(400, 'crm.aValueIsTooLong', null, { column: err.column || '' }));
+    return next(new HttpError(400, 'crm.settings.aValueIsTooLong', null, { column: err.column || '' }));
   }
   /*
    * A code column declared plain UNIQUE gets a name PostgreSQL makes up -
@@ -558,7 +571,7 @@ router.use(function (err, req, res, next) {
    * table is a code somebody already used.
    */
   if (err && err.code === '23505' && /^crm_\w+_code_key$/.test(String(err.constraint || ''))) {
-    return next(new HttpError(409, 'crm.thatCodeIsTaken'));
+    return next(new HttpError(409, 'crm.settings.thatCodeIsTaken'));
   }
   return next(err);
 });

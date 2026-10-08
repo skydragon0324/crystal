@@ -2,9 +2,7 @@ const crypto = require('crypto');
 const defaultDb = require('../../config/db');
 const legacy = require('../../config/legacy');
 const vocabulary = require('../../repositories/crm/vocabulary.repository');
-const contact = require('./contact');
 const ledger = require('./ledger');
-const parties = require('./parties.service');
 const identity = require('./identity.service');
 const transactions = require('./transactions.service');
 const analysis = require('./analysis.service');
@@ -811,4 +809,5 @@ async function run(options) {
   return summary;
 }
 
-module.exports = { run: run, STEPS: STEPS.map(function (step) { return step[0]; }) };
+/* importLocations on its own: Settings > Locations refreshes the list without running the whole import. */
+module.exports = { run: run, importLocations: importLocations, STEPS: STEPS.map(function (step) { return step[0]; }) };

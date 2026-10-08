@@ -59,13 +59,13 @@ module.exports = {
   importCrystal: async function (req, res) {
     const summary = await crystalImport.run();
     require('../services/audit.service').imported(req.actor, 'crm_party', summary, '/admin/crm/overview');
-    return ok(res, summary, 'crm.importFinished');
+    return ok(res, summary, 'crm.common.importFinished');
   },
 
   importVendor: async function (req, res) {
     const summary = await vendorImport.run();
     require('../services/audit.service').imported(req.actor, 'crm_transaction', summary, '/admin/crm/overview');
-    return ok(res, summary, 'crm.importFinished');
+    return ok(res, summary, 'crm.common.importFinished');
   },
 
   /* ---- analysis ---- */
@@ -73,7 +73,7 @@ module.exports = {
     run: async function (req, res) {
       const result = await analysisRun.run({ referenceDate: req.body && req.body.reference_date });
       require('../services/audit.service').imported(req.actor, 'crm_party_analysis_snapshot', result, '/admin/crm/analysis');
-      return ok(res, result, 'crm.analysisFinished');
+      return ok(res, result, 'crm.analysis.analysisFinished');
     },
     summary: async function (req, res) { return ok(res, await analysisRead.summary(req.query.reference_date)); },
     snapshots: lister(analysisRead.snapshots, [], 'corporate_score'),
@@ -138,7 +138,7 @@ module.exports = {
     logInteraction: async function (req, res) {
       return ok(res, await engagement.logInteraction(req.params.id, req.body, req.actor), 'common.created');
     },
-    sendMessage: async function (req, res) { return ok(res, await engagement.sendMessage(req.params.id, req.body, req.actor), 'crm.messageQueued'); },
+    sendMessage: async function (req, res) { return ok(res, await engagement.sendMessage(req.params.id, req.body, req.actor), 'crm.customer360.messageQueued'); },
     team: async function (req, res) { return ok(res, await accountTeam.team(req.params.id)); },
     assignTeam: async function (req, res) { return ok(res, await accountTeam.assign(req.params.id, req.body, req.actor), 'common.updated'); },
     endTeam: async function (req, res) {
@@ -182,7 +182,7 @@ module.exports = {
   },
 
   recalculate: async function (req, res) {
-    return ok(res, { class_stats: await analysis.recalculateClassStats() }, 'crm.recalculated');
+    return ok(res, { class_stats: await analysis.recalculateClassStats() }, 'crm.settings.recalculated');
   },
 
   /* ---- customers ---- */
@@ -217,7 +217,7 @@ module.exports = {
       return ok(res, await parties.setConsent(req.params.id, req.body, req.actor), 'common.updated');
     },
     merge: async function (req, res) {
-      return ok(res, await parties.merge(req.params.id, req.body.merged_party_pk, req.body.merge_reason, 'MANUAL', req.actor), 'crm.merged');
+      return ok(res, await parties.merge(req.params.id, req.body.merged_party_pk, req.body.merge_reason, 'MANUAL', req.actor), 'crm.customers.merged');
     },
     duplicates: async function (req, res) {
       const paging = readPaging(req.query, [], 'id');
@@ -231,7 +231,7 @@ module.exports = {
     },
     /* An Excel sheet of people: ?dry_run=1 only reports what would happen. */
     importPeople: async function (req, res) {
-      if (!req.file) throw new HttpError(400, 'crm.chooseAFile');
+      if (!req.file) throw new HttpError(400, 'crm.common.chooseAFile');
       const dryRun = String(req.query.dry_run || '') === '1' || req.query.dry_run === 'true';
       // The origin project chosen on the import screen, for rows whose Origin project cell is empty.
       const options = { origin_project_id: (req.body && req.body.origin_project_id) || req.query.origin_project_id, file_name: req.file.originalname };
@@ -245,7 +245,7 @@ module.exports = {
       return res.send(Buffer.from(buffer));
     },
     acceptDuplicate: async function (req, res) {
-      return ok(res, await parties.decideCandidate(req.params.id, true, req.actor), 'crm.merged');
+      return ok(res, await parties.decideCandidate(req.params.id, true, req.actor), 'crm.customers.merged');
     },
     rejectDuplicate: async function (req, res) {
       return ok(res, await parties.decideCandidate(req.params.id, false, req.actor), 'common.updated');
@@ -353,7 +353,7 @@ module.exports = {
       return ok(res, await events.addTarget(req.params.id, req.body, req.actor), 'common.created');
     },
     buildTargets: async function (req, res) {
-      return ok(res, await events.buildTargets(req.params.id, req.actor), 'crm.targetsBuilt');
+      return ok(res, await events.buildTargets(req.params.id, req.actor), 'crm.events.targetsBuilt');
     },
     revokeTarget: async function (req, res) {
       return ok(res, await events.revokeTarget(req.params.id, req.params.targetId, req.actor), 'common.updated');
@@ -427,7 +427,7 @@ module.exports = {
       return ok(res, await marketing.newVersion(req.params.id, req.body, req.actor), 'common.created');
     },
     evaluate: async function (req, res) {
-      return ok(res, await marketing.evaluate(req.params.id, req.actor), 'crm.evaluated');
+      return ok(res, await marketing.evaluate(req.params.id, req.actor), 'crm.marketing.evaluated');
     }
   },
 
@@ -452,7 +452,7 @@ module.exports = {
       return ok(res, await marketing.saveAction(req.params.id, req.params.actionId, req.body, req.actor), 'common.updated');
     },
     prepareAction: async function (req, res) {
-      return ok(res, await marketing.prepareAction(req.params.id, req.params.actionId, req.actor), 'crm.prepared');
+      return ok(res, await marketing.prepareAction(req.params.id, req.params.actionId, req.actor), 'crm.marketing.prepared');
     },
     setActionStatus: async function (req, res) {
       return ok(res, await marketing.setActionStatus(req.params.id, req.params.actionId, req.body.status, req.actor), 'common.updated');

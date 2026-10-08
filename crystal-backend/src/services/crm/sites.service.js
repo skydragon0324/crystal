@@ -108,7 +108,7 @@ async function siteDetail(id) {
 
 async function saveSite(id, body, actor) {
   const data = pick(body, SITE_COLUMNS);
-  if (data.service_center_kind && KINDS.indexOf(data.service_center_kind) === -1) throw new HttpError(400, 'crm.chooseASiteKind');
+  if (data.service_center_kind && KINDS.indexOf(data.service_center_kind) === -1) throw new HttpError(400, 'crm.sites.chooseASiteKind');
 
   if (id) {
     const before = await db('crm_service_center').where('service_center_id', id).first();
@@ -120,7 +120,7 @@ async function saveSite(id, body, actor) {
   }
 
   if (!data.service_center_code || !data.service_center_name || !data.service_center_kind) {
-    throw new HttpError(400, 'crm.codeNameAndKindAreRequired');
+    throw new HttpError(400, 'crm.sites.codeNameAndKindAreRequired');
   }
   const [row] = await db('crm_service_center').insert(data).returning('*');
   audit.created(actor, 'crm_service_center', row.service_center_id, row, PAGE);
@@ -128,7 +128,7 @@ async function saveSite(id, body, actor) {
 }
 
 async function addCapability(siteId, body, actor) {
-  if (!body.capability_code) throw new HttpError(400, 'crm.aCapabilityIsRequired');
+  if (!body.capability_code) throw new HttpError(400, 'crm.sites.aCapabilityIsRequired');
   const [row] = await db('crm_service_center_capability').insert({
     service_center_id: siteId,
     project_id: body.project_id || null,
@@ -194,16 +194,16 @@ async function searchActivities(filters, paging) {
  * target report built on that row would be wrong in a way nobody notices.
  */
 async function recordActivity(body, actor) {
-  if (!body.service_center_id || !body.activity_type_id) throw new HttpError(400, 'crm.siteAndActivityAreRequired');
+  if (!body.service_center_id || !body.activity_type_id) throw new HttpError(400, 'crm.sites.siteAndActivityAreRequired');
 
   const type = await db('crm_service_center_activity_type').where('activity_type_id', body.activity_type_id).first();
-  if (!type || !type.is_active) throw new HttpError(400, 'crm.unknownActivity');
+  if (!type || !type.is_active) throw new HttpError(400, 'crm.sites.unknownActivity');
 
   if (type.required_capability_code) {
     const holds = await db('crm_service_center_capability')
       .where({ service_center_id: body.service_center_id, capability_code: type.required_capability_code, is_active: true })
       .first();
-    if (!holds) throw new HttpError(409, 'crm.thisSiteCannotDoThat', null, { capability: type.required_capability_code });
+    if (!holds) throw new HttpError(409, 'crm.sites.thisSiteCannotDoThat', null, { capability: type.required_capability_code });
   }
 
   const amount = body.amount === '' || body.amount === undefined ? null : body.amount;
@@ -230,7 +230,7 @@ async function recordActivity(body, actor) {
 async function reverseActivity(id, note, actor) {
   const before = await db('crm_service_center_activity').where('service_center_activity_id', id).first();
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.status !== 'COMPLETED') throw new HttpError(409, 'crm.alreadyReversed');
+  if (before.status !== 'COMPLETED') throw new HttpError(409, 'crm.sites.alreadyReversed');
 
   const [after] = await db('crm_service_center_activity').where('service_center_activity_id', id).update({
     status: 'REVERSED',
@@ -273,8 +273,8 @@ async function searchEvents(filters, paging) {
 
 async function saveEvent(id, body, actor) {
   const data = pick(body, EVENT_COLUMNS);
-  if (data.event_type_code && EVENT_TYPES.indexOf(data.event_type_code) === -1) throw new HttpError(400, 'crm.chooseAnEventType');
-  if (data.status && EVENT_STATUS.indexOf(data.status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+  if (data.event_type_code && EVENT_TYPES.indexOf(data.event_type_code) === -1) throw new HttpError(400, 'crm.common.chooseAnEventType');
+  if (data.status && EVENT_STATUS.indexOf(data.status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
 
   if (id) {
     const before = await db('crm_service_center_event').where('service_center_event_id', id).first();

@@ -356,14 +356,14 @@ export function InstanceDetail({ id, onClose }) {
                   { key: 'party_name', label: 'Customer' },
                   { key: 'relationship_code', label: 'Held as', render: (row) => word(translate, row.relationship_code) },
                   { key: 'valid_from', label: 'From', render: (row) => dateTime(row.valid_from) },
-                  { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? dateTime(row.valid_to) : translate('crm.customer.now')) },
+                  { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? dateTime(row.valid_to) : translate('crm.common.now')) },
                   { key: 'end_reason_code', label: 'Ended because', render: (row) => (row.end_reason_code ? word(translate, row.end_reason_code) : '-') },
                   { key: 'previous_owner_name', label: 'Previous owner' }
                 ]}
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.customer.transfers')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.common.transfers')}</Text>
               <DataTable
                 hidePagination
                 rows={record.transfers || []}
@@ -378,7 +378,7 @@ export function InstanceDetail({ id, onClose }) {
               />
             </Box>
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.customer.service')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.products.service')}</Text>
               <DataTable
                 hidePagination
                 rows={record.cases || []}

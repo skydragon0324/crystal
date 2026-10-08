@@ -21,7 +21,7 @@ const PAGE = '/admin/crm/customers';
 async function requireType(partyId, type) {
   const party = await db('crm_party').where('party_pk', partyId).first('party_type');
   if (!party) throw new HttpError(404, 'common.notFound');
-  if (party.party_type !== type) throw new HttpError(409, type === 'ORGANIZATION' ? 'crm.onlyForOrganizations' : 'crm.onlyForPeople');
+  if (party.party_type !== type) throw new HttpError(409, type === 'ORGANIZATION' ? 'crm.customers.onlyForOrganizations' : 'crm.customers.onlyForPeople');
 }
 
 /** Everything organizational about one party, from either side. */

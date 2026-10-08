@@ -57,23 +57,25 @@ async function lockAccount(trx, partyId, pointTypeId) {
  */
 async function post(trx, entry) {
   const delta = roundPoints(entry.points_delta);
-  if (!delta) throw new HttpError(400, 'crm.pointsMustNotBeZero');
+  if (!delta) throw new HttpError(400, 'crm.points.pointsMustNotBeZero');
 
   const eventTypeId = await vocabulary.idOf('crm_point_event_type', entry.event_code, trx);
-  if (!eventTypeId) throw new HttpError(400, 'crm.unknownPointEvent', null, { code: entry.event_code });
+  if (!eventTypeId) throw new HttpError(400, 'crm.points.unknownPointEvent', null, { code: entry.event_code });
 
   const pointType = await trx('crm_point_type').where('point_type_id', entry.point_type_id).first();
-  if (!pointType) throw new HttpError(400, 'crm.unknownPointType');
-  if (!pointType.is_active && !entry.allow_inactive) throw new HttpError(409, 'crm.pointTypeIsInactive');
+  if (!pointType) throw new HttpError(400, 'crm.points.unknownPointType');
+  if (!pointType.is_active && !entry.allow_inactive) throw new HttpError(409, 'crm.points.pointTypeIsInactive');
 
   let projectId = entry.project_id || pointType.owner_project_id;
   if (!projectId) projectId = await vocabulary.idOf('crm_project', 'PLATFORM', trx);
+  // Every ledger entry belongs to a project: without an owner project (and no PLATFORM to fall back on) say so, instead of failing on the column.
+  if (!projectId) throw new HttpError(409, 'crm.points.pointTypeNeedsAProject', null, { point_type: pointType.point_type_code });
 
   const account = await lockAccount(trx, entry.party_pk, entry.point_type_id);
   const balance = roundPoints(Number(account.balance) + delta);
 
   if (balance < 0 && !entry.allow_negative) {
-    throw new HttpError(409, 'crm.notEnoughPoints', null, {
+    throw new HttpError(409, 'crm.points.notEnoughPoints', null, {
       balance: roundPoints(account.balance), needed: roundPoints(-delta)
     });
   }

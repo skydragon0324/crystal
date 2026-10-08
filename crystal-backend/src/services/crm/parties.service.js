@@ -88,10 +88,10 @@ async function createParty(trx, data) {
 /** A contact, normalised, primary-flag kept unique per type. Returns null for a duplicate. */
 async function insertContact(trx, partyId, data) {
   const type = String(data.contact_type || '').toUpperCase();
-  if (CONTACT_TYPES.indexOf(type) === -1) throw new HttpError(400, 'crm.unknownContactType');
+  if (CONTACT_TYPES.indexOf(type) === -1) throw new HttpError(400, 'crm.customers.unknownContactType');
 
   const normalised = contact.normalise(type, data.contact_value);
-  if (!normalised) throw new HttpError(400, 'crm.contactValueIsRequired');
+  if (!normalised) throw new HttpError(400, 'crm.customers.contactValueIsRequired');
 
   const existing = await trx('crm_contact_point')
     .where({ party_pk: partyId, contact_type: type, normalized_value: normalised }).first();
@@ -169,7 +169,7 @@ async function setChecked(id, checked, actor) {
 async function update(id, body, actor) {
   const before = await repo.findParty(id);
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
+  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.common.thisPartyWasMerged');
 
   const currentPerson = before.party_type === 'PERSON' ? await db('crm_person').where('party_pk', id).first() : null;
   rules.assert(await rules.check(body, 'update', before.party_type, currentPerson));
@@ -195,11 +195,11 @@ async function update(id, body, actor) {
 }
 
 async function setStatus(id, status, actor) {
-  if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+  if (['ACTIVE', 'INACTIVE'].indexOf(status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
 
   const before = await repo.findParty(id);
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
+  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.common.thisPartyWasMerged');
 
   const [after] = await db('crm_party').where('party_pk', id).update({ party_status: status }).returning('*');
   audit.updated(actor, 'crm_party', id, before, after, PAGE);
@@ -214,13 +214,13 @@ async function setStatus(id, status, actor) {
 async function assignGrade(id, body, actor) {
   const before = await repo.findParty(id);
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.thisPartyWasMerged');
+  if (before.party_status === 'MERGED') throw new HttpError(409, 'crm.common.thisPartyWasMerged');
 
   const gradeId = body.corporate_grade_id === undefined || body.corporate_grade_id === null || body.corporate_grade_id === ''
     ? null : Number(body.corporate_grade_id);
   if (gradeId !== null) {
     const grade = await db('crm_corporate_grade').where({ corporate_grade_id: gradeId, is_active: true }).first();
-    if (!grade) throw new HttpError(400, 'crm.chooseAGrade');
+    if (!grade) throw new HttpError(400, 'crm.customers.chooseAGrade');
   }
 
   const [after] = await db('crm_party').where('party_pk', id).update({
@@ -249,7 +249,7 @@ async function addContact(partyId, body, actor) {
     }
     return insertContact(trx, partyId, body);
   });
-  if (!row) throw new HttpError(409, 'crm.thisContactIsAlready');
+  if (!row) throw new HttpError(409, 'crm.customers.thisContactIsAlready');
 
   audit.created(actor, 'crm_contact_point', row.contact_point_id, row, PAGE);
   return row;
@@ -269,12 +269,12 @@ async function updateContact(partyId, contactId, body, actor) {
     if (body.contact_value !== undefined) {
       patch.contact_value = String(body.contact_value).trim();
       patch.normalized_value = contact.normalise(before.contact_type, body.contact_value);
-      if (!patch.normalized_value) throw new HttpError(400, 'crm.contactValueIsRequired');
+      if (!patch.normalized_value) throw new HttpError(400, 'crm.customers.contactValueIsRequired');
     }
     if (body.label !== undefined) patch.label = body.label || null;
     if (body.is_verified !== undefined) patch.is_verified = !!body.is_verified;
     if (body.status !== undefined) {
-      if (['ACTIVE', 'INVALID', 'RETIRED'].indexOf(body.status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+      if (['ACTIVE', 'INVALID', 'RETIRED'].indexOf(body.status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
       patch.status = body.status;
       if (body.status !== 'ACTIVE') { patch.is_primary = false; patch.valid_to = trx.fn.now(); }
     }
@@ -299,7 +299,7 @@ async function updateContact(partyId, contactId, body, actor) {
 async function linkAccount(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
-  if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'crm.projectAndAccountAreRequired');
+  if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
 
   const [row] = await db('crm_project_account').insert({
     party_pk: partyId,
@@ -319,7 +319,7 @@ async function linkAccount(partyId, body, actor) {
 async function unlinkAccount(partyId, accountId, actor) {
   const before = await db('crm_project_account').where({ party_pk: partyId, project_account_id: accountId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.unlinked_at) throw new HttpError(409, 'crm.alreadyUnlinked');
+  if (before.unlinked_at) throw new HttpError(409, 'crm.customers.alreadyUnlinked');
 
   const [after] = await db('crm_project_account').where('project_account_id', accountId)
     .update({ unlinked_at: db.fn.now() }).returning('*');
@@ -337,8 +337,8 @@ async function unlinkAccount(partyId, accountId, actor) {
  * table refuses an event without it.
  */
 async function setConsent(partyId, body, actor) {
-  if (CONSENT.indexOf(body.consent_status) === -1) throw new HttpError(400, 'crm.notAConsentStatus');
-  if (!body.reason || !String(body.reason).trim()) throw new HttpError(400, 'crm.aReasonIsRequired');
+  if (CONSENT.indexOf(body.consent_status) === -1) throw new HttpError(400, 'crm.customers.notAConsentStatus');
+  if (!body.reason || !String(body.reason).trim()) throw new HttpError(400, 'crm.common.aReasonIsRequired');
 
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
@@ -418,7 +418,7 @@ async function setConsent(partyId, body, actor) {
 async function merge(survivorId, mergedId, reason, method, actor) {
   survivorId = String(survivorId || '');
   mergedId = String(mergedId || '');
-  if (!mergedId || survivorId === mergedId) throw new HttpError(400, 'crm.chooseAnotherPartyToMerge');
+  if (!mergedId || survivorId === mergedId) throw new HttpError(400, 'crm.customers.chooseAnotherPartyToMerge');
 
   const result = await transaction(async function (trx) {
     await require('./registrationIntake.service').lock(trx);
@@ -431,9 +431,9 @@ async function merge(survivorId, mergedId, reason, method, actor) {
 
     if (!survivor || !merged) throw new HttpError(404, 'common.notFound');
     if (survivor.party_status === 'MERGED' || merged.party_status === 'MERGED') {
-      throw new HttpError(409, 'crm.thisPartyWasMerged');
+      throw new HttpError(409, 'crm.common.thisPartyWasMerged');
     }
-    if (survivor.party_type !== merged.party_type) throw new HttpError(409, 'crm.onlyPartiesOfOneType');
+    if (survivor.party_type !== merged.party_type) throw new HttpError(409, 'crm.customers.onlyPartiesOfOneType');
 
     const moved = {};
     const count = function (name, rowCount) { moved[name] = (moved[name] || 0) + Number(rowCount || 0); };
@@ -666,10 +666,10 @@ async function scanDuplicates(actor) {
 async function decideCandidate(id, accept, actor) {
   const candidate = await db('crm_identity_match_candidate').where('match_candidate_id', id).first();
   if (!candidate) throw new HttpError(404, 'common.notFound');
-  if (candidate.match_status !== 'PENDING') throw new HttpError(409, 'crm.alreadyDecided');
+  if (candidate.match_status !== 'PENDING') throw new HttpError(409, 'crm.common.alreadyDecided');
 
   if (accept) {
-    if (!candidate.incoming_party_pk) throw new HttpError(409, 'crm.nothingToMerge');
+    if (!candidate.incoming_party_pk) throw new HttpError(409, 'crm.customers.nothingToMerge');
     await merge(candidate.candidate_party_pk, candidate.incoming_party_pk,
       'Duplicate by ' + candidate.match_rule_code, 'REVIEWED_MATCH', actor);
   }

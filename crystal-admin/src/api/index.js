@@ -569,6 +569,8 @@ export const crm = {
 
   /* The vocabularies, one generic resource each, keyed by their path on the API. */
   settings: function (path) { return createResource(CRM + '/settings/' + path); },
+  /* Copy the vendor's location list again: new ones added, changed ones updated, none removed. */
+  refreshLocations: () => client.post(CRM + '/settings/locations/refresh'),
   statusMap: {
     list: () => client.get(CRM + '/settings/status-map'),
     save: (payload) => client.put(CRM + '/settings/status-map', payload),

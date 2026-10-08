@@ -66,7 +66,7 @@ function clean(body, columns) {
     if (body[column] === undefined) return;
     let columnValue = body[column] === '' ? null : body[column];
     if (column === 'eligibility_rule' && columnValue && typeof columnValue === 'string') {
-      try { columnValue = JSON.parse(columnValue); } catch (error) { throw new HttpError(400, 'crm.theRuleIsNotValidJson'); }
+      try { columnValue = JSON.parse(columnValue); } catch (error) { throw new HttpError(400, 'crm.common.theRuleIsNotValidJson'); }
     }
     if (column === 'eligibility_rule' && columnValue) columnValue = JSON.stringify(columnValue);
     out[column] = columnValue;
@@ -83,7 +83,7 @@ async function loadEvent(trx, id, lock) {
 
 function requireStatus(event, allowed, key) {
   if (allowed.indexOf(event.status) === -1) {
-    throw new HttpError(409, key || 'crm.notWhileTheEventIs', null, { status: event.status });
+    throw new HttpError(409, key || 'crm.events.notWhileTheEventIs', null, { status: event.status });
   }
 }
 
@@ -160,9 +160,9 @@ async function detail(id) {
 
 async function create(body, actor) {
   const data = clean(body, COLUMNS);
-  if (!data.event_code || !data.event_name) throw new HttpError(400, 'crm.codeAndNameAreRequired');
-  if (TYPES.indexOf(data.event_type) === -1) throw new HttpError(400, 'crm.chooseAnEventType');
-  if (BASES.indexOf(data.eligibility_basis || '') === -1) throw new HttpError(400, 'crm.chooseWhoMayTakePart');
+  if (!data.event_code || !data.event_name) throw new HttpError(400, 'crm.common.codeAndNameAreRequired');
+  if (TYPES.indexOf(data.event_type) === -1) throw new HttpError(400, 'crm.common.chooseAnEventType');
+  if (BASES.indexOf(data.eligibility_basis || '') === -1) throw new HttpError(400, 'crm.events.chooseWhoMayTakePart');
 
   const [row] = await db('crm_event').insert(Object.assign(data, {
     status: 'DRAFT',
@@ -190,14 +190,14 @@ async function transition(id, status, actor) {
     const event = await loadEvent(trx, id, true);
     const allowed = FLOW[event.status] || [];
     if (allowed.indexOf(status) === -1) {
-      throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: event.status, to: status });
+      throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: event.status, to: status });
     }
 
     const patch = { status: status };
 
     if (status === 'APPROVED') {
       if (String(event.created_by_manager_id) === String(actor.manager_id)) {
-        throw new HttpError(409, 'crm.anotherManagerMustApprove');
+        throw new HttpError(409, 'crm.common.anotherManagerMustApprove');
       }
       patch.approved_by_manager_id = actor.manager_id;
       patch.approved_at = trx.fn.now();
@@ -211,13 +211,13 @@ async function transition(id, status, actor) {
     if (status === 'TARGETS_FROZEN' && event.eligibility_basis !== 'OPEN') {
       const targets = await trx('crm_activity_target')
         .where('event_id', id).whereNot('status', 'REVOKED').count({ total: '*' }).first();
-      if (!Number(targets.total)) throw new HttpError(409, 'crm.addTargetsBeforeFreezing');
+      if (!Number(targets.total)) throw new HttpError(409, 'crm.events.addTargetsBeforeFreezing');
     }
 
     if (status === 'FULFILLED') {
       const open = await trx('crm_activity_reservation')
         .where('event_id', id).whereIn('status', ['PENDING', 'RESERVED', 'PAID']).count({ total: '*' }).first();
-      if (Number(open.total)) throw new HttpError(409, 'crm.reservationsAreStillOpen', null, { n: Number(open.total) });
+      if (Number(open.total)) throw new HttpError(409, 'crm.events.reservationsAreStillOpen', null, { n: Number(open.total) });
     }
 
     if (status === 'CANCELLED') {
@@ -241,7 +241,7 @@ async function transition(id, status, actor) {
 
 async function saveTier(eventId, tierId, body, actor) {
   const event = await loadEvent(db, eventId);
-  requireStatus(event, SETUP, 'crm.tiersAreFixedOnceTargetsAreFrozen');
+  requireStatus(event, SETUP, 'crm.events.tiersAreFixedOnceTargetsAreFrozen');
 
   const data = {};
   ['tier_code', 'tier_name', 'rank_no', 'min_value', 'max_value', 'entries_per_target',
@@ -263,7 +263,7 @@ async function saveTier(eventId, tierId, body, actor) {
 
 async function removeTier(eventId, tierId, actor) {
   const event = await loadEvent(db, eventId);
-  requireStatus(event, SETUP, 'crm.tiersAreFixedOnceTargetsAreFrozen');
+  requireStatus(event, SETUP, 'crm.events.tiersAreFixedOnceTargetsAreFrozen');
   const removed = await db('crm_event_tier').where({ event_tier_id: tierId, event_id: eventId }).del();
   if (!removed) throw new HttpError(404, 'common.notFound');
   audit.deleted(actor, 'crm_event_tier', tierId, null, PAGE);
@@ -313,7 +313,7 @@ async function saveQuota(eventId, quotaId, body, actor) {
 async function removeQuota(eventId, quotaId, actor) {
   const quota = await db('crm_event_quota').where({ event_quota_id: quotaId, event_id: eventId }).first();
   if (!quota) throw new HttpError(404, 'common.notFound');
-  if (quota.used_count > 0) throw new HttpError(409, 'crm.thisQuotaIsInUse');
+  if (quota.used_count > 0) throw new HttpError(409, 'crm.events.thisQuotaIsInUse');
   await db('crm_event_quota').where('event_quota_id', quotaId).del();
   audit.deleted(actor, 'crm_event_quota', quotaId, quota, PAGE);
 }
@@ -343,7 +343,7 @@ async function saveReward(eventId, rewardId, body, actor) {
 async function removeReward(eventId, rewardId, actor) {
   const reward = await db('crm_activity_reward').where({ reward_id: rewardId, event_id: eventId }).first();
   if (!reward) throw new HttpError(404, 'common.notFound');
-  if (reward.quantity_awarded > 0) throw new HttpError(409, 'crm.thisRewardHasBeenAwarded');
+  if (reward.quantity_awarded > 0) throw new HttpError(409, 'crm.events.thisRewardHasBeenAwarded');
   await db('crm_activity_reward').where('reward_id', rewardId).del();
   audit.deleted(actor, 'crm_activity_reward', rewardId, reward, PAGE);
 }
@@ -385,8 +385,8 @@ function tierFor(tiers, value) {
 
 async function addTarget(eventId, body, actor) {
   const event = await loadEvent(db, eventId);
-  requireStatus(event, SETUP, 'crm.targetsAreFrozen');
-  if (!body.party_pk) throw new HttpError(400, 'crm.chooseACustomer');
+  requireStatus(event, SETUP, 'crm.events.targetsAreFrozen');
+  if (!body.party_pk) throw new HttpError(400, 'crm.common.chooseACustomer');
 
   const tiers = await db('crm_event_tier').where('event_id', eventId).orderBy('rank_no');
   const tier = body.event_tier_id
@@ -412,7 +412,7 @@ async function addTarget(eventId, body, actor) {
 async function revokeTarget(eventId, targetId, actor) {
   const before = await db('crm_activity_target').where({ activity_target_id: targetId, event_id: eventId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.status === 'REVOKED') throw new HttpError(409, 'crm.alreadyRevoked');
+  if (before.status === 'REVOKED') throw new HttpError(409, 'crm.events.alreadyRevoked');
   const [after] = await db('crm_activity_target').where('activity_target_id', targetId).update({ status: 'REVOKED' }).returning('*');
   audit.updated(actor, 'crm_activity_target', targetId, before, after, PAGE);
   return after;
@@ -428,7 +428,7 @@ async function revokeTarget(eventId, targetId, actor) {
  */
 async function buildTargets(eventId, actor) {
   const event = await loadEvent(db, eventId);
-  requireStatus(event, SETUP, 'crm.targetsAreFrozen');
+  requireStatus(event, SETUP, 'crm.events.targetsAreFrozen');
 
   const rule = typeof event.eligibility_rule === 'string'
     ? JSON.parse(event.eligibility_rule || '{}') : (event.eligibility_rule || {});
@@ -489,7 +489,7 @@ async function buildTargets(eventId, actor) {
       source = 'REGISTRATION';
       const classId = rule.product_class_code
         ? await vocabulary.idOf('crm_product_class', rule.product_class_code) : rule.product_class_id;
-      if (!classId) throw new HttpError(409, 'crm.theRuleNeedsAProductClass');
+      if (!classId) throw new HttpError(409, 'crm.events.theRuleNeedsAProductClass');
       const owners = await db('crm_party_product_class_stat as class_stat').join('crm_party as party', 'party.party_pk', 'class_stat.party_pk')
         .where('class_stat.product_class_id', classId).where('class_stat.active_owned_count', '>=', Number(rule.min_count || 1))
         .where('party.party_status', 'ACTIVE')
@@ -501,7 +501,7 @@ async function buildTargets(eventId, actor) {
     case 'SERVICE_CENTER_ACTIVITY': {
       source = 'SERVICE_CENTER';
       const typeId = rule.activity_code ? await vocabulary.idOf('crm_service_center_activity_type', rule.activity_code) : null;
-      if (!typeId) throw new HttpError(409, 'crm.theRuleNeedsAnActivity');
+      if (!typeId) throw new HttpError(409, 'crm.events.theRuleNeedsAnActivity');
       const since = Number(rule.since_days || 365);
       const visits = await db.raw(`
         SELECT activity.party_pk, COUNT(*) AS value
@@ -519,7 +519,7 @@ async function buildTargets(eventId, actor) {
     }
 
     default:
-      throw new HttpError(409, 'crm.thisBasisHasNothingToBuild');
+      throw new HttpError(409, 'crm.events.thisBasisHasNothingToBuild');
   }
 
   let added = 0;
@@ -626,15 +626,15 @@ function matchingQuotas(trx, reservation) {
 async function reserve(eventId, body, actor) {
   const result = await transaction(async function (trx) {
     const event = await loadEvent(trx, eventId, true);
-    requireStatus(event, ['OPEN'], 'crm.theEventIsNotOpen');
+    requireStatus(event, ['OPEN'], 'crm.events.theEventIsNotOpen');
 
     const now = new Date();
-    if (event.starts_at && now < new Date(event.starts_at)) throw new HttpError(409, 'crm.theEventHasNotStarted');
-    if (event.ends_at && now > new Date(event.ends_at)) throw new HttpError(409, 'crm.theEventHasEnded');
+    if (event.starts_at && now < new Date(event.starts_at)) throw new HttpError(409, 'crm.events.theEventHasNotStarted');
+    if (event.ends_at && now > new Date(event.ends_at)) throw new HttpError(409, 'crm.events.theEventHasEnded');
 
     const entryType = body.entry_type || 'NORMAL';
     const party = await trx('crm_party').where('party_pk', body.party_pk).first();
-    if (!party || party.party_status !== 'ACTIVE') throw new HttpError(409, 'crm.chooseAnActiveCustomer');
+    if (!party || party.party_status !== 'ACTIVE') throw new HttpError(409, 'crm.common.chooseAnActiveCustomer');
 
     /* 1. the target */
     let target = null;
@@ -642,15 +642,15 @@ async function reserve(eventId, body, actor) {
       target = await trx('crm_activity_target')
         .where({ event_id: eventId, party_pk: party.party_pk, entry_type: entryType })
         .forUpdate().first();
-      if (!target || target.status === 'REVOKED') throw new HttpError(409, 'crm.thisCustomerIsNotATarget');
-      if (target.used_count >= target.allowed_count) throw new HttpError(409, 'crm.noEntriesLeft');
+      if (!target || target.status === 'REVOKED') throw new HttpError(409, 'crm.events.thisCustomerIsNotATarget');
+      if (target.used_count >= target.allowed_count) throw new HttpError(409, 'crm.events.noEntriesLeft');
     }
 
     /* The site, which has to be one the event runs at, if it names any. */
     const siteId = body.service_center_id || null;
     const sites = await trx('crm_event_service_center').where('event_id', eventId);
     if (siteId && sites.length && !sites.some(function (eventSite) { return String(eventSite.service_center_id) === String(siteId); })) {
-      throw new HttpError(409, 'crm.thatSiteIsNotInThisEvent');
+      throw new HttpError(409, 'crm.events.thatSiteIsNotInThisEvent');
     }
 
     const tierId = target ? target.event_tier_id : null;
@@ -661,7 +661,7 @@ async function reserve(eventId, body, actor) {
       event_id: eventId, entry_type: entryType, event_tier_id: tierId, service_center_id: siteId
     });
     const full = quotas.filter(function (quota) { return quota.used_count >= quota.quota_count; })[0];
-    if (full) throw new HttpError(409, 'crm.theQuotaIsFull');
+    if (full) throw new HttpError(409, 'crm.events.theQuotaIsFull');
 
     /* 3. the ID card */
     const cardHash = hashIdCard(body.holder_id_card);
@@ -669,7 +669,7 @@ async function reserve(eventId, body, actor) {
       const used = await trx('crm_activity_reservation')
         .where({ event_id: eventId, holder_id_card_hash: cardHash })
         .whereNotIn('status', ['CANCELLED', 'EXPIRED', 'FAILED']).first('reservation_id');
-      if (used) throw new HttpError(409, 'crm.thisIdCardHasAnEntry');
+      if (used) throw new HttpError(409, 'crm.events.thisIdCardHasAnEntry');
     }
 
     /* The number: the next one in the tier's range, or the event's. */
@@ -683,7 +683,7 @@ async function reserve(eventId, body, actor) {
       .modify(function (qb) { if (end !== null && end !== undefined) qb.where('reservation_no', '<=', end); })
       .max({ last_no: 'reservation_no' }).first();
     const number = last && last.last_no !== null ? Number(last.last_no) + 1 : Number(start);
-    if (end !== null && end !== undefined && number > Number(end)) throw new HttpError(409, 'crm.noNumbersLeft');
+    if (end !== null && end !== undefined && number > Number(end)) throw new HttpError(409, 'crm.events.noNumbersLeft');
 
     /* reservation_code is 30 characters, so a long event code is shortened for the default prefix. */
     const width = String(end || Math.max(number, 9999)).length;
@@ -776,7 +776,7 @@ async function moveReservation(trx, reservationId, status, body, actor) {
 
   const allowed = RESERVATION_FLOW[reservation.status] || [];
   if (allowed.indexOf(status) === -1) {
-    throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: reservation.status, to: status });
+    throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: reservation.status, to: status });
   }
 
   const patch = { status: status };
@@ -932,12 +932,12 @@ const AWARD_FLOW = {
 async function award(eventId, body, actor) {
   const result = await transaction(async function (trx) {
     const event = await loadEvent(trx, eventId);
-    requireStatus(event, ['OPEN', 'CLOSED'], 'crm.awardsNeedAnOpenEvent');
+    requireStatus(event, ['OPEN', 'CLOSED'], 'crm.events.awardsNeedAnOpenEvent');
 
     const reward = await trx('crm_activity_reward')
       .where({ reward_id: body.reward_id, event_id: eventId }).forUpdate().first();
     if (!reward) throw new HttpError(404, 'common.notFound');
-    if (reward.quantity_awarded >= reward.quantity_total) throw new HttpError(409, 'crm.thisRewardIsAllGone');
+    if (reward.quantity_awarded >= reward.quantity_total) throw new HttpError(409, 'crm.events.thisRewardIsAllGone');
 
     let partyId = body.party_pk;
     let reservation = null;
@@ -946,11 +946,11 @@ async function award(eventId, body, actor) {
       if (!reservation) throw new HttpError(404, 'common.notFound');
       partyId = reservation.party_pk;
     }
-    if (!partyId) throw new HttpError(400, 'crm.chooseACustomer');
+    if (!partyId) throw new HttpError(400, 'crm.common.chooseACustomer');
 
     const method = reward.reward_type === 'POINTS' ? 'POINTS'
       : (reward.reward_type === 'WALLET_CREDIT' ? 'WALLET' : (body.fulfilment_method || 'PICKUP'));
-    if (method === 'PICKUP' && !body.pickup_service_center_id) throw new HttpError(400, 'crm.chooseWhereItIsCollected');
+    if (method === 'PICKUP' && !body.pickup_service_center_id) throw new HttpError(400, 'crm.events.chooseWhereItIsCollected');
 
     const target = await trx('crm_activity_target')
       .where({ event_id: eventId, party_pk: partyId }).orderBy('entry_type').first('activity_target_id');
@@ -1006,11 +1006,11 @@ async function transitionAward(awardId, status, body, actor) {
 
     const allowed = AWARD_FLOW[current.status] || [];
     if (allowed.indexOf(status) === -1) {
-      throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: current.status, to: status });
+      throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: current.status, to: status });
     }
-    if (status === 'CREDITED' && current.fulfilment_method !== 'WALLET') throw new HttpError(409, 'crm.onlyWalletCreditsAreCredited');
-    if (status === 'CREDITED' && !body.external_credit_ref) throw new HttpError(400, 'crm.giveTheWalletReference');
-    if (status === 'DISPATCHED' && !current.delivery_address && !body.delivery_address) throw new HttpError(400, 'crm.anAddressIsRequired');
+    if (status === 'CREDITED' && current.fulfilment_method !== 'WALLET') throw new HttpError(409, 'crm.events.onlyWalletCreditsAreCredited');
+    if (status === 'CREDITED' && !body.external_credit_ref) throw new HttpError(400, 'crm.events.giveTheWalletReference');
+    if (status === 'DISPATCHED' && !current.delivery_address && !body.delivery_address) throw new HttpError(400, 'crm.events.anAddressIsRequired');
 
     const patch = { status: status, handled_by_manager_id: actor.manager_id };
     if (body.delivery_address) patch.delivery_address = body.delivery_address;

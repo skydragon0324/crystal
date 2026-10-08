@@ -103,7 +103,7 @@ async function updateInstance(id, body, actor) {
 
   const patch = {};
   if (body.status !== undefined) {
-    if (INSTANCE_STATUS.indexOf(body.status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+    if (INSTANCE_STATUS.indexOf(body.status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
     patch.status = body.status;
   }
   ['serial_number', 'imei', 'batch_code', 'manufactured_at', 'valid_until', 'activated_at'].forEach(function (column) {
@@ -219,19 +219,19 @@ async function registrationRule(trx, product, projectId) {
  */
 async function register(body, actor, options) {
   const opts = options || {};
-  if (!body.party_pk) throw new HttpError(400, 'crm.chooseACustomer');
+  if (!body.party_pk) throw new HttpError(400, 'crm.common.chooseACustomer');
 
   const relationship = await db('crm_product_relationship_type')
     .where('relationship_code', body.relationship_code || 'OWNER').first();
-  if (!relationship) throw new HttpError(400, 'crm.unknownRelationship');
+  if (!relationship) throw new HttpError(400, 'crm.products.unknownRelationship');
 
   const channel = body.registration_channel || 'CONSOLE';
-  if (CHANNELS.indexOf(channel) === -1) throw new HttpError(400, 'crm.unknownChannel');
+  if (CHANNELS.indexOf(channel) === -1) throw new HttpError(400, 'crm.common.unknownChannel');
 
   const result = await transaction(async function (trx) {
     const party = await trx('crm_party').where('party_pk', body.party_pk).first();
     if (!party) throw new HttpError(404, 'common.notFound');
-    if (['ACTIVE', 'INACTIVE'].indexOf(party.party_status) === -1) throw new HttpError(409, 'crm.thisPartyWasMerged');
+    if (['ACTIVE', 'INACTIVE'].indexOf(party.party_status) === -1) throw new HttpError(409, 'crm.common.thisPartyWasMerged');
 
     let instance;
     if (body.product_instance_id) {
@@ -240,7 +240,7 @@ async function register(body, actor, options) {
     } else {
       instance = await findOrCreateInstance(trx, body);
     }
-    if (['VOID', 'SCRAPPED'].indexOf(instance.status) !== -1) throw new HttpError(409, 'crm.thisProductIsOutOfService');
+    if (['VOID', 'SCRAPPED'].indexOf(instance.status) !== -1) throw new HttpError(409, 'crm.products.thisProductIsOutOfService');
 
     const product = await trx('crm_product_catalog').where('product_id', instance.product_id).first();
 
@@ -252,7 +252,7 @@ async function register(body, actor, options) {
         .whereNull('registration.valid_to')
         .first('party.party_pk', 'party.display_name');
       if (holder) {
-        throw new HttpError(409, 'crm.thisProductAlreadyHasAnOwner', null, {
+        throw new HttpError(409, 'crm.products.thisProductAlreadyHasAnOwner', null, {
           holder: (holder.display_name || '') + ' (' + holder.party_pk + ')'
         });
       }
@@ -345,15 +345,15 @@ async function payRegistrationPoints(trx, registration, instance, product, actor
 /** The instance a serial or IMEI names in a project, created from the catalogue if it is new. */
 async function findOrCreateInstance(trx, body) {
   const product = await trx('crm_product_catalog').where('product_id', body.product_id).first();
-  if (!product) throw new HttpError(400, 'crm.chooseAProduct');
+  if (!product) throw new HttpError(400, 'crm.products.chooseAProduct');
 
   const external = String(body.external_product_instance_id || body.serial_number || body.imei || '').trim();
-  if (!external) throw new HttpError(400, 'crm.aSerialOrImeiIsRequired');
+  if (!external) throw new HttpError(400, 'crm.products.aSerialOrImeiIsRequired');
 
   const existing = await trx('crm_product_instance')
     .where({ project_id: product.project_id, external_product_instance_id: external }).forUpdate().first();
   if (existing) {
-    if (String(existing.product_id) !== String(product.product_id)) throw new HttpError(409, 'crm.thatSerialBelongsToAnotherProduct');
+    if (String(existing.product_id) !== String(product.product_id)) throw new HttpError(409, 'crm.products.thatSerialBelongsToAnotherProduct');
     return existing;
   }
 
@@ -377,12 +377,12 @@ async function findOrCreateInstance(trx, body) {
 
 /** Ends a registration now, for a stated reason. */
 async function endRegistration(id, reason, actor, trx) {
-  if (END_REASONS.indexOf(reason) === -1) throw new HttpError(400, 'crm.chooseAnEndReason');
+  if (END_REASONS.indexOf(reason) === -1) throw new HttpError(400, 'crm.products.chooseAnEndReason');
 
   const run = async function (connection) {
     const before = await connection('crm_product_registration').where('product_registration_id', id).forUpdate().first();
     if (!before) throw new HttpError(404, 'common.notFound');
-    if (before.valid_to) throw new HttpError(409, 'crm.thisRegistrationHasEnded');
+    if (before.valid_to) throw new HttpError(409, 'crm.products.thisRegistrationHasEnded');
 
     const [after] = await connection('crm_product_registration').where('product_registration_id', id).update({
       valid_to: connection.fn.now(),
@@ -478,7 +478,7 @@ async function searchTransfers(filters, paging) {
  * actually holds it.
  */
 async function requestTransfer(body, actor) {
-  if (TRANSFER_KINDS.indexOf(body.transfer_kind) === -1) throw new HttpError(400, 'crm.chooseWhatShouldHappen');
+  if (TRANSFER_KINDS.indexOf(body.transfer_kind) === -1) throw new HttpError(400, 'crm.products.chooseWhatShouldHappen');
 
   const effect = TRANSFER_EFFECT[body.transfer_kind];
   const instance = await db('crm_product_instance').where('product_instance_id', body.product_instance_id).first();
@@ -492,15 +492,15 @@ async function requestTransfer(body, actor) {
       .whereNull('valid_to')
       .modify(function (qb) { if (fromPartyId && effect.close) qb.where('party_pk', fromPartyId); })
       .orderBy('valid_from', 'desc').first();
-    if (!current && effect.close) throw new HttpError(409, 'crm.nobodyHoldsItThatWay');
+    if (!current && effect.close) throw new HttpError(409, 'crm.products.nobodyHoldsItThatWay');
     fromPartyId = current ? current.party_pk : null;
   }
 
   if (body.transfer_kind === 'LICENCE_REBIND') {
-    if (instance.instance_kind !== 'LICENCE') throw new HttpError(409, 'crm.onlyALicenceCanBeRebound');
-    if (!body.to_instance_id) throw new HttpError(400, 'crm.chooseTheNewDevice');
+    if (instance.instance_kind !== 'LICENCE') throw new HttpError(409, 'crm.products.onlyALicenceCanBeRebound');
+    if (!body.to_instance_id) throw new HttpError(400, 'crm.products.chooseTheNewDevice');
   }
-  if (effect.open && !body.to_party_pk) throw new HttpError(400, 'crm.chooseWhoReceivesIt');
+  if (effect.open && !body.to_party_pk) throw new HttpError(400, 'crm.products.chooseWhoReceivesIt');
 
   const [row] = await db('crm_product_transfer').insert({
     product_instance_id: instance.product_instance_id,
@@ -533,7 +533,7 @@ async function transitionTransfer(id, status, note, actor) {
 
     const allowed = TRANSFER_FLOW[transfer.status] || [];
     if (allowed.indexOf(status) === -1) {
-      throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: transfer.status, to: status });
+      throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: transfer.status, to: status });
     }
 
     const patch = { status: status };
@@ -550,7 +550,7 @@ async function transitionTransfer(id, status, note, actor) {
           .whereNull('valid_to')
           .modify(function (qb) { if (transfer.from_party_pk) qb.where('party_pk', transfer.from_party_pk); })
           .forUpdate().first();
-        if (!current) throw new HttpError(409, 'crm.nobodyHoldsItThatWay');
+        if (!current) throw new HttpError(409, 'crm.products.nobodyHoldsItThatWay');
         await endRegistration(current.product_registration_id, effect.closeReason, actor, trx);
         patch.closed_registration_id = current.product_registration_id;
       }

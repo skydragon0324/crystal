@@ -30,7 +30,8 @@
  *   catalog       11
  *   common        30
  *   company       2
- *   crm           16   (in i18n/crm.js)
+ *   crm           23   (in i18n/crm.js: one section per CRM screen, plus
+ *                        common and components; its words are vocabulary.crm)
  *   components    31
  *   dashboard     14
  *   datepicker    5

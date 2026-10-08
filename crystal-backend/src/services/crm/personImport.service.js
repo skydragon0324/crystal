@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const intake = require('./registrationIntake.service');
 
 const db = require('../../config/db');
-const vocabulary = require('../../repositories/crm/vocabulary.repository');
+const identityProjects = require('./identityProjects');
 const duplicates = require('./personDuplicates');
 const locations = require('./locations');
 const rules = require('./personRules');
@@ -15,7 +15,8 @@ const { HttpError } = require('../../utils/response');
  * import rechecks under the same lock as project and console registration.
  *
  * Phase 1 loads only complete people who already have an e-shop account and
- * a user-management (PLATFORM) account. The sheet's e-shop PK/ID and user
+ * a user-management account (the projects given the E-shop and User management
+ * roles in Settings > Projects). The sheet's e-shop PK/ID and user
  * PK/ID are not trusted enough for crm_project_account: they are kept with
  * the registration and, once the person is resolved, staged as identifier
  * assignments an administrator verifies or rejects.
@@ -39,9 +40,9 @@ const COLUMNS = [
     aliases: ['eshop pk', 'eshop user pk'] },
   { key: 'eshop_id', header: 'E-shop ID', required: true, width: 18, note: 'The customer\'s login (user ID) in the e-shop. Kept as an unverified identifier.',
     aliases: ['eshop id', 'eshop login', 'eshop user id'] },
-  { key: 'user_pk', header: 'User PK', required: true, width: 14, note: 'The customer\'s user_pk in the user management system (PLATFORM, a number). Kept as an unverified identifier.',
+  { key: 'user_pk', header: 'User PK', required: true, width: 14, note: 'The customer\'s user_pk in the user management system (a number). Kept as an unverified identifier.',
     aliases: ['user_pk', 'platform pk', 'platform user pk'] },
-  { key: 'user_id', header: 'User ID', required: true, width: 18, note: 'The customer\'s user_id (login) in the user management system (PLATFORM). Kept as an unverified identifier.',
+  { key: 'user_id', header: 'User ID', required: true, width: 18, note: 'The customer\'s user_id (login) in the user management system. Kept as an unverified identifier.',
     aliases: ['user_id', 'platform id', 'platform user id', 'platform login'] },
   { key: 'full_name', header: 'Full name', required: true, width: 24, aliases: ['name'] },
   { key: 'gender', header: 'Gender', required: true, width: 10, note: 'M or F' },
@@ -147,7 +148,7 @@ async function loadLookups(originProjectId) {
   let defaultProject = null;
   if (originProjectId !== undefined && originProjectId !== null && originProjectId !== '') {
     defaultProject = projectByKey[String(originProjectId)];
-    if (!defaultProject || String(defaultProject.project_id) !== String(originProjectId)) throw new HttpError(400, 'crm.chooseAnActiveOriginProject');
+    if (!defaultProject || String(defaultProject.project_id) !== String(originProjectId)) throw new HttpError(400, 'crm.customerImport.chooseAnActiveOriginProject');
   }
 
   return { jobById: jobById, locationById: locationById, projectByKey: projectByKey, defaultProject: defaultProject };
@@ -171,11 +172,11 @@ async function readRows(buffer) {
   try {
     await book.xlsx.load(buffer);
   } catch (err) {
-    throw new HttpError(400, 'crm.thisIsNotAnExcelFile');
+    throw new HttpError(400, 'crm.common.thisIsNotAnExcelFile');
   }
 
   const sheet = book.worksheets[0];
-  if (!sheet) throw new HttpError(400, 'crm.theFileHasNoSheet');
+  if (!sheet) throw new HttpError(400, 'crm.customerImport.theFileHasNoSheet');
 
   const headerRow = sheet.getRow(1);
   const positions = {};
@@ -189,7 +190,7 @@ async function readRows(buffer) {
 
   const missing = COLUMNS.filter(function (column) { return column.required && positions[column.key] === undefined; });
   if (missing.length) {
-    throw new HttpError(400, 'crm.requiredColumnsAreMissing', missing.map(function (column) { return column.header; }));
+    throw new HttpError(400, 'crm.customerImport.requiredColumnsAreMissing', missing.map(function (column) { return column.header; }));
   }
 
   const rows = [];
@@ -204,8 +205,8 @@ async function readRows(buffer) {
     if (!blank) rows.push(record);
   });
 
-  if (!rows.length) throw new HttpError(400, 'crm.theFileHasNoRows');
-  if (rows.length > MAX_ROWS) throw new HttpError(400, 'crm.tooManyRows', null, { max: MAX_ROWS });
+  if (!rows.length) throw new HttpError(400, 'crm.customerImport.theFileHasNoRows');
+  if (rows.length > MAX_ROWS) throw new HttpError(400, 'crm.customerImport.tooManyRows', null, { max: MAX_ROWS });
   return rows;
 }
 
@@ -314,8 +315,8 @@ function unverifiedAccounts(values, projects) {
   return [
     { project_id: projects.eshop, external_account_id: values.eshop_pk, external_login: values.eshop_id,
       external_account_type: 'ESHOP_CUSTOMER', source: 'EXCEL_IMPORT' },
-    { project_id: projects.platform, external_account_id: values.user_pk, external_login: values.user_id,
-      external_account_type: 'PLATFORM_USER', source: 'EXCEL_IMPORT' }
+    { project_id: projects.user, external_account_id: values.user_pk, external_login: values.user_id,
+      external_account_type: 'USER_ACCOUNT', source: 'EXCEL_IMPORT' }
   ];
 }
 
@@ -337,7 +338,23 @@ async function preview(buffer, options) {
  const lookups = await loadLookups((options || {}).origin_project_id);
  const checkedRows = addEshopConflicts(records.map(record => checkRow(record, lookups)), records);
  const context = await intake.candidateContext(db, checkedRows.filter(row => !row.errors.length).map(row => row.values), EXCEL_SCORING);
+ /*
+  * EARLIER ROWS AS THE IMPORT WILL HAVE LEFT THEM, so the check says what the
+  * import will do. A NEW row is a customer; a DUPLICATE row is part of the
+  * customer it matched (its phones and user_pk are added to that one entry);
+  * a REVIEW row is a pending registration, which a later row can only join by
+  * review. One index entry per resulting person, keyed by its first row.
+  */
  const earlier = duplicates.createIndex();
+ const entries = new Map();
+ const remember = (key, values) => { entries.set(key, values); earlier.set(key, values); };
+ const absorb = (key, values) => {
+  const target = entries.get(key);
+  remember(key, Object.assign({}, target, {
+   contacts: (target.contacts || []).concat([{ contact_type: 'MOBILE', contact_value: values.mobile }]),
+   user_pks: Array.from(new Set((target.user_pks || []).concat(duplicates.userPks(values))))
+  }));
+ };
  const rows = [];
  for (let index = 0; index < records.length; index += 1) {
   const record = records[index];
@@ -348,14 +365,22 @@ async function preview(buffer, options) {
    const found = await intake.candidates(db, checked.values, context);
    earlier.find(checked.values).forEach(other => {
     const match = duplicates.score(checked.values, other, EXCEL_SCORING);
-    if (match.score >= duplicates.REVIEW_FROM) found.push(Object.assign({ row_number: other.row_number }, match));
+    if (match.score < duplicates.REVIEW_FROM) return;
+    // A row merged into a customer on file stands for that customer, not for a second person.
+    if (other.party_pk) { if (!found.some(row => String(row.party_pk) === String(other.party_pk))) found.push(Object.assign({ party_pk: other.party_pk, display_name: other.full_name }, match)); return; }
+    found.push(Object.assign({ row_number: other.row_number, pending: other.pending }, match));
    });
    found.sort((a,b) => b.score-a.score);
    result.similar = found;
    const strong = found.filter(r => r.score >= duplicates.MERGE_FROM);
-   result.status = strong.length === 1 && !strong[0].intake_id ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
+   // A strong match with a pending registration (on file, or a row going to review) is decided by review.
+   result.status = strong.length === 1 && !strong[0].intake_id && !strong[0].pending ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
    if (found.length && found[0].row_number) result.duplicate_of_row = found[0].row_number;
-   earlier.set(record.row_number, Object.assign({}, checked.values, { row_number: record.row_number }));
+   const key = 'row:' + record.row_number;
+   if (result.status === 'DUPLICATE' && strong[0].row_number) absorb('row:' + strong[0].row_number, checked.values);
+   else if (result.status === 'DUPLICATE' && entries.has('party:' + strong[0].party_pk)) absorb('party:' + strong[0].party_pk, checked.values);
+   else if (result.status === 'DUPLICATE') remember('party:' + strong[0].party_pk, Object.assign({}, checked.values, { party_pk: strong[0].party_pk }));
+   else remember(key, Object.assign({}, checked.values, { row_number: record.row_number, pending: result.status === 'REVIEW' }));
   }
   rows.push(result);
  }
@@ -375,9 +400,12 @@ async function importPeople(buffer, actor, options) {
  }) };
  const valid = report.rows.filter(r => r.status !== 'ERROR');
  const failed = report.rows.filter(r => r.status === 'ERROR');
- const projects = { eshop: await vocabulary.idOf('crm_project', 'ESHOP'), platform: await vocabulary.idOf('crm_project', 'PLATFORM') };
- if (!projects.eshop) throw new HttpError(409, 'The ESHOP project is missing from the project list');
- if (!projects.platform) throw new HttpError(409, 'The PLATFORM project is missing from the project list');
+ // The projects the E-shop and User columns belong to are the ones given those roles in Settings > Projects.
+ const eshopProject = await identityProjects.byRole('ESHOP');
+ const userProject = await identityProjects.byRole('USER_MANAGEMENT');
+ if (!eshopProject) throw new HttpError(409, 'crm.customerImport.noEshopProject');
+ if (!userProject) throw new HttpError(409, 'crm.customerImport.noUserManagementProject');
+ const projects = { eshop: eshopProject.project_id, user: userProject.project_id };
  const batch = crypto.createHash('sha256').update(buffer).digest('hex');
  await transaction(async trx => {
   await intake.lock(trx);

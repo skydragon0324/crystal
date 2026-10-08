@@ -69,21 +69,21 @@ export function useRowSearch(rows, columns, always) {
     <Flex mb={2} gap="0.5rem" data-gap="8" data-gap-wrap wrap="wrap" align="center">
       <InputGroup size="sm" maxW="16rem">
         <InputLeftElement pointerEvents="none"><Icon as={Md.MdSearch} color={surface.muted} /></InputLeftElement>
-        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={translate('crm.ui.searchThese')}
-          aria-label={translate('crm.ui.searchThese')} borderRadius="md" />
+        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={translate('crm.customer360Cards.searchThese')}
+          aria-label={translate('crm.customer360Cards.searchThese')} borderRadius="md" />
       </InputGroup>
       {filterColumns.map((column) => {
         const values = Array.from(new Set(list.map((row) => filterValue(column, row)).filter(Boolean))).sort();
         return (
           <Select key={column.key} size="sm" maxW="12rem" borderRadius="md" value={chosen[column.key] || ''}
-            aria-label={translate('crm.ui.filterBy', { column: translate(column.label) })}
+            aria-label={translate('crm.customer360Cards.filterBy', { column: translate(column.label) })}
             onChange={(event) => setChosen(Object.assign({}, chosen, { [column.key]: event.target.value }))}>
-            <option value="">{translate(column.label)}: {translate('crm.ui.allValues')}</option>
+            <option value="">{translate(column.label)}: {translate('crm.customer360Cards.allValues')}</option>
             {values.map((value) => <option key={value} value={value}>{word(translate, value)}</option>)}
           </Select>
         );
       })}
-      <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.ui.shownOf', { shown: shown.length, total: list.length })}</Text>
+      <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.customer360Cards.shownOf', { shown: shown.length, total: list.length })}</Text>
     </Flex>
   ) : null;
 
@@ -94,12 +94,12 @@ export function MiniTable({ columns, rows, rowKey, onRowClick, empty, maxH = '24
   const translate = useT();
   const surface = useSurface();
   const { shown, searchable, bar } = useRowSearch(rows, columns);
-  if (!rows || !rows.length) return <Empty360>{translate(empty || 'crm.ui.nothingYet')}</Empty360>;
+  if (!rows || !rows.length) return <Empty360>{translate(empty || 'crm.common.nothingYet')}</Empty360>;
 
   return (
     <Box>
       {bar}
-      {!shown.length ? <Empty360>{translate('crm.ui.noMatches')}</Empty360> : (
+      {!shown.length ? <Empty360>{translate('crm.customer360.noMatches')}</Empty360> : (
     <Box overflow="auto" maxH={maxH} borderWidth={searchable ? '1px' : 0} borderColor={surface.border} borderRadius="md">
       <Table size="sm" variant="simple">
         <Thead position="sticky" top={0} zIndex={1} bg={surface.card}>
@@ -152,7 +152,7 @@ export function ChannelLabel({ code }) {
 export function AccountsCard({ view, onViewAll, title, icon, action }) {
   const translate = useT();
   return (
-    <Card360 icon={icon || Md.MdPersonOutline} title={title || translate('crm.c360.identityAndAccounts')} onViewAll={onViewAll} action={action}>
+    <Card360 icon={icon || Md.MdPersonOutline} title={title || translate('crm.customer360Cards.identityAndAccounts')} onViewAll={onViewAll} action={action}>
       <MiniTable
         rows={(view.accounts || []).slice(0, 6)}
         rowKey={(row) => row.project_code + ':' + (row.project_account_id || 'none')}
@@ -172,12 +172,12 @@ export function RecentOrdersCard({ view, onViewAll }) {
   const translate = useT();
   const peek = usePeek();
   return (
-    <Card360 icon={Md.MdReceipt} title={translate('crm.c360.recentOrders')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Cards.recentOrders')} onViewAll={onViewAll}>
       <MiniTable
         rows={view.recent_orders || []}
         rowKey={(row) => row.transaction_id}
         onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
-        empty="crm.customer.noPurchases"
+        empty="crm.customer360.noPurchases"
         columns={[
           { key: 'external_transaction_id', label: 'Order number', maxW: '10rem',
             render: (row) => <Text as="span" color="brand.500" fontWeight="600" noOfLines={1}>{row.external_transaction_id}</Text> },
@@ -195,7 +195,7 @@ export function ProductsCard({ view, onViewAll, title }) {
   const translate = useT();
   const peek = usePeek();
   return (
-    <Card360 icon={Md.MdDevicesOther} title={title || translate('crm.c360.products')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdDevicesOther} title={title || translate('crm.customer360Cards.products')} onViewAll={onViewAll}>
       <MiniTable
         rows={view.products || []}
         rowKey={(row) => row.product_registration_id}
@@ -225,29 +225,29 @@ export function ServiceSummaryCard({ view, onViewAll, withRecentCases }) {
   const service = view.service || {};
   const monthly = service.monthly || [];
   return (
-    <Card360 icon={Md.MdHeadsetMic} title={translate('crm.c360.serviceSummary')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdHeadsetMic} title={translate('crm.customer360Cards.serviceSummary')} onViewAll={onViewAll}>
       <SimpleGrid columns={3} spacing={2}>
-        <Tile label={translate('crm.c360.totalInteractions')} value={number(service.total_interactions)}
+        <Tile label={translate('crm.customer360Cards.totalInteractions')} value={number(service.total_interactions)}
           chart={<MiniBars values={monthly.map((month) => month.opened)} color="brand.300" />} />
-        <Tile label={translate('crm.c360.openCases')} value={number(service.open_cases)} tone={service.open_cases ? 'red' : null}
+        <Tile label={translate('crm.customer360.openCases')} value={number(service.open_cases)} tone={service.open_cases ? 'red' : null}
           chart={<MiniBars values={monthly.map((month) => Math.max(0, month.opened - month.resolved))} color="red.300" />} />
-        <Tile label={translate('crm.c360.resolvedCases')} value={number(service.resolved_cases)} tone="green"
+        <Tile label={translate('crm.customer360Cards.resolvedCases')} value={number(service.resolved_cases)} tone="green"
           chart={<MiniBars values={monthly.map((month) => month.resolved)} color="green.300" />} />
-        <Tile label={translate('crm.c360.avgResponseTime')}
-          value={service.avg_response_hours === null || service.avg_response_hours === undefined ? null : translate('crm.c360.hours', { n: number(service.avg_response_hours, 1) })} />
-        <Tile label={translate('crm.c360.avgResolutionTime')}
-          value={service.avg_resolution_days === null || service.avg_resolution_days === undefined ? null : translate('crm.c360.days', { n: number(service.avg_resolution_days, 1) })} />
-        <Tile label={translate('crm.c360.csat')} tone="green"
+        <Tile label={translate('crm.customer360Cards.avgResponseTime')}
+          value={service.avg_response_hours === null || service.avg_response_hours === undefined ? null : translate('crm.customer360Cards.hours', { n: number(service.avg_response_hours, 1) })} />
+        <Tile label={translate('crm.customer360Cards.avgResolutionTime')}
+          value={service.avg_resolution_days === null || service.avg_resolution_days === undefined ? null : translate('crm.customer360Cards.days', { n: number(service.avg_resolution_days, 1) })} />
+        <Tile label={translate('crm.customer360Cards.csat')} tone="green"
           value={service.csat === null || service.csat === undefined ? null : number(service.csat, 1) + ' / 5.0'} />
       </SimpleGrid>
       {withRecentCases ? (
         <Box mt={3}>
-          <Text fontSize="sm" fontWeight="700" mb={1}>{translate('crm.c360.recentCases')}</Text>
+          <Text fontSize="sm" fontWeight="700" mb={1}>{translate('crm.customer360Cards.recentCases')}</Text>
           <MiniTable
             rows={service.recent_cases || []}
             rowKey={(row) => row.case_id}
             onRowClick={(row) => peek('CASE', row.case_id)}
-            empty="crm.customer.noCases"
+            empty="crm.customer360.noCases"
             columns={[
               { key: 'external_case_id', label: 'Case', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_case_id || '#' + row.case_id}</Text> },
               { key: 'received_at', label: 'Date', render: (row) => date(row.received_at) },
@@ -270,11 +270,11 @@ export function ValueMetricsCard({ view, onViewAll }) {
   const value = view.value || {};
   const rfm = view.rfm;
   return (
-    <Card360 icon={Md.MdDonutLarge} title={translate('crm.c360.customerValue')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdDonutLarge} title={translate('crm.customer360Cards.customerValue')} onViewAll={onViewAll}>
       <Grid templateColumns="minmax(0, 1.3fr) minmax(0, 1fr)" gridGap={3}>
         <Stack spacing={3}>
           <Box>
-            <Text fontSize="xs" color={surface.muted}>{translate('crm.c360.lifetimeValue')}</Text>
+            <Text fontSize="xs" color={surface.muted}>{translate('crm.customer360Cards.lifetimeValue')}</Text>
             <HStack spacing={2} align="center">
               <Text fontSize="xl" fontWeight="800" style={{ fontVariantNumeric: 'tabular-nums' }}>{money(value.lifetime_value)}</Text>
               <TrendBadge value={value.spend_trend_pct} />
@@ -282,30 +282,30 @@ export function ValueMetricsCard({ view, onViewAll }) {
             <Sparkline values={(value.monthly || []).map((month) => month.amount)} />
           </Box>
           <Box>
-            <Text fontSize="xs" color={surface.muted}>{translate('crm.c360.avgOrderValue')}</Text>
+            <Text fontSize="xs" color={surface.muted}>{translate('crm.customer360Cards.avgOrderValue')}</Text>
             <HStack spacing={2}>
               <Text fontSize="lg" fontWeight="800">{value.average_order_value === null || value.average_order_value === undefined ? '-' : money(value.average_order_value)}</Text>
               <TrendBadge value={value.average_order_trend_pct} />
             </HStack>
           </Box>
           <Box>
-            <Text fontSize="xs" color={surface.muted}>{translate('crm.c360.purchaseFrequency')}</Text>
+            <Text fontSize="xs" color={surface.muted}>{translate('crm.customer360Cards.purchaseFrequency')}</Text>
             <HStack spacing={2}>
               <Text fontSize="lg" fontWeight="800">
                 {value.purchase_frequency_per_year === null || value.purchase_frequency_per_year === undefined
-                  ? '-' : translate('crm.c360.perYear', { n: number(value.purchase_frequency_per_year, 1) })}
+                  ? '-' : translate('crm.customer360Cards.perYear', { n: number(value.purchase_frequency_per_year, 1) })}
               </Text>
               <TrendBadge value={value.frequency_trend_pct} />
             </HStack>
           </Box>
         </Stack>
         <Box borderWidth="1px" borderColor={surface.border} borderRadius="lg" p={3}>
-          <Text fontSize="xs" color={surface.muted} mb={2}>{translate('crm.c360.rfmScore')}</Text>
+          <Text fontSize="xs" color={surface.muted} mb={2}>{translate('crm.customer360.rfmScore')}</Text>
           {rfm ? (
             <Flex align="center" wrap="wrap">
               <RfmHexagon score={rfm.score} />
               <Stack spacing={1.5} ml={3} fontSize="xs" flex="1" minW="5rem">
-                {[['crm.c360.recency', rfm.recency], ['crm.c360.frequency', rfm.frequency], ['crm.c360.monetary', rfm.monetary]].map((part) => (
+                {[['crm.customer360.recency', rfm.recency], ['crm.customer360.frequency', rfm.frequency], ['crm.customer360.monetary', rfm.monetary]].map((part) => (
                   <Flex key={part[0]} justify="space-between">
                     <Text color={surface.muted}>{translate(part[0])}</Text>
                     <Text fontWeight="700">{number(part[1])}</Text>
@@ -313,7 +313,7 @@ export function ValueMetricsCard({ view, onViewAll }) {
                 ))}
               </Stack>
             </Flex>
-          ) : <Empty360>{translate('crm.ui.notGradedYet')}</Empty360>}
+          ) : <Empty360>{translate('crm.common.notGradedYet')}</Empty360>}
         </Box>
       </Grid>
     </Card360>
@@ -329,37 +329,38 @@ export function ContactPointsCard({ view, record, onManage }) {
   const consentRow = (channel) => (
     <Flex key={channel.channel_code} justify="space-between" align="center" py={0.5}>
       <ChannelLabel code={channel.channel_code} />
-      <Pill code={channel.granted ? 'YES' : 'NO'}>{channel.granted ? translate('common.yes') : translate('crm.c360.no')}</Pill>
+      <Pill code={channel.granted ? 'YES' : 'NO'}>{channel.granted ? translate('common.yes') : translate('crm.customer360Cards.no')}</Pill>
     </Flex>
   );
   const channels = reach.consent_by_channel || [];
   return (
-    <Card360 icon={Md.MdContactPhone} title={translate('crm.c360.contactPoints')}
-      action={onManage ? <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onManage}>{translate('crm.c360.manage')}</Button> : null}>
+    <Card360 icon={Md.MdContactPhone} title={translate('crm.customer360.contactPoints')}
+      action={onManage ? <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onManage}>{translate('crm.customer360Cards.manage')}</Button> : null}>
       <Stack spacing={2.5} fontSize="sm">
+        {/* One line per email and per phone - all of them, primary first; a dash when there is none. */}
         {[
-          { icon: Md.MdMailOutline, caption: translate('crm.c360.email'), contact: reach.email },
-          { icon: Md.MdPhone, caption: translate('crm.c360.phone'), contact: reach.phone }
-        ].map((line) => (
-          <Flex key={line.caption} align="center">
-            <Icon as={line.icon} color={surface.muted} mr={2} />
-            <Text color={surface.muted} w="5.5rem" flexShrink={0}>{line.caption}</Text>
-            <Text flex="1" minW={0} noOfLines={1}>{line.contact ? line.contact.contact_value : '-'}</Text>
-            {line.contact && line.contact.is_primary ? <Pill code="PRIMARY" /> : null}
+          { icon: Md.MdMailOutline, caption: translate('crm.customer360Cards.email'), contacts: reach.emails || (reach.email ? [reach.email] : []) },
+          { icon: Md.MdPhone, caption: translate('crm.customer360Cards.phone'), contacts: reach.phones || (reach.phone ? [reach.phone] : []) }
+        ].map((line) => (line.contacts.length ? line.contacts : [null]).map((contact, index) => (
+          <Flex key={line.caption + ':' + (contact ? contact.contact_point_id || contact.contact_value : 'none')} align="center">
+            <Icon as={line.icon} color={surface.muted} mr={2} visibility={index ? 'hidden' : 'visible'} />
+            <Text color={surface.muted} w="5.5rem" flexShrink={0}>{index ? '' : line.caption}</Text>
+            <Text flex="1" minW={0} noOfLines={1}>{contact ? contact.contact_value : '-'}</Text>
+            {contact && contact.is_primary ? <Pill code="PRIMARY" /> : null}
           </Flex>
-        ))}
+        )))}
         <Flex align="flex-start">
           <Icon as={Md.MdPlace} color={surface.muted} mr={2} mt={0.5} />
-          <Text color={surface.muted} w="5.5rem" flexShrink={0}>{translate('crm.c360.address')}</Text>
+          <Text color={surface.muted} w="5.5rem" flexShrink={0}>{translate('crm.customer360Cards.address')}</Text>
           <Text flex="1" minW={0}>{address || '-'}</Text>
         </Flex>
         <Flex align="center">
           <Icon as={Md.MdStarBorder} color={surface.muted} mr={2} />
-          <Text color={surface.muted} w="9rem" flexShrink={0}>{translate('crm.c360.preferredContact')}</Text>
+          <Text color={surface.muted} w="9rem" flexShrink={0}>{translate('crm.customer360Cards.preferredContact')}</Text>
           <Text>{reach.preferred_channel ? word(translate, reach.preferred_channel) : '-'}</Text>
         </Flex>
         <Box>
-          <Text color={surface.muted} mb={1}>{translate('crm.c360.communicationConsent')}</Text>
+          <Text color={surface.muted} mb={1}>{translate('crm.customer360Cards.communicationConsent')}</Text>
           <SimpleGrid columns={2} spacingX={4}>{channels.map(consentRow)}</SimpleGrid>
         </Box>
       </Stack>
@@ -370,12 +371,12 @@ export function ContactPointsCard({ view, record, onManage }) {
 export function InteractionsCard({ view, onViewAll, onLog }) {
   const translate = useT();
   return (
-    <Card360 icon={Md.MdForum} title={translate('crm.c360.recentInteractions')} onViewAll={onViewAll}
-      action={onLog ? <Button size="xs" variant="ghost" leftIcon={<Icon as={Md.MdAdd} />} onClick={onLog}>{translate('crm.c360.log')}</Button> : null}>
+    <Card360 icon={Md.MdForum} title={translate('crm.customer360Cards.recentInteractions')} onViewAll={onViewAll}
+      action={onLog ? <Button size="xs" variant="ghost" leftIcon={<Icon as={Md.MdAdd} />} onClick={onLog}>{translate('crm.customer360Cards.log')}</Button> : null}>
       <MiniTable
         rows={view.interactions || []}
         rowKey={(row) => row.interaction_id}
-        empty="crm.c360.noInteractions"
+        empty="crm.customer360.noInteractions"
         columns={[
           { key: 'occurred_at', label: 'Date', render: (row) => date(row.occurred_at) },
           { key: 'channel_code', label: 'Channel', render: (row) => <ChannelLabel code={row.channel_code} /> },
@@ -396,8 +397,8 @@ export function MarketingCard({ view, onViewAll }) {
   const segments = view.segments || [];
   const shown = segments.slice(0, 4);
   return (
-    <Card360 icon={Md.MdRecordVoiceOver} title={translate('crm.c360.marketingAndCampaigns')} onViewAll={onViewAll}>
-      <Text fontSize="sm" fontWeight="700" mb={1}>{translate('crm.c360.recentCampaigns')}</Text>
+    <Card360 icon={Md.MdRecordVoiceOver} title={translate('crm.customer360Cards.marketingAndCampaigns')} onViewAll={onViewAll}>
+      <Text fontSize="sm" fontWeight="700" mb={1}>{translate('crm.customer360Cards.recentCampaigns')}</Text>
       {(view.campaigns || []).length ? (
         <Stack spacing={1.5} mb={3}>
           {view.campaigns.slice(0, 4).map((campaign) => (
@@ -409,14 +410,14 @@ export function MarketingCard({ view, onViewAll }) {
             </Grid>
           ))}
         </Stack>
-      ) : <Empty360>{translate('crm.c360.noCampaignsYet')}</Empty360>}
-      <Text fontSize="sm" fontWeight="700" mb={1.5}>{translate('crm.c360.segmentMemberships')}</Text>
+      ) : <Empty360>{translate('crm.customer360.noCampaignsYet')}</Empty360>}
+      <Text fontSize="sm" fontWeight="700" mb={1.5}>{translate('crm.customer360Cards.segmentMemberships')}</Text>
       {segments.length ? (
         <Wrap spacing={1.5}>
           {shown.map((segment) => <WrapItem key={segment.segment_id}><Pill tone="green">{segment.segment_name}</Pill></WrapItem>)}
-          {segments.length > shown.length ? <WrapItem><Pill tone="gray">{translate('crm.c360.nMore', { n: segments.length - shown.length })}</Pill></WrapItem> : null}
+          {segments.length > shown.length ? <WrapItem><Pill tone="gray">{translate('crm.customer360Cards.nMore', { n: segments.length - shown.length })}</Pill></WrapItem> : null}
         </Wrap>
-      ) : <Empty360>{translate('crm.customer.inNoSegment')}</Empty360>}
+      ) : <Empty360>{translate('crm.customer360.inNoSegment')}</Empty360>}
     </Card360>
   );
 }
@@ -425,12 +426,12 @@ export function RelatedPartiesCard({ view, onViewAll }) {
   const translate = useT();
   const history = useHistory();
   return (
-    <Card360 icon={Md.MdPeopleOutline} title={translate('crm.c360.relatedParties')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdPeopleOutline} title={translate('crm.customer360Cards.relatedParties')} onViewAll={onViewAll}>
       <MiniTable
         rows={(view.relationships || []).filter((row) => row.status === 'ACTIVE').slice(0, 5)}
         rowKey={(row) => String(row.party_relationship_id) + row.side}
         onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
-        empty="crm.c360.noRelatedParties"
+        empty="crm.customer360.noRelatedParties"
         columns={[
           { key: 'other_name', label: 'Name',
             render: (row) => <HStack spacing={2}><Initials name={row.other_name} color={row.other_party_type === 'ORGANIZATION' ? 'teal' : 'brand'} /><Text as="span" noOfLines={1}>{row.other_name}</Text></HStack> },
@@ -447,7 +448,7 @@ export function NotesCard({ view, onViewAll }) {
   const surface = useSurface();
   const notes = view.notes || [];
   return (
-    <Card360 icon={Md.MdNote} title={translate('crm.c360.notes')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdNote} title={translate('crm.customer360.notes')} onViewAll={onViewAll}>
       {notes.length ? (
         <Stack spacing={2}>
           {notes.map((note) => (
@@ -458,7 +459,7 @@ export function NotesCard({ view, onViewAll }) {
             </Grid>
           ))}
         </Stack>
-      ) : <Empty360>{translate('crm.c360.noNotes')}</Empty360>}
+      ) : <Empty360>{translate('crm.customer360.noNotes')}</Empty360>}
     </Card360>
   );
 }
@@ -483,7 +484,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
   const history = useHistory();
   const [more, setMore] = useState(false);
   return (
-    <Card360 icon={Md.MdBusiness} title={translate('crm.c360.organizationInformation')}
+    <Card360 icon={Md.MdBusiness} title={translate('crm.customer360Cards.organizationInformation')}
       action={onEdit ? <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onEdit}>{translate('common.edit')}</Button> : null}>
       <Facts360 rows={[
         { label: 'Legal name', value: profile.legal_name },
@@ -502,7 +503,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
           <Box>
             <Collapse startingHeight="2.6rem" in={more}><Text fontSize="sm">{profile.description}</Text></Collapse>
             {profile.description.length > 90 ? (
-              <Button size="xs" variant="link" colorScheme="brand" mt={1} onClick={() => setMore(!more)}>{translate(more ? 'crm.c360.showLess' : 'crm.c360.showMore')}</Button>
+              <Button size="xs" variant="link" colorScheme="brand" mt={1} onClick={() => setMore(!more)}>{translate(more ? 'crm.customer360.showLess' : 'crm.customer360.showMore')}</Button>
             ) : null}
           </Box>
         ) : null }
@@ -517,20 +518,20 @@ export function KeyMetricsCard({ view, onViewAll }) {
   const header = view.header || {};
   const service = view.service || {};
   return (
-    <Card360 icon={Md.MdInsertChart} title={translate('crm.c360.keyMetrics')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdInsertChart} title={translate('crm.customer360Cards.keyMetrics')} onViewAll={onViewAll}>
       <SimpleGrid columns={3} spacing={2} mb={2}>
-        <Tile label={translate('crm.c360.annualSpend')} value={money(value.spend_12m)} trend={value.spend_trend_pct}
+        <Tile label={translate('crm.customer360Cards.annualSpend')} value={money(value.spend_12m)} trend={value.spend_trend_pct}
           chart={<MiniBars values={(value.monthly || []).map((month) => month.amount)} />} />
-        <Tile label={translate('crm.c360.lifetimeSpend')} value={money(value.lifetime_value)}
+        <Tile label={translate('crm.customer360Cards.lifetimeSpend')} value={money(value.lifetime_value)}
           chart={<MiniBars values={(value.yearly || []).map((year) => year.amount)} />} />
-        <Tile label={translate('crm.c360.orders24m')} value={number(value.orders_24m)} trend={value.orders_24m_trend_pct}
+        <Tile label={translate('crm.customer360Cards.orders24m')} value={number(value.orders_24m)} trend={value.orders_24m_trend_pct}
           chart={<MiniBars values={(value.monthly || []).map((month) => month.amount)} color="green.300" />} />
       </SimpleGrid>
       <SimpleGrid columns={4} spacing={2}>
-        <Tile label={translate('crm.c360.activeProjects')} value={number(view.projects_active) + ' / ' + number(view.projects_total)} />
-        <Tile label={translate('crm.c360.activeProducts')} value={number(header.products_registered)} />
-        <Tile label={translate('crm.c360.openCases')} value={number(header.open_cases)} tone={header.open_cases ? 'red' : null} />
-        <Tile label={translate('crm.c360.csatOrg')} tone="green" value={service.csat === null || service.csat === undefined ? null : number(service.csat, 1) + ' / 5.0'} />
+        <Tile label={translate('crm.customer360Cards.activeProjects')} value={number(view.projects_active) + ' / ' + number(view.projects_total)} />
+        <Tile label={translate('crm.customer360Cards.activeProducts')} value={number(header.products_registered)} />
+        <Tile label={translate('crm.customer360.openCases')} value={number(header.open_cases)} tone={header.open_cases ? 'red' : null} />
+        <Tile label={translate('crm.customer360Cards.csatOrg')} tone="green" value={service.csat === null || service.csat === undefined ? null : number(service.csat, 1) + ' / 5.0'} />
       </SimpleGrid>
     </Card360>
   );
@@ -547,7 +548,7 @@ export function RelationshipOwnershipCard({ view, onEdit }) {
   const renewalDays = agreement && agreement.renewal_date
     ? Math.ceil((new Date(agreement.renewal_date).getTime() - Date.now()) / 86400000) : null;
   return (
-    <Card360 icon={Md.MdPeople} title={translate('crm.c360.relationshipAndOwnership')}
+    <Card360 icon={Md.MdPeople} title={translate('crm.customer360Cards.relationshipAndOwnership')}
       action={onEdit ? <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onEdit}>{translate('common.edit')}</Button> : null}>
       <Facts360 rows={[
         { label: 'Relationship type', value: (view.organization_types || []).map((type) => translate(type.type_name)).join(', ') },
@@ -559,7 +560,7 @@ export function RelationshipOwnershipCard({ view, onEdit }) {
         { label: 'Contract end', value: agreement ? date(agreement.end_date) : null },
         { label: 'Status', value: agreement ? <Pill code={agreement.status} /> : null },
         { label: 'Next renewal', value: agreement && agreement.renewal_date
-          ? date(agreement.renewal_date) + (renewalDays !== null && renewalDays >= 0 ? '  ' + translate('crm.c360.inDays', { n: renewalDays }) : '') : null }
+          ? date(agreement.renewal_date) + (renewalDays !== null && renewalDays >= 0 ? '  ' + translate('crm.customer360Cards.inDays', { n: renewalDays }) : '') : null }
       ]} />
     </Card360>
   );
@@ -571,8 +572,8 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
   const history = useHistory();
   const contacts = view.key_contacts || [];
   return (
-    <Card360 icon={Md.MdPersonOutline} title={translate('crm.c360.keyContacts')} onViewAll={onViewAll}
-      action={onLink ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={onLink}>{translate('crm.c360.linkContact')}</Button> : null}>
+    <Card360 icon={Md.MdPersonOutline} title={translate('crm.customer360Cards.keyContacts')} onViewAll={onViewAll}
+      action={onLink ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={onLink}>{translate('crm.customer360.linkContact')}</Button> : null}>
       {contacts.length ? (
         <Stack spacing={3}>
           {contacts.slice(0, 5).map((contact) => (
@@ -593,7 +594,7 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
             </Grid>
           ))}
         </Stack>
-      ) : <Empty360>{translate('crm.c360.noKeyContacts')}</Empty360>}
+      ) : <Empty360>{translate('crm.customer360Cards.noKeyContacts')}</Empty360>}
     </Card360>
   );
 }
@@ -617,28 +618,28 @@ export function HierarchyCard({ view, onViewAll }) {
         <Icon as={Md.MdBusiness} color="brand.500" mr={2} />
         <Text fontSize="sm" fontWeight="600" flex="1" noOfLines={1}>{node.display_name}</Text>
         <Pill tone={String(node.party_pk) === String(view.party_pk) ? 'green' : 'gray'}>
-          {String(node.party_pk) === String(view.party_pk) ? translate('crm.c360.thisCustomer') : translate(label)}
+          {String(node.party_pk) === String(view.party_pk) ? translate('crm.customer360Cards.thisCustomer') : translate(label)}
         </Pill>
       </Flex>
-      <Box pl={5}>{childrenOf(node.party_pk).map((child) => branch(child, 'crm.c360.subsidiary'))}</Box>
+      <Box pl={5}>{childrenOf(node.party_pk).map((child) => branch(child, 'crm.customer360Cards.subsidiary'))}</Box>
     </Box>
   );
 
   return (
-    <Card360 icon={Md.MdDeviceHub} title={translate('crm.c360.hierarchyAndRelated')} onViewAll={onViewAll}>
+    <Card360 icon={Md.MdDeviceHub} title={translate('crm.customer360Cards.hierarchyAndRelated')} onViewAll={onViewAll}>
       {root && (nodes.length > 1 || affiliates.length) ? (
         <Box>
-          {branch(root, 'crm.c360.groupCompany')}
+          {branch(root, 'crm.customer360Cards.groupCompany')}
           {affiliates.map((affiliate) => (
             <Flex key={'affiliate:' + affiliate.party_pk} align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" borderColor={surface.border} mb={1.5}
               ml={5} cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + affiliate.party_pk)}>
               <Icon as={Md.MdBusiness} color="gray.500" mr={2} />
               <Text fontSize="sm" flex="1" noOfLines={1}>{affiliate.display_name}</Text>
-              <Pill tone="gray">{translate('crm.c360.affiliate')}</Pill>
+              <Pill tone="gray">{translate('crm.customer360Cards.affiliate')}</Pill>
             </Flex>
           ))}
         </Box>
-      ) : <Empty360>{translate('crm.c360.notInAGroup')}</Empty360>}
+      ) : <Empty360>{translate('crm.customer360Cards.notInAGroup')}</Empty360>}
     </Card360>
   );
 }
@@ -653,7 +654,7 @@ export function KeySegments({ view }) {
   return (
     <Flex align="center" wrap="wrap">
       <Icon as={Md.MdGroupWork} color="brand.500" mr={2} />
-      <Text fontSize="sm" fontWeight="700" mr={3}>{translate('crm.c360.keySegments')}</Text>
+      <Text fontSize="sm" fontWeight="700" mr={3}>{translate('crm.customer360Cards.keySegments')}</Text>
       <Wrap spacing={1.5}>
         {shown.map((segment) => <WrapItem key={segment.segment_id}><Pill tone="green">{segment.segment_name}</Pill></WrapItem>)}
         {segments.length > shown.length ? <WrapItem><Pill tone="gray">{'+' + (segments.length - shown.length)}</Pill></WrapItem> : null}

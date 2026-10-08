@@ -40,9 +40,9 @@ export default function SiteActivity() {
     <Card bodyProps={false}>
       <Tabs isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
-          <Tab fontSize="sm">{translate('crm.activity.log')}</Tab>
-          <Tab fontSize="sm">{translate('crm.activity.events')}</Tab>
-          <Tab fontSize="sm">{translate('crm.activity.targets')}</Tab>
+          <Tab fontSize="sm">{translate('crm.siteActivity.log')}</Tab>
+          <Tab fontSize="sm">{translate('crm.siteActivity.events')}</Tab>
+          <Tab fontSize="sm">{translate('crm.siteActivity.targets')}</Tab>
         </TabList>
         <TabPanels>
           <TabPanel px={0}><Log /></TabPanel>
@@ -71,7 +71,7 @@ function Log() {
     setSaving(true);
     try {
       await crm.siteActivity.record(values);
-      toast({ title: translate('crm.activity.recorded'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.siteActivity.recorded'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
       return true;
@@ -85,8 +85,8 @@ function Log() {
 
   const reverse = async (row) => {
     const agreed = await confirm({
-      tone: 'danger', title: translate('crm.activity.reverse'), body: translate('crm.activity.reverseExplained'),
-      detail: translate(row.activity_name || '-') + '  ·  ' + (row.service_center_name || ''), confirmLabel: translate('crm.activity.reverse')
+      tone: 'danger', title: translate('crm.siteActivity.reverse'), body: translate('crm.siteActivity.reverseExplained'),
+      detail: translate(row.activity_name || '-') + '  ·  ' + (row.service_center_name || ''), confirmLabel: translate('crm.siteActivity.reverse')
     });
     if (!agreed) return;
     try {
@@ -113,7 +113,7 @@ function Log() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {translate('crm.activity.record')}
+            {translate('crm.siteActivity.record')}
           </Button>
         ) : null}
       />
@@ -138,7 +138,7 @@ function Log() {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.service_center_activity_id || row.id}
-          actions={canWrite ? [{ key: 'reverse', label: translate('crm.activity.reverse'), hidden: (row) => row.status !== 'COMPLETED', onClick: reverse }] : []}
+          actions={canWrite ? [{ key: 'reverse', label: translate('crm.siteActivity.reverse'), hidden: (row) => row.status !== 'COMPLETED', onClick: reverse }] : []}
           actionsIconOnly={false}
           storageKey={PAGE + '/log'}
         />
@@ -147,7 +147,7 @@ function Log() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={translate('crm.activity.record')}
+        title={translate('crm.siteActivity.record')}
         initial={{ quantity: 1, occurred_at: localInput(new Date()) }}
         onSubmit={record}
         saving={saving}
@@ -214,7 +214,7 @@ function Events() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={() => open(null)}>
-            {translate('crm.activity.planEvent')}
+            {translate('crm.siteActivity.planEvent')}
           </Button>
         ) : null}
       />
@@ -247,7 +247,7 @@ function Events() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={translate(editing ? 'crm.activity.editEvent' : 'crm.activity.planEvent')}
+        title={translate(editing ? 'crm.siteActivity.editEvent' : 'crm.siteActivity.planEvent')}
         initial={editing ? Object.assign({}, editing, {
           planned_start_at: localInput(editing.planned_start_at), planned_end_at: localInput(editing.planned_end_at),
           actual_start_at: localInput(editing.actual_start_at), actual_end_at: localInput(editing.actual_end_at)
@@ -307,7 +307,7 @@ function Targets() {
 
   const remove = async (row) => {
     const agreed = await confirm({
-      tone: 'danger', title: translate('crm.activity.removeTarget'), body: translate('crm.activity.removeTargetExplained'),
+      tone: 'danger', title: translate('crm.siteActivity.removeTarget'), body: translate('crm.siteActivity.removeTargetExplained'),
       detail: row.service_center_name, confirmLabel: translate('common.remove')
     });
     if (!agreed) return;
@@ -337,7 +337,7 @@ function Targets() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={() => open(null)}>
-            {translate('crm.activity.setTarget')}
+            {translate('crm.siteActivity.setTarget')}
           </Button>
         ) : null}
       />
@@ -378,7 +378,7 @@ function Targets() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={translate(editing ? 'crm.activity.editTarget' : 'crm.activity.setTarget')}
+        title={translate(editing ? 'crm.siteActivity.editTarget' : 'crm.siteActivity.setTarget')}
         initial={editing ? Object.assign({}, editing, {
           period_start: dateInput(editing.period_start), period_end: dateInput(editing.period_end)
         }) : {}}

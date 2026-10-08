@@ -48,24 +48,25 @@ const UNIQUE = {
    * The CRM's. The services check most of these first and say so with the
    * details; these are for the request that loses a race to one that did not.
    */
-  uq_crm_reg_one_owner: 'crm.someoneElseHoldsThisProduct',
-  uq_crm_reg_current: 'crm.thisCustomerAlreadyHoldsItThatWay',
-  uq_crm_reservation_id_card: 'crm.thisIdCardHasAnEntry',
-  uq_crm_transfer_open: 'crm.aRequestIsAlreadyOpen',
-  uq_crm_contact: 'crm.thisContactIsAlready',
-  uq_crm_target: 'crm.alreadyATarget',
-  uq_crm_project_account: 'crm.thatAccountIsAlreadyLinked',
-  uq_crm_instance_ext: 'crm.thatSerialIsAlreadyKnown',
-  uq_crm_product_code: 'crm.thatCodeIsTaken',
-  uq_crm_event_location: 'crm.thatSiteIsAlreadyInTheEvent',
-  uq_crm_event_quota: 'crm.thatQuotaAlreadyExists',
-  uq_crm_event_tier: 'crm.thatCodeIsTaken',
-  uq_crm_capability: 'crm.theSiteAlreadyHasThat',
-  uq_crm_loc_target: 'crm.thatTargetAlreadyExists',
-  uq_crm_segment_code: 'crm.thatCodeIsTaken',
-  uq_crm_campaign_code: 'crm.thatCodeIsTaken',
-  uq_crm_comm_option: 'crm.thatOptionAlreadyExists',
-  uq_crm_tier_code: 'crm.thatCodeIsTaken'
+  uq_crm_reg_one_owner: 'crm.products.someoneElseHoldsThisProduct',
+  uq_crm_reg_current: 'crm.products.thisCustomerAlreadyHoldsItThatWay',
+  uq_crm_reservation_id_card: 'crm.events.thisIdCardHasAnEntry',
+  uq_crm_transfer_open: 'crm.products.aRequestIsAlreadyOpen',
+  uq_crm_contact: 'crm.customers.thisContactIsAlready',
+  uq_crm_target: 'crm.events.alreadyATarget',
+  uq_crm_project_account: 'crm.customers.thatAccountIsAlreadyLinked',
+  uq_crm_instance_ext: 'crm.products.thatSerialIsAlreadyKnown',
+  uq_crm_product_code: 'crm.settings.thatCodeIsTaken',
+  uq_crm_event_location: 'crm.events.thatSiteIsAlreadyInTheEvent',
+  uq_crm_event_quota: 'crm.events.thatQuotaAlreadyExists',
+  uq_crm_event_tier: 'crm.settings.thatCodeIsTaken',
+  uq_crm_capability: 'crm.sites.theSiteAlreadyHasThat',
+  uq_crm_loc_target: 'crm.sites.thatTargetAlreadyExists',
+  uq_crm_project_identity_role: 'crm.settings.anotherProjectHasThatRole',
+  uq_crm_segment_code: 'crm.settings.thatCodeIsTaken',
+  uq_crm_campaign_code: 'crm.settings.thatCodeIsTaken',
+  uq_crm_comm_option: 'crm.settings.thatOptionAlreadyExists',
+  uq_crm_tier_code: 'crm.settings.thatCodeIsTaken'
 };
 
 /**

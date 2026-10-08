@@ -45,7 +45,7 @@ const OPERATORS = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
 
 function operator(operatorCode) {
   const found = OPERATORS[String(operatorCode || '>=')];
-  if (!found) throw new HttpError(400, 'crm.unknownRuleField', null, { field: String(operatorCode) });
+  if (!found) throw new HttpError(400, 'crm.marketing.unknownRuleField', null, { field: String(operatorCode) });
   return found;
 }
 
@@ -153,7 +153,7 @@ const CONDITIONS = {
     params: ['measure', 'op', 'value', 'project'],
     optional: ['op', 'project'],
     sql: function (condition) {
-      if (SNAPSHOT_MEASURES.indexOf(condition.measure) === -1) throw new HttpError(400, 'crm.unknownRuleField', null, { field: String(condition.measure) });
+      if (SNAPSHOT_MEASURES.indexOf(condition.measure) === -1) throw new HttpError(400, 'crm.marketing.unknownRuleField', null, { field: String(condition.measure) });
       const sqlOperator = operator(condition.op);
       const scope = condition.project
         ? 'snapshot.project_id = (SELECT project_id FROM crm_project WHERE project_code = ?)'
@@ -222,13 +222,13 @@ function fields() {
 
 /** { all: [...] } / { any: [...] } / a single condition -> [sql, bindings]. Nested groups are allowed. */
 function compile(rule, depth) {
-  if (!rule || typeof rule !== 'object') throw new HttpError(400, 'crm.theRuleIsEmpty');
-  if ((depth || 0) > 4) throw new HttpError(400, 'crm.theRuleIsTooDeep');
+  if (!rule || typeof rule !== 'object') throw new HttpError(400, 'crm.marketing.theRuleIsEmpty');
+  if ((depth || 0) > 4) throw new HttpError(400, 'crm.marketing.theRuleIsTooDeep');
 
   const group = rule.all ? 'all' : (rule.any ? 'any' : null);
   if (group) {
     const parts = rule[group];
-    if (!Array.isArray(parts) || !parts.length) throw new HttpError(400, 'crm.theRuleIsEmpty');
+    if (!Array.isArray(parts) || !parts.length) throw new HttpError(400, 'crm.marketing.theRuleIsEmpty');
     const compiled = parts.map(function (part) { return compile(part, (depth || 0) + 1); });
     return [
       '(' + compiled.map(function (part) { return part[0]; }).join(group === 'all' ? ' AND ' : ' OR ') + ')',
@@ -237,21 +237,21 @@ function compile(rule, depth) {
   }
 
   const condition = CONDITIONS[rule.field];
-  if (!condition) throw new HttpError(400, 'crm.unknownRuleField', null, { field: String(rule.field) });
+  if (!condition) throw new HttpError(400, 'crm.marketing.unknownRuleField', null, { field: String(rule.field) });
   const optional = condition.optional || ['min', 'days', 'activity'];
   const missing = condition.params.filter(function (param) {
     return optional.indexOf(param) === -1 && (rule[param] === undefined || rule[param] === '');
   });
-  if (missing.length) throw new HttpError(400, 'crm.theRuleNeedsAValue', null, { field: rule.field, value: missing[0] });
+  if (missing.length) throw new HttpError(400, 'crm.marketing.theRuleNeedsAValue', null, { field: rule.field, value: missing[0] });
 
   const out = condition.sql(rule);
   return ['(' + out[0] + ')', out[1]];
 }
 
 function parseRule(value) {
-  if (!value) throw new HttpError(400, 'crm.theRuleIsEmpty');
+  if (!value) throw new HttpError(400, 'crm.marketing.theRuleIsEmpty');
   if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch (error) { throw new HttpError(400, 'crm.theRuleIsNotValidJson'); }
+  try { return JSON.parse(value); } catch (error) { throw new HttpError(400, 'crm.common.theRuleIsNotValidJson'); }
 }
 
 /** The party ids a rule matches today. */
@@ -314,7 +314,7 @@ async function segmentMembers(id, filters, paging) {
 }
 
 async function createSegment(body, actor) {
-  if (!body.segment_code || !body.segment_name) throw new HttpError(400, 'crm.codeAndNameAreRequired');
+  if (!body.segment_code || !body.segment_name) throw new HttpError(400, 'crm.common.codeAndNameAreRequired');
   const rule = parseRule(body.rule_expression);
   compile(rule);
 
@@ -393,7 +393,7 @@ async function evaluate(id, actor) {
   const result = await transaction(async function (trx) {
     const segment = await trx('crm_segment').where('segment_id', id).forUpdate().first();
     if (!segment) throw new HttpError(404, 'common.notFound');
-    if (segment.status === 'ARCHIVED') throw new HttpError(409, 'crm.thisSegmentIsArchived');
+    if (segment.status === 'ARCHIVED') throw new HttpError(409, 'crm.marketing.thisSegmentIsArchived');
 
     const version = await trx('crm_segment_version').where('segment_version_id', segment.current_version_id).first();
     const matched = await matchRule(parseRule(version.rule_expression), trx);
@@ -523,18 +523,18 @@ async function saveCampaign(id, body, actor) {
     'owner_manager_id'].forEach(function (column) {
     if (body[column] !== undefined) data[column] = body[column] === '' ? null : body[column];
   });
-  if (data.campaign_type && CAMPAIGN_TYPES.indexOf(data.campaign_type) === -1) throw new HttpError(400, 'crm.chooseACampaignType');
+  if (data.campaign_type && CAMPAIGN_TYPES.indexOf(data.campaign_type) === -1) throw new HttpError(400, 'crm.marketing.chooseACampaignType');
 
   if (id) {
     const before = await db('crm_campaign').where('campaign_id', id).first();
     if (!before) throw new HttpError(404, 'common.notFound');
-    if (['COMPLETED', 'CANCELLED'].indexOf(before.campaign_status) !== -1) throw new HttpError(409, 'crm.thisCampaignIsFinished');
+    if (['COMPLETED', 'CANCELLED'].indexOf(before.campaign_status) !== -1) throw new HttpError(409, 'crm.marketing.thisCampaignIsFinished');
     const [after] = await db('crm_campaign').where('campaign_id', id).update(data).returning('*');
     audit.updated(actor, 'crm_campaign', id, before, after, CAMPAIGN_PAGE);
     return after;
   }
 
-  if (!data.campaign_code || !data.campaign_name || !data.campaign_type) throw new HttpError(400, 'crm.codeNameAndTypeAreRequired');
+  if (!data.campaign_code || !data.campaign_name || !data.campaign_type) throw new HttpError(400, 'crm.marketing.codeNameAndTypeAreRequired');
   const [row] = await db('crm_campaign').insert(Object.assign(data, {
     campaign_status: 'DRAFT',
     created_by_manager_id: actor.manager_id,
@@ -549,12 +549,12 @@ async function transitionCampaign(id, status, actor) {
     const campaign = await trx('crm_campaign').where('campaign_id', id).forUpdate().first();
     if (!campaign) throw new HttpError(404, 'common.notFound');
     if ((CAMPAIGN_FLOW[campaign.campaign_status] || []).indexOf(status) === -1) {
-      throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: campaign.campaign_status, to: status });
+      throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: campaign.campaign_status, to: status });
     }
 
     const patch = { campaign_status: status };
     if (status === 'APPROVED') {
-      if (String(campaign.created_by_manager_id) === String(actor.manager_id)) throw new HttpError(409, 'crm.anotherManagerMustApprove');
+      if (String(campaign.created_by_manager_id) === String(actor.manager_id)) throw new HttpError(409, 'crm.common.anotherManagerMustApprove');
       patch.approved_by_manager_id = actor.manager_id;
       patch.approved_at = trx.fn.now();
     }
@@ -575,15 +575,15 @@ async function transitionCampaign(id, status, actor) {
 async function openCampaign(trx, id) {
   const campaign = await trx('crm_campaign').where('campaign_id', id).forUpdate().first();
   if (!campaign) throw new HttpError(404, 'common.notFound');
-  if (['COMPLETED', 'CANCELLED'].indexOf(campaign.campaign_status) !== -1) throw new HttpError(409, 'crm.thisCampaignIsFinished');
+  if (['COMPLETED', 'CANCELLED'].indexOf(campaign.campaign_status) !== -1) throw new HttpError(409, 'crm.marketing.thisCampaignIsFinished');
   return campaign;
 }
 
 /** FREEZE AN AUDIENCE: the parties it names today are the ones it will always name. */
 async function addAudience(id, body, actor) {
   const types = ['SEGMENT', 'RULE', 'MANUAL', 'EVENT_TARGETS'];
-  if (types.indexOf(body.audience_type) === -1) throw new HttpError(400, 'crm.chooseAnAudienceType');
-  if (!body.audience_name) throw new HttpError(400, 'crm.nameTheAudience');
+  if (types.indexOf(body.audience_type) === -1) throw new HttpError(400, 'crm.marketing.chooseAnAudienceType');
+  if (!body.audience_name) throw new HttpError(400, 'crm.marketing.nameTheAudience');
 
   const result = await transaction(async function (trx) {
     await openCampaign(trx, id);
@@ -591,13 +591,13 @@ async function addAudience(id, body, actor) {
     let members = [];
     let rule = null;
     if (body.audience_type === 'SEGMENT') {
-      if (!body.source_segment_id) throw new HttpError(400, 'crm.chooseASegment');
+      if (!body.source_segment_id) throw new HttpError(400, 'crm.marketing.chooseASegment');
       members = (await trx('crm_segment_membership as segment_member').join('crm_party as party', 'party.party_pk', 'segment_member.party_pk')
         .where('segment_member.segment_id', body.source_segment_id).whereNull('segment_member.unmatched_at').where('party.party_status', 'ACTIVE')
         .select('segment_member.party_pk', 'segment_member.segment_membership_id'))
         .map(function (row) { return { party_pk: row.party_pk, source_segment_membership_id: row.segment_membership_id }; });
     } else if (body.audience_type === 'EVENT_TARGETS') {
-      if (!body.source_event_id) throw new HttpError(400, 'crm.chooseAnEvent');
+      if (!body.source_event_id) throw new HttpError(400, 'crm.marketing.chooseAnEvent');
       members = (await trx('crm_activity_target as target').join('crm_party as party', 'party.party_pk', 'target.party_pk')
         .where('target.event_id', body.source_event_id).whereNot('target.status', 'REVOKED')
         .where('party.party_status', 'ACTIVE')
@@ -609,7 +609,7 @@ async function addAudience(id, body, actor) {
     } else {
       const ids = (Array.isArray(body.party_pks) ? body.party_pks : String(body.party_pks || '').split(/[\s,]+/))
         .map(String).filter(function (id) { return /^[1-9][0-9]*$/.test(id); });
-      if (!ids.length) throw new HttpError(400, 'crm.chooseAtLeastOneCustomer');
+      if (!ids.length) throw new HttpError(400, 'crm.marketing.chooseAtLeastOneCustomer');
       members = (await trx('crm_party').whereIn('party_pk', ids).where('party_status', 'ACTIVE').select('party_pk'))
         .map(function (row) { return { party_pk: row.party_pk }; });
     }
@@ -650,11 +650,11 @@ async function saveAction(campaignId, actionId, body, actor) {
     if (actionId) {
       action = await trx('crm_campaign_action').where({ action_id: actionId, campaign_id: campaignId }).forUpdate().first();
       if (!action) throw new HttpError(404, 'common.notFound');
-      if (action.action_status !== 'DRAFT') throw new HttpError(409, 'crm.onlyADraftActionCanChange');
+      if (action.action_status !== 'DRAFT') throw new HttpError(409, 'crm.marketing.onlyADraftActionCanChange');
     }
 
     const channel = await trx('crm_communication_channel').where('channel_id', body.channel_id || (action && action.channel_id)).first();
-    if (!channel) throw new HttpError(400, 'crm.chooseAChannel');
+    if (!channel) throw new HttpError(400, 'crm.common.chooseAChannel');
 
     /* The message itself, one content row per action. */
     let contentId = action ? action.content_id : null;
@@ -682,7 +682,7 @@ async function saveAction(campaignId, actionId, body, actor) {
       scheduled_at: body.scheduled_at || null,
       attribution_window_days: body.attribution_window_days || 14
     };
-    if (!data.audience_id || !data.purpose_id) throw new HttpError(400, 'crm.audienceAndPurposeAreRequired');
+    if (!data.audience_id || !data.purpose_id) throw new HttpError(400, 'crm.marketing.audienceAndPurposeAreRequired');
 
     if (action) {
       const rows = await trx('crm_campaign_action').where('action_id', actionId).update(data).returning('*');
@@ -713,15 +713,17 @@ async function saveAction(campaignId, actionId, body, actor) {
 async function prepareAction(campaignId, actionId, actor) {
   const result = await transaction(async function (trx) {
     const campaign = await openCampaign(trx, campaignId);
-    if (['APPROVED', 'ACTIVE'].indexOf(campaign.campaign_status) === -1) throw new HttpError(409, 'crm.approveTheCampaignFirst');
+    if (['APPROVED', 'ACTIVE'].indexOf(campaign.campaign_status) === -1) throw new HttpError(409, 'crm.marketing.approveTheCampaignFirst');
 
     const action = await trx('crm_campaign_action').where({ action_id: actionId, campaign_id: campaignId }).forUpdate().first();
     if (!action) throw new HttpError(404, 'common.notFound');
-    if (action.action_status !== 'DRAFT') throw new HttpError(409, 'crm.thisActionIsAlreadyPrepared');
+    if (action.action_status !== 'DRAFT') throw new HttpError(409, 'crm.marketing.thisActionIsAlreadyPrepared');
 
     const channel = await trx('crm_communication_channel').where('channel_id', action.channel_id).first();
     const purpose = await trx('crm_communication_purpose').where('purpose_id', action.purpose_id).first();
     const projectId = campaign.project_id || await vocabulary.idOf('crm_project', 'PLATFORM', trx);
+    // Without a project nothing is offered on any channel: say so rather than skip every recipient.
+    if (!projectId) throw new HttpError(409, 'crm.marketing.campaignNeedsAProject');
     /* The option, enabled or not: a disabled one is a reason of its own, not "not offered". */
     const option = await trx('crm_project_communication_option')
       .where({ project_id: projectId, purpose_id: action.purpose_id, channel_id: action.channel_id }).first();
@@ -816,7 +818,7 @@ async function setActionStatus(campaignId, actionId, status, actor) {
   const before = await db('crm_campaign_action').where({ action_id: actionId, campaign_id: campaignId }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
   if ((flow[before.action_status] || []).indexOf(status) === -1) {
-    throw new HttpError(409, 'crm.cannotMoveFromTo', null, { from: before.action_status, to: status });
+    throw new HttpError(409, 'crm.common.cannotMoveFromTo', null, { from: before.action_status, to: status });
   }
   const [after] = await db('crm_campaign_action').where('action_id', actionId).update({ action_status: status }).returning('*');
   audit.updated(actor, 'crm_campaign_action', actionId, before, after, CAMPAIGN_PAGE);
@@ -825,7 +827,7 @@ async function setActionStatus(campaignId, actionId, status, actor) {
 
 async function addCost(campaignId, body, actor) {
   const types = ['MEDIA', 'SMS', 'EMAIL_PROVIDER', 'COUPON', 'AGENCY', 'PRIZE', 'OTHER'];
-  if (types.indexOf(body.cost_type) === -1) throw new HttpError(400, 'crm.chooseACostType');
+  if (types.indexOf(body.cost_type) === -1) throw new HttpError(400, 'crm.marketing.chooseACostType');
   const campaign = await db('crm_campaign').where('campaign_id', campaignId).first();
   if (!campaign) throw new HttpError(404, 'common.notFound');
 

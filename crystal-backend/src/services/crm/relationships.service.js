@@ -45,22 +45,22 @@ async function wouldLoop(childId, parentId) {
 
 async function add(partyId, body, actor) {
   const party = await requireParty(partyId);
-  if (!body.related_party_pk) throw new HttpError(400, 'crm.chooseTheRelatedCustomer');
+  if (!body.related_party_pk) throw new HttpError(400, 'crm.customers.chooseTheRelatedCustomer');
   const related = await requireParty(body.related_party_pk);
-  if (String(party.party_pk) === String(related.party_pk)) throw new HttpError(409, 'crm.aCustomerCannotBeRelatedToThemselves');
+  if (String(party.party_pk) === String(related.party_pk)) throw new HttpError(409, 'crm.customers.aCustomerCannotBeRelatedToThemselves');
 
   const type = await db('crm_party_relationship_type').where({ relationship_type_code: body.relationship_type_code, is_active: true }).first();
-  if (!type) throw new HttpError(400, 'crm.chooseARelationship');
+  if (!type) throw new HttpError(400, 'crm.customers.chooseARelationship');
   if (type.applies_to !== 'ANY' && (party.party_type !== type.applies_to || related.party_type !== type.applies_to)) {
-    throw new HttpError(409, 'crm.thatRelationshipIsNotForThem', null, { relationship: type.relationship_name });
+    throw new HttpError(409, 'crm.customers.thatRelationshipIsNotForThem', null, { relationship: type.relationship_name });
   }
 
   /* Parent company: related is the parent of party. Subsidiary: party is the parent of related. */
   if (type.relationship_type_code === 'PARENT_COMPANY' && await wouldLoop(party.party_pk, related.party_pk)) {
-    throw new HttpError(409, 'crm.thatWouldMakeACircle');
+    throw new HttpError(409, 'crm.customers.thatWouldMakeACircle');
   }
   if (type.relationship_type_code === 'SUBSIDIARY' && await wouldLoop(related.party_pk, party.party_pk)) {
-    throw new HttpError(409, 'crm.thatWouldMakeACircle');
+    throw new HttpError(409, 'crm.customers.thatWouldMakeACircle');
   }
 
   /* The same fact entered from the other end is already there. */
@@ -68,7 +68,7 @@ async function add(partyId, body, actor) {
     this.where({ party_pk: party.party_pk, related_party_pk: related.party_pk, relationship_type_code: type.relationship_type_code })
       .orWhere({ party_pk: related.party_pk, related_party_pk: party.party_pk, relationship_type_code: type.inverse_code });
   }).first();
-  if (already) throw new HttpError(409, 'crm.theyAreAlreadyRelatedThatWay');
+  if (already) throw new HttpError(409, 'crm.customers.theyAreAlreadyRelatedThatWay');
 
   const [row] = await db('crm_party_relationship').insert({
     party_pk: party.party_pk,
@@ -86,7 +86,7 @@ async function end(partyId, relationshipId, actor) {
   const before = await db('crm_party_relationship').where('party_relationship_id', relationshipId)
     .where(function () { this.where('party_pk', partyId).orWhere('related_party_pk', partyId); }).first();
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.status !== 'ACTIVE') throw new HttpError(409, 'crm.thatRelationshipHasEnded');
+  if (before.status !== 'ACTIVE') throw new HttpError(409, 'crm.customers.thatRelationshipHasEnded');
   const [after] = await db('crm_party_relationship').where('party_relationship_id', relationshipId)
     .update({ status: 'ENDED', valid_to: db.raw('GREATEST(CURRENT_DATE, COALESCE(valid_from, CURRENT_DATE))'), updated_at: db.fn.now() })
     .returning('*');
@@ -99,7 +99,7 @@ async function end(partyId, relationshipId, actor) {
 async function addTag(partyId, body, actor) {
   await requireParty(partyId);
   const tag = await db('crm_tag').where({ tag_id: body.tag_id || null, is_active: true }).first();
-  if (!tag) throw new HttpError(400, 'crm.chooseATag');
+  if (!tag) throw new HttpError(400, 'crm.customers.chooseATag');
   await db('crm_party_tag').insert({ party_pk: partyId, tag_id: tag.tag_id, tagged_by_manager_id: actor.manager_id })
     .onConflict(['party_pk', 'tag_id']).ignore();
   audit.created(actor, 'crm_party_tag', partyId + ':' + tag.tag_id, { party_pk: partyId, tag_code: tag.tag_code }, PAGE);

@@ -93,11 +93,11 @@ async function searchEvents(filters, paging) {
  * record. The reason is required for the same reason it is on a wallet.
  */
 async function adjust(body, actor) {
-  if (!body.party_pk || !body.point_type_id) throw new HttpError(400, 'crm.customerAndPointTypeAreRequired');
-  if (!body.description || !String(body.description).trim()) throw new HttpError(400, 'crm.aReasonIsRequired');
+  if (!body.party_pk || !body.point_type_id) throw new HttpError(400, 'crm.points.customerAndPointTypeAreRequired');
+  if (!body.description || !String(body.description).trim()) throw new HttpError(400, 'crm.common.aReasonIsRequired');
 
   const delta = Number(body.points_delta);
-  if (!isFinite(delta) || delta === 0) throw new HttpError(400, 'crm.pointsMustNotBeZero');
+  if (!isFinite(delta) || delta === 0) throw new HttpError(400, 'crm.points.pointsMustNotBeZero');
 
   const event = await transaction(function (trx) {
     return ledger.post(trx, {

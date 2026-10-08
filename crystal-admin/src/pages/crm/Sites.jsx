@@ -177,7 +177,7 @@ function SiteDetail({ id, onClose }) {
   const end = async (row) => {
     const agreed = await confirm({
       tone: 'danger', title: translate('crm.sites.endCapability'), body: translate('crm.sites.endCapabilityExplained'),
-      detail: word(translate, row.capability_code), confirmLabel: translate('crm.sites.end')
+      detail: word(translate, row.capability_code), confirmLabel: translate('crm.common.end')
     });
     if (!agreed) return;
     try {
@@ -231,7 +231,7 @@ function SiteDetail({ id, onClose }) {
                   { key: 'valid_to', label: 'Until', render: (row) => date(row.valid_to) },
                   { key: 'is_active', label: 'Status', render: (row) => <Status value={row.is_active ? 'ACTIVE' : 'ENDED'} /> }
                 ]}
-                actions={canWrite ? [{ key: 'end', label: translate('crm.sites.end'), hidden: (row) => !row.is_active, onClick: end }] : []}
+                actions={canWrite ? [{ key: 'end', label: translate('crm.common.end'), hidden: (row) => !row.is_active, onClick: end }] : []}
                 actionsIconOnly={false}
               />
             </Box>

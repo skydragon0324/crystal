@@ -122,7 +122,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
           borderRadius="md"
           value={text}
           isDisabled={isDisabled}
-          placeholder={placeholder || translate('crm.common.findACustomer')}
+          placeholder={placeholder || translate('crm.components.findACustomer')}
           onChange={(event) => type(event.target.value)}
           onFocus={() => { if (!chosen && text.trim().length >= MIN_LETTERS) setOpen(true); }}
           onBlur={() => setOpen(false)}
@@ -135,7 +135,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
         />
         {text && !isDisabled ? (
           <InputRightElement>
-            <IconButton size="xs" variant="ghost" icon={<CloseIcon boxSize="0.55em" />} aria-label={translate('crm.common.clearCustomer')} onClick={clear} />
+            <IconButton size="xs" variant="ghost" icon={<CloseIcon boxSize="0.55em" />} aria-label={translate('crm.components.clearCustomer')} onClick={clear} />
           </InputRightElement>
         ) : null}
       </InputGroup>
@@ -150,7 +150,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
             </Box>
           )) : (
             <Text px={3} py={2} fontSize="sm" color="gray.500">
-              {busy ? translate('crm.common.searching') : translate('crm.common.noCustomerMatches')}
+              {busy ? translate('crm.components.searching') : translate('crm.components.noCustomerMatches')}
             </Text>
           )}
         </Box>

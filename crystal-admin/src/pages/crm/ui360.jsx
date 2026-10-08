@@ -29,7 +29,7 @@ export function Card360({ icon, title, action, onViewAll, children, padded }) {
         <HStack spacing={2} flexShrink={0}>
           {action}
           {onViewAll ? (
-            <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onViewAll}>{translate('crm.c360.viewAll')}</Button>
+            <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onViewAll}>{translate('crm.customer360Cards.viewAll')}</Button>
           ) : null}
         </HStack>
       </Flex>

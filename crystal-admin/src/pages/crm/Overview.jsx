@@ -236,7 +236,7 @@ function DreamPicture({ summaryData, onOpen }) {
   const most = Math.max.apply(null, grades.map((grade) => grade.parties).concat([1]));
 
   if (!summaryData.reference_date) {
-    return <Card><Text fontSize="sm">{translate('crm.analysis.notRunYet')}</Text></Card>;
+    return <Card><Text fontSize="sm">{translate('crm.common.notRunYet')}</Text></Card>;
   }
 
   return (
@@ -252,7 +252,7 @@ function DreamPicture({ summaryData, onOpen }) {
         <Kpi label="Reference date" value={date(summaryData.reference_date)} />
       </KpiStrip>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
-        <Panel title={translate('crm.analysis.gradeDistribution')}
+        <Panel title={translate('crm.common.gradeDistribution')}
           action={<Button size="xs" variant="ghost" onClick={() => onOpen('/admin/crm/analysis')}>{translate('crm.overview.openAnalysis')}</Button>}>
           <Stack spacing={2.5} px={4} py={3}>
             {grades.map((grade) => (
@@ -264,7 +264,7 @@ function DreamPicture({ summaryData, onOpen }) {
             ))}
           </Stack>
         </Panel>
-        <Panel title={translate('crm.analysis.activity')}>
+        <Panel title={translate('crm.common.activity')}>
           <Stack spacing={2.5} px={4} py={3}>
             {activity.map((activityRow) => (
               <Box key={activityRow.activity_status}>
@@ -277,7 +277,7 @@ function DreamPicture({ summaryData, onOpen }) {
             ))}
           </Stack>
         </Panel>
-        <Panel title={translate('crm.analysis.spendByProject')}>
+        <Panel title={translate('crm.common.spendByProject')}>
           <DataTable
             hidePagination
             rows={projects}

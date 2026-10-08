@@ -12,7 +12,7 @@ Every CRM table and view, field by field. Business rules and screens are explain
 | Topic | Rule |
 |---|---|
 | **Customer key** | `party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is reserved for a later phase and is not generated or used in phase 1. |
-| **Project** | `project_id` names the Dream project (business system) a row came from or belongs to: PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA, ... An external id is only unique inside its project. |
+| **Project** | `project_id` names the Dream project (business system) a row came from or belongs to - the projects defined in Settings > Projects. An external id is only unique inside its project. |
 | **Who did it** | `*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives. |
 | **History** | `valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it. |
 | **Source ids** | `source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates. |
@@ -58,10 +58,10 @@ Registry of Dream projects. Each project is one operational source system and th
 
 | About | |
 |---|---|
-| **Used by** | Settings > Projects; every import and the department API look projects up by `project_code`. |
+| **Used by** | Settings > Projects; imports and the department API. The Excel import finds its e-shop and user-management projects by `identity_role`, not by code. |
 | **Primary key** | `project_id` |
-| **Unique** | (project_code) |
-| **Code** | `src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, events.service, identity.service, ledger, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service, vendorImport.service |
+| **Unique** | (project_code)<br>(identity_role, (partial: (identity_role IS NOT NULL))) |
+| **Code** | `scripts/`: crm-import-mock<br>`src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, events.service, identity.service, identityProjects, ledger, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service, vendorImport.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -74,6 +74,7 @@ Registry of Dream projects. Each project is one operational source system and th
 | `status` | varchar(20) | yes | `'ACTIVE'` | `ACTIVE`, `INACTIVE` | INACTIVE projects stay in history but are not offered for new data. |
 | `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
 | `updated_at` | timestamptz | yes | `now()` |  | When the row was last changed. |
+| `identity_role` | varchar(30) |  |  | `ESHOP`, `USER_MANAGEMENT` | ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_pk is the same person). At most one project per role; set in Settings > Projects. |
 
 ### crm_project_api_key
 
@@ -250,7 +251,7 @@ Reusable contact values of a party. Replaces comma-joined phone columns in the v
 
 | About | |
 |---|---|
-| **Used by** | Customer 360 contacts; duplicate check (phones); campaigns (where to send); consent. |
+| **Used by** | Customer 360 (header, Contact points card, Consent tab list); duplicate check (phones); campaigns (where to send); consent. A customer has as many phones as rows; merges keep them all. |
 | **Primary key** | `contact_point_id` |
 | **Unique** | (party_pk, contact_type, normalized_value)<br>(party_pk, contact_type, (partial: is_primary)) |
 | **Rules** | `CHECK (((valid_to IS NULL) OR (valid_from IS NULL) OR (valid_to >= valid_from)))` |
@@ -282,7 +283,7 @@ The job titles a person can be given. Seeded from the vendor JOBS list; edited a
 | **Used by** | Settings > Job titles; customer form; Excel template "Job titles" sheet. |
 | **Primary key** | `job_title_id` |
 | **Unique** | (job_code)<br>(job_name) |
-| **Code** | `scripts/`: crm-customers-sample, demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: customer360.service, personImport.service, personRules, registrationIntake.service |
+| **Code** | `scripts/`: crm-customers-sample, crm-import-mock, demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: customer360.service, personImport.service, personRules, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -301,7 +302,7 @@ The vendor location list (ora_pid.locations), same columns and keys. Province = 
 | **Used by** | Every location picker; refreshed by Overview > Import (step "locations"); Excel template "Locations" sheet. |
 | **Primary key** | `location_pk` |
 | **Unique** | (location_code) |
-| **Code** | `scripts/`: crm-customers-sample<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, customer360.service, locations, personRules, registrationIntake.service, sites.service |
+| **Code** | `scripts/`: crm-customers-sample, crm-import-mock<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, customer360.service, locations, personRules, registrationIntake.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -681,7 +682,7 @@ How an incoming person becomes a customer: weighted duplicate check, staging for
 | Table | Kind | Purpose |
 |---|---|---|
 | [crm_project_account](#crm_project_account) | table | Links a party to the account id a project issues. Main cross-project identity map. |
-| [crm_registration_intake](#crm_registration_intake) | table | Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer. |
+| [crm_registration_intake](#crm_registration_intake) | table | Every incoming registration (console, Excel row, department API, imports) and every e-shop or user-management identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer. |
 | [crm_identity_resolution](#crm_identity_resolution) | table | Results departments collect: for each resolved intake, the customer key to store in the department's own record. Read through the department API and acknowledged once saved. |
 | [crm_identity_match_candidate](#crm_identity_match_candidate) | table | Uncertain matches waiting for review before an incoming record is linked to an existing party. |
 | [crm_party_merge_history](#crm_party_merge_history) | table | Audit of duplicate parties merged into a survivor. |
@@ -694,7 +695,7 @@ Links a party to the account id a project issues. Main cross-project identity ma
 
 | About | |
 |---|---|
-| **Used by** | Customer 360 > Accounts; department API; Crystal and vendor imports; e-shop assignment review. |
+| **Used by** | Customer 360 > Accounts; department API; Crystal and vendor imports; account assignment review (Customers > Account assignments). |
 | **Primary key** | `project_account_id` |
 | **Unique** | (project_id, external_account_id, (partial: (unlinked_at IS NULL))) |
 | **Rules** | `CHECK (((link_confidence >= (0)) AND (link_confidence <= (1))))`<br>`CHECK (((unlinked_at IS NULL) OR (unlinked_at >= linked_at)))` |
@@ -722,11 +723,11 @@ Links a party to the account id a project issues. Main cross-project identity ma
 
 ### crm_registration_intake
 
-Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.
+Every incoming registration (console, Excel row, department API, imports) and every e-shop or user-management identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.
 
 | About | |
 |---|---|
-| **Used by** | Customers > Pending registrations / E-shop assignments / Resolved registrations; department API; Excel import. |
+| **Used by** | Customers > Pending registrations / Account assignments / Resolved registrations; department API; Excel import. |
 | **Primary key** | `intake_id` |
 | **Unique** | (source_project_id, source_record_id, category) |
 | **Code** | `src/db/seeds/`: 00_reset<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: parties.service, personDuplicates, personImport.service, registrationIntake.service |
@@ -735,10 +736,10 @@ Every incoming registration (console, Excel row, department API, imports) and ev
 |---|---|:---:|---|---|---|
 | `intake_id` (PK) | bigint | yes | `identity` |  | Intake key; departments receive it for QUEUED registrations. |
 | `source_project_id` | bigint |  |  | → `crm_project.project_id` | Project the registration came from. |
-| `source_record_id` | text |  |  |  | The record's id in the source (account id, `excel:<file hash>:<row>`, e-shop PK). Unique with project and category, so retries reuse the intake. |
-| `category` | text | yes | `'PERSON'` | `PERSON`, `ESHOP` | PERSON = who is this person; ESHOP = which customer does this e-shop identifier belong to. |
-| `status` | text | yes | `'PENDING'` | `PENDING`, `MERGED`, `CREATED`, `ASSIGNED`, `REJECTED` | PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (e-shop). |
-| `payload` | jsonb | yes |  |  | What was submitted: `party` (person data), `account` (project account to link once resolved), `unverified_accounts` (spreadsheet e-shop identifiers to stage for review). |
+| `source_record_id` | text |  |  |  | The record's id in the source (account id, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user PK). Unique with project and category, so retries reuse the intake. |
+| `category` | text | yes | `'PERSON'` | `PERSON`, `ESHOP` | PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment. |
+| `status` | text | yes | `'PENDING'` | `PENDING`, `MERGED`, `CREATED`, `ASSIGNED`, `REJECTED` | PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment). |
+| `payload` | jsonb | yes |  |  | What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet's e-shop and user identifiers, staged for review once the person is resolved). |
 | `candidates` | jsonb | yes | `'[]'` |  | Matching customers or pending intakes with their scores and evidence, shown to the reviewer. |
 | `party_pk` | bigint |  |  | → `crm_party.party_pk` | Customer the intake resolved to. |
 | `reviewed_by_manager_id` | int |  |  | → `managers.id` | Administrator who decided; NULL when decided automatically. |

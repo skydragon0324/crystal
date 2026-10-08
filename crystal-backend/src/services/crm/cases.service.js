@@ -114,9 +114,9 @@ async function detail(id) {
 }
 
 async function create(body, actor) {
-  if (!body.party_pk || !body.case_type_id) throw new HttpError(400, 'crm.customerAndCaseTypeAreRequired');
+  if (!body.party_pk || !body.case_type_id) throw new HttpError(400, 'crm.serviceCases.customerAndCaseTypeAreRequired');
   if (body.reception_channel_code && CHANNELS.indexOf(body.reception_channel_code) === -1) {
-    throw new HttpError(400, 'crm.unknownChannel');
+    throw new HttpError(400, 'crm.common.unknownChannel');
   }
 
   const status = body.service_status_id
@@ -132,7 +132,7 @@ async function create(body, actor) {
     external_case_id: body.external_case_id || null
   };
   EDITABLE.forEach(function (column) { if (body[column] !== undefined && body[column] !== '') insert[column] = body[column]; });
-  if (!insert.project_id) throw new HttpError(400, 'crm.chooseAProject');
+  if (!insert.project_id) throw new HttpError(400, 'crm.serviceCases.chooseAProject');
 
   const [row] = await db('crm_service_case').insert(insert).returning('*');
   audit.created(actor, 'crm_service_case', row.case_id, row, PAGE);
@@ -146,14 +146,14 @@ async function create(body, actor) {
 async function update(id, body, actor) {
   const before = await db('crm_service_case').where('case_id', id).first();
   if (!before) throw new HttpError(404, 'common.notFound');
-  if (before.crystal_repair_ticket_id) throw new HttpError(409, 'crm.thisCaseFollowsARepairTicket');
+  if (before.crystal_repair_ticket_id) throw new HttpError(409, 'crm.serviceCases.thisCaseFollowsARepairTicket');
 
   const patch = {};
   EDITABLE.forEach(function (column) { if (body[column] !== undefined) patch[column] = body[column] === '' ? null : body[column]; });
 
   if (body.service_status_id && String(body.service_status_id) !== String(before.service_status_id)) {
     const status = await db('crm_service_status').where('service_status_id', body.service_status_id).first();
-    if (!status) throw new HttpError(400, 'crm.unknownStatus');
+    if (!status) throw new HttpError(400, 'crm.serviceCases.unknownStatus');
     patch.service_status_id = status.service_status_id;
     if (status.is_terminal) {
       patch.closed_at = db.fn.now();

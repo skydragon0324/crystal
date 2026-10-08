@@ -14,12 +14,12 @@ import { optionsFrom, partyIdLabel, useCrmMeta } from './shared';
 
 const TONE = { REVIEW: 'purple', MERGED: 'blue', NEW: 'green', CREATED: 'green', DUPLICATE: 'orange', ERROR: 'red' };
 const STATUS = {
-  NEW: 'crm.customers.rowStatusNEW',
-  CREATED: 'crm.customers.rowStatusCREATED',
-  DUPLICATE: 'crm.customers.rowStatusDUPLICATE',
-  MERGED: 'crm.customers.rowStatusMERGED',
-  REVIEW: 'crm.customers.rowStatusREVIEW',
-  ERROR: 'crm.customers.rowStatusERROR'
+  NEW: 'crm.customerImport.rowStatusNEW',
+  CREATED: 'crm.customerImport.rowStatusCREATED',
+  DUPLICATE: 'crm.customerImport.rowStatusDUPLICATE',
+  MERGED: 'crm.customerImport.rowStatusMERGED',
+  REVIEW: 'crm.customerImport.rowStatusREVIEW',
+  ERROR: 'crm.customerImport.rowStatusERROR'
 };
 
 /*
@@ -27,10 +27,10 @@ const STATUS = {
  * "Already customers" only appears when a row matches someone on file.
  */
 const GROUPS = [
-  { key: 'new', label: 'crm.customers.tabNewCustomers', statuses: ['NEW', 'CREATED'], tone: 'green' },
-  { key: 'review', label: 'crm.customers.tabReviewCustomers', statuses: ['REVIEW'], tone: 'purple' },
-  { key: 'existing', label: 'crm.customers.tabAlreadyCustomers', statuses: ['DUPLICATE', 'MERGED'], tone: 'blue', optional: true },
-  { key: 'errors', label: 'crm.customers.tabErrors', statuses: ['ERROR'], tone: 'red' }
+  { key: 'new', textKey: 'crm.customerImport.tabNewCustomers', statuses: ['NEW', 'CREATED'], tone: 'green' },
+  { key: 'review', textKey: 'crm.customerImport.tabReviewCustomers', statuses: ['REVIEW'], tone: 'purple' },
+  { key: 'existing', textKey: 'crm.customerImport.tabAlreadyCustomers', statuses: ['DUPLICATE', 'MERGED'], tone: 'blue', optional: true },
+  { key: 'errors', textKey: 'crm.customerImport.tabErrors', statuses: ['ERROR'], tone: 'red' }
 ];
 
 /**
@@ -92,7 +92,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
       if (!dryRun) {
         setDone(true);
         toast({
-          title: translate('crm.customers.importDone', { created: data.summary.created, merged: data.summary.duplicate, review: data.summary.review, errors: data.summary.error || 0 }),
+          title: translate('crm.customerImport.importDone', { created: data.summary.created, merged: data.summary.duplicate, review: data.summary.review, errors: data.summary.error || 0 }),
           status: 'success', duration: 5000, isClosable: true
         });
         if (onImported) onImported();
@@ -115,35 +115,35 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
     <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{translate('crm.customers.importTitle')}</ModalHeader>
+        <ModalHeader>{translate('crm.customerImport.importTitle')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Text fontSize="sm" mb={3}>{translate('crm.review.importChecks')}</Text>
-          <Text fontSize="sm" mb={3}>{translate('crm.customers.importRequiredColumns')}</Text>
+          <Text fontSize="sm" mb={3}>{translate('crm.customerImport.importChecks')}</Text>
+          <Text fontSize="sm" mb={3}>{translate('crm.customerImport.importRequiredColumns')}</Text>
 
           <HStack spacing={3} mb={3} align="center" wrap="wrap">
-            <Text fontSize="sm" fontWeight="600">{translate('crm.customers.originProject')}</Text>
+            <Text fontSize="sm" fontWeight="600">{translate('crm.customerImport.originProject')}</Text>
             <Box w="18rem">
               <SelectField size="sm" options={projects} value={origin} isDisabled={done}
-                placeholder={translate('crm.customers.originProjectPlaceholder')}
+                placeholder={translate('crm.customerImport.originProjectPlaceholder')}
                 onChange={(value) => { setOrigin(value || null); setReport(null); setProblem(null); }} />
             </Box>
-            <Text fontSize="xs" color="gray.500" flex="1" minW="14rem">{translate('crm.customers.originProjectHelp')}</Text>
+            <Text fontSize="xs" color="gray.500" flex="1" minW="14rem">{translate('crm.customerImport.originProjectHelp')}</Text>
           </HStack>
 
           <HStack spacing={3} mb={4} wrap="wrap">
-            <Button size="sm" variant="outline" onClick={downloadTemplate}>{translate('crm.customers.downloadTemplate')}</Button>
+            <Button size="sm" variant="outline" onClick={downloadTemplate}>{translate('crm.customerImport.downloadTemplate')}</Button>
             {/* The same picker as a customer's "Notes and files": a button over a hidden input, the chosen name beside it. */}
             <input ref={input} type="file" accept=".xlsx" hidden
               onChange={(event) => { setFile(event.target.files && event.target.files[0]); setReport(null); setDone(false); setProblem(null); }} />
             <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdCloudUpload} />} onClick={() => { if (input.current) { input.current.value = ''; input.current.click(); } }}>
-              {translate('crm.customers.chooseFile')}
+              {translate('crm.customerImport.chooseFile')}
             </Button>
             <Text fontSize="sm" color={file ? undefined : 'gray.500'} maxW="16rem" noOfLines={1}>
-              {file ? file.name : translate('crm.customers.noFileChosen')}
+              {file ? file.name : translate('crm.customerImport.noFileChosen')}
             </Text>
             <Button size="sm" variant="brand" isDisabled={!file || done} isLoading={busy && !summary} onClick={() => send(true)}>
-              {translate('crm.customers.checkFile')}
+              {translate('crm.customerImport.checkFile')}
             </Button>
           </HStack>
 
@@ -154,7 +154,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
                 <Text fontWeight="600">{problem.message}</Text>
                 {problem.rows.map((row, index) => (
                   <Text key={index}>
-                    {row.row_number ? translate('crm.customers.rowNumber', { row: row.row_number }) + ': ' : ''}
+                    {row.row_number ? translate('crm.customerImport.rowNumber', { row: row.row_number }) + ': ' : ''}
                     {(row.errors || [row]).join('; ')}
                   </Text>
                 ))}
@@ -164,17 +164,17 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
 
           {summary ? (
             <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3} mb={4}>
-              <Stat><StatLabel>{translate('crm.customers.rowsRead')}</StatLabel><StatNumber>{summary.total}</StatNumber></Stat>
-              <Stat><StatLabel>{translate(done ? 'crm.customers.rowsCreated' : 'crm.customers.rowsNew')}</StatLabel>
+              <Stat><StatLabel>{translate('crm.customerImport.rowsRead')}</StatLabel><StatNumber>{summary.total}</StatNumber></Stat>
+              <Stat><StatLabel>{translate(done ? 'crm.common.rowsCreated' : 'crm.customerImport.rowsNew')}</StatLabel>
                 <StatNumber color="green.500">{done ? summary.created : summary.new}</StatNumber></Stat>
-              <Stat><StatLabel>{translate('crm.customers.rowsDuplicate')}</StatLabel><StatNumber color="orange.500">{summary.duplicate}</StatNumber></Stat>
-              <Stat><StatLabel>Awaiting review</StatLabel><StatNumber color="purple.500">{summary.review || 0}</StatNumber></Stat>
-              {done ? null : <Stat><StatLabel>{translate('crm.customers.rowsError')}</StatLabel><StatNumber color="red.500">{summary.error}</StatNumber></Stat>}
+              <Stat><StatLabel>{translate('crm.customerImport.rowsDuplicate')}</StatLabel><StatNumber color="orange.500">{summary.duplicate}</StatNumber></Stat>
+              <Stat><StatLabel>{translate('crm.customerImport.tabReviewCustomers')}</StatLabel><StatNumber color="purple.500">{summary.review || 0}</StatNumber></Stat>
+              {done ? null : <Stat><StatLabel>{translate('crm.customerImport.rowsError')}</StatLabel><StatNumber color="red.500">{summary.error}</StatNumber></Stat>}
             </SimpleGrid>
           ) : null}
 
           {summary && summary.error > 0 && !done ? (
-            <Alert status="info" mb={3} borderRadius="md" fontSize="sm"><AlertIcon />{translate('crm.customers.errorsKeptApart', { n: summary.error })}</Alert>
+            <Alert status="info" mb={3} borderRadius="md" fontSize="sm"><AlertIcon />{translate('crm.customerImport.errorsKeptApart', { n: summary.error })}</Alert>
           ) : null}
 
           {rows.length ? (
@@ -182,7 +182,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
               <TabList>
                 {groups.map((group) => (
                   <Tab key={group.key} fontSize="sm">
-                    {translate(group.label)}
+                    {translate(group.textKey)}
                     <Badge ml={2} colorScheme={group.tone}>{group.rows.length}</Badge>
                   </Tab>
                 ))}
@@ -190,7 +190,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
               <TabPanels>
                 {groups.map((group) => (
                   <TabPanel key={group.key} px={0} pt={3}>
-                    {!group.rows.length ? <Text fontSize="sm" color="gray.500">{translate('crm.customers.noRowsHere')}</Text>
+                    {!group.rows.length ? <Text fontSize="sm" color="gray.500">{translate('crm.customerImport.noRowsHere')}</Text>
                       : group.key === 'errors' ? <ErrorRows rows={group.rows} translate={translate} />
                         : <CheckedRows rows={group.rows} translate={translate} />}
                   </TabPanel>
@@ -204,7 +204,7 @@ export default function CustomerImport({ isOpen, onClose, onImported }) {
             <Button size="sm" variant="ghost" onClick={onClose}>{translate(done ? 'common.close' : 'common.cancel')}</Button>
             {done ? null : (
               <Button size="sm" variant="brand" isDisabled={!canImport} isLoading={busy && !!summary} onClick={() => send(false)}>
-                {translate('crm.customers.addNewUsers')}
+                {translate('crm.customerImport.addNewUsers')}
               </Button>
             )}
           </HStack>
@@ -223,15 +223,15 @@ function CheckedRows({ rows, translate }) {
           <Tr>
             <Th>{translate('Row')}</Th>
             <Th>{translate('Result')}</Th>
-            <Th>{translate('crm.customers.importCustomerKey')}</Th>
-            <Th>{translate('crm.customers.importEshopKeys')}</Th>
-            <Th>{translate('crm.customers.importUserKeys')}</Th>
+            <Th>{translate('crm.common.importCustomerKey')}</Th>
+            <Th>{translate('crm.common.importEshopKeys')}</Th>
+            <Th>{translate('crm.common.importUserKeys')}</Th>
             <Th>{translate('Name')}</Th>
             <Th>{translate('Mobile')}</Th>
             <Th>{translate('Date of birth')}</Th>
             <Th>{translate('Location')}</Th>
             <Th>{translate('Job title')}</Th>
-            <Th>{translate('crm.customers.originProject')}</Th>
+            <Th>{translate('crm.customerImport.originProject')}</Th>
             <Th>{translate('Details')}</Th>
           </Tr>
         </Thead>
@@ -250,14 +250,14 @@ function CheckedRows({ rows, translate }) {
               <Td>{row.values.job_name || '-'}</Td>
               <Td>{row.values.origin_project_code || '-'}</Td>
               <Td fontSize="xs" maxW="22rem" whiteSpace="normal">
-                {row.duplicate_of_row ? translate('crm.customers.sameAsRow', { row: row.duplicate_of_row }) : null}
+                {row.duplicate_of_row ? translate('crm.customerImport.sameAsRow', { row: row.duplicate_of_row }) : null}
                 {(row.similar || []).map((match) => (
                   <Text key={match.party_pk || match.intake_id || match.row_number}>
                     <Text as={match.party_pk ? 'a' : 'span'} href={match.party_pk ? (process.env.PUBLIC_URL || '') + '/admin/crm/customers/' + match.party_pk : undefined}
                       target="_blank" rel="noopener noreferrer" color="brand.500">
                       {match.display_name} {match.party_pk ? partyIdLabel(match.party_pk) : match.intake_id
-                        ? translate('crm.review.pendingNumber', { id: match.intake_id })
-                        : translate('crm.customers.rowNumber', { row: match.row_number })}
+                        ? translate('crm.common.pendingNumber', { id: match.intake_id })
+                        : translate('crm.customerImport.rowNumber', { row: match.row_number })}
                     </Text>
                     {' - ' + match.reason}
                   </Text>
@@ -272,21 +272,20 @@ function CheckedRows({ rows, translate }) {
 }
 
 /** Rows that failed the check: the cells as written in the file, and every reason. */
-function ErrorRows({ rows, translate, action }) {
+function ErrorRows({ rows, translate }) {
   return (
     <Box overflow="auto" maxH="22rem" borderWidth="1px" borderRadius="md">
       <Table size="sm">
         <Thead>
           <Tr>
             <Th>{translate('Row')}</Th>
-            <Th>{translate('crm.customers.whatIsWrong')}</Th>
+            <Th>{translate('crm.common.whatIsWrong')}</Th>
             <Th>{translate('Name')}</Th>
-            <Th>{translate('crm.customers.importEshopKeys')}</Th>
-            <Th>{translate('crm.customers.importUserKeys')}</Th>
+            <Th>{translate('crm.common.importEshopKeys')}</Th>
+            <Th>{translate('crm.common.importUserKeys')}</Th>
             <Th>{translate('Mobile')}</Th>
             <Th>{translate('Date of birth')}</Th>
-            <Th>{translate('crm.customers.locationId')}</Th>
-            {action ? <Th /> : null}
+            <Th>{translate('crm.customerImport.locationId')}</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -305,7 +304,6 @@ function ErrorRows({ rows, translate, action }) {
                 <Td>{cells.mobile || '-'}</Td>
                 <Td>{cells.birth_date || '-'}</Td>
                 <Td>{cells.location_id || '-'}</Td>
-                {action ? <Td>{action(row)}</Td> : null}
               </Tr>
             );
           })}

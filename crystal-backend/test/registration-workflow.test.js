@@ -73,6 +73,7 @@ const common = {
  './personDuplicates': duplicateStub,
  './parties.service': parties,
  '../audit.service': { updated() {}, imported() {} },
+ './identityProjects': { byRole: async role => records('crm_project').find(project => project.identity_role === role) },
  '../../repositories/shared/transaction': { transaction: fn => fn(query) }
 };
 const intake = load('registrationIntake.service.js', common);
@@ -120,7 +121,7 @@ async function main() {
  const approvedNew = await intake.decide(staged.intake_id, { action: 'NEW' }, actor);
  const pendingMerged = await intake.decide(stagedCopy.intake_id, { action: 'MERGE', candidate_intake_id: staged.intake_id }, actor);
  assert.equal(approvedNew.party_pk,pendingMerged.party_pk);
- records('crm_project').push({ project_id: 1, project_code: 'CRYSTAL', status: 'ACTIVE' }, { project_id: 2, project_code: 'ESHOP', status: 'ACTIVE' }, { project_id: 3, project_code: 'APPSTORE', status: 'ACTIVE' }, { project_id: 4, project_code: 'PLATFORM', status: 'ACTIVE' });
+ records('crm_project').push({ project_id: 1, project_code: 'CRYSTAL', status: 'ACTIVE' }, { project_id: 2, project_code: 'ESHOP', status: 'ACTIVE', identity_role: 'ESHOP' }, { project_id: 3, project_code: 'APPSTORE', status: 'ACTIVE' }, { project_id: 4, project_code: 'USER_MANAGER', status: 'ACTIVE', identity_role: 'USER_MANAGEMENT' });
  const eshop = await identity.resolveAccount(query, { project_id: 2, external_account_id: 'shop-1', known_party_pk: original.party_pk });
  assert.equal(eshop.outcome,'QUEUED'); assert.equal(records('crm_project_account').length,0);
  await identity.resolveAccount(query, { project_id: 2, external_account_id: 'shop-1', known_party_pk: weak.party_pk });

@@ -2802,8 +2802,11 @@ CREATE TABLE crm_project (
     legal_entity_code                  varchar(50)    NULL,
     status                             varchar(20)    NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INACTIVE')),
     created_at                         timestamptz    NOT NULL DEFAULT now(),
-    updated_at                         timestamptz    NOT NULL DEFAULT now()
+    updated_at                         timestamptz    NOT NULL DEFAULT now(),
+    identity_role                      varchar(30)    NULL CONSTRAINT crm_project_identity_role_check CHECK (identity_role IN ('ESHOP','USER_MANAGEMENT'))
 );
+COMMENT ON COLUMN crm_project.identity_role IS 'ESHOP or USER_MANAGEMENT: the project whose identifiers the Excel import carries in its E-shop and User columns. At most one project per role.';
+CREATE UNIQUE INDEX uq_crm_project_identity_role ON crm_project(identity_role) WHERE identity_role IS NOT NULL;
 COMMENT ON TABLE crm_project IS 'Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA.';
 
 CREATE TABLE crm_currency (

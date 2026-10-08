@@ -127,7 +127,7 @@ function SummaryTab({ summaryData }) {
   const activity = summaryData.activity || [];
   const projects = summaryData.projects || [];
 
-  if (!summaryData.reference_date) return <Text fontSize="sm">{translate('crm.analysis.notRunYet')}</Text>;
+  if (!summaryData.reference_date) return <Text fontSize="sm">{translate('crm.common.notRunYet')}</Text>;
 
   return (
     <Stack spacing={4}>
@@ -143,7 +143,7 @@ function SummaryTab({ summaryData }) {
       </KpiStrip>
 
       <Grid templateColumns={{ base: '1fr', xl: '3fr 2fr' }} gridGap={4}>
-        <Panel title={translate('crm.analysis.gradeDistribution')}>
+        <Panel title={translate('crm.common.gradeDistribution')}>
           <Box h="15rem" px={2} py={3}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={grades} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
@@ -170,7 +170,7 @@ function SummaryTab({ summaryData }) {
           />
         </Panel>
         <Stack spacing={4}>
-          <Panel title={translate('crm.analysis.activity')}>
+          <Panel title={translate('crm.common.activity')}>
             <Stack spacing={2.5} px={4} py={3}>
               {activity.map((activityRow) => (
                 <Box key={activityRow.activity_status}>
@@ -183,7 +183,7 @@ function SummaryTab({ summaryData }) {
               ))}
             </Stack>
           </Panel>
-          <Panel title={translate('crm.analysis.spendByProject')}>
+          <Panel title={translate('crm.common.spendByProject')}>
             <DataTable
               hidePagination
               rows={projects}

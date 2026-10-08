@@ -19,9 +19,9 @@ import { CAMPAIGN_TYPES } from './Campaigns';
 const PAGE = '/admin/crm/campaigns';
 
 const MOVES = {
-  DRAFT: [['APPROVED', 'crm.campaign.approve'], ['CANCELLED', 'crm.campaign.cancelCampaign']],
-  APPROVED: [['ACTIVE', 'crm.campaign.start'], ['DRAFT', 'crm.campaign.backToDraft'], ['CANCELLED', 'crm.campaign.cancelCampaign']],
-  ACTIVE: [['COMPLETED', 'crm.campaign.complete'], ['CANCELLED', 'crm.campaign.cancelCampaign']]
+  DRAFT: [['APPROVED', 'crm.campaigns.approve'], ['CANCELLED', 'crm.campaigns.cancelCampaign']],
+  APPROVED: [['ACTIVE', 'crm.campaigns.start'], ['DRAFT', 'crm.campaigns.backToDraft'], ['CANCELLED', 'crm.campaigns.cancelCampaign']],
+  ACTIVE: [['COMPLETED', 'crm.campaigns.complete'], ['CANCELLED', 'crm.campaigns.cancelCampaign']]
 };
 
 /**
@@ -96,7 +96,7 @@ export default function CampaignDetail() {
   const move = async (next, verb) => {
     const agreed = await confirm({
       tone: next === 'CANCELLED' ? 'danger' : 'info', title: translate(verb),
-      body: translate(next === 'APPROVED' ? 'crm.campaign.approveExplained' : 'crm.campaign.moveExplained'),
+      body: translate(next === 'APPROVED' ? 'crm.campaigns.approveExplained' : 'crm.campaigns.moveExplained'),
       confirmLabel: translate(verb)
     });
     if (agreed) run(() => crm.campaigns.transition(campaign.campaign_id, next));
@@ -104,15 +104,15 @@ export default function CampaignDetail() {
 
   const prepare = async (row) => {
     const agreed = await confirm({
-      tone: 'info', title: translate('crm.campaign.prepare'), body: translate('crm.campaign.prepareExplained'),
-      detail: row.action_name || word(translate, row.channel_code), confirmLabel: translate('crm.campaign.prepare')
+      tone: 'info', title: translate('crm.campaigns.prepare'), body: translate('crm.campaigns.prepareExplained'),
+      detail: row.action_name || word(translate, row.channel_code), confirmLabel: translate('crm.campaigns.prepare')
     });
-    if (agreed) run(() => crm.campaigns.prepareAction(campaign.campaign_id, row.action_id), 'crm.campaign.prepared');
+    if (agreed) run(() => crm.campaigns.prepareAction(campaign.campaign_id, row.action_id), 'crm.campaigns.prepared');
   };
 
   const audienceForm = () => {
     setRule({ all: [] });
-    ask(translate('crm.campaign.addAudience'), [
+    ask(translate('crm.campaigns.addAudience'), [
       { name: 'audience_name', label: 'Audience', required: true, colSpan: 'full' },
       { name: 'audience_type', label: 'Taken from', type: 'select', required: true, isClearable: false,
         options: choices(['SEGMENT', 'EVENT_TARGETS', 'RULE', 'MANUAL']) },
@@ -153,7 +153,7 @@ export default function CampaignDetail() {
         actions={canWrite ? (
           <>
             {open ? (
-              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.campaign.editCampaign'), [
+              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.campaigns.editCampaign'), [
                 { name: 'campaign_name', label: 'Campaign', required: true },
                 { name: 'campaign_type', label: 'Type', type: 'select', isClearable: false, options: choices(CAMPAIGN_TYPES) },
                 { name: 'start_at', label: 'Starts', type: 'datetime-local' },
@@ -195,13 +195,13 @@ export default function CampaignDetail() {
           </Facts>
           {campaign.description ? <Text fontSize="sm" mt={4} whiteSpace="pre-wrap">{campaign.description}</Text> : null}
           {campaign.campaign_status === 'DRAFT' && mine && canWrite ? (
-            <Text fontSize="sm" mt={4}>{translate('crm.campaign.needsAnotherApprover')}</Text>
+            <Text fontSize="sm" mt={4}>{translate('crm.campaigns.needsAnotherApprover')}</Text>
           ) : null}
         </Card>
 
         <Card
-          title={translate('crm.campaign.audiences')}
-          actions={canWrite && open ? <Button size="xs" variant="subtle" onClick={audienceForm}>{translate('crm.campaign.addAudience')}</Button> : null}
+          title={translate('crm.campaigns.audiences')}
+          actions={canWrite && open ? <Button size="xs" variant="subtle" onClick={audienceForm}>{translate('crm.campaigns.addAudience')}</Button> : null}
         >
           <DataTable
             hidePagination
@@ -218,15 +218,15 @@ export default function CampaignDetail() {
         </Card>
 
         <Card
-          title={translate('crm.campaign.messages')}
+          title={translate('crm.campaigns.messages')}
           actions={canWrite && open && audiences.length ? (
-            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaign.addMessage'), actionFields, { attribution_window_days: 14 },
+            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaigns.addMessage'), actionFields, { attribution_window_days: 14 },
               (values) => run(() => crm.campaigns.saveAction(campaign.campaign_id, null, values)))}>
-              {translate('crm.campaign.addMessage')}
+              {translate('crm.campaigns.addMessage')}
             </Button>
           ) : null}
         >
-          <Text fontSize="xs" mb={3}>{translate('crm.campaign.noGateway')}</Text>
+          <Text fontSize="xs" mb={3}>{translate('crm.campaigns.noGateway')}</Text>
           <DataTable
             hidePagination
             rows={record.actions || []}
@@ -243,13 +243,13 @@ export default function CampaignDetail() {
             ]}
             actions={canWrite && open ? [
               { key: 'edit', label: translate('common.edit'), hidden: (row) => row.action_status !== 'DRAFT',
-                onClick: (row) => ask(translate('crm.campaign.editMessage'), actionFields,
+                onClick: (row) => ask(translate('crm.campaigns.editMessage'), actionFields,
                   Object.assign({}, row, { content_title: row.content_title, content_body: row.content_body, scheduled_at: localInput(row.scheduled_at) }),
                   (values) => run(() => crm.campaigns.saveAction(campaign.campaign_id, row.action_id, values))) },
-              { key: 'prepare', label: translate('crm.campaign.prepare'), hidden: (row) => row.action_status !== 'DRAFT', onClick: prepare },
-              { key: 'running', label: translate('crm.campaign.markSending'), hidden: (row) => row.action_status !== 'READY',
+              { key: 'prepare', label: translate('crm.campaigns.prepare'), hidden: (row) => row.action_status !== 'DRAFT', onClick: prepare },
+              { key: 'running', label: translate('crm.campaigns.markSending'), hidden: (row) => row.action_status !== 'READY',
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'RUNNING')) },
-              { key: 'complete', label: translate('crm.campaign.markSent'), hidden: (row) => row.action_status !== 'RUNNING',
+              { key: 'complete', label: translate('crm.campaigns.markSent'), hidden: (row) => row.action_status !== 'RUNNING',
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'COMPLETE')) },
               { key: 'cancel', label: translate('common.cancel'), hidden: (row) => ['COMPLETE', 'CANCELLED'].indexOf(row.action_status) !== -1,
                 onClick: (row) => run(() => crm.campaigns.setActionStatus(campaign.campaign_id, row.action_id, 'CANCELLED')) }
@@ -259,9 +259,9 @@ export default function CampaignDetail() {
         </Card>
 
         <Card
-          title={translate('crm.campaign.costs')}
+          title={translate('crm.campaigns.costs')}
           actions={canWrite ? (
-            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaign.addCost'), [
+            <Button size="xs" variant="subtle" onClick={() => ask(translate('crm.campaigns.addCost'), [
               { name: 'cost_type', label: 'Kind', type: 'select', required: true, isClearable: false,
                 options: choices(['MEDIA', 'SMS', 'EMAIL_PROVIDER', 'COUPON', 'AGENCY', 'PRIZE', 'OTHER']) },
               { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true },
@@ -271,7 +271,7 @@ export default function CampaignDetail() {
                 options: (record.actions || []).map((action) => ({ value: action.action_id, label: action.action_name || String(action.action_id) })) }
             ], { cost_type: 'MEDIA', currency_code: 'USD' }, (values) => run(() => crm.campaigns.addCost(campaign.campaign_id, values)))}
             >
-              {translate('crm.campaign.addCost')}
+              {translate('crm.campaigns.addCost')}
             </Button>
           ) : null}
         >

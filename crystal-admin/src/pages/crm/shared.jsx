@@ -239,7 +239,7 @@ export function InstancePicker({ value, onChange }) {
       <InputGroup size="sm">
         <InputLeftElement pointerEvents="none"><SearchIcon color="gray.400" boxSize="0.8em" /></InputLeftElement>
         <Input
-          borderRadius="md" value={query} placeholder={translate('crm.common.findAProduct')}
+          borderRadius="md" value={query} placeholder={translate('crm.components.findAProduct')}
           onChange={(event) => setQuery(event.target.value)}
         />
       </InputGroup>
@@ -247,7 +247,7 @@ export function InstancePicker({ value, onChange }) {
         size="sm"
         isSearchable={false}
         value={value || null}
-        placeholder={translate('crm.common.chooseFromTheMatches')}
+        placeholder={translate('crm.components.chooseFromTheMatches')}
         options={found.map((instance) => ({
           value: instance.product_instance_id,
           label: instance.external_product_instance_id + '  ' + (instance.product_name || '') + (instance.holder_name ? '  (' + instance.holder_name + ')' : '')
@@ -327,7 +327,7 @@ export function RecordHeader({ title, subtitle, badges, actions, onBack }) {
 export function Pending({ loading }) {
   const translate = useT();
   if (loading) return <Flex justify="center" py={10}><Spinner /></Flex>;
-  return <Text fontSize="sm" py={6}>{translate('crm.common.notFound')}</Text>;
+  return <Text fontSize="sm" py={6}>{translate('crm.components.notFound')}</Text>;
 }
 
 /** A customer as screens show it: its party_pk. */

@@ -53,10 +53,10 @@ export default function Customers() {
       <Tabs defaultIndex={initialTab} isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
           <Tab fontSize="sm">{translate('crm.customers.allCustomers')}</Tab>
-          <Tab fontSize="sm">{translate('crm.review.pendingTab')}</Tab>
-          <Tab fontSize="sm">{translate('crm.review.eshopTab')}</Tab>
-          <Tab fontSize="sm">{translate('crm.review.resolvedTab')}</Tab>
-          <Tab fontSize="sm">{translate('crm.review.duplicatesTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.customers.pendingTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.customers.eshopTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.customers.resolvedTab')}</Tab>
+          <Tab fontSize="sm">{translate('crm.customers.duplicatesTab')}</Tab>
           <Tab fontSize="sm">{translate('crm.customers.importErrorsTab')}</Tab>
         </TabList>
         <TabPanels>
@@ -95,7 +95,7 @@ function CustomerList({ grade }) {
       const payload = Object.assign({}, submitted);
       if (payload.party_type !== 'ORGANIZATION') payload.full_name = payload.display_name;
       const { data } = await crm.parties.create(payload);
-      toast({ title: translate(data && data.outcome === 'QUEUED' ? 'crm.review.savedForReview' : data && data.outcome === 'MERGED' ? 'crm.review.matchedExisting' : 'crm.customers.rowsCreated'), status: 'success', duration: 4000 });
+      toast({ title: translate(data && data.outcome === 'QUEUED' ? 'crm.customers.savedForReview' : data && data.outcome === 'MERGED' ? 'crm.customers.matchedExisting' : 'crm.common.rowsCreated'), status: 'success', duration: 4000 });
       form.onClose();
       if (data && data.party_pk) history.push(PAGE + '/' + data.party_pk);
       else list.reload();
@@ -277,7 +277,7 @@ function Duplicates() {
     try {
       if (accept) await crm.parties.acceptDuplicate(row.match_candidate_id);
       else await crm.parties.rejectDuplicate(row.match_candidate_id);
-      toast({ title: translate(accept ? 'crm.customers.merged' : 'crm.customers.keptApart'), status: 'success', duration: 2500 });
+      toast({ title: translate(accept ? 'crm.common.merged' : 'crm.customers.keptApart'), status: 'success', duration: 2500 });
       list.reload();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -287,7 +287,7 @@ function Duplicates() {
   return (
     <Box>
       <HStack px={5} py={3} justify="space-between" wrap="wrap">
-        <Text fontSize="sm" maxW="44rem">{translate('crm.review.duplicatesIntro')}</Text>
+        <Text fontSize="sm" maxW="44rem">{translate('crm.customers.duplicatesIntro')}</Text>
         {canWrite ? (
           <Button size="sm" variant="subtle" isLoading={busy} onClick={scan}>{translate('crm.customers.scanForDuplicates')}</Button>
         ) : null}

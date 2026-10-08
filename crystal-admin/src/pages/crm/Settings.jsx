@@ -13,6 +13,8 @@ import { Status, choices, forgetCrmMeta, optionsFrom, rowsOf, translateOptions, 
 
 export const PAGE = '/admin/crm/settings';
 
+const IDENTITY_ROLES = { ESHOP: 'E-shop', USER_MANAGEMENT: 'User management' };
+
 const active = { key: 'is_active', label: 'Status', sortable: false, render: (row) => <Status value={row.is_active ? 'ACTIVE' : 'INACTIVE'} /> };
 const activeField = { name: 'is_active', label: 'In use', type: 'checkbox' };
 
@@ -34,6 +36,25 @@ export default function Settings() {
   const translate = useT();
   const meta = useCrmMeta();
   const [current, setCurrent] = useState('projects');
+  const [revision, setRevision] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
+  const { canWrite } = usePermission(PAGE);
+
+  /* Locations come from the vendor's list; this copies it again without running the whole Crystal import. */
+  const refreshLocations = async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await crm.refreshLocations();
+      forgetCrmMeta();
+      setRevision((value) => value + 1);
+      toast({ title: translate('crm.settings.locationsRefreshed', { added: (data || {}).added || 0, updated: (data || {}).updated || 0 }), status: 'success', duration: 4000 });
+    } catch (error) {
+      toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const lists = listsOf(meta, translate);
   const chosen = lists.filter((list) => list.path === current)[0] || lists[0];
@@ -60,7 +81,7 @@ export default function Settings() {
       {current === 'status-map' ? <StatusMap /> : null}
       {current === 'status-map' || current === 'staff-departments' ? null : (
         <CrudPage
-          key={chosen.path}
+          key={chosen.path + ':' + revision}
           page={PAGE}
           api={crm.settings(chosen.path)}
           pkField={chosen.pk}
@@ -71,6 +92,9 @@ export default function Settings() {
           fields={chosen.fields}
           emptyRow={chosen.emptyRow}
           toPayload={(values) => { forgetCrmMeta(); return values; }}
+          extraActions={chosen.path === 'locations' && canWrite ? (
+            <Button size="sm" variant="outline" isLoading={refreshing} onClick={refreshLocations}>{translate('crm.settings.refreshFromVendor')}</Button>
+          ) : undefined}
         />
       )}
     </Stack>
@@ -92,6 +116,7 @@ function listsOf(meta, translate) {
         { key: 'project_code', label: 'Code' }, { key: 'project_name', label: 'Name' },
         { key: 'project_type_code', label: 'Kind', render: (row) => row.project_type_code || '-' },
         { key: 'source_system_code', label: 'Source system' },
+        { key: 'identity_role', label: 'Identity role', render: (row) => (row.identity_role ? translate(IDENTITY_ROLES[row.identity_role] || row.identity_role) : '-') },
         { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
       ],
       fields: [
@@ -99,7 +124,11 @@ function listsOf(meta, translate) {
         /* A free label (PLATFORM, COMMERCE, CRM, ...): the database no longer fixes the list. */
         { name: 'project_type_code', label: 'Kind' },
         { name: 'source_system_code', label: 'Source system' }, { name: 'legal_entity_code', label: 'Legal entity' },
-        { name: 'status', label: 'Status', type: 'select', options: choices(['ACTIVE', 'INACTIVE']) }
+        { name: 'status', label: 'Status', type: 'select', options: choices(['ACTIVE', 'INACTIVE']) },
+        /* Which project the Excel import's E-shop and User columns belong to; at most one project per role. */
+        { name: 'identity_role', label: 'Identity role', type: 'select', colSpan: 'full',
+          options: Object.keys(IDENTITY_ROLES).map((role) => ({ value: role, label: translate(IDENTITY_ROLES[role]) })),
+          help: 'E-shop: the project of the Excel import\'s E-shop PK / ID columns. User management: the project of its User PK / User ID columns (the same User PK is the same person). One project per role.' }
       ],
       emptyRow: { status: 'ACTIVE' } },
 
@@ -256,7 +285,7 @@ function listsOf(meta, translate) {
           options: ['gray', 'green', 'blue', 'purple', 'pink', 'orange', 'red', 'teal', 'yellow', 'cyan'].map((colour) => ({ value: colour, label: colour })) },
         { name: 'description', label: 'Description', colSpan: 'full' }, activeField],
       emptyRow: { color_scheme: 'blue', is_active: true } },
-    { path: 'relationship-types', title: 'Relationships between customers', pk: 'relationship_type_code', sort: 'sort_order', hint: 'crm.settings.relationshipTypesHint',
+    { path: 'party-relationship-types', title: 'Relationships between customers', pk: 'relationship_type_code', sort: 'sort_order', hint: 'crm.settings.relationshipTypesHint',
       columns: [{ key: 'relationship_type_code', label: 'Code' }, { key: 'relationship_name', label: 'Name', render: (row) => translate(row.relationship_name) },
         { key: 'inverse_code', label: 'Seen from the other side' }, { key: 'applies_to', label: 'Between', render: (row) => word(translate, row.applies_to) },
         { key: 'is_hierarchy', label: 'Builds the group tree', render: (row) => yes(row.is_hierarchy) }, active],
@@ -271,7 +300,7 @@ function listsOf(meta, translate) {
       fields: [{ name: 'industry_code', label: 'Code', required: true }, { name: 'industry_name', label: 'Name', required: true },
         { name: 'parent_industry_id', label: 'Under', type: 'select', options: industries }, activeField],
       emptyRow: { is_active: true } },
-    { path: 'locations', title: 'Areas and addresses', pk: 'location_pk', sort: 'position', hint: 'crm.settings.locationsHint',
+    { path: 'locations', title: 'Locations', pk: 'location_pk', sort: 'position', hint: 'crm.settings.locationsHint',
       columns: [{ key: 'location_pk', label: 'Number', isNumeric: true }, { key: 'location_code', label: 'Code' },
         { key: 'location_name', label: 'Name' }, { key: 'parent_code', label: 'Under' },
         { key: 'position', label: 'Order', isNumeric: true }],

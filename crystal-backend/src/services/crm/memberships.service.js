@@ -75,14 +75,14 @@ function history(membershipId) {
 
 /** A manager's correction of a tier: history appended, current tier set, together. */
 async function setTier(membershipId, body, actor) {
-  if (!body.reason || !String(body.reason).trim()) throw new HttpError(400, 'crm.aReasonIsRequired');
+  if (!body.reason || !String(body.reason).trim()) throw new HttpError(400, 'crm.common.aReasonIsRequired');
 
   const result = await transaction(async function (trx) {
     const membership = await trx('crm_membership').where('membership_id', membershipId).forUpdate().first();
     if (!membership) throw new HttpError(404, 'common.notFound');
     const tier = await trx('crm_project_tier').where('project_tier_id', body.tier_id).first();
-    if (!tier || tier.project_id !== membership.project_id) throw new HttpError(409, 'crm.thatTierBelongsToAnotherProject');
-    if (String(membership.current_tier_id) === String(tier.project_tier_id)) throw new HttpError(409, 'crm.alreadyOnThatTier');
+    if (!tier || tier.project_id !== membership.project_id) throw new HttpError(409, 'crm.memberships.thatTierBelongsToAnotherProject');
+    if (String(membership.current_tier_id) === String(tier.project_tier_id)) throw new HttpError(409, 'crm.memberships.alreadyOnThatTier');
 
     await trx('crm_membership_tier_history').insert({
       membership_id: membership.membership_id, old_tier_id: membership.current_tier_id, new_tier_id: tier.project_tier_id,
@@ -98,7 +98,7 @@ async function setTier(membershipId, body, actor) {
 }
 
 async function setStatus(membershipId, status, actor) {
-  if (STATUSES.indexOf(status) === -1) throw new HttpError(400, 'crm.notAStatusYouCanSet');
+  if (STATUSES.indexOf(status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
   const before = await db('crm_membership').where('membership_id', membershipId).first();
   if (!before) throw new HttpError(404, 'common.notFound');
   const patch = { membership_status: status, left_at: status === 'LEFT' ? db.fn.now() : null };

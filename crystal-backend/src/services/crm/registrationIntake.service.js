@@ -147,7 +147,7 @@ async function decide(id, body, actor) {
   await lock(trx);
   const intake = await trx('crm_registration_intake').where('intake_id', id).forUpdate().first();
   if (!intake) throw new HttpError(404, 'common.notFound');
-  if (intake.status !== 'PENDING') throw new HttpError(409, 'crm.alreadyDecided');
+  if (intake.status !== 'PENDING') throw new HttpError(409, 'crm.common.alreadyDecided');
   if (body.action === 'REJECT' && intake.category === 'ESHOP') {
    await trx('crm_registration_intake').where('intake_id', id).update({ status: 'REJECTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
    return { intake_id: id, outcome: 'REJECTED' };
@@ -303,7 +303,7 @@ async function decideUnverified(partyPk, body, actor) {
  if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'Choose link or reject');
  const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_account_id) === String(body.external_account_id));
  if (!item) throw new HttpError(404, 'common.notFound');
- if (item.review_status && item.review_status !== 'PENDING') throw new HttpError(409, 'crm.alreadyDecided');
+ if (item.review_status && item.review_status !== 'PENDING') throw new HttpError(409, 'crm.common.alreadyDecided');
  let reviewId = item.review_intake_id;
  if (!reviewId) {
   const party = await db('crm_party').where('party_pk', partyPk).first();
@@ -311,7 +311,7 @@ async function decideUnverified(partyPk, body, actor) {
   await transaction(trx => stageUnverifiedAccounts(trx, party, [account]));
   const staged = await db('crm_registration_intake').where({ category: 'ESHOP', source_project_id: item.project_id, source_record_id: String(item.external_account_id) }).first('intake_id');
   // Already linked to this customer: staging had nothing to do.
-  if (!staged) throw new HttpError(409, 'crm.alreadyDecided');
+  if (!staged) throw new HttpError(409, 'crm.common.alreadyDecided');
   reviewId = staged.intake_id;
  }
  return decide(reviewId, body.action === 'LINK' ? { action: 'ASSIGN', party_pk: partyPk } : { action: 'REJECT' }, actor);

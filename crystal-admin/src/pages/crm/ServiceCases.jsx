@@ -91,7 +91,7 @@ export default function ServiceCases() {
         ])}
         actions={canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
-            {translate('crm.cases.newCase')}
+            {translate('crm.serviceCases.newCase')}
           </Button>
         ) : null}
       />
@@ -127,7 +127,7 @@ export default function ServiceCases() {
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
-        title={translate('crm.cases.newCase')}
+        title={translate('crm.serviceCases.newCase')}
         initial={{ project_id: crystal ? crystal.project_id : null, reception_channel_code: 'PHONE' }}
         onSubmit={create}
         saving={saving}
@@ -218,7 +218,7 @@ export function CaseDetail({ id, onClose }) {
     <Modal isOpen={!!id} onClose={onClose} size="4xl" scrollBehavior="inside" returnFocusOnClose={false} preserveScrollBarGap>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{serviceCase.external_case_id || serviceCase.title || translate('crm.cases.case')}</ModalHeader>
+        <ModalHeader>{serviceCase.external_case_id || serviceCase.title || translate('crm.serviceCases.case')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={5}>
@@ -243,10 +243,10 @@ export function CaseDetail({ id, onClose }) {
             {serviceCase.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{serviceCase.description}</Text> : null}
 
             {fromTicket ? (
-              <Text fontSize="sm">{translate('crm.cases.followsTicket')}</Text>
+              <Text fontSize="sm">{translate('crm.serviceCases.followsTicket')}</Text>
             ) : (canWrite && serviceCase.case_id ? (
               <Box>
-                <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.moveTo')}</Text>
+                <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.serviceCases.moveTo')}</Text>
                 <SelectField
                   size="sm"
                   options={translateOptions(translate, optionsFrom(meta.service_statuses, 'service_status_id', 'display_name'))}
@@ -258,7 +258,7 @@ export function CaseDetail({ id, onClose }) {
             ) : null)}
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.classification')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.serviceCases.classification')}</Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
                 {picker('issue_category_id', 'What the customer reported', meta.issue_categories, 'issue_category_id')}
                 {picker('fault_category_id', 'What was actually wrong', meta.fault_categories, 'fault_category_id')}
@@ -269,24 +269,24 @@ export function CaseDetail({ id, onClose }) {
                 mt={3} size="sm" rows={3}
                 value={draft.resolution_text || ''}
                 isReadOnly={!canWrite}
-                placeholder={translate('crm.cases.resolutionNotes')}
+                placeholder={translate('crm.serviceCases.resolutionNotes')}
                 onChange={(event) => set('resolution_text', event.target.value)}
               />
               {canWrite && serviceCase.case_id ? (
                 <Button mt={3} size="sm" variant="brand" isLoading={busy}
                   onClick={() => save(() => crm.cases.classify(serviceCase.case_id, draft))}>
-                  {translate('crm.cases.saveClassification')}
+                  {translate('crm.serviceCases.saveClassification')}
                 </Button>
               ) : null}
               {record.classification && record.classification.classified_by_name ? (
                 <Text fontSize="xs" mt={2}>
-                  {translate('crm.cases.classifiedBy', { name: record.classification.classified_by_name, when: dateTime(record.classification.classified_at) })}
+                  {translate('crm.serviceCases.classifiedBy', { name: record.classification.classified_by_name, when: dateTime(record.classification.classified_at) })}
                 </Text>
               ) : null}
             </Box>
 
             <Box>
-              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.cases.atTheSite')}</Text>
+              <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.serviceCases.atTheSite')}</Text>
               <DataTable
                 hidePagination
                 rows={record.activities || []}

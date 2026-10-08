@@ -335,9 +335,13 @@ async function reachOf(partyId) {
     || consents.filter(function (consent) { return consent.consent_status === 'GRANTED'; })
       .sort(function (first, second) { return new Date(second.captured_at) - new Date(first.captured_at); })[0];
   const first = function (types) { return contacts.filter(function (contact) { return types.indexOf(contact.contact_type) !== -1; })[0] || null; };
+  const every = function (types) { return contacts.filter(function (contact) { return types.indexOf(contact.contact_type) !== -1; }); };
   return {
     email: first(['EMAIL']),
     phone: first(['MOBILE', 'PHONE']),
+    /* Every active phone and email, primary first: a merged customer keeps the numbers of both records. */
+    phones: every(['MOBILE', 'PHONE']),
+    emails: every(['EMAIL']),
     preferred_channel: preferred ? preferred.channel_code : null,
     consent_by_channel: byChannel
   };

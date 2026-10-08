@@ -28,21 +28,21 @@ const LIVE = ['DRAFT', 'APPROVED', 'TARGETS_FROZEN', 'OPEN'];
 
 /* The buttons each status offers, in the order they are shown. */
 const MOVES = {
-  DRAFT: [['APPROVED', 'crm.event.approve'], ['CANCELLED', 'crm.event.cancelEvent']],
-  APPROVED: [['TARGETS_FROZEN', 'crm.event.freezeTargets'], ['DRAFT', 'crm.event.backToDraft'], ['CANCELLED', 'crm.event.cancelEvent']],
-  TARGETS_FROZEN: [['OPEN', 'crm.event.open'], ['CANCELLED', 'crm.event.cancelEvent']],
-  OPEN: [['CLOSED', 'crm.event.close'], ['CANCELLED', 'crm.event.cancelEvent']],
-  CLOSED: [['FULFILLED', 'crm.event.markFulfilled']]
+  DRAFT: [['APPROVED', 'crm.events.approve'], ['CANCELLED', 'crm.events.cancelEvent']],
+  APPROVED: [['TARGETS_FROZEN', 'crm.events.freezeTargets'], ['DRAFT', 'crm.events.backToDraft'], ['CANCELLED', 'crm.events.cancelEvent']],
+  TARGETS_FROZEN: [['OPEN', 'crm.events.open'], ['CANCELLED', 'crm.events.cancelEvent']],
+  OPEN: [['CLOSED', 'crm.events.close'], ['CANCELLED', 'crm.events.cancelEvent']],
+  CLOSED: [['FULFILLED', 'crm.events.markFulfilled']]
 };
 
 const MOVE_EXPLAINED = {
-  APPROVED: 'crm.event.approveExplained',
-  TARGETS_FROZEN: 'crm.event.freezeExplained',
-  OPEN: 'crm.event.openExplained',
-  CLOSED: 'crm.event.closeExplained',
-  FULFILLED: 'crm.event.fulfilExplained',
-  CANCELLED: 'crm.event.cancelExplained',
-  DRAFT: 'crm.event.backToDraftExplained'
+  APPROVED: 'crm.events.approveExplained',
+  TARGETS_FROZEN: 'crm.events.freezeExplained',
+  OPEN: 'crm.events.openExplained',
+  CLOSED: 'crm.events.closeExplained',
+  FULFILLED: 'crm.events.fulfilExplained',
+  CANCELLED: 'crm.events.cancelExplained',
+  DRAFT: 'crm.events.backToDraftExplained'
 };
 
 /**
@@ -131,7 +131,7 @@ export default function EventDetail() {
   };
 
   const remove = async (title, detailText, work) => {
-    const agreed = await confirm({ tone: 'danger', title: translate(title), body: translate('crm.event.removeExplained'), detail: detailText, confirmLabel: translate('common.remove') });
+    const agreed = await confirm({ tone: 'danger', title: translate(title), body: translate('crm.events.removeExplained'), detail: detailText, confirmLabel: translate('common.remove') });
     if (agreed) run(work);
   };
 
@@ -146,12 +146,12 @@ export default function EventDetail() {
         onBack={() => history.push(PAGE)}
         title={event.event_name}
         subtitle={event.event_code + '  ·  ' + word(translate, event.event_type) + '  ·  ' +
-          translate('crm.event.chosenBy', { basis: word(translate, event.eligibility_basis) })}
+          translate('crm.events.chosenBy', { basis: word(translate, event.eligibility_basis) })}
         badges={<Status value={status} />}
         actions={canWrite ? (
           <>
             {status === 'DRAFT' || live ? (
-              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.event.editEvent'), editFields,
+              <Button size="sm" variant="subtle" onClick={() => ask(translate('crm.events.editEvent'), editFields,
                 Object.assign({}, event, {
                   eligibility_rule: event.eligibility_rule ? JSON.stringify(event.eligibility_rule) : '',
                   display_at: localInput(event.display_at),
@@ -177,7 +177,7 @@ export default function EventDetail() {
       />
 
       {status === 'DRAFT' && mine && canWrite ? (
-        <Card mb={4}><Text fontSize="sm">{translate('crm.event.needsAnotherApprover')}</Text></Card>
+        <Card mb={4}><Text fontSize="sm">{translate('crm.events.needsAnotherApprover')}</Text></Card>
       ) : null}
 
       <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={4} mb={4}>
@@ -192,10 +192,10 @@ export default function EventDetail() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
-            <Tab fontSize="sm">{translate('crm.event.setup')}</Tab>
-            <Tab fontSize="sm">{translate('crm.event.targets')}</Tab>
-            <Tab fontSize="sm">{translate('crm.event.entries')}</Tab>
-            <Tab fontSize="sm">{translate('crm.event.awards')}</Tab>
+            <Tab fontSize="sm">{translate('crm.events.setup')}</Tab>
+            <Tab fontSize="sm">{translate('crm.events.targets')}</Tab>
+            <Tab fontSize="sm">{translate('crm.events.entries')}</Tab>
+            <Tab fontSize="sm">{translate('crm.events.awards')}</Tab>
           </TabList>
           <TabPanels>
             {/* ---- setup ---- */}
@@ -221,9 +221,9 @@ export default function EventDetail() {
                 {event.description ? <Text fontSize="sm" whiteSpace="pre-wrap">{event.description}</Text> : null}
 
                 <Block
-                  title={translate('crm.event.tiers')}
-                  hint={translate('crm.event.tiersExplained')}
-                  add={canWrite && inSetup ? () => ask(translate('crm.event.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
+                  title={translate('crm.events.tiers')}
+                  hint={translate('crm.events.tiersExplained')}
+                  add={canWrite && inSetup ? () => ask(translate('crm.events.addTier'), tierFields(), { rank_no: tiers.length + 1, min_value: 0, entries_per_target: 1 },
                     (values) => run(() => crm.events.saveTier(pid, null, values))) : null}
                 >
                   <DataTable
@@ -240,9 +240,9 @@ export default function EventDetail() {
                       { key: 'number_range_start', label: 'Numbers', render: (row) => (row.number_range_start === null ? '-' : row.number_range_start + ' - ' + (row.number_range_end === null ? '' : row.number_range_end)) }
                     ]}
                     actions={canWrite && inSetup ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editTier'), tierFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.events.editTier'), tierFields(), row,
                         (values) => run(() => crm.events.saveTier(pid, row.event_tier_id, values))) },
-                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.event.removeTier', row.tier_name,
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.events.removeTier', row.tier_name,
                         () => crm.events.removeTier(pid, row.event_tier_id)) }
                     ] : []}
                     actionsIconOnly={false}
@@ -250,9 +250,9 @@ export default function EventDetail() {
                 </Block>
 
                 <Block
-                  title={translate('crm.event.sites')}
-                  hint={translate('crm.event.sitesExplained')}
-                  add={canWrite && live ? () => ask(translate('crm.event.addSite'), [
+                  title={translate('crm.events.sites')}
+                  hint={translate('crm.events.sitesExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.events.addSite'), [
                     { name: 'service_center_id', label: 'Service location', type: 'select', required: true, options: sites, isSearchable: true },
                     { name: 'service_center_role', label: 'Role', type: 'select', required: true, isClearable: false,
                       options: choices(['PICKUP', 'SALE', 'EVENT_VENUE', 'DELIVERY_HUB']) }
@@ -268,7 +268,7 @@ export default function EventDetail() {
                       { key: 'service_center_role', label: 'Role', render: (row) => word(translate, row.service_center_role) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.event.removeSite', row.service_center_name,
+                      { key: 'remove', label: translate('common.remove'), onClick: (row) => remove('crm.events.removeSite', row.service_center_name,
                         () => crm.events.removeLocation(pid, row.event_service_center_id)) }
                     ] : []}
                     actionsIconOnly={false}
@@ -276,9 +276,9 @@ export default function EventDetail() {
                 </Block>
 
                 <Block
-                  title={translate('crm.event.quotas')}
-                  hint={translate('crm.event.quotasExplained')}
-                  add={canWrite && live ? () => ask(translate('crm.event.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
+                  title={translate('crm.events.quotas')}
+                  hint={translate('crm.events.quotasExplained')}
+                  add={canWrite && live ? () => ask(translate('crm.events.addQuota'), quotaFields(), { entry_type: 'NORMAL' },
                     (values) => run(() => crm.events.saveQuota(pid, null, values))) : null}
                 >
                   <DataTable
@@ -287,23 +287,23 @@ export default function EventDetail() {
                     rowKey={(row) => row.event_quota_id}
                     columns={[
                       { key: 'entry_type', label: 'Entry', render: (row) => word(translate, row.entry_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.event.everyTier') },
-                      { key: 'service_center_name', label: 'Service location', render: (row) => row.service_center_name || translate('crm.event.everySite') },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.events.everyTier') },
+                      { key: 'service_center_name', label: 'Service location', render: (row) => row.service_center_name || translate('crm.events.everySite') },
                       { key: 'used_count', label: 'Used', isNumeric: true, render: (row) => number(row.used_count) + ' / ' + number(row.quota_count) }
                     ]}
                     actions={canWrite && live ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editQuota'), quotaFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.events.editQuota'), quotaFields(), row,
                         (values) => run(() => crm.events.saveQuota(pid, row.event_quota_id, values))) },
                       { key: 'remove', label: translate('common.remove'), hidden: (row) => row.used_count > 0,
-                        onClick: (row) => remove('crm.event.removeQuota', word(translate, row.entry_type), () => crm.events.removeQuota(pid, row.event_quota_id)) }
+                        onClick: (row) => remove('crm.events.removeQuota', word(translate, row.entry_type), () => crm.events.removeQuota(pid, row.event_quota_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
                 </Block>
 
                 <Block
-                  title={translate('crm.event.rewards')}
-                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(translate('crm.event.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
+                  title={translate('crm.events.rewards')}
+                  add={canWrite && status !== 'FULFILLED' && status !== 'CANCELLED' ? () => ask(translate('crm.events.addReward'), rewardFields(), { reward_type: 'PICKUP_GOODS', quantity_total: 1 },
                     (values) => run(() => crm.events.saveReward(pid, null, values))) : null}
                 >
                   <DataTable
@@ -313,16 +313,16 @@ export default function EventDetail() {
                     columns={[
                       { key: 'reward_name', label: 'Reward' },
                       { key: 'reward_type', label: 'Kind', render: (row) => word(translate, row.reward_type) },
-                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.event.everyTier') },
+                      { key: 'tier_name', label: 'Tier', render: (row) => row.tier_name || translate('crm.events.everyTier') },
                       { key: 'points', label: 'Points', render: (row) => (row.points ? amount(row.points) + ' ' + (row.point_type_code || '') : '-') },
                       { key: 'product_name', label: 'Product' },
                       { key: 'quantity_awarded', label: 'Awarded', isNumeric: true, render: (row) => number(row.quantity_awarded) + ' / ' + number(row.quantity_total) }
                     ]}
                     actions={canWrite ? [
-                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.event.editReward'), rewardFields(), row,
+                      { key: 'edit', label: translate('common.edit'), onClick: (row) => ask(translate('crm.events.editReward'), rewardFields(), row,
                         (values) => run(() => crm.events.saveReward(pid, row.reward_id, values))) },
                       { key: 'remove', label: translate('common.remove'), hidden: (row) => row.quantity_awarded > 0,
-                        onClick: (row) => remove('crm.event.removeReward', row.reward_name, () => crm.events.removeReward(pid, row.reward_id)) }
+                        onClick: (row) => remove('crm.events.removeReward', row.reward_name, () => crm.events.removeReward(pid, row.reward_id)) }
                     ] : []}
                     actionsIconOnly={false}
                   />
@@ -407,7 +407,7 @@ function Block({ title, hint, add, children }) {
           <Text fontSize="sm" fontWeight="600">{title}</Text>
           {hint ? <Text fontSize="xs">{hint}</Text> : null}
         </Box>
-        {add ? <Button size="xs" variant="subtle" onClick={add}>{translate('crm.event.add')}</Button> : null}
+        {add ? <Button size="xs" variant="subtle" onClick={add}>{translate('crm.common.add')}</Button> : null}
       </Box>
       {children}
     </Box>
@@ -443,11 +443,11 @@ function Targets({ event, tierOptions, ask, run, tick }) {
               <Button size="sm" variant="subtle" onClick={() => run(() => crm.events.buildTargets(pid).then(({ data }) => {
                 list.reload();
                 return data;
-              }), 'crm.event.targetsBuilt')}>
-                {translate('crm.event.buildFromRule')}
+              }), 'crm.events.targetsBuilt')}>
+                {translate('crm.events.buildFromRule')}
               </Button>
             ) : null}
-            <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.addTarget'), [
+            <Button size="sm" variant="brand" onClick={() => ask(translate('crm.events.addTarget'), [
               { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
                 render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
               { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
@@ -457,7 +457,7 @@ function Targets({ event, tierOptions, ask, run, tick }) {
               { name: 'note', label: 'Why', colSpan: 'full' }
             ], { entry_type: 'NORMAL', allowed_count: 1 }, (values) => run(() => crm.events.addTarget(pid, values).then(() => list.reload())))}
             >
-              {translate('crm.event.addTarget')}
+              {translate('crm.events.addTarget')}
             </Button>
           </>
         ) : null}
@@ -483,7 +483,7 @@ function Targets({ event, tierOptions, ask, run, tick }) {
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.activity_target_id || row.id}
           actions={canWrite && event.status !== 'FULFILLED' && event.status !== 'CANCELLED' ? [
-            { key: 'revoke', label: translate('crm.event.revoke'), hidden: (row) => row.status === 'REVOKED',
+            { key: 'revoke', label: translate('crm.events.revoke'), hidden: (row) => row.status === 'REVOKED',
               onClick: (row) => run(() => crm.events.revokeTarget(pid, row.activity_target_id).then(() => list.reload())) }
           ] : []}
           actionsIconOnly={false}
@@ -500,8 +500,8 @@ const ENTRY_MOVES = {
   PAID: ['FULFILLED', 'CANCELLED']
 };
 const ENTRY_VERBS = {
-  RESERVED: 'crm.event.confirmEntry', PAID: 'crm.event.markPaid', FULFILLED: 'crm.event.markCollected',
-  CANCELLED: 'crm.event.cancelEntry', EXPIRED: 'crm.event.markExpired', FAILED: 'crm.event.markFailed'
+  RESERVED: 'crm.events.confirmEntry', PAID: 'crm.events.markPaid', FULFILLED: 'crm.events.markCollected',
+  CANCELLED: 'crm.events.cancelEntry', EXPIRED: 'crm.events.markExpired', FAILED: 'crm.events.markFailed'
 };
 
 function Entries({ event, eventSites, ask, run, tick }) {
@@ -545,7 +545,7 @@ function Entries({ event, eventSites, ask, run, tick }) {
             options: eventSites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) }
         ])}
         actions={canWrite && event.status === 'OPEN' ? (
-          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.takeAnEntry'), [
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.events.takeAnEntry'), [
             { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
               render: (values, set) => <PartyPicker value={values.party_pk} onChange={(value) => set('party_pk', value)} /> },
             { name: 'entry_type', label: 'Entry', type: 'select', isClearable: false, options: choices(['NORMAL', 'REWARD']) },
@@ -554,9 +554,9 @@ function Entries({ event, eventSites, ask, run, tick }) {
             { name: 'holder_phone', label: 'Phone' },
             { name: 'holder_id_card', label: 'ID card number',
               help: 'Kept only as a fingerprint and a masked copy. One ID card, one entry per event.' }
-          ], { entry_type: 'NORMAL' }, (values) => run(() => crm.events.reserve(pid, values).then(() => list.reload()), 'crm.event.entryTaken'))}
+          ], { entry_type: 'NORMAL' }, (values) => run(() => crm.events.reserve(pid, values).then(() => list.reload()), 'crm.events.entryTaken'))}
           >
-            {translate('crm.event.takeAnEntry')}
+            {translate('crm.events.takeAnEntry')}
           </Button>
         ) : null}
       />
@@ -621,9 +621,9 @@ const AWARD_MOVES = {
   FAILED: ['PENDING', 'CANCELLED']
 };
 const AWARD_VERBS = {
-  READY: 'crm.event.readyToCollect', DISPATCHED: 'crm.event.dispatched', DELIVERED: 'crm.event.delivered',
-  PICKED_UP: 'crm.event.pickedUp', CREDITED: 'crm.event.credited', FAILED: 'crm.event.markFailed',
-  PENDING: 'crm.event.tryAgain', CANCELLED: 'crm.event.cancelAward'
+  READY: 'crm.events.readyToCollect', DISPATCHED: 'crm.events.dispatched', DELIVERED: 'crm.events.delivered',
+  PICKED_UP: 'crm.events.pickedUp', CREDITED: 'crm.events.credited', FAILED: 'crm.events.markFailed',
+  PENDING: 'crm.events.tryAgain', CANCELLED: 'crm.events.cancelAward'
 };
 
 function Awards({ event, rewards, sites, ask, run, tick }) {
@@ -657,7 +657,7 @@ function Awards({ event, rewards, sites, ask, run, tick }) {
             onChange: (value) => list.setFilter({ status: value || undefined }) }
         ])}
         actions={canWrite && (event.status === 'OPEN' || event.status === 'CLOSED') ? (
-          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.event.giveAReward'), [
+          <Button size="sm" variant="brand" onClick={() => ask(translate('crm.events.giveAReward'), [
             { name: 'reward_id', label: 'Reward', type: 'select', required: true,
               options: rewards.map((reward) => ({ value: reward.reward_id, label: reward.reward_name + '  (' + number(reward.quantity_total - reward.quantity_awarded) + ')' })) },
             { name: 'party_pk', label: 'Customer', type: 'custom', colSpan: 'full',
@@ -670,7 +670,7 @@ function Awards({ event, rewards, sites, ask, run, tick }) {
             { name: 'delivery_address', label: 'Delivery address', colSpan: 'full' }
           ], { fulfilment_method: 'PICKUP' }, (values) => run(() => crm.events.award(pid, values).then(() => list.reload())))}
           >
-            {translate('crm.event.giveAReward')}
+            {translate('crm.events.giveAReward')}
           </Button>
         ) : null}
       />

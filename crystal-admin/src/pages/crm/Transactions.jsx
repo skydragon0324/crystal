@@ -143,7 +143,7 @@ export function TransactionDrawer({ id, onClose }) {
                 transaction.original_transaction_id ? { label: 'Reverses', value: transaction.original_external_id } : null
               ]} />
             </Panel>
-            <Panel title={translate('crm.transactions.parties')} empty={(record.parties || []).length ? null : 'crm.ui.nothingYet'}>
+            <Panel title={translate('crm.transactions.parties')} empty={(record.parties || []).length ? null : 'crm.common.nothingYet'}>
               <InfoList items={(record.parties || []).map((participant) => ({
                 label: word(translate, participant.party_role_code),
                 value: (
@@ -153,7 +153,7 @@ export function TransactionDrawer({ id, onClose }) {
                 )
               }))} />
             </Panel>
-            <Panel title={translate('crm.transactions.lines')} empty={(record.items || []).length ? null : 'crm.ui.nothingYet'}>
+            <Panel title={translate('crm.transactions.lines')} empty={(record.items || []).length ? null : 'crm.common.nothingYet'}>
               <DataTable
                 hidePagination
                 rows={record.items || []}

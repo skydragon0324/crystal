@@ -11,7 +11,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { date, dateTime } from '../../utils/format';
 
-const INTRO = { RESOLVED: 'crm.review.resolvedIntro', ESHOP: 'crm.review.eshopIntro', PERSON: 'crm.review.personIntro' };
+const INTRO = { RESOLVED: 'crm.registrationReview.resolvedIntro', ESHOP: 'crm.registrationReview.eshopIntro', PERSON: 'crm.registrationReview.personIntro' };
 
 /*
  * The key the registration has in the system it came from. An Excel row is
@@ -22,21 +22,21 @@ const INTRO = { RESOLVED: 'crm.review.resolvedIntro', ESHOP: 'crm.review.eshopIn
 function sourceRecord(value, translate) {
   const text = String(value || '');
   const excel = text.match(/^excel:[0-9a-f]+:(\d+)$/);
-  if (excel) return translate('crm.review.excelRow', { row: excel[1] });
+  if (excel) return translate('crm.registrationReview.excelRow', { row: excel[1] });
   if (/^[0-9a-f]{32}$/.test(text)) return '-';
   return text || '-';
 }
 const GENDER = { M: 'Male', F: 'Female', OTHER: 'Other', UNKNOWN: 'Unknown' };
 /* Where an identifier comes from: what the registration brought, an account already linked, or one an Excel import listed. */
 const KIND = {
-  INCOMING: { label: 'crm.review.identifierIncoming', tone: 'blue' },
-  LINKED: { label: 'crm.review.identifierLinked', tone: 'green' },
-  CANDIDATE: { label: 'crm.review.identifierCandidate', tone: 'orange' }
+  INCOMING: { textKey: 'crm.registrationReview.identifierIncoming', tone: 'blue' },
+  LINKED: { textKey: 'crm.registrationReview.identifierLinked', tone: 'green' },
+  CANDIDATE: { textKey: 'crm.registrationReview.identifierCandidate', tone: 'orange' }
 };
 
 /** One person's basic information, the same layout for the incoming person and every candidate. */
 function PersonFacts({ person, translate }) {
-  if (!person) return <Text fontSize="sm" color="gray.500">{translate('crm.review.noPersonDetails')}</Text>;
+  if (!person) return <Text fontSize="sm" color="gray.500">{translate('crm.registrationReview.noPersonDetails')}</Text>;
   const facts = [
     ['Name', person.full_name],
     ['Gender', person.gender_code ? translate(GENDER[person.gender_code] || person.gender_code) : null],
@@ -46,7 +46,7 @@ function PersonFacts({ person, translate }) {
     ['Location', person.location_name ? person.location_name + (person.location_id ? ' (' + person.location_id + ')' : '') : person.location_id],
     ['Address', person.address_line],
     ['Job title', person.job_title_name ? translate(person.job_title_name) : null],
-    ['crm.review.originProject', person.origin_project_name ? translate(person.origin_project_name) : null]
+    ['crm.registrationReview.originProject', person.origin_project_name ? translate(person.origin_project_name) : null]
   ];
   return (
     <SimpleGrid columns={{ base: 1, md: 3 }} spacingX={4} spacingY={1} fontSize="sm">
@@ -62,7 +62,7 @@ function PersonFacts({ person, translate }) {
 
 /** The project identifiers a person carries: project, account PK and account ID, and where each comes from. */
 function Identifiers({ rows, translate }) {
-  if (!rows || !rows.length) return <Text fontSize="xs" color="gray.500" mt={2}>{translate('crm.review.noIdentifiers')}</Text>;
+  if (!rows || !rows.length) return <Text fontSize="xs" color="gray.500" mt={2}>{translate('crm.registrationReview.noIdentifiers')}</Text>;
   return (
     <Table size="sm" mt={2}>
       <Thead>
@@ -70,7 +70,7 @@ function Identifiers({ rows, translate }) {
           <Th px={2}>{translate('Project')}</Th>
           <Th px={2}>{translate('Account PK')}</Th>
           <Th px={2}>{translate('Account ID')}</Th>
-          <Th px={2}>{translate('crm.review.identifierKind')}</Th>
+          <Th px={2}>{translate('crm.registrationReview.identifierKind')}</Th>
         </Tr>
       </Thead>
       <Tbody>
@@ -79,7 +79,7 @@ function Identifiers({ rows, translate }) {
             <Td px={2}>{row.project_name ? translate(row.project_name) : '-'}</Td>
             <Td px={2}>{row.account_pk || '-'}</Td>
             <Td px={2}>{row.account_id || '-'}</Td>
-            <Td px={2}><Badge colorScheme={(KIND[row.kind] || {}).tone}>{translate((KIND[row.kind] || {}).label || row.kind)}</Badge></Td>
+            <Td px={2}><Badge colorScheme={(KIND[row.kind] || {}).tone}>{translate((KIND[row.kind] || {}).textKey || row.kind)}</Badge></Td>
           </Tr>
         ))}
       </Tbody>
@@ -111,8 +111,8 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const candidateLabel = candidate => (candidate.party_pk
-    ? translate('crm.review.customerNumber', { id: candidate.party_pk })
-    : translate('crm.review.pendingRegistrationNumber', { id: candidate.intake_id }));
+    ? translate('crm.registrationReview.customerNumber', { id: candidate.party_pk })
+    : translate('crm.registrationReview.pendingRegistrationNumber', { id: candidate.intake_id }));
   const decide = async action => {
     setBusy(true);
     try {
@@ -121,7 +121,7 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
       await crm.parties.decideRegistration(selected.intake_id, payload);
       setSelected(null); list.reload();
       if (onDecided) onDecided();
-      toast({ title: translate('crm.review.decisionSaved'), status: 'success', duration: 3000 });
+      toast({ title: translate('crm.registrationReview.decisionSaved'), status: 'success', duration: 3000 });
     } catch (error) { toast({ title: error.message, status: 'error', duration: 6000 }); }
     finally { setBusy(false); }
   };
@@ -132,13 +132,13 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
     {/* Name, phone, birthday, an e-shop or user identifier, the registration or customer number, the source. */}
     <Box mx={-5}><Toolbar search={list.params.q} onSearch={(q) => list.setFilter({ q: q || undefined })} /></Box>
     <DataTable columns={[
-      { key: 'intake_id', label: translate('crm.review.registration') },
+      { key: 'intake_id', label: translate('crm.registrationReview.registration') },
       { key: 'name', label: translate('Person'), render: row => (row.payload.party || {}).full_name || (row.payload.party || {}).display_name || '-' },
-      { key: 'project_name', label: translate('crm.review.sourceProject') },
-      { key: 'source_record_id', label: translate('crm.review.sourceRecord'), render: row => sourceRecord(row.source_record_id, translate) },
-      { key: 'score', label: translate('crm.review.bestScore'), render: row => Math.max(0, ...(row.candidates || []).map(c => c.score || 0)) },
+      { key: 'project_name', label: translate('crm.registrationReview.sourceProject') },
+      { key: 'source_record_id', label: translate('crm.registrationReview.sourceRecord'), render: row => sourceRecord(row.source_record_id, translate) },
+      { key: 'score', label: translate('crm.registrationReview.bestScore'), render: row => Math.max(0, ...(row.candidates || []).map(c => c.score || 0)) },
       { key: 'status', label: translate('Status') },
-      { key: 'party_pk', label: translate('crm.customers.importCustomerKey') },
+      { key: 'party_pk', label: translate('crm.common.importCustomerKey') },
       { key: 'created_at', label: translate('Received'), render: row => dateTime(row.created_at) }
     ]} rows={list.rows} loading={list.loading} page={list.params.page} limit={list.params.limit} total={list.total}
       onPageChange={list.setPage} onLimitChange={limit => list.setFilter({ limit })} rowKey={row => row.intake_id}
@@ -149,41 +149,41 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
     */}
     <Modal isOpen={!!selected} onClose={() => !busy && setSelected(null)} size="5xl" returnFocusOnClose={false} preserveScrollBarGap>
       <ModalOverlay /><ModalContent maxH="calc(100vh - 7.5rem)" display="flex" flexDirection="column">
-        <ModalHeader flexShrink={0}>{translate('crm.review.reviewTitle')}</ModalHeader><ModalCloseButton isDisabled={busy} />
+        <ModalHeader flexShrink={0}>{translate('crm.registrationReview.reviewTitle')}</ModalHeader><ModalCloseButton isDisabled={busy} />
         <ModalBody display="flex" flexDirection="column" flex="1" minH={0} overflow="hidden">
           {selected && !detail ? <HStack py={6} justify="center"><Spinner size="sm" /></HStack> : null}
           {selected && detail && <>
             <Box flexShrink={0} borderWidth="1px" borderColor="blue.200" borderRadius="md" p={3} mb={3} maxH="40%" overflowY="auto">
               <HStack justify="space-between" mb={2} wrap="wrap">
-                <Text fontWeight="bold">{translate('crm.review.incomingPerson')}</Text>
+                <Text fontWeight="bold">{translate('crm.registrationReview.incomingPerson')}</Text>
                 <Text fontSize="sm" color="gray.500">
-                  {translate('crm.review.source', { project: detail.source_project_name ? translate(detail.source_project_name) : '-', record: detail.source_record_id })}
+                  {translate('crm.registrationReview.source', { project: detail.source_project_name ? translate(detail.source_project_name) : '-', record: detail.source_record_id })}
                 </Text>
               </HStack>
               <PersonFacts person={detail.incoming.person} translate={translate} />
               <Identifiers rows={detail.incoming.identifiers} translate={translate} />
             </Box>
-            <Text fontWeight="bold" fontSize="sm" mb={2} flexShrink={0}>{translate('crm.review.candidates', { n: candidates.length })}</Text>
+            <Text fontWeight="bold" fontSize="sm" mb={2} flexShrink={0}>{translate('crm.registrationReview.candidates', { n: candidates.length })}</Text>
             <Box flex="1" minH="6rem" overflowY="auto" pr={1} mb={3}>
               {candidates.map((candidate, index) => <Box key={index} borderWidth="1px" borderRadius="md" p={3} mb={3}>
                 <HStack justify="space-between" mb={2} wrap="wrap">
-                  <Text fontWeight="bold">{(candidate.display_name || translate('crm.review.customer')) + ' — ' + candidateLabel(candidate)}</Text>
-                  <Text fontSize="sm">{candidate.reason} {candidate.score != null ? translate('crm.review.points', { n: candidate.score }) : ''}</Text>
+                  <Text fontWeight="bold">{(candidate.display_name || translate('crm.registrationReview.customer')) + ' — ' + candidateLabel(candidate)}</Text>
+                  <Text fontSize="sm">{candidate.reason} {candidate.score != null ? translate('crm.registrationReview.points', { n: candidate.score }) : ''}</Text>
                 </HStack>
                 <PersonFacts person={candidate.person} translate={translate} />
                 <Identifiers rows={candidate.identifiers} translate={translate} />
               </Box>)}
             </Box>
             {!resolved && canWrite && <Box flexShrink={0}>
-              <Select placeholder={translate('crm.review.selectMatch')} value={target} onChange={e => { setTarget(e.target.value); setManualPk(''); }} mb={3}>
+              <Select placeholder={translate('crm.registrationReview.selectMatch')} value={target} onChange={e => { setTarget(e.target.value); setManualPk(''); }} mb={3}>
                 {candidates.map((candidate, index) => <option key={index} value={candidate.party_pk ? `party:${candidate.party_pk}` : `intake:${candidate.intake_id}`}>
-                  {(candidate.display_name || translate('crm.review.match')) + ' — ' + (candidate.party_pk
-                    ? translate('crm.review.customerNumber', { id: candidate.party_pk })
-                    : translate('crm.review.pendingNumber', { id: candidate.intake_id }))}
+                  {(candidate.display_name || translate('crm.registrationReview.match')) + ' — ' + (candidate.party_pk
+                    ? translate('crm.registrationReview.customerNumber', { id: candidate.party_pk })
+                    : translate('crm.common.pendingNumber', { id: candidate.intake_id }))}
                 </option>)}
               </Select>
-              {eshop && <Input placeholder={translate('crm.review.enterVerifiedPk')} value={manualPk} onChange={e => setManualPk(e.target.value)} />}
-              <Text fontSize="sm" mt={3}>{translate('crm.review.resolveFirst')}</Text>
+              {eshop && <Input placeholder={translate('crm.registrationReview.enterVerifiedPk')} value={manualPk} onChange={e => setManualPk(e.target.value)} />}
+              <Text fontSize="sm" mt={3}>{translate('crm.registrationReview.resolveFirst')}</Text>
             </Box>}
           </>}
         </ModalBody>
@@ -191,10 +191,10 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
           <Button onClick={() => setSelected(null)} isDisabled={busy}>{translate('Close')}</Button>
           {!resolved && canWrite && <>
             <Button isLoading={busy} isDisabled={!detail} onClick={() => decide(eshop ? 'REJECT' : 'NEW')}>
-              {translate(eshop ? 'crm.review.rejectAssignment' : 'crm.review.registerAsNew')}
+              {translate(eshop ? 'crm.registrationReview.rejectAssignment' : 'crm.registrationReview.registerAsNew')}
             </Button>
             <Button colorScheme="blue" isLoading={busy} isDisabled={!detail || (!target && !manualPk)} onClick={() => decide(eshop ? 'ASSIGN' : 'MERGE')}>
-              {translate(eshop ? 'crm.review.assignIdentifier' : 'crm.review.mergeIntoSelected')}
+              {translate(eshop ? 'crm.registrationReview.assignIdentifier' : 'crm.registrationReview.mergeIntoSelected')}
             </Button>
           </>}
         </HStack></ModalFooter>

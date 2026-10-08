@@ -16,12 +16,14 @@ field is described in [crm-database.md](crm-database.md); the phase-1 identity r
 | Department API | `src/routes/crmIntegration.routes.js` | Mounted at `/api/integration/crm`; authenticated by a project API key. |
 | Console screens | `crystal-admin/src/pages/crm/*` | One screen per entry under **CRM** in the menu. |
 | Schema | `sql/schema.sql` | The source of truth. Each change is also a numbered delta in `sql/deltas`, run by a migration in `src/db/migrations`. |
+| Console translations | `crystal-admin/src/i18n/crm.js` | One section per screen, named after its file: `crm.customers`, `crm.customerImport`, `crm.registrationReview`, `crm.customer360` (with `customer360Tabs`, `customer360Cards`), `crm.events`, ...; `crm.common` for sentences several screens use, `crm.components` for the shared pickers and tables. Words matched by their English (column labels, codes, data names) are `vocabulary.crm.<screen>`, plus `codes`, `common` and `data`. A new string goes in its screen's section, in all three languages. |
+| API messages | `crystal-backend/src/i18n/{en,zh,ru}.js` | `crm.<area>.<key>`, one section per area, named after the service that throws it (`crm.customers`, `crm.products`, `crm.events`, `crm.marketing`, `crm.settings`, ...); `crm.common` when several do. |
 
 ## 2. The model in one page
 
 | Concept | What it is | Main tables |
 |---|---|---|
-| Project | One Dream business system (PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA, ...). Every external id is scoped to its project. | `crm_project` |
+| Project | One Dream business system, defined by the administrator in Settings > Projects (code, name, kind, identity role). Every external id is scoped to its project. | `crm_project` |
 | Party (customer) | Anyone the CRM knows: a person or an organization. One `party_pk` per real-world customer. | `crm_party`, `crm_person`, `crm_organization` |
 | Project account | "Account X in project P belongs to customer C." The cross-project identity map. | `crm_project_account` |
 | Registration intake | An incoming person or identifier that must pass the duplicate check before it becomes (or joins) a customer. | `crm_registration_intake` |
@@ -64,18 +66,20 @@ Rules that run through everything:
 
 ## 4. Projects
 
-Screen: **Settings > Projects**. A project is identified by `project_code`; the code looks projects up by it (the
-Crystal import needs CRYSTAL, the Excel import needs ESHOP, the platform link needs PLATFORM, ...).
+Screen: **Settings > Projects**. Codes and names are the administrator's own. The Excel import and the User PK rule
+find their projects by **identity role**, never by code. Only the imports from the old systems look projects up by
+code: the Crystal import needs a project coded `CRYSTAL`, and platform-account links, point types without an owner
+project and campaigns without a project fall back to `PLATFORM` when one exists.
 
 | Change | Allowed when | Notes |
 |---|---|---|
 | Name, kind (`project_type_code`), source system, legal entity, status | Always | The kind is a free label (PLATFORM, COMMERCE, CRM, ...). |
+| Identity role (`identity_role`) | Always; one project per role | **E-shop**: the project of the Excel import's E-shop PK / ID columns. **User management**: the project of its User PK / User ID columns, whose user_pk merges rows. The import refuses to run until both roles are given. |
 | Code (`project_code`) | Only while no row in any other table references the project | The check reads the foreign keys from the database, so it covers every table. When blocked, the message names the tables that use the project. |
 | Delete | Only while no row references the project | Same check. A project in use can be set INACTIVE instead. |
 
-On a fresh install the test data references PLATFORM, CRYSTAL, ESHOP and APPSTORE, so those keep their codes until
-that data is removed. Renaming a code the system looks up (e.g. ESHOP) means features that look it up will no longer
-find the project; do that only deliberately.
+Renaming a code the old-system imports look up (`CRYSTAL`, `PLATFORM`) means those imports no longer find the project;
+do that only deliberately. Identity roles can be moved between projects at any time.
 
 ## 5. Customers and identity
 
@@ -90,7 +94,8 @@ find the project; do that only deliberately.
 - The project a customer came from (`origin_project_id`) is always chosen - on the New customer form, or per Excel
   row - and never assumed.
 - **Phone numbers and other contacts** are rows of `crm_contact_point`, one per value, so a customer can have any
-  number of phones. `normalized_value` (digits only for phones) is used for matching and search.
+  number of phones. `normalized_value` (digits only for phones) is used for matching and search. Merging keeps every
+  phone (section 5.4), and the customer record shows all of them.
 
 | Status | Meaning |
 |---|---|
@@ -139,6 +144,8 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
   as `excel:<file hash>:<row>`), and a dash for a console entry.
 - Every review tab (and Existing duplicate records, Import errors) has a search box: name, phone, birthday, an e-shop
   or user identifier, the registration or customer number, or the source.
+- The Excel file check treats rows the way the import will: a merged row becomes part of the customer it matched, a row
+  going to review becomes a pending registration - so the tabs before *Add new users* match the result.
 - Matching also compares against pending intakes, so two uncertain copies of one person cannot both slip through.
 - All registrations take one database advisory lock, so two simultaneous submissions of the same person cannot both
   create a customer.
@@ -154,8 +161,11 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 | Existing duplicate records | Pairs among existing customers (`crm_identity_match_candidate`), found by *Look for duplicates*. | Merge, or keep apart. |
 | Import errors | Rows of customer Excel imports that failed the file check (`crm_person_import_error`), with the cells as written and every reason. | Correct and import again, then *Dismiss*. |
 
-Merging two customers moves their accounts, contacts, products, cases and points to the survivor, records the move in
-`crm_party_merge_history` (so a wrong merge can be split again), and repoints department results to the survivor.
+**Merging keeps every phone.** A reviewed merge (*Merge into selected*) adds the incoming person's phones and missing
+details to the customer. Merging two existing customers moves their accounts, contacts (every phone and email; a value
+both had is kept once), products, cases and points to the survivor, re-proposes pending account assignments to the
+survivor, records the move in `crm_party_merge_history` (so a wrong merge can be split again), and repoints department
+results to the survivor.
 
 ### 5.5 Previously linked identifiers
 
@@ -182,9 +192,9 @@ Screen: **Customers > Import from Excel**. Code: `personImport.service.js`. Temp
 
 | Column | Required | Notes |
 |---|:---:|---|
-| E-shop PK | yes | Becomes the Account PK of the e-shop identifier. |
+| E-shop PK | yes | Becomes the Account PK of the e-shop identifier (the project with the **E-shop** identity role). |
 | E-shop ID | yes | Becomes the Account ID. |
-| User PK | yes | The customer's user_pk in the user management system (the PLATFORM project). Becomes the Account PK of that identifier. |
+| User PK | yes | The customer's user_pk in the user management system (the project with the **User management** identity role). Becomes the Account PK of that identifier. |
 | User ID | yes | The customer's user_id (login) there. Becomes the Account ID. |
 | Full name, Gender (M/F), Birthday (YYYY-MM-DD), Mobile | yes | Used by the duplicate check. |
 | Location ID, Address | yes | Location IDs come from the template's Locations sheet; the duplicate check compares the Location ID. The Address text is kept for search and display. |
@@ -210,7 +220,7 @@ Screen: **Customers > Import from Excel**. Code: `personImport.service.js`. Temp
 
 Code: `crmIntegration.routes.js`, `projectApiKeys.service.js`, `identity.service.js`.
 
-A department authenticates with a key issued to its project: `npm run crm:api-key -- issue ESHOP "Eshop production"`
+A department authenticates with a key issued to its project: `npm run crm:api-key -- issue <PROJECT_CODE> "Eshop production"`
 prints the key once (`Authorization: Bearer crmk_...`). Only its hash is stored; `list` and `revoke` manage keys. The
 project always comes from the key, never from the request.
 
@@ -230,7 +240,7 @@ project always comes from the key, never from the request.
 
 This is a pull integration: after a QUEUED registration is decided (or a customer is merged) the department reads the
 customer key from the feed, stores it and acknowledges. No webhook is sent. The e-shop uses the same rules; only legacy
-e-shop links read from vendor data go to the e-shop assignment queue.
+e-shop links read from vendor data (on the project with the E-shop identity role) go to account assignment.
 
 ### 5.8 Customer 360 record
 
@@ -239,14 +249,15 @@ the tabs read the full record from `/parties/:id`.
 
 | Part | What it shows or does |
 |---|---|
-| Header | Grade (section 12.3), lifetime spend, orders, products held, open cases. |
-| Overview | Value and RFM, service summary, contacts and consent, relationships, tags and segments, key cards with "View all". |
+| Header | Name, gender, birthday, address (shown once), **every phone and email**, grade (section 12.3), lifetime spend, orders, products held, open cases. |
+| Overview | Value and RFM, service summary, contact points (one line per phone and email), consent, relationships, tags and segments, key cards with "View all". Order, product and case rows open their details over the record. |
 | Accounts tab | Accounts in each project (Account PK, Account ID, status, first use, last activity; unlink), previously linked identifiers (link or reject), memberships, point balances, tier changes, recent points. |
 | Orders tab | The latest 50 orders. A search box and filters (project, type, status) narrow the list; clicking a row opens the order's details over the record. |
-| Products tab | Products held now and before, counts per class, transfers. |
+| Products tab | Products held now and before (search and filters; clicking one opens its details over the record), counts per class, transfers. |
 | Service tab | Service summary, interactions (paged), and the latest 50 service cases with search and filters. Clicking a case opens it over the record, where it can be classified; the record reloads when it closes. |
 | Campaigns tab | Campaigns that reached the customer, segments, events they were chosen for, reservations, awards. |
-| Notes and files | Notes (one can be pinned) and files, stored in a private folder and only downloadable through the CRM. |
+| Consent tab | **Contact points**: every phone, email and other contact with type, primary, verified, status and date added (*Add* for another); channel consent at a glance; consent per project, purpose and channel. |
+| Notes and files | Notes (one can be pinned) and files, stored in a private folder and only downloadable through the CRM. *Recent activity* (orders, refunds, cases, registrations, visits, tier changes, entries) scrolls in a fixed height; an order, case or product in it opens over the record. |
 | Organizations only | Types (sales agency, service-centre operator, supplier, ...), industries, group tree (parent companies), key contacts with their roles, account team, agreements. |
 
 Amounts are in the reporting currency so spend from different projects adds up; refunds reduce spend and cancelled
@@ -449,15 +460,32 @@ Screen: **Overview > Import**. Every import only reads its source and can be re-
 
 **Settings** edits the basic lists: projects, currencies, product classes, project tiers, point types and point event
 types, service center activity types, case types, service statuses and the status map, priorities, issue, fault, root-cause and
-resolution categories, corporate grades, relationship types, purchase purposes, usage and acquisition types,
-registration questions, channels, communication purposes and options, organization types, contact roles, industries,
-tags, job titles, locations (refreshed from the vendor), metric definitions and departments.
+resolution categories, corporate grades, ways to hold a product, relationships between customers, purchase purposes,
+usage and acquisition types, registration questions, channels, communication purposes and options, organization
+types, contact roles, industries, tags, job titles, **locations** (*Refresh from vendor* copies the vendor's list
+again: new ones added, changed ones updated, none removed), metric definitions and departments.
 
 | Rule | Applies to |
 |---|---|
 | A value in use cannot be deleted | Every list (the foreign keys refuse it). |
 | A code the system depends on cannot be renamed or deleted | e.g. point type CRYSTAL, activity RESERVATION_PICKUP, case type REPAIR. Names, order and flags stay editable. |
 | Code change and delete only while unused | Projects (section 4). |
+
+**Starting from an empty CRM**, enter the basic data first. Codes are free except these, which the program looks up:
+
+| List | Codes the program uses |
+|---|---|
+| Projects | Identity roles **E-shop** and **User management** on two projects (needed by the Excel import); `CRYSTAL` only for the Crystal import |
+| Currencies | `USD`, one currency marked as the reporting currency |
+| Point types / point event types | `CRYSTAL` / `EARN`, `REDEEM`, `EXPIRE`, `ADJUST`, `REFUND`, `RESERVATION_COST`, `EVENT_AWARD`, `MERGE_CARRY_OVER` |
+| Product classes | `SMARTPHONE`, `EPRODUCT`, `SOFTWARE`, `STB`, `PC`, `CAMERA`, `KARAOKE_LICENCE`, `MEDIA_LICENCE` |
+| Ways to hold a product | `OWNER`, `USER`, `REGISTERED_USER`, `LESSEE`, `LICENSEE` |
+| Acquisition types | `PURCHASED`, `TRANSFER`, `COMPANY_ASSIGNED` |
+| Service center activity types | `REPAIR_INTAKE`, `REPAIR_DELIVERY`, `RESERVATION_PICKUP`, `PRIZE_HANDOVER`, `REGISTRATION_ASSIST` |
+| Case types / service statuses / priorities | `REPAIR`, `WARRANTY_REPAIR` / `CLOSED`, `CANCELLED` (final) / `LOW`, `NORMAL`, `HIGH` |
+| Relationships between customers | `SPOUSE`, `PARENT`, `CHILD`, `SIBLING`, `RELATIVE`, `REFERRER`, `REFERRAL`, `PARENT_COMPANY`, `SUBSIDIARY`, `AFFILIATE`, `PARTNER` |
+| Metric definitions | `DAYS_SINCE_LAST_PURCHASE`, `CROSS_PROJECT_COUNT`, `PRODUCT_OWNERSHIP_COUNT`, `CHURN_RISK`, `POINTS_BALANCE`, `IS_MULTI_PROJECT`, `LAST_SERVICE_DATE` |
+| Locations, job titles | Any; the Excel import checks its Location ID and Job title ID columns against them |
 
 Departments (`crm_department`) describe the internal organization: each manager belongs to one, and a role can be
 reserved for a department. Permissions themselves always come from roles.
@@ -471,6 +499,7 @@ reserved for a department. Permissions themselves always come from roles.
 | `PG_SCHEMA=<schema> node scripts/check-crm-integration.js <url>` | Department API (keys, CREATED/MERGED/EXISTING/QUEUED, feed, acknowledge, validation, e-shop) and project editing rules. | running API on a dev database |
 | `node scripts/verify-migrations.js` | Builds the full migration chain in a throwaway schema and compares it with `schema.sql`. | dev database |
 | `npm run crm:docs` | Regenerates `crm-database.md` (refuses while any field is undocumented) and writes the Word copies of both documents. | dev database |
+| `npm run crm:mock-import` | Writes `docs/samples/crm-customers-test-import.xlsx`: 260+ rows covering new customers, one person on several rows (one per phone), exact copies, a second account for the same person, review cases (50 and 65 points), copies of rows under review, look-alikes that are different people, and every kind of error. Its *Test cases* sheet says what each row should become. IDs are read from the database's own lists. | dev database |
 | `node scripts/crm-docs-word.js` | Writes only the Word copies, from the markdown as it is. | nothing |
 
 The check scripts write test data (coded with the run id). Run them against a development or staging database, never

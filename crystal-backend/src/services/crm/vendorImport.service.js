@@ -49,7 +49,7 @@ async function context(connection) {
   const [projects, tiers, rate, reporting] = await Promise.all([
     vocabulary.mapOf('crm_project', connection),
     connection('crm_project_tier as tier').join('crm_project as project', 'project.project_id', 'tier.project_id')
-      .where('project.project_code', 'ESHOP').select('tier.project_tier_id', 'tier.source_code'),
+      .where('project.identity_role', 'ESHOP').select('tier.project_tier_id', 'tier.source_code'),
     connection('system_settings').where('setting_key', 'company.native_currency_rate').first('setting_val'),
     connection('crm_currency').where('is_reporting', true).first('currency_code')
   ]);

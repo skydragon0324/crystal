@@ -19,6 +19,7 @@
     "check:crm": "node scripts/check-crm.js",
     "demo:crm": "node scripts/demo-crm.js",
     "crm:sample": "node scripts/crm-customers-sample.js",
+    "crm:mock-import": "node scripts/crm-import-mock.js",
     "crm:api-key": "node scripts/crm-api-key.js",
     "crm:docs": "node scripts/crm-schema-doc.js && node scripts/crm-docs-word.js",
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -292,6 +292,19 @@ Therefore, if the `user_pk` is the same, they should be automatically merged—e
 what is location activity? - if you mean "service center's activity, please update it as Service Center's activity
 
 event vs campaign vs program?
--------------------------------------------------------------------------------
 please delete all data in the CRM related tables
 and let's add new data, first, I will manage basic data including projects list
+----------------------------- 10 / 8 --------------------------------------------------
+when merge duplicated customers, we need to keep all phone numbers, you still don't store both phone numbers
+once admin reviews the duplicated rows and merge to one customer
+in that case, if the phone numbers of both customers, we need to keep both phone numbers, not only one
+and need to show all phone numbers on customer details page
+
+please check again if it keeps all phone numbers when merging 2 customers and if not implemented yet, please implement it right now
+-------------------------------------------------------------------------------
+The current translation structure for CRM-related content lacks organization.
+All CRM-related phrases have been lumped together under a single "crm:" keyword, and I would like to see this organized properly.
+If you look at `C:\sky\crystal_v2\crystal-admin\src\i18n\dictionaries.js`, you can see that phrases are clearly categorized to show exactly where each one is used; however, the current CRM setup links everything to a single term, which is not ideal from a coding perspective.
+We should avoid this approach in the future and instead create translations that are clearly organized by page and functional area.
+For now, please organize the existing CRM-related phrases.
+----------------------------------------------------------------------

@@ -34,10 +34,10 @@ const CUSTOMERS = '/admin/crm/customers';
 
 
 const REVIEW_STATUS_KEY = {
-  PENDING: 'crm.customers.unverifiedPENDING',
-  ASSIGNED: 'crm.customers.unverifiedASSIGNED',
-  ASSIGNED_ELSEWHERE: 'crm.customers.unverifiedASSIGNED_ELSEWHERE',
-  REJECTED: 'crm.customers.unverifiedREJECTED'
+  PENDING: 'crm.customer360Tabs.unverifiedPENDING',
+  ASSIGNED: 'crm.customer360Tabs.unverifiedASSIGNED',
+  ASSIGNED_ELSEWHERE: 'crm.customer360Tabs.unverifiedASSIGNED_ELSEWHERE',
+  REJECTED: 'crm.customer360Tabs.unverifiedREJECTED'
 };
 
 /**
@@ -56,15 +56,15 @@ function UnverifiedAccountsCard({ partyId, act }) {
   }, [partyId, act.version]);
   /* Linking makes it a project account of this customer; rejecting closes its review. Either way it is decided once. */
   const decide = (row, action) => act.ask(
-    action === 'LINK' ? 'crm.customers.linkIdentifier' : 'crm.customers.rejectIdentifier',
-    action === 'LINK' ? 'crm.customers.linkIdentifierExplained' : 'crm.customers.rejectIdentifierExplained',
+    action === 'LINK' ? 'crm.customer360Tabs.linkIdentifier' : 'crm.customer360Tabs.rejectIdentifier',
+    action === 'LINK' ? 'crm.customer360Tabs.linkIdentifierExplained' : 'crm.customer360Tabs.rejectIdentifierExplained',
     translate(row.project_name || '') + '  ' + (row.external_login || row.external_account_id),
     () => crm.parties.decideUnverified(partyId, { project_id: row.project_id, external_account_id: row.external_account_id, action: action }),
     action === 'LINK' ? 'info' : 'danger');
   if (!rows.length) return null;
   return (
-    <Card360 icon={Md.MdHistory} title={translate('crm.customers.unverifiedTitle')}>
-      <Text fontSize="xs" mb={2}>{translate('crm.customers.unverifiedExplained')}</Text>
+    <Card360 icon={Md.MdHistory} title={translate('crm.customer360Tabs.unverifiedTitle')}>
+      <Text fontSize="xs" mb={2}>{translate('crm.customer360Tabs.unverifiedExplained')}</Text>
       <MiniTable
         rows={rows}
         rowKey={(row) => row.registration_intake_id + ':' + row.project_id + ':' + row.external_account_id}
@@ -73,17 +73,17 @@ function UnverifiedAccountsCard({ partyId, act }) {
           { key: 'external_account_id', label: 'Account PK' },
           { key: 'external_login', label: 'Account ID' },
           { key: 'review_status', label: 'Review',
-            render: (row) => translate(REVIEW_STATUS_KEY[row.review_status] || 'crm.customers.unverifiedNotStaged') },
+            render: (row) => translate(REVIEW_STATUS_KEY[row.review_status] || 'crm.customer360Tabs.unverifiedNotStaged') },
           { key: 'recorded_at', label: 'Recorded', render: (row) => date(row.recorded_at) },
           { key: 'decide', label: 'Actions', render: (row) => {
             if (!act.editable || (row.review_status && row.review_status !== 'PENDING')) return null;
             return (
               <HStack spacing={1}>
                 <Button size="xs" variant="outline" colorScheme="brand" leftIcon={<Icon as={Md.MdLink} />} onClick={() => decide(row, 'LINK')}>
-                  {translate('crm.customers.linkIdentifier')}
+                  {translate('crm.customer360Tabs.linkIdentifier')}
                 </Button>
                 <Button size="xs" variant="ghost" colorScheme="red" leftIcon={<Icon as={Md.MdBlock} />} onClick={() => decide(row, 'REJECT')}>
-                  {translate('crm.customers.rejectIdentifier')}
+                  {translate('crm.customer360Tabs.rejectIdentifier')}
                 </Button>
               </HStack>
             );
@@ -99,8 +99,8 @@ export function AccountsTab({ record, view, act }) {
   const accounts = record.accounts || [];
   return (
     <Stack spacing={4}>
-      <Card360 icon={Md.MdPersonOutline} title={translate('crm.c360.accountsInEachProject')}
-        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdLink} />} onClick={() => act.open('account')}>{translate('crm.c360.linkAccount')}</Button> : null}>
+      <Card360 icon={Md.MdPersonOutline} title={translate('crm.customer360Tabs.accountsInEachProject')}
+        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdLink} />} onClick={() => act.open('account')}>{translate('crm.customer360.linkAccount')}</Button> : null}>
         <MiniTable
           rows={view.accounts || []}
           rowKey={(row) => row.project_code + ':' + (row.project_account_id || 'none')}
@@ -115,8 +115,8 @@ export function AccountsTab({ record, view, act }) {
               const account = accounts.filter((candidate) => candidate.project_account_id === row.project_account_id)[0];
               if (!act.editable || !account || account.unlinked_at) return null;
               return (
-                <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer.unlink')}
-                  onClick={() => act.ask('crm.customer.unlinkAccount', 'crm.customer.unlinkExplained', account.project_code + '  ' + account.external_account_id,
+                <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer360Tabs.unlink')}
+                  onClick={() => act.ask('crm.customer360Tabs.unlinkAccount', 'crm.customer360Tabs.unlinkExplained', account.project_code + '  ' + account.external_account_id,
                     () => crm.parties.unlinkAccount(record.party.party_pk, account.project_account_id))} />
               );
             } }
@@ -125,7 +125,7 @@ export function AccountsTab({ record, view, act }) {
       </Card360>
       <UnverifiedAccountsCard partyId={record.party.party_pk} act={act} />
       <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdCardMembership} title={translate('crm.customer.memberships')}>
+        <Card360 icon={Md.MdCardMembership} title={translate('crm.customer360Tabs.memberships')}>
           <MiniTable
             rows={record.memberships || []}
             rowKey={(row) => row.membership_id}
@@ -138,7 +138,7 @@ export function AccountsTab({ record, view, act }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdStars} title={translate('crm.customer.pointBalances')}>
+        <Card360 icon={Md.MdStars} title={translate('crm.customer360Tabs.pointBalances')}>
           <MiniTable
             rows={record.point_accounts || []}
             rowKey={(row) => row.point_account_id}
@@ -150,7 +150,7 @@ export function AccountsTab({ record, view, act }) {
         </Card360>
       </Grid>
       <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdTrendingUp} title={translate('crm.customer.tierChanges')}>
+        <Card360 icon={Md.MdTrendingUp} title={translate('crm.customer360Tabs.tierChanges')}>
           <MiniTable
             rows={record.tier_history || []}
             rowKey={(row) => row.membership_tier_history_id}
@@ -162,7 +162,7 @@ export function AccountsTab({ record, view, act }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdHistory} title={translate('crm.customer.recentPoints')}>
+        <Card360 icon={Md.MdHistory} title={translate('crm.customer360Tabs.recentPoints')}>
           <MiniTable
             rows={record.point_events || []}
             rowKey={(row) => row.point_event_id}
@@ -200,7 +200,7 @@ export function OrdersTab({ record }) {
     ? Object.assign({}, column, { render: (row) => word(translate, row.transaction_type_code) }) : column));
   const found = useRowSearch(record.transactions || [], columns, true);
   return (
-    <Card360 icon={Md.MdReceipt} title={translate('crm.c360.ordersAndTransactions')} padded={false}>
+    <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Tabs.ordersAndTransactions')} padded={false}>
       <Box px={2} pt={found.bar ? 2 : 0}>
         {found.bar}
         <DataTable
@@ -209,7 +209,7 @@ export function OrdersTab({ record }) {
           rowKey={(row) => row.transaction_id}
           columns={columns}
           onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
-          emptyText={translate(found.searchable ? 'crm.ui.noMatches' : 'crm.customer.noPurchases')}
+          emptyText={translate(found.searchable ? 'crm.customer360.noMatches' : 'crm.customer360.noPurchases')}
         />
       </Box>
     </Card360>
@@ -229,12 +229,12 @@ export function ProductsTab({ record }) {
     { key: 'relationship_code', label: 'Held as', filter: true, render: (row) => word(translate, row.relationship_code) },
     { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
     { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) },
-    { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : translate('crm.customer.now')) }
+    { key: 'valid_to', label: 'Until', render: (row) => (row.valid_to ? date(row.valid_to) + '  ' + word(translate, row.end_reason_code) : translate('crm.common.now')) }
   ];
   const found = useRowSearch(record.holdings || [], columns, true);
   return (
     <Stack spacing={4}>
-      <Card360 icon={Md.MdDevicesOther} title={translate('crm.customer.holdings')} padded={false}>
+      <Card360 icon={Md.MdDevicesOther} title={translate('crm.customer360Tabs.holdings')} padded={false}>
         <Box px={2} pt={found.bar ? 2 : 0}>
           {found.bar}
           <DataTable
@@ -243,12 +243,12 @@ export function ProductsTab({ record }) {
             rowKey={(row) => row.product_registration_id}
             columns={columns}
             onRowClick={(row) => peek('PRODUCT', row.product_instance_id)}
-            emptyText={found.searchable ? translate('crm.ui.noMatches') : undefined}
+            emptyText={found.searchable ? translate('crm.customer360.noMatches') : undefined}
           />
         </Box>
       </Card360>
       <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdViewModule} title={translate('crm.customer.byClass')}>
+        <Card360 icon={Md.MdViewModule} title={translate('crm.customer360Tabs.byClass')}>
           <MiniTable
             rows={record.class_stats || []}
             rowKey={(row) => row.product_class_id}
@@ -259,7 +259,7 @@ export function ProductsTab({ record }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdSwapHoriz} title={translate('crm.customer.transfers')}>
+        <Card360 icon={Md.MdSwapHoriz} title={translate('crm.common.transfers')}>
           <MiniTable
             rows={record.transfers || []}
             rowKey={(row) => row.product_transfer_id}
@@ -311,8 +311,8 @@ export function ServiceTab({ record, view, act }) {
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: '2fr 3fr' }} gridGap={4}>
         <ServiceSummaryCard view={view} />
-        <Card360 icon={Md.MdForum} title={translate('crm.c360.interactions')} padded={false}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.c360.logInteraction')}</Button> : null}>
+        <Card360 icon={Md.MdForum} title={translate('crm.customer360Tabs.interactions')} padded={false}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.customer360.logInteraction')}</Button> : null}>
           <Box px={2}>
             <DataTable
               rows={interactions.rows}
@@ -332,13 +332,13 @@ export function ServiceTab({ record, view, act }) {
                 { key: 'outcome_code', label: 'Outcome', render: (row) => <Pill code={row.outcome_code} /> }
               ]}
               renderExpanded={(row) => <Text fontSize="sm" whiteSpace="pre-wrap">{row.body || row.destination_snapshot || '-'}</Text>}
-              emptyText={translate('crm.c360.noInteractions')}
+              emptyText={translate('crm.customer360.noInteractions')}
             />
           </Box>
         </Card360>
       </Grid>
-      <Card360 icon={Md.MdBuild} title={translate('crm.c360.serviceCases')} padded={false}
-        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('case')}>{translate('crm.c360.newCase')}</Button> : null}>
+      <Card360 icon={Md.MdBuild} title={translate('crm.customer360Tabs.serviceCases')} padded={false}
+        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('case')}>{translate('crm.customer360.newCase')}</Button> : null}>
         <Box px={2} pt={cases.bar ? 2 : 0}>
           {cases.bar}
           <DataTable
@@ -347,7 +347,7 @@ export function ServiceTab({ record, view, act }) {
             rowKey={(row) => row.case_id}
             columns={caseColumns}
             onRowClick={(row) => peek('CASE', row.case_id)}
-            emptyText={translate(cases.searchable ? 'crm.ui.noMatches' : 'crm.customer.noCases')}
+            emptyText={translate(cases.searchable ? 'crm.customer360.noMatches' : 'crm.customer360.noCases')}
           />
         </Box>
       </Card360>
@@ -363,12 +363,12 @@ export function CampaignsTab({ record, view }) {
   return (
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', lg: '3fr 2fr' }} gridGap={4}>
-        <Card360 icon={Md.MdRecordVoiceOver} title={translate('crm.c360.campaignsThatReachedThem')}>
+        <Card360 icon={Md.MdRecordVoiceOver} title={translate('crm.customer360Tabs.campaignsThatReachedThem')}>
           <MiniTable
             rows={view.campaigns || []}
             rowKey={(row) => row.recipient_id}
             onRowClick={(row) => history.push('/admin/crm/campaigns/' + row.campaign_id)}
-            empty="crm.c360.noCampaignsYet"
+            empty="crm.customer360.noCampaignsYet"
             columns={[
               { key: 'campaign_name', label: 'Campaign' },
               { key: 'channel_code', label: 'Channel', render: (row) => <ChannelLabel code={row.channel_code} /> },
@@ -378,12 +378,12 @@ export function CampaignsTab({ record, view }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdGroupWork} title={translate('crm.customer.segments')}>
+        <Card360 icon={Md.MdGroupWork} title={translate('crm.customer360Tabs.segments')}>
           <MiniTable
             rows={record.segments || []}
             rowKey={(row) => row.segment_id}
             onRowClick={(row) => history.push('/admin/crm/segments?segment=' + row.segment_id)}
-            empty="crm.customer.inNoSegment"
+            empty="crm.customer360.inNoSegment"
             columns={[
               { key: 'segment_name', label: 'Segment' },
               { key: 'matched_at', label: 'Since', render: (row) => date(row.matched_at) }
@@ -392,7 +392,7 @@ export function CampaignsTab({ record, view }) {
         </Card360>
       </Grid>
       <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdEventAvailable} title={translate('crm.customer.chosenFor')}>
+        <Card360 icon={Md.MdEventAvailable} title={translate('crm.customer360Tabs.chosenFor')}>
           <MiniTable
             rows={record.targets || []}
             rowKey={(row) => row.activity_target_id}
@@ -404,7 +404,7 @@ export function CampaignsTab({ record, view }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdConfirmationNumber} title={translate('crm.customer.reservations')}>
+        <Card360 icon={Md.MdConfirmationNumber} title={translate('crm.customer360Tabs.reservations')}>
           <MiniTable
             rows={record.reservations || []}
             rowKey={(row) => row.reservation_id}
@@ -415,7 +415,7 @@ export function CampaignsTab({ record, view }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdCardGiftcard} title={translate('crm.customer.awards')}>
+        <Card360 icon={Md.MdCardGiftcard} title={translate('crm.customer360Tabs.awards')}>
           <MiniTable
             rows={record.awards || []}
             rowKey={(row) => row.award_id}
@@ -486,46 +486,46 @@ export function AnalyticsTab({ record, view, model }) {
   return (
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdInsertChart} title={translate('crm.c360.spendLast12Months')}>
+        <Card360 icon={Md.MdInsertChart} title={translate('crm.customer360Tabs.spendLast12Months')}>
           <SpendChart monthly={(view.value && view.value.monthly) || []} />
         </Card360>
-        <Card360 icon={Md.MdShowChart} title={translate('crm.customer.gradeOverTime')}>
-          {(view.score_history || []).length ? <ScoreChart history={view.score_history} /> : <Empty360>{translate('crm.customer.notAnalysedYet')}</Empty360>}
+        <Card360 icon={Md.MdShowChart} title={translate('crm.customer360Tabs.gradeOverTime')}>
+          {(view.score_history || []).length ? <ScoreChart history={view.score_history} /> : <Empty360>{translate('crm.customer360Tabs.notAnalysedYet')}</Empty360>}
         </Card360>
       </Grid>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdDonutLarge} title={translate('crm.customer.whyThisGrade')}>
+        <Card360 icon={Md.MdDonutLarge} title={translate('crm.customer360Tabs.whyThisGrade')}>
           <ScoreBreakdown components={dream && dream.score_components} model={model} />
           {dream ? (
-            <Text fontSize="xs" color={surface.muted} mt={2}>{translate('crm.customer.analysedOn', { date: date(dream.reference_date), model: dream.model_version || '' })}</Text>
+            <Text fontSize="xs" color={surface.muted} mt={2}>{translate('crm.customer360Tabs.analysedOn', { date: date(dream.reference_date), model: dream.model_version || '' })}</Text>
           ) : null}
         </Card360>
-        <Card360 icon={Md.MdTrackChanges} title={translate('crm.c360.rfmScore')}>
+        <Card360 icon={Md.MdTrackChanges} title={translate('crm.customer360.rfmScore')}>
           {rfm ? (
             <Flex align="center">
               <RfmHexagon score={rfm.score} />
               <Box ml={4} flex="1">
                 <InfoList items={[
-                  { label: translate('crm.c360.recency'), value: number(rfm.recency) },
-                  { label: translate('crm.c360.frequency'), value: number(rfm.frequency) },
-                  { label: translate('crm.c360.monetary'), value: number(rfm.monetary) }
+                  { label: translate('crm.customer360.recency'), value: number(rfm.recency) },
+                  { label: translate('crm.customer360.frequency'), value: number(rfm.frequency) },
+                  { label: translate('crm.customer360.monetary'), value: number(rfm.monetary) }
                 ]} />
               </Box>
             </Flex>
-          ) : <Empty360>{translate('crm.ui.notGradedYet')}</Empty360>}
-          <Text fontSize="xs" color={surface.muted} mt={2}>{translate('crm.c360.rfmExplained')}</Text>
+          ) : <Empty360>{translate('crm.common.notGradedYet')}</Empty360>}
+          <Text fontSize="xs" color={surface.muted} mt={2}>{translate('crm.customer360Tabs.rfmExplained')}</Text>
         </Card360>
-        <Card360 icon={Md.MdFunctions} title={translate('crm.customer.metrics')}>
+        <Card360 icon={Md.MdFunctions} title={translate('crm.customer360Tabs.metrics')}>
           {(analysis.metrics || []).length
             ? <InfoList items={analysis.metrics.map((metric) => ({ label: metric.metric_name, value: metricValue(metric, translate) }))} />
-            : <Empty360>{translate('crm.customer.notAnalysedYet')}</Empty360>}
+            : <Empty360>{translate('crm.customer360Tabs.notAnalysedYet')}</Empty360>}
         </Card360>
       </Grid>
-      <Card360 icon={Md.MdViewList} title={translate('crm.customer.byProject')}>
+      <Card360 icon={Md.MdViewList} title={translate('crm.customer360Tabs.byProject')}>
         <MiniTable
           rows={perProject}
           rowKey={(row) => row.analysis_snapshot_id}
-          empty="crm.customer.notAnalysedYet"
+          empty="crm.customer360Tabs.notAnalysedYet"
           columns={[
             { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
             { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
@@ -549,23 +549,40 @@ export function ConsentTab({ record, view, act }) {
   const reach = view.reach || {};
   return (
     <Stack spacing={4}>
-      <Card360 icon={Md.MdTune} title={translate('crm.c360.channelsAtAGlance')}>
+      {/* Every contact point the customer has: all phones (a merge keeps both records' numbers), emails and the rest. */}
+      <Card360 icon={Md.MdContactPhone} title={translate('crm.customer360.contactPoints')}
+        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('contact', { contact_type: 'MOBILE' })}>{translate('crm.common.add')}</Button> : null}>
+        <MiniTable
+          rows={(record.contacts || []).slice().sort((left, right) => (left.status === 'ACTIVE' ? 0 : 1) - (right.status === 'ACTIVE' ? 0 : 1)
+            || (right.is_primary ? 1 : 0) - (left.is_primary ? 1 : 0) || String(left.contact_type).localeCompare(String(right.contact_type)))}
+          rowKey={(row) => row.contact_point_id}
+          columns={[
+            { key: 'contact_type', label: 'Type', filter: true, render: (row) => word(translate, row.contact_type) },
+            { key: 'contact_value', label: 'Value' },
+            { key: 'is_primary', label: 'Primary', render: (row) => (row.is_primary ? <Pill code="PRIMARY" /> : '-') },
+            { key: 'is_verified', label: 'Verified', render: (row) => (row.is_verified ? translate('common.yes') : '-') },
+            { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
+            { key: 'valid_from', label: 'Added', render: (row) => date(row.valid_from || row.created_at) }
+          ]}
+        />
+      </Card360>
+      <Card360 icon={Md.MdTune} title={translate('crm.customer360Tabs.channelsAtAGlance')}>
         <Flex wrap="wrap">
           {(reach.consent_by_channel || []).map((channel) => (
             <Box key={channel.channel_code} borderWidth="1px" borderColor={surface.border} borderRadius="lg" px={3} py={2} mr={3} mb={2} minW="9rem">
               <ChannelLabel code={channel.channel_code} />
               <Box mt={1.5}>
                 <Pill code={channel.granted ? 'GRANTED' : (channel.asked ? 'DENIED' : 'NOT_SENT')}>
-                  {channel.granted ? translate('crm.c360.agreed') : (channel.asked ? translate('crm.c360.notAgreed') : translate('crm.customer.notAsked'))}
+                  {channel.granted ? translate('crm.customer360Tabs.agreed') : (channel.asked ? translate('crm.customer360Tabs.notAgreed') : translate('crm.customer360Tabs.notAsked'))}
                 </Pill>
               </Box>
-              {reach.preferred_channel === channel.channel_code ? <Text fontSize="xs" color="brand.500" mt={1}>{translate('crm.c360.preferred')}</Text> : null}
+              {reach.preferred_channel === channel.channel_code ? <Text fontSize="xs" color="brand.500" mt={1}>{translate('crm.customer360Tabs.preferred')}</Text> : null}
             </Box>
           ))}
         </Flex>
       </Card360>
-      <Card360 icon={Md.MdVerifiedUser} title={translate('crm.customer.consent')} padded={false}>
-        <Text fontSize="xs" color={surface.muted} px={4} pb={2}>{translate('crm.customer.consentExplained')}</Text>
+      <Card360 icon={Md.MdVerifiedUser} title={translate('crm.customer360Tabs.consent')} padded={false}>
+        <Text fontSize="xs" color={surface.muted} px={4} pb={2}>{translate('crm.customer360Tabs.consentExplained')}</Text>
         <Box px={2}>
           <DataTable
             hidePagination
@@ -577,12 +594,12 @@ export function ConsentTab({ record, view, act }) {
               { key: 'channel_name', label: 'Channel', render: (row) => <ChannelLabel code={row.channel_code} /> },
               { key: 'consent_status', label: 'Consent',
                 render: (row) => (row.consent_status ? <Pill code={row.consent_status} />
-                  : (row.consent_required ? translate('crm.customer.notAsked') : translate('crm.customer.noConsentNeeded'))) },
+                  : (row.consent_required ? translate('crm.customer360Tabs.notAsked') : translate('crm.customer360Tabs.noConsentNeeded'))) },
               { key: 'contact_value', label: 'Send to' },
               { key: 'captured_at', label: 'Recorded', render: (row) => date(row.captured_at) }
             ]}
             actions={act.editable ? [{
-              key: 'change', label: translate('crm.customer.change'),
+              key: 'change', label: translate('crm.customer360Tabs.change'),
               onClick: (row) => act.open('consent', {
                 project_communication_option_id: row.project_communication_option_id,
                 consent_status: row.consent_status || 'GRANTED',
@@ -607,13 +624,13 @@ export function RelatedTab({ record, view, act }) {
   const links = record.organization_links || {};
   return (
     <Stack spacing={4}>
-      <Card360 icon={Md.MdPeopleOutline} title={translate('crm.c360.relationships')}
-        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('relationship')}>{translate('crm.c360.addRelationship')}</Button> : null}>
+      <Card360 icon={Md.MdPeopleOutline} title={translate('crm.customer360Tabs.relationships')}
+        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('relationship')}>{translate('crm.customer360.addRelationship')}</Button> : null}>
         <MiniTable
           rows={(view.relationships || []).filter((row) => row.side !== 'EMPLOYMENT')}
           rowKey={(row) => String(row.party_relationship_id) + row.side}
           onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
-          empty="crm.c360.noRelatedParties"
+          empty="crm.customer360.noRelatedParties"
           columns={[
             { key: 'other_name', label: 'Name', render: (row) => <HStack spacing={2}><Initials name={row.other_name} color={row.other_party_type === 'ORGANIZATION' ? 'teal' : 'brand'} /><Text as="span">{row.other_name}</Text></HStack> },
             { key: 'other_party_pk', label: 'Customer number', render: (row) => partyIdLabel(row.other_party_pk) },
@@ -624,20 +641,20 @@ export function RelatedTab({ record, view, act }) {
             { key: 'end', label: 'Actions', render: (row) => (act.editable && row.status === 'ACTIVE' ? (
               <Button size="xs" variant="ghost" onClick={(event) => {
                 event.stopPropagation();
-                act.ask('crm.customer.endRelationship', 'crm.c360.endRelationshipExplained', row.other_name,
+                act.ask('crm.customer360Tabs.endRelationship', 'crm.customer360Tabs.endRelationshipExplained', row.other_name,
                   () => crm.customer360.endRelationship(party.party_pk, row.party_relationship_id));
-              }}>{translate('crm.customer.endRelationship')}</Button>
+              }}>{translate('crm.customer360Tabs.endRelationship')}</Button>
             ) : null) }
           ]}
         />
       </Card360>
       {isPerson ? (
-        <Card360 icon={Md.MdBusiness} title={translate('crm.customer.actsFor')}>
+        <Card360 icon={Md.MdBusiness} title={translate('crm.customer360Tabs.actsFor')}>
           <MiniTable
             rows={links.employers || []}
             rowKey={(row) => row.org_person_relationship_id}
             onRowClick={(row) => history.push(CUSTOMERS + '/' + row.organization_party_pk)}
-            empty="crm.customer.actsForNobody"
+            empty="crm.customer360Tabs.actsForNobody"
             columns={[
               { key: 'organization_name', label: 'Organization' },
               { key: 'roles', label: 'Roles', render: (row) => (row.roles || []).map((role) => translate(role.role_name)).join(', ') || '-' },
@@ -647,7 +664,7 @@ export function RelatedTab({ record, view, act }) {
           />
         </Card360>
       ) : null}
-      <Card360 icon={Md.MdMergeType} title={translate('crm.customer.merges')}>
+      <Card360 icon={Md.MdMergeType} title={translate('crm.customer360Tabs.merges')}>
         <MiniTable
           rows={record.merges || []}
           rowKey={(row) => row.merge_id}
@@ -696,14 +713,14 @@ function NotesList({ partyId, act }) {
   };
 
   return (
-    <Card360 icon={Md.MdNote} title={translate('crm.c360.notes')}>
+    <Card360 icon={Md.MdNote} title={translate('crm.customer360.notes')}>
       {act.editable ? (
         <Box mb={3}>
-          <Textarea size="sm" rows={3} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={translate('crm.c360.writeANote')} />
+          <Textarea size="sm" rows={3} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={translate('crm.customer360Tabs.writeANote')} />
           <Flex justify="flex-end" mt={2}>
             <Button size="sm" variant="brand" isLoading={busy} isDisabled={!draft.trim()}
               onClick={async () => { if (await change(() => crm.customer360.addNote(partyId, { note_text: draft }))) setDraft(''); }}>
-              {translate('crm.c360.addNote')}
+              {translate('crm.customer360Tabs.addNote')}
             </Button>
           </Flex>
         </Box>
@@ -720,14 +737,14 @@ function NotesList({ partyId, act }) {
                 </HStack>
                 {act.editable ? (
                   <Menu placement="bottom-end">
-                    <MenuButton as={IconButton} size="xs" variant="ghost" icon={<Icon as={Md.MdMoreVert} />} aria-label={translate('crm.customer.moreActions')} />
+                    <MenuButton as={IconButton} size="xs" variant="ghost" icon={<Icon as={Md.MdMoreVert} />} aria-label={translate('crm.customer360.moreActions')} />
                     <MenuList fontSize="sm">
                       <MenuItem onClick={() => change(() => crm.customer360.updateNote(partyId, note.note_id, { is_pinned: !note.is_pinned }))}>
-                        {translate(note.is_pinned ? 'crm.c360.unpin' : 'crm.c360.pin')}
+                        {translate(note.is_pinned ? 'crm.customer360Tabs.unpin' : 'crm.customer360Tabs.pin')}
                       </MenuItem>
                       <MenuItem onClick={() => setEditing({ note_id: note.note_id, note_text: note.note_text })}>{translate('common.edit')}</MenuItem>
                       <MenuItem color="red.500" onClick={async () => {
-                        const agreed = await confirm({ title: translate('crm.c360.removeNote'), body: translate('crm.c360.removeNoteExplained'), confirmLabel: translate('common.remove') });
+                        const agreed = await confirm({ title: translate('crm.customer360Tabs.removeNote'), body: translate('crm.customer360Tabs.removeNoteExplained'), confirmLabel: translate('common.remove') });
                         if (agreed) change(() => crm.customer360.removeNote(partyId, note.note_id));
                       }}>{translate('common.remove')}</MenuItem>
                     </MenuList>
@@ -749,7 +766,7 @@ function NotesList({ partyId, act }) {
             </Box>
           ))}
         </Stack>
-      ) : <Empty360>{translate('crm.c360.noNotes')}</Empty360>}
+      ) : <Empty360>{translate('crm.customer360.noNotes')}</Empty360>}
     </Card360>
   );
 }
@@ -783,7 +800,7 @@ function FilesList({ partyId, act }) {
     try {
       await crm.customer360.uploadFile(partyId, chosen, description);
       setDescription('');
-      toast({ title: translate('crm.c360.fileAdded'), status: 'success', duration: 2500 });
+      toast({ title: translate('crm.customer360Tabs.fileAdded'), status: 'success', duration: 2500 });
       load();
     } catch (error) {
       toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
@@ -809,21 +826,21 @@ function FilesList({ partyId, act }) {
   };
 
   return (
-    <Card360 icon={Md.MdAttachFile} title={translate('crm.c360.files')}>
+    <Card360 icon={Md.MdAttachFile} title={translate('crm.customer360Tabs.files')}>
       {act.editable ? (
         <Flex mb={3} align="center">
-          <Input size="sm" mr={2} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={translate('crm.c360.fileDescription')} />
+          <Input size="sm" mr={2} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={translate('crm.customer360Tabs.fileDescription')} />
           <input ref={picker} type="file" hidden onChange={upload} />
           <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdCloudUpload} />} isLoading={busy} flexShrink={0}
             onClick={() => picker.current && picker.current.click()}>
-            {translate('crm.c360.uploadFile')}
+            {translate('crm.customer360Tabs.uploadFile')}
           </Button>
         </Flex>
       ) : null}
       <MiniTable
         rows={files}
         rowKey={(row) => row.file_id}
-        empty="crm.c360.noFiles"
+        empty="crm.customer360Tabs.noFiles"
         columns={[
           { key: 'file_name', label: 'File', maxW: '14rem', render: (row) => <Text as="span" color="brand.500" fontWeight="600" noOfLines={1}>{row.file_name}</Text> },
           { key: 'description', label: 'Description', maxW: '12rem' },
@@ -832,11 +849,11 @@ function FilesList({ partyId, act }) {
           { key: 'created_at', label: 'Added', render: (row) => date(row.created_at) },
           { key: 'actions', label: 'Actions', render: (row) => (
             <HStack spacing={1}>
-              <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdFileDownload} />} aria-label={translate('crm.c360.download')} onClick={() => download(row)} />
+              <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdFileDownload} />} aria-label={translate('crm.customer360Tabs.download')} onClick={() => download(row)} />
               {act.editable ? (
                 <IconButton size="xs" variant="ghost" colorScheme="red" icon={<Icon as={Md.MdDelete} />} aria-label={translate('common.remove')}
                   onClick={async () => {
-                    const agreed = await confirm({ title: translate('crm.c360.removeFile'), body: translate('crm.c360.removeFileExplained'), detail: row.file_name, confirmLabel: translate('common.remove') });
+                    const agreed = await confirm({ title: translate('crm.customer360Tabs.removeFile'), body: translate('crm.customer360Tabs.removeFileExplained'), detail: row.file_name, confirmLabel: translate('common.remove') });
                     if (!agreed) return;
                     try { await crm.customer360.removeFile(partyId, row.file_id); load(); } catch (error) {
                       toast({ title: error.message, status: 'error', duration: 5000, isClosable: true });
@@ -867,13 +884,13 @@ export function NotesFilesTab({ record, act }) {
         <FilesList partyId={partyId} act={act} />
       </Grid>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdTimeline} title={translate('crm.customer.recentActivity')} padded={false}>
+        <Card360 icon={Md.MdTimeline} title={translate('crm.customer360Tabs.recentActivity')} padded={false}>
           {/* A fixed height: the timeline grows with every order and case, so it scrolls instead of stretching the tab. */}
           <Box maxH="28rem" overflowY="auto">
             <Timeline items={act.timeline || []} onOpen={(target) => peek(target[0], target[1])} />
           </Box>
         </Card360>
-        <Card360 icon={Md.MdHistory} title={translate('crm.customer.changesByStaff')}>
+        <Card360 icon={Md.MdHistory} title={translate('crm.customer360Tabs.changesByStaff')}>
           <MiniTable
             rows={record.audit || []}
             rowKey={(row) => row.id}
@@ -911,29 +928,29 @@ export function OrganizationTab({ record, view, act }) {
         <RelationshipOwnershipCard view={view} />
       </Grid>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdGroup} title={translate('crm.c360.accountTeam')}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('team')}>{translate('crm.c360.assign')}</Button> : null}>
+        <Card360 icon={Md.MdGroup} title={translate('crm.customer360Tabs.accountTeam')}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('team')}>{translate('crm.customer360Tabs.assign')}</Button> : null}>
           <MiniTable
             rows={team}
             rowKey={(row) => row.team_member_id}
-            empty="crm.c360.noTeamYet"
+            empty="crm.customer360Tabs.noTeamYet"
             columns={[
               { key: 'team_role', label: 'Role', filter: true, render: (row) => word(translate, row.team_role) },
               { key: 'manager_name', label: 'Staff member', render: (row) => <HStack spacing={2}><Initials name={row.manager_name} /><Text as="span">{row.manager_name}</Text></HStack> },
               { key: 'assigned_at', label: 'From', render: (row) => date(row.assigned_at) },
               { key: 'ended_at', label: 'Until', render: (row) => (row.ended_at ? date(row.ended_at) : <Pill code="ACTIVE" />) },
               { key: 'end', label: 'Actions', render: (row) => (act.editable && !row.ended_at ? (
-                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.customer360.endTeam(party.party_pk, row.team_member_id))}>{translate('crm.sites.end')}</Button>
+                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.customer360.endTeam(party.party_pk, row.team_member_id))}>{translate('crm.common.end')}</Button>
               ) : null) }
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdGavel} title={translate('crm.c360.agreements')}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('agreement', { status: 'ACTIVE' })}>{translate('crm.c360.addAgreement')}</Button> : null}>
+        <Card360 icon={Md.MdGavel} title={translate('crm.customer360Tabs.agreements')}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('agreement', { status: 'ACTIVE' })}>{translate('crm.customer360.addAgreement')}</Button> : null}>
           <MiniTable
             rows={agreements}
             rowKey={(row) => row.agreement_id}
-            empty="crm.c360.noAgreements"
+            empty="crm.customer360Tabs.noAgreements"
             onRowClick={act.editable ? (row) => act.open('agreement', row) : undefined}
             columns={[
               { key: 'agreement_type', label: 'Contract type', filter: true, render: (row) => word(translate, row.agreement_type) },
@@ -947,23 +964,23 @@ export function OrganizationTab({ record, view, act }) {
         </Card360>
       </Grid>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdLabel} title={translate('crm.customer.organizationTypes')}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('orgType')}>{translate('crm.event.add')}</Button> : null}>
+        <Card360 icon={Md.MdLabel} title={translate('crm.customer360Tabs.organizationTypes')}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('orgType')}>{translate('crm.common.add')}</Button> : null}>
           <MiniTable
             rows={links.types || []}
             rowKey={(row) => row.organization_type_assignment_id}
             columns={[
               { key: 'type_name', label: 'Type', render: (row) => translate(row.type_name) },
-              { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.ui.dreamWide') },
+              { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.customer360Tabs.dreamWide') },
               { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
               { key: 'end', label: 'Actions', render: (row) => (act.editable && row.status === 'ACTIVE' ? (
-                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.endType(party.party_pk, row.organization_type_assignment_id))}>{translate('crm.sites.end')}</Button>
+                <Button size="xs" variant="ghost" onClick={() => act.run(() => crm.organizations.endType(party.party_pk, row.organization_type_assignment_id))}>{translate('crm.common.end')}</Button>
               ) : null) }
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdDomain} title={translate('crm.customer.industries')}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('industry')}>{translate('crm.event.add')}</Button> : null}>
+        <Card360 icon={Md.MdDomain} title={translate('crm.customer360Tabs.industries')}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('industry')}>{translate('crm.common.add')}</Button> : null}>
           <MiniTable
             rows={links.industries || []}
             rowKey={(row) => row.industry_id}
@@ -992,8 +1009,8 @@ export function ContactsTab({ record, view, act }) {
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gridGap={4}>
         <KeyContactsCard view={view} onLink={act.editable ? () => act.open('person') : null} />
-        <Card360 icon={Md.MdContactPhone} title={translate('crm.c360.organizationContactPoints')}
-          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('contact', { contact_type: 'PHONE' })}>{translate('crm.event.add')}</Button> : null}>
+        <Card360 icon={Md.MdContactPhone} title={translate('crm.customer360Tabs.organizationContactPoints')}
+          action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('contact', { contact_type: 'PHONE' })}>{translate('crm.common.add')}</Button> : null}>
           <MiniTable
             rows={record.contacts || []}
             rowKey={(row) => row.contact_point_id}
@@ -1006,7 +1023,7 @@ export function ContactsTab({ record, view, act }) {
           />
         </Card360>
       </Grid>
-      <Panel title={translate('crm.customer.peopleHere')}>
+      <Panel title={translate('crm.customer360Tabs.peopleHere')}>
         <DataTable
           hidePagination
           rows={links.people || []}
@@ -1014,13 +1031,13 @@ export function ContactsTab({ record, view, act }) {
           columns={[
             { key: 'person_name', label: 'Person', render: (row) => row.person_name + '  ' + partyIdLabel(row.person_party_pk) },
             { key: 'roles', label: 'Roles', render: (row) => (row.roles || []).map((role) => translate(role.role_name)).join(', ') || '-' },
-            { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.ui.dreamWide') },
+            { key: 'project_code', label: 'Project', filter: true, render: (row) => row.project_code || translate('crm.customer360Tabs.dreamWide') },
             { key: 'relationship_status', label: 'Status', render: (row) => <Pill code={row.relationship_status} /> },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) }
           ]}
           onRowClick={(row) => history.push(CUSTOMERS + '/' + row.person_party_pk)}
           actions={act.editable ? [{
-            key: 'end', label: translate('crm.customer.endRelationship'), hidden: (row) => row.relationship_status !== 'ACTIVE',
+            key: 'end', label: translate('crm.customer360Tabs.endRelationship'), hidden: (row) => row.relationship_status !== 'ACTIVE',
             onClick: (row) => act.run(() => crm.organizations.endPerson(party.party_pk, row.org_person_relationship_id))
           }] : []}
           actionsIconOnly={false}

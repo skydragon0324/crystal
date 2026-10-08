@@ -67,7 +67,7 @@ async function notes(partyId, filters, paging) {
 async function addNote(partyId, body, actor) {
   await requireParty(partyId);
   const text = String(body.note_text || '').trim();
-  if (!text) throw new HttpError(400, 'crm.writeTheNote');
+  if (!text) throw new HttpError(400, 'crm.customer360.writeTheNote');
   const [row] = await db('crm_party_note').insert({
     party_pk: partyId, note_text: text.slice(0, 5000), is_pinned: !!body.is_pinned, created_by_manager_id: actor.manager_id
   }).returning('*');
@@ -81,7 +81,7 @@ async function updateNote(partyId, noteId, body, actor) {
   const patch = { updated_at: db.fn.now() };
   if (body.note_text !== undefined) {
     const text = String(body.note_text || '').trim();
-    if (!text) throw new HttpError(400, 'crm.writeTheNote');
+    if (!text) throw new HttpError(400, 'crm.customer360.writeTheNote');
     patch.note_text = text.slice(0, 5000);
   }
   if (body.is_pinned !== undefined) patch.is_pinned = !!body.is_pinned;
@@ -108,8 +108,8 @@ function files(partyId) {
 /** A file held in memory by the upload middleware, written to the private folder. */
 async function addFile(partyId, file, body, actor) {
   await requireParty(partyId);
-  if (!file) throw new HttpError(400, 'crm.chooseAFile');
-  if (FILE_TYPES.indexOf(file.mimetype) === -1) throw new HttpError(400, 'crm.thatKindOfFileIsNotAccepted');
+  if (!file) throw new HttpError(400, 'crm.common.chooseAFile');
+  if (FILE_TYPES.indexOf(file.mimetype) === -1) throw new HttpError(400, 'crm.customer360.thatKindOfFileIsNotAccepted');
 
   if (!fs.existsSync(FILE_DIR)) fs.mkdirSync(FILE_DIR, { recursive: true });
   const extension = (path.extname(file.originalname || '') || '').toLowerCase().replace(/[^.a-z0-9]/g, '').slice(0, 10);
@@ -174,14 +174,14 @@ async function interactions(partyId, filters, paging) {
 /** A call, email or chat that already happened, written down by the agent who had it. */
 async function logInteraction(partyId, body, actor) {
   await requireParty(partyId);
-  if (INTERACTION_CHANNELS.indexOf(body.channel_code) === -1) throw new HttpError(400, 'crm.chooseAChannel');
-  if (INTERACTION_TYPES.indexOf(body.interaction_type) === -1) throw new HttpError(400, 'crm.chooseWhatItWasAbout');
-  if (OUTCOMES.indexOf(body.outcome_code) === -1) throw new HttpError(400, 'crm.chooseHowItEnded');
+  if (INTERACTION_CHANNELS.indexOf(body.channel_code) === -1) throw new HttpError(400, 'crm.common.chooseAChannel');
+  if (INTERACTION_TYPES.indexOf(body.interaction_type) === -1) throw new HttpError(400, 'crm.customer360.chooseWhatItWasAbout');
+  if (OUTCOMES.indexOf(body.outcome_code) === -1) throw new HttpError(400, 'crm.customer360.chooseHowItEnded');
   const subject = String(body.subject || '').trim();
-  if (!subject) throw new HttpError(400, 'crm.giveASummary');
+  if (!subject) throw new HttpError(400, 'crm.customer360.giveASummary');
   if (body.case_id) {
     const serviceCase = await db('crm_service_case').where({ case_id: body.case_id, party_pk: partyId }).first('case_id');
-    if (!serviceCase) throw new HttpError(409, 'crm.thatCaseIsAnotherCustomers');
+    if (!serviceCase) throw new HttpError(409, 'crm.customer360.thatCaseIsAnotherCustomers');
   }
 
   const [row] = await db('crm_party_interaction').insert({
@@ -208,19 +208,19 @@ async function logInteraction(partyId, body, actor) {
  */
 async function sendMessage(partyId, body, actor) {
   const party = await requireParty(partyId);
-  if (party.party_status !== 'ACTIVE') throw new HttpError(409, 'crm.chooseAnActiveCustomer');
+  if (party.party_status !== 'ACTIVE') throw new HttpError(409, 'crm.common.chooseAnActiveCustomer');
 
   const channel = await db('crm_communication_channel').where({ channel_id: body.channel_id || null, is_active: true }).first();
-  if (!channel || !MESSAGE_CHANNELS[channel.channel_code]) throw new HttpError(400, 'crm.chooseAChannelThatCarriesMessages');
+  if (!channel || !MESSAGE_CHANNELS[channel.channel_code]) throw new HttpError(400, 'crm.customer360.chooseAChannelThatCarriesMessages');
   const purpose = await db('crm_communication_purpose').where('purpose_id', body.purpose_id || null).first();
-  if (!purpose) throw new HttpError(400, 'crm.chooseWhatTheMessageIsFor');
+  if (!purpose) throw new HttpError(400, 'crm.customer360.chooseWhatTheMessageIsFor');
   const subject = String(body.subject || '').trim();
   const text = String(body.body || '').trim();
-  if (!subject || !text) throw new HttpError(400, 'crm.writeTheMessage');
+  if (!subject || !text) throw new HttpError(400, 'crm.customer360.writeTheMessage');
 
   const option = await db('crm_project_communication_option')
     .where({ project_id: body.project_id || null, purpose_id: purpose.purpose_id, channel_id: channel.channel_id }).first();
-  if (!option || !option.is_enabled) throw new HttpError(409, 'crm.thatProjectDoesNotSendThat');
+  if (!option || !option.is_enabled) throw new HttpError(409, 'crm.customer360.thatProjectDoesNotSendThat');
 
   const consent = await db('crm_party_communication_consent')
     .where({ party_pk: partyId, project_communication_option_id: option.project_communication_option_id }).first();
@@ -228,9 +228,9 @@ async function sendMessage(partyId, body, actor) {
   const inForce = consent && consent.consent_status === 'GRANTED'
     && (!consent.effective_from || new Date(consent.effective_from) <= now) && (!consent.effective_to || new Date(consent.effective_to) > now);
   if (consent && (consent.consent_status === 'WITHDRAWN' || consent.consent_status === 'DENIED')) {
-    throw new HttpError(409, 'crm.theCustomerSaidNoToThat');
+    throw new HttpError(409, 'crm.customer360.theCustomerSaidNoToThat');
   }
-  if ((option.consent_required || purpose.requires_opt_in) && !inForce) throw new HttpError(409, 'crm.thereIsNoConsentForThat');
+  if ((option.consent_required || purpose.requires_opt_in) && !inForce) throw new HttpError(409, 'crm.customer360.thereIsNoConsentForThat');
 
   let contact = null;
   if (channel.required_contact_type) {
@@ -238,7 +238,7 @@ async function sendMessage(partyId, body, actor) {
       .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'is_verified', order: 'desc' }, { column: 'contact_point_id' }]);
     contact = (consent && consent.contact_point_id
       ? candidates.filter(function (candidate) { return candidate.contact_point_id === consent.contact_point_id; })[0] : null) || candidates[0] || null;
-    if (!contact) throw new HttpError(409, 'crm.theCustomerHasNoContactForThatChannel');
+    if (!contact) throw new HttpError(409, 'crm.customer360.theCustomerHasNoContactForThatChannel');
   }
 
   const [row] = await db('crm_party_interaction').insert({

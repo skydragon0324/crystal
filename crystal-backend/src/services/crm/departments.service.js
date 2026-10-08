@@ -52,7 +52,7 @@ async function assignManager(managerId, departmentId, actor) {
 
   if (departmentId) {
     const meant = await db('crm_role_department').where('role_id', manager.role_id).first('department_id');
-    if (meant && String(meant.department_id) !== String(departmentId)) throw new HttpError(409, 'crm.thatRoleIsForAnotherDepartment');
+    if (meant && String(meant.department_id) !== String(departmentId)) throw new HttpError(409, 'crm.settings.thatRoleIsForAnotherDepartment');
     await db.raw(`
       INSERT INTO crm_manager_department (manager_id, department_id, assigned_by_manager_id) VALUES (?, ?, ?)
       ON CONFLICT (manager_id) DO UPDATE SET department_id = EXCLUDED.department_id,

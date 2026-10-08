@@ -11,7 +11,7 @@
 /* [topic, rule]: shown as the Conventions table at the top of the document. */
 const conventions = [
   ['Customer key', '`party_pk` is the customer key in phase 1: every CRM link to a person or organization uses it. `crm_party.party_id` is reserved for a later phase and is not generated or used in phase 1.'],
-  ['Project', '`project_id` names the Dream project (business system) a row came from or belongs to: PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA, ... An external id is only unique inside its project.'],
+  ['Project', '`project_id` names the Dream project (business system) a row came from or belongs to - the projects defined in Settings > Projects. An external id is only unique inside its project.'],
   ['Who did it', '`*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives.'],
   ['History', '`valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it.'],
   ['Source ids', '`source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates.'],
@@ -156,7 +156,7 @@ const groups = [
 const tables = {
   /* ---------------------------------------------------------------- projects */
   crm_project: {
-    usedBy: 'Settings > Projects; every import and the department API look projects up by `project_code`.',
+    usedBy: 'Settings > Projects; imports and the department API. The Excel import finds its e-shop and user-management projects by `identity_role`, not by code.',
     fields: {
       project_id: 'Numeric key referenced by every project_id in the CRM.',
       project_code: 'Short code the code looks up (CRYSTAL, ESHOP, ...). It cannot change while other rows reference the project.',
@@ -164,7 +164,8 @@ const tables = {
       project_type_code: 'Free label for the kind of business (PLATFORM, COMMERCE, SERVICE, CRM, ...). Informational only.',
       source_system_code: 'Which technical system feeds this project (VENDOR_ORACLE, ESHOP_API, ...). Informational only.',
       legal_entity_code: 'Legal entity that operates the project, for reporting.',
-      status: 'INACTIVE projects stay in history but are not offered for new data.'
+      status: 'INACTIVE projects stay in history but are not offered for new data.',
+      identity_role: 'ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_pk is the same person). At most one project per role; set in Settings > Projects.'
     }
   },
   crm_project_api_key: {
@@ -247,7 +248,7 @@ const tables = {
     }
   },
   crm_contact_point: {
-    usedBy: 'Customer 360 contacts; duplicate check (phones); campaigns (where to send); consent.',
+    usedBy: 'Customer 360 (header, Contact points card, Consent tab list); duplicate check (phones); campaigns (where to send); consent. A customer has as many phones as rows; merges keep them all.',
     fields: {
       contact_point_id: 'Contact key.',
       party_pk: 'Owner of the contact (deleted with the party).',
@@ -387,7 +388,7 @@ const tables = {
 
   /* ---------------------------------------------------------------- identity */
   crm_project_account: {
-    usedBy: 'Customer 360 > Accounts; department API; Crystal and vendor imports; e-shop assignment review.',
+    usedBy: 'Customer 360 > Accounts; department API; Crystal and vendor imports; account assignment review (Customers > Account assignments).',
     fields: {
       project_account_id: 'Account link key.',
       party_pk: 'Customer the account belongs to.',
@@ -405,15 +406,15 @@ const tables = {
     }
   },
   crm_registration_intake: {
-    purpose: 'Every incoming registration (console, Excel row, department API, imports) and every e-shop identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.',
-    usedBy: 'Customers > Pending registrations / E-shop assignments / Resolved registrations; department API; Excel import.',
+    purpose: 'Every incoming registration (console, Excel row, department API, imports) and every e-shop or user-management identifier waiting for review. A PERSON intake that scores 50-69, or matches several strong candidates, waits here without creating a customer.',
+    usedBy: 'Customers > Pending registrations / Account assignments / Resolved registrations; department API; Excel import.',
     fields: {
       intake_id: 'Intake key; departments receive it for QUEUED registrations.',
       source_project_id: 'Project the registration came from.',
-      source_record_id: 'The record\'s id in the source (account id, `excel:<file hash>:<row>`, e-shop PK). Unique with project and category, so retries reuse the intake.',
-      category: 'PERSON = who is this person; ESHOP = which customer does this e-shop identifier belong to.',
-      status: 'PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (e-shop).',
-      payload: 'What was submitted: `party` (person data), `account` (project account to link once resolved), `unverified_accounts` (spreadsheet e-shop identifiers to stage for review).',
+      source_record_id: 'The record\'s id in the source (account id, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user PK). Unique with project and category, so retries reuse the intake.',
+      category: 'PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment.',
+      status: 'PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment).',
+      payload: 'What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet\'s e-shop and user identifiers, staged for review once the person is resolved).',
       candidates: 'Matching customers or pending intakes with their scores and evidence, shown to the reviewer.',
       party_pk: 'Customer the intake resolved to.',
       reviewed_by_manager_id: 'Administrator who decided; NULL when decided automatically.',

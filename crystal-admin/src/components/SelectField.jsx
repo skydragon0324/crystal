@@ -358,7 +358,12 @@ export default function SelectField({
                   const isHighlighted = index === highlight;
                   return (
                     <Flex
-                      key={String(o.value)}
+                      /*
+                       * The position as well as the value: two options with
+                       * the same value would share a key, and React would then
+                       * leave stale, unclickable rows behind while searching.
+                       */
+                      key={String(o.value) + '#' + index}
                       role="option" aria-selected={isSelected}
                       data-highlighted={isHighlighted ? 'true' : 'false'}
                       align="center" justify="space-between"

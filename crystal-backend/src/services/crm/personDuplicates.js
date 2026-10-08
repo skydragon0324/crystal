@@ -9,7 +9,7 @@ function phoneKey(value) { return contact.normalise('MOBILE', value).replace(/\D
 function dateKey(value) { return value instanceof Date ? value.toISOString().slice(0, 10) : String(value || '').slice(0, 10); }
 function phones(value) { return [value.mobile, value.phone].concat((value.contacts || []).filter(c => ['MOBILE','PHONE'].includes(c.contact_type)).map(c => c.contact_value)).map(phoneKey).filter(Boolean); }
 /*
- * The user-management (PLATFORM) user_pks a person carries: an Excel row has
+ * The user-management user_pks a person carries: an Excel row has
  * one (user_pk); a customer loaded as a candidate has every one linked to it
  * or listed for it by an earlier import (user_pks).
  */
@@ -63,20 +63,21 @@ function createIndex() {
  };
 }
 /*
- * Every user-management (PLATFORM) user_pk known for a customer: accounts
- * linked to them, and the candidate IDs an Excel import listed for them. Rows
- * of (party_pk, pk). The Excel template's User PK column is PLATFORM's user_pk.
+ * Every user-management user_pk known for a customer: accounts linked to
+ * them, and the candidate IDs an Excel import listed for them. Rows of
+ * (party_pk, pk). The user management system is the project given the
+ * USER_MANAGEMENT role in Settings > Projects.
  */
 const USER_PKS_SQL = `
   SELECT account.party_pk, account.external_account_id AS pk
     FROM crm_project_account account JOIN crm_project project ON project.project_id = account.project_id
-   WHERE project.project_code = 'PLATFORM' AND account.unlinked_at IS NULL
+   WHERE project.identity_role = 'USER_MANAGEMENT' AND account.unlinked_at IS NULL
   UNION
   SELECT registration.party_pk, listed->>'external_account_id' AS pk
     FROM crm_registration_intake registration
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(registration.payload->'unverified_accounts', '[]'::jsonb)) listed
     JOIN crm_project project ON project.project_id::text = listed->>'project_id'
-   WHERE registration.category = 'PERSON' AND registration.party_pk IS NOT NULL AND project.project_code = 'PLATFORM'`;
+   WHERE registration.category = 'PERSON' AND registration.party_pk IS NOT NULL AND project.identity_role = 'USER_MANAGEMENT'`;
 async function loadCandidates(candidates, options) {
  const opts = options || {}; const query = opts.trx || db;
  const names = Array.from(new Set(candidates.map(candidate => textKey(candidate.full_name || candidate.display_name)).filter(Boolean)));

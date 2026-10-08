@@ -37,7 +37,7 @@ export default function ImportErrors() {
 
   return (
     <Box px={4}>
-      <Text fontSize="sm" mb={1}>{translate('crm.customers.importErrorsIntro')}</Text>
+      <Text fontSize="sm" mb={1}>{translate('crm.importErrors.importErrorsIntro')}</Text>
       <Box mx={-5}><Toolbar search={list.params.q} onSearch={(q) => list.setFilter({ q: q || undefined })} /></Box>
       <DataTable
         rows={list.rows}
@@ -48,24 +48,24 @@ export default function ImportErrors() {
         onPageChange={list.setPage}
         onLimitChange={(limit) => list.setFilter({ limit })}
         rowKey={(row) => row.import_error_id}
-        emptyText={translate('crm.customers.noImportErrors')}
+        emptyText={translate('crm.importErrors.noImportErrors')}
         columns={[
           { key: 'created_at', label: 'Imported', render: (row) => dateTime(row.created_at) },
           { key: 'file_name', label: 'File', render: (row) => row.file_name || '-' },
           { key: 'row_number', label: 'Row' },
-          { key: 'errors', label: 'crm.customers.whatIsWrong', render: (row) => (
+          { key: 'errors', label: 'What is wrong', render: (row) => (
             <Box fontSize="xs" color="red.500" whiteSpace="normal" maxW="26rem">
               {(parsed(row.errors) || []).map((reason) => <Text key={reason}>{reason}</Text>)}
             </Box>
           ) },
           { key: 'full_name', label: 'Name', render: (row) => cell(row, 'full_name') },
-          { key: 'eshop', label: 'crm.customers.importEshopKeys', render: (row) => [cell(row, 'eshop_pk'), cell(row, 'eshop_id')].join(' / ') },
-          { key: 'user', label: 'crm.customers.importUserKeys', render: (row) => [cell(row, 'user_pk'), cell(row, 'user_id')].join(' / ') },
+          { key: 'eshop', label: 'E-shop PK / ID', render: (row) => [cell(row, 'eshop_pk'), cell(row, 'eshop_id')].join(' / ') },
+          { key: 'user', label: 'User PK / ID', render: (row) => [cell(row, 'user_pk'), cell(row, 'user_id')].join(' / ') },
           { key: 'mobile', label: 'Mobile', render: (row) => cell(row, 'mobile') },
           { key: 'imported_by', label: 'By', render: (row) => row.imported_by || '-' },
           { key: 'dismiss', label: 'Actions', render: (row) => (canWrite ? (
             <Button size="xs" variant="outline" onClick={(event) => { event.stopPropagation(); dismiss(row); }}>
-              {translate('crm.customers.dismissError')}
+              {translate('crm.importErrors.dismissError')}
             </Button>
           ) : null) }
         ]}
