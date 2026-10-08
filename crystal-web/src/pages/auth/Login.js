@@ -24,7 +24,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { ErrorState, Loading, Section } from '@/components/common';
 import api from '@/api';
-import { useApi } from '@/hooks/useApi';
+import authMethods from '@/app/authMethods';
 import {
   clearError,
   registerAccount,
@@ -38,10 +38,15 @@ import { useT } from '@/i18n';
 /**
  * Sign-in (spec 5).
  *
- * Which form is shown is decided by the SERVER: `/auth/methods` reports what
- * the device's User-Agent allows, and the page draws only that. Deciding it
- * from `navigator.userAgent` here would let the client and the server
- * disagree, and the server is the one that will refuse the request.
+ * Which form is shown comes from the device's User-Agent, through the
+ * server's own table - see app/authMethods.js. It was a request to
+ * `/auth/methods`; the answer is a constant, so it is read locally and the
+ * page draws its form on the first paint.
+ *
+ * The two can in principle disagree - a rewritten User-Agent, a proxy - and
+ * the server is still the one that refuses the request, with the message this
+ * page already shows. Drawing the wrong form is the worst case, not accepting
+ * the wrong credential.
  *
  * A tablet is allowed both, so it gets a chooser. A phone gets the OTP form
  * and no password field at all - offering a form the API will reject is worse
@@ -62,7 +67,7 @@ export default function Login() {
   const status = useSelector((state) => selectAuthStatus(state));
   const error = useSelector((state) => state.auth.error);
 
-  const methods = useApi(() => api.auth.methods(), []);
+  const methods = authMethods();
   const params = new URLSearchParams(location.search);
   const redirectTo = params.get('next') || '/account';
 
@@ -87,17 +92,20 @@ export default function Login() {
   const [otpBusy, setOtpBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  const allowed = (methods.data && methods.data.allowed) || [];
-  const device = methods.data && methods.data.device;
+  const allowed = methods.allowed;
+  const device = methods.device;
 
-  // Once the server has answered, settle on the method it allows. A tablet
-  // allows both, so it keeps the chooser.
+  /*
+   * Settle on the method this device allows. A tablet allows both, so it
+   * keeps the chooser. This ran when the server's answer arrived; the answer
+   * is known on the first render now, so it runs once on mount.
+   */
   useEffect(() => {
     if (!allowed.length || mode === 'register') return;
     if (mode && allowed.indexOf(mode) !== -1) return;
     setMode(allowed.length === 1 ? allowed[0] : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [methods.data]);
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated') history.replace(redirectTo);

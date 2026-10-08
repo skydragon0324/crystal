@@ -22,8 +22,7 @@ import { FiMonitor, FiShield, FiSmartphone } from 'react-icons/fi';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { ErrorState, Loading, Section } from '@/components/common';
-import api from '@/api';
-import { useApi } from '@/hooks/useApi';
+import authMethods from '@/app/authMethods';
 import {
   clearError,
   selectAuthStatus,
@@ -39,10 +38,10 @@ import { useT } from '@/i18n';
  * SIGN IN - /login.
  *
  * The page that was here moved to /auth/reganam, unchanged, and this one
- * replaced it. Two forms, and the SERVER picks which (`/auth/methods` answers
- * `login`), for the same reason the old page let it: the server is the one
- * that will accept or refuse the request, so the client does not guess from
- * its own User-Agent.
+ * replaced it. Two forms, and which one is drawn comes from the device - see
+ * app/authMethods.js, which holds the server's own table rather than asking
+ * for it. The server still decides what it ACCEPTS; this only decides what to
+ * draw, so there is no loading state here at all.
  *
  *   DESKTOP   no form. A desktop's Sign in button signs in where it is
  *             (hooks/useSignIn), so a member only lands here when a page that
@@ -71,9 +70,10 @@ export default function SignIn() {
   const error = useSelector((state) => state.auth.error);
   const busy = status === 'pending';
 
-  const methods = useApi(() => api.auth.methods(), []);
-  const form = methods.data ? methods.data.login : null;
-  const certificateReady = !!(methods.data && methods.data.certificate);
+  /* Known at once, so the form is right on the first paint. */
+  const methods = authMethods();
+  const form = methods.login;
+  const certificateReady = methods.certificate;
 
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
@@ -88,9 +88,9 @@ export default function SignIn() {
   }, [dispatch]);
 
   /*
-   * THE DESKTOP SIGNS IN BY ITSELF, once, when the methods answer arrives.
-   * Not again on a failure - that waits for the member to press Try again,
-   * rather than asking the agent in a loop.
+   * THE DESKTOP SIGNS IN BY ITSELF, once, on arrival. Not again on a failure -
+   * that waits for the member to press Try again, rather than asking the
+   * agent in a loop.
    */
   const started = useRef(false);
   useEffect(() => {

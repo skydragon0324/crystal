@@ -48,7 +48,7 @@ import MyArticles from '../pages/account/MyArticles';
  */
 // eslint-disable-next-line no-var
 var mockApi = {
-  article: null, replies: null, reply: null, articles: null, thumbs: null, give: null, methods: null, calls: []
+  article: null, replies: null, reply: null, articles: null, thumbs: null, give: null, calls: []
 };
 
 jest.mock('../api', () => ({
@@ -82,12 +82,6 @@ jest.mock('../api', () => ({
         return mockApi.give(id, kind);
       }
     },
-    auth: {
-      methods: () => {
-        mockApi.calls.push({ name: 'methods' });
-        return mockApi.methods();
-      }
-    }
   },
   fileUrl: (p) => p || ''
 }));
@@ -153,7 +147,6 @@ beforeEach(() => {
   mockApi.reply = () => Promise.reject(new Error('not found'));
   mockApi.thumbs = () => Promise.resolve({ data: [] });
   mockApi.give = () => Promise.reject(new Error('no thumb expected'));
-  mockApi.methods = () => Promise.resolve({ data: { login: 'password', certificate: false } });
   serveThread(THREAD);
   window.scrollTo = jest.fn();
 });
@@ -565,7 +558,13 @@ test('signed out, a medal offers sign-in and sends nothing', async () => {
   expect(document.querySelector('button[data-confirm]')).toBe(null);
 
   await ui.click(signIn);
-  expect(ui.location().pathname).toBe('/login');
+  /*
+   * A DESKTOP, which is what jsdom's User-Agent is - and a desktop with no
+   * certificate agent available gets the vendor's password page, not /login.
+   * The button decides that locally now (app/authMethods.js); it used to ask
+   * /auth/methods, and this test mocked a phone's answer back.
+   */
+  expect(ui.location().pathname).toBe('/auth/reganam');
   expect(ui.location().search).toBe('?next=' + encodeURIComponent('/blog/' + SLUG));
 
   /* Nobody to ask about, and nothing given. */

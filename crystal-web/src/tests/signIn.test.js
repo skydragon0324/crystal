@@ -3,10 +3,15 @@
  *
  * Four things here fail quietly if they regress:
  *
- *   THE DEVICE. The server names the form (`methods.login`). A desktop has no
- *   form at all - its certificate agent signs in - and a phone gets the user
- *   ID, password and CID form. A desktop with certificate sign-in switched off
- *   goes to the password page, as the vendor does in development.
+ *   THE DEVICE. The User-Agent names the form, through the server's own table
+ *   held locally (app/authMethods.js). A desktop has no form at all - its
+ *   certificate agent signs in - and a phone gets the user ID, password and
+ *   CID form. A desktop with certificate sign-in switched off goes to the
+ *   password page, as the vendor does in development.
+ *
+ *   These tests therefore say what MACHINE is visiting rather than mocking an
+ *   endpoint, because that is what the page reads. `asDesktop` and `asPhone`
+ *   below set the User-Agent, and the certificate build flag with it.
  *
  *   THE AGENT'S HALF. The text the member's certificate signs is
  *   client_rand + server_rand + the host of the server certificate's URL, in
@@ -35,7 +40,6 @@ import { EXTERNAL } from '../components/layout/siteNav';
 
 jest.mock('../api', () => {
   const auth = {
-    methods: jest.fn(),
     login: jest.fn(),
     x509PrimaryData: jest.fn(),
     x509Login: jest.fn()
@@ -52,6 +56,38 @@ import SignIn from '../pages/auth/SignIn';
 /* eslint-enable import/first */
 
 let seen = null;
+
+/*
+ * WHAT KIND OF MACHINE IS VISITING.
+ *
+ * Two real User-Agents, and the build flag that decides whether the
+ * certificate agent is asked at all - `certificateReady()` reads NODE_ENV,
+ * the vendor's own rule, and under the test runner that is 'test', so a test
+ * that wants the agent path has to say so.
+ */
+const UA = {
+  desktop: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
+  phone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1'
+};
+
+const realEnv = process.env.NODE_ENV;
+
+function visiting(agent, certificate) {
+  Object.defineProperty(window.navigator, 'userAgent', {
+    value: agent,
+    configurable: true
+  });
+  process.env.NODE_ENV = certificate ? 'production' : realEnv;
+}
+
+/** A PC with the certificate agent available - a deployed build. */
+const asDesktop = () => visiting(UA.desktop, true);
+
+/** A PC without it, which is `npm start` and the vendor's dev fallback. */
+const asDesktopWithoutAgent = () => visiting(UA.desktop, false);
+
+/** A phone, which gets the user ID, password and CID form. */
+const asPhone = () => visiting(UA.phone, false);
 
 async function render(entry) {
   const host = document.createElement('div');
@@ -158,6 +194,7 @@ beforeEach(() => {
 afterEach(() => {
   if (agent) agent.restore();
   agent = null;
+  process.env.NODE_ENV = realEnv;
   seen = null;
   store.dispatch(signOut());
   jest.clearAllMocks();
@@ -165,7 +202,7 @@ afterEach(() => {
 });
 
 test('a desktop signs in by itself through the certificate agent', async () => {
-  api.auth.methods.mockResolvedValue({ data: { device: 'desktop', login: 'certificate', certificate: true } });
+  asDesktop();
   api.auth.x509PrimaryData.mockResolvedValue({
     data: { url: 'https://crystal.example:8443/certs/server.crt', server_rand: 'SRV', server_sign: 'SIG' }
   });
@@ -204,7 +241,7 @@ test('a desktop signs in by itself through the certificate agent', async () => {
 });
 
 test('an agent that is not running is said so, with a way to try again', async () => {
-  api.auth.methods.mockResolvedValue({ data: { device: 'desktop', login: 'certificate', certificate: true } });
+  asDesktop();
   agent = fakeAgent(() => null);
 
   const host = await render();
@@ -217,7 +254,7 @@ test('an agent that is not running is said so, with a way to try again', async (
 });
 
 test('the agent\'s own refusals are the vendor\'s messages', async () => {
-  api.auth.methods.mockResolvedValue({ data: { device: 'desktop', login: 'certificate', certificate: true } });
+  asDesktop();
   agent = fakeAgent(() => ({ err_message: 'Cert Not Loaded' }));
 
   const host = await render();
@@ -227,7 +264,7 @@ test('the agent\'s own refusals are the vendor\'s messages', async () => {
 });
 
 test('a desktop without certificate sign-in goes to the password page, keeping next', async () => {
-  api.auth.methods.mockResolvedValue({ data: { device: 'desktop', login: 'certificate', certificate: false } });
+  asDesktopWithoutAgent();
   agent = fakeAgent(() => {
     throw new Error('the agent must not be asked');
   });
@@ -241,7 +278,7 @@ test('a desktop without certificate sign-in goes to the password page, keeping n
 });
 
 test('a phone gets user ID, password and CID, and sends all three', async () => {
-  api.auth.methods.mockResolvedValue({ data: { device: 'mobile', login: 'password', certificate: false } });
+  asPhone();
   api.auth.login.mockResolvedValue({ data: { token: 't', refreshToken: 'r', user: { id: 1 } } });
 
   const host = await render();

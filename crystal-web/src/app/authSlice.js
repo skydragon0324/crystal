@@ -10,10 +10,12 @@ import * as mik from '@/app/mikAgent';
  * `status` starts as 'restoring' so the header does not flash "Sign in" at a
  * member who is already signed in on every page load.
  *
- * The device-aware rule (spec 5) lives on the server; the client only asks
- * `/auth/methods` which form to draw. Deciding it locally from the
- * User-Agent would let the two disagree, and the server is the one that
- * matters.
+ * THE DEVICE-AWARE RULE (spec 5) IS ENFORCED ON THE SERVER, and the client
+ * holds a copy of it to decide which form to DRAW - app/authMethods.js, which
+ * is checked against the server's own vectors. The two can disagree; the
+ * server is the one that refuses the request, so the cost of a disagreement
+ * is a form that turns out to be the wrong one rather than a credential
+ * accepted that should not have been.
  */
 
 export const signInWithPassword = createAsyncThunk(

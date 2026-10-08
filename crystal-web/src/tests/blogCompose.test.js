@@ -89,9 +89,6 @@ jest.mock('../api', () => ({
       blogThumbs: (ids) => { mockApi.calls.push({ name: 'thumbs', ids: ids }); return mockApi.thumbs(ids); },
       giveBlogThumb: () => Promise.reject(new Error('no thumb expected'))
     },
-    auth: {
-      methods: () => { mockApi.calls.push({ name: 'methods' }); return mockApi.methods(); }
-    }
   },
   fileUrl: (p) => p || ''
 }));

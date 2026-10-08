@@ -12,7 +12,6 @@ import client from './client';
 
 export const auth = {
   /** Which credentials this device may use (spec 5). */
-  methods: () => client.get('/auth/methods'),
   register: (payload) => client.post('/auth/register', payload),
   /* The platform identifies a person by user_id; it has no email column. */
   /* `cid` only from the /login mobile form; the server records it and never checks it. */
