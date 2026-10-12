@@ -21,22 +21,41 @@ function digest(secret) {
 async function issue(projectCode, label) {
   const project = await db('crm_project').where('project_code', projectCode).first('project_id', 'project_code');
   if (!project) throw new Error('No project with code ' + projectCode);
+  return insertKey(project, label);
+}
+
+/*
+ * The same, from the settings screen: the project by id, and a refusal the
+ * console can show. An inactive project's keys are refused at the door
+ * anyway, so issuing one would only hand out a key that cannot work.
+ */
+async function issueForProject(projectId, label) {
+  if (!/^[1-9][0-9]*$/.test(String(projectId || ''))) throw new HttpError(400, 'crm.serviceCases.chooseAProject');
+  const project = await db('crm_project').where('project_id', projectId).first('project_id', 'project_code', 'status');
+  if (!project) throw new HttpError(404, 'common.notFound');
+  if (project.status !== 'ACTIVE') throw new HttpError(409, 'crm.integration.thisProjectIsInactive');
+  return insertKey(project, String(label || '').trim());
+}
+
+async function insertKey(project, label) {
   const prefix = crypto.randomBytes(6).toString('hex');
   const secret = crypto.randomBytes(24).toString('hex');
   const [row] = await db('crm_project_api_key')
     .insert({ project_id: project.project_id, key_prefix: prefix, key_hash: digest(secret), label: String(label || project.project_code).slice(0, 100) })
-    .returning(['api_key_id', 'project_id']);
-  return { api_key_id: row.api_key_id, project_id: row.project_id, project_code: project.project_code, key: 'crmk_' + prefix + '_' + secret };
+    .returning(['api_key_id', 'project_id', 'key_prefix', 'label', 'created_at']);
+  return Object.assign({}, row, { project_code: project.project_code, key: 'crmk_' + prefix + '_' + secret });
 }
 
 async function revoke(apiKeyId) {
   return db('crm_project_api_key').where('api_key_id', apiKeyId).whereNull('revoked_at').update({ revoked_at: db.fn.now() });
 }
 
+/* Never the hash: the prefix is enough to tell keys apart, and the secret is not kept at all. */
 async function list() {
   return db('crm_project_api_key as api_key').join('crm_project as project', 'project.project_id', 'api_key.project_id')
-    .select('api_key.api_key_id', 'project.project_code', 'api_key.key_prefix', 'api_key.label', 'api_key.last_used_at', 'api_key.revoked_at', 'api_key.created_at')
-    .orderBy('api_key.api_key_id');
+    .select('api_key.api_key_id', 'api_key.project_id', 'project.project_code', 'project.project_name', 'api_key.key_prefix', 'api_key.label',
+      'api_key.last_used_at', 'api_key.revoked_at', 'api_key.created_at')
+    .orderByRaw('api_key.revoked_at IS NOT NULL, api_key.api_key_id DESC');
 }
 
 function presentedKey(req) {
@@ -48,18 +67,18 @@ function presentedKey(req) {
 /** Middleware: sets req.integration = { project_id, project_code, api_key_id }. */
 async function authenticate(req, res, next) {
   const match = PATTERN.exec(presentedKey(req));
-  if (!match) return next(new HttpError(401, 'A valid department API key is required'));
+  if (!match) return next(new HttpError(401, 'crm.integration.aValidApiKeyIsRequired'));
   const row = await db('crm_project_api_key as api_key').join('crm_project as project', 'project.project_id', 'api_key.project_id')
     .where('api_key.key_prefix', match[1]).whereNull('api_key.revoked_at')
     .first('api_key.api_key_id', 'api_key.key_hash', 'project.project_id', 'project.project_code', 'project.status');
   const expected = row ? Buffer.from(row.key_hash, 'hex') : null;
   const actual = Buffer.from(digest(match[2]), 'hex');
-  if (!expected || !crypto.timingSafeEqual(expected, actual)) return next(new HttpError(401, 'A valid department API key is required'));
-  if (row.status !== 'ACTIVE') return next(new HttpError(403, 'This project is inactive'));
+  if (!expected || !crypto.timingSafeEqual(expected, actual)) return next(new HttpError(401, 'crm.integration.aValidApiKeyIsRequired'));
+  if (row.status !== 'ACTIVE') return next(new HttpError(403, 'crm.integration.thisProjectIsInactive'));
   req.integration = { project_id: row.project_id, project_code: row.project_code, api_key_id: row.api_key_id };
   db('crm_project_api_key').where('api_key_id', row.api_key_id).update({ last_used_at: db.fn.now() })
     .catch(function (err) { console.error('crm api key last_used_at: ' + err.message); });
   return next();
 }
 
-module.exports = { issue, revoke, list, authenticate };
+module.exports = { issue, issueForProject, revoke, list, authenticate };

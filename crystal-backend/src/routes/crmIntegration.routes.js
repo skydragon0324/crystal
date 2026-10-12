@@ -29,17 +29,17 @@ const PERSON_FIELDS = ['full_name', 'gender_code', 'birth_date', 'mobile', 'emai
 
 function accountId(value) {
   const text = String(value == null ? '' : value).trim();
-  if (!text || text.length > 250) throw new HttpError(400, 'external_account_id is required (at most 250 characters)');
+  if (!text || text.length > 250) throw new HttpError(400, 'crm.integration.externalAccountIdIsRequired', null, { max: 250 });
   return text;
 }
 
 router.post('/registrations', async function (req, res) {
   const body = req.body || {};
   const externalAccountId = accountId(body.external_account_id);
-  if (body.external_login != null && String(body.external_login).length > 100) throw new HttpError(400, 'external_login is longer than 100 characters');
+  if (body.external_login != null && String(body.external_login).length > 100) throw new HttpError(400, 'crm.integration.externalLoginIsTooLong', null, { max: 100 });
   const party = {};
   PERSON_FIELDS.forEach(function (field) { if (body.party && body.party[field] !== undefined && body.party[field] !== '') party[field] = body.party[field]; });
-  if (!party.full_name) throw new HttpError(400, 'party.full_name is required');
+  if (!party.full_name) throw new HttpError(400, 'crm.integration.fullNameIsRequired');
   rules.assert(await rules.check(Object.assign({ party_type: 'PERSON' }, party), 'create', 'PERSON'));
   if (party.birth_date) party.birth_year = Number(String(party.birth_date).slice(0, 4));
 

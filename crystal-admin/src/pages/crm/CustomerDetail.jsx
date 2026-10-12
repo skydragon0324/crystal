@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
   Badge, Box, Breadcrumb, BreadcrumbItem, BreadcrumbLink, Button, ButtonGroup, Collapse, Divider, Flex, Grid, HStack, Icon,
-  IconButton, Menu, MenuButton, MenuDivider, MenuItem, MenuList, SimpleGrid, Stack, Tab, TabList, TabPanel, TabPanels, Tabs,
+  IconButton, Menu, MenuButton, MenuDivider, MenuItem, MenuList, Portal, SimpleGrid, Stack, Tab, TabList, TabPanel, TabPanels, Tabs,
   Text, Tooltip, Wrap, WrapItem, useColorModeValue, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
@@ -333,10 +333,10 @@ export default function CustomerDetail() {
             {isPerson ? (
               <Menu placement="bottom-end">
                 <MenuButton as={Button} size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />}>{translate('crm.customer360.mergeLinkAccounts')}</MenuButton>
-                <MenuList fontSize="sm">
+                <Portal><MenuList zIndex="dropdown" fontSize="sm">
                   <MenuItem icon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{translate('crm.customer360.mergeADuplicate')}</MenuItem>
                   <MenuItem icon={<Icon as={Md.MdLink} />} onClick={() => open('account')}>{translate('crm.customer360.linkAccount')}</MenuItem>
-                </MenuList>
+                </MenuList></Portal>
               </Menu>
             ) : (
               <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdMergeType} />} onClick={() => open('merge')}>{translate('crm.customer360.merge')}</Button>
@@ -355,7 +355,7 @@ export default function CustomerDetail() {
               </Button>
               <Menu placement="bottom-end">
                 <MenuButton as={IconButton} icon={<ChevronDownIcon />} aria-label={translate('crm.customer360.moreActions')} borderLeftWidth="1px" borderColor="whiteAlpha.400" />
-                <MenuList fontSize="sm">
+                <Portal><MenuList zIndex="dropdown" fontSize="sm">
                   <MenuItem icon={<Icon as={Md.MdContactPhone} />} onClick={() => open('contact', { contact_type: isPerson ? 'MOBILE' : 'PHONE' })}>{translate('crm.customer360.addContact')}</MenuItem>
                   <MenuItem icon={<Icon as={Md.MdPeopleOutline} />} onClick={() => open('relationship')}>{translate('crm.customer360.addRelationship')}</MenuItem>
                   {isPerson ? null : <MenuItem icon={<Icon as={Md.MdGroup} />} onClick={() => open('team')}>{translate('crm.customer360.assignAccountTeam')}</MenuItem>}
@@ -385,16 +385,16 @@ export default function CustomerDetail() {
                       {translate('crm.customer360.reactivate')}
                     </MenuItem>
                   )}
-                </MenuList>
+                </MenuList></Portal>
               </Menu>
             </ButtonGroup>
             <Menu placement="bottom-end">
               <MenuButton as={IconButton} size="sm" variant="outline" icon={<Icon as={Md.MdMoreHoriz} />} aria-label={translate('crm.customer360.moreActions')} />
-              <MenuList fontSize="sm">
+              <Portal><MenuList zIndex="dropdown" fontSize="sm">
                 <MenuItem icon={<Icon as={Md.MdContentCopy} />} onClick={copyNumber}>{translate('crm.customer360.copyNumber')}</MenuItem>
                 <MenuItem icon={<Icon as={Md.MdNote} />} onClick={() => goTab('notes')}>{translate('crm.customer360.notesAndHistory')}</MenuItem>
                 <MenuItem icon={<Icon as={Md.MdInsertChart} />} onClick={() => goTab('analytics')}>{translate('crm.customer360.tabAnalytics')}</MenuItem>
-              </MenuList>
+              </MenuList></Portal>
             </Menu>
           </HStack>
         ) : null}
@@ -458,15 +458,20 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
       ))}
       {editable && unusedTags.length ? (
         <WrapItem>
+          {/*
+            The header's menus are portalled to the page and drawn at the dropdown layer:
+            left inline, the tables in the tabs below (sticky headers with their own
+            z-index, later in the page) painted over the open list.
+          */}
           <Menu>
             <MenuButton as={Button} size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />}>{translate('crm.customer360.addTag')}</MenuButton>
-            <MenuList fontSize="sm" maxH="16rem" overflowY="auto">
+            <Portal><MenuList zIndex="dropdown" fontSize="sm" maxH="16rem" overflowY="auto">
               {unusedTags.map((tag) => (
                 <MenuItem key={tag.tag_id} onClick={() => run(() => crm.customer360.addTag(party.party_pk, tag.tag_id), 'crm.customer360.tagAdded')}>
                   <TagChip tag={tag} />
                 </MenuItem>
               ))}
-            </MenuList>
+            </MenuList></Portal>
           </Menu>
         </WrapItem>
       ) : null}

@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const contact = require('../../services/crm/contact');
 const locations = require('../../services/crm/locations');
 const { searchId } = require('../../services/crm/partyId');
+const { searchBirthday, wherePersonBorn } = require('../../services/crm/birthday');
 
 /**
  * Parties: the reads.
@@ -70,6 +71,7 @@ function narrowed(filters) {
   if (filters.q) {
     const term = String(filters.q).trim();
     const forms = contact.searchForms(term);
+    const birthday = searchBirthday(term);
 
     qb.where(function () {
       this.whereRaw('??::text ILIKE ?', ['party.party_pk', searchId(term)])
@@ -82,6 +84,14 @@ function narrowed(filters) {
             .where('contact.normalized_value', 'like', '%' + form + '%');
         });
       });
+
+      /* A date of birth, a year of birth or a birthday, typed however the screen shows it. */
+      if (birthday) {
+        this.orWhereExists(function () {
+          wherePersonBorn(this.select(db.raw(1)).from('crm_person as person')
+            .whereRaw('person.party_pk = party.party_pk'), 'person', birthday);
+        });
+      }
 
       /* An account number another project gave them - a platform login, an Eshop id. */
       this.orWhereExists(function () {
@@ -336,9 +346,10 @@ async function detail(id) {
 /** Parties sharing an active contact value, for the duplicate queue. */
 function pendingCandidates(paging, filters) {
   const base = db('crm_identity_match_candidate as candidate').where('candidate.match_status', 'PENDING');
-  /* Either customer of the pair, by number or name. */
+  /* Either customer of the pair, by number, name or date of birth. */
   const term = String((filters && filters.q) || '').trim();
   if (term) {
+    const birthday = searchBirthday(term);
     base.where(function () {
       this.whereRaw('candidate.incoming_party_pk::text = ?', [term]).orWhereRaw('candidate.candidate_party_pk::text = ?', [term])
         .orWhereExists(function () {
@@ -346,6 +357,12 @@ function pendingCandidates(paging, filters) {
             .whereRaw('named.party_pk IN (candidate.incoming_party_pk, candidate.candidate_party_pk)')
             .where('named.display_name', 'ilike', '%' + term + '%');
         });
+      if (birthday) {
+        this.orWhereExists(function () {
+          wherePersonBorn(this.select(db.raw(1)).from('crm_person as born')
+            .whereRaw('born.party_pk IN (candidate.incoming_party_pk, candidate.candidate_party_pk)'), 'born', birthday);
+        });
+      }
     });
   }
 

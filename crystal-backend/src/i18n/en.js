@@ -283,6 +283,7 @@ module.exports = {
       chooseAStaffMember: 'choose a staff member',
       chooseATag: 'choose a tag',
       chooseATeamRole: 'choose a role in the account team',
+      chooseTheOriginProject: 'choose the project the customer came from',
       chooseTheRelatedCustomer: 'choose the related customer',
       contactValueIsRequired: 'the contact value is required',
       itCannotEndBeforeItStarts: 'it cannot end before it starts',
@@ -304,9 +305,19 @@ module.exports = {
       unknownContactType: 'unknown contact type'
     },
     customerImport: {
+      alsoOnAnotherRow: '{column} {value} is also on row {row} for a different person or {idColumn}',
+      birthdayIsRequired: 'the date of birth is required, as YYYY-MM-DD',
       chooseAnActiveOriginProject: 'choose an active project as the origin project',
+      isLongerThan: '{column} is longer than {max} characters',
+      isRequired: '{column} is required',
+      jobTitleIdIsNotOnTheList: 'job title ID {id} is not on the job list',
+      locationIdIsNotOnTheList: 'location ID {id} is not on the location list',
+      mustBeANumberFromItsList: '{column} "{value}" must be a number from its list',
+      mustBeAWholeNumber: '{column} "{value}" must be a whole number',
       noEshopProject: 'no project has the E-shop identity role: set it on the e-shop project in Settings > Projects',
       noUserManagementProject: 'no project has the User management identity role: set it on the user management project in Settings > Projects',
+      originProjectIsNotActive: 'origin project "{value}" is not an active project code or ID',
+      originProjectIsRequired: 'the origin project is required: fill the Origin project column or choose a project on the import screen',
       requiredColumnsAreMissing: 'the sheet is missing required columns',
       theFileHasNoRows: 'the sheet has no rows below the header',
       theFileHasNoSheet: 'the file has no sheet to read',
@@ -434,9 +445,12 @@ module.exports = {
       unknownRuleField: 'the rule cannot use "{field}"'
     },
     analysis: {
-      analysisFinished: 'analysis finished'
+      analysisFinished: 'analysis finished',
+      theCustomerIdMustBeANumber: 'the customer ID must be a number'
     },
     settings: {
+      apiKeyIssued: 'API key issued: copy it now, it will not be shown again',
+      apiKeyRevoked: 'API key revoked',
       anotherProjectHasThatRole: 'another project already has that identity role: clear it there first (one project per role)',
       aValueIsTooLong: 'a value is longer than {column} allows',
       inUseCannotChangeCode: 'the code {code} is in use by {tables}, so it cannot be changed; edit the name instead, or remove those records first',
@@ -447,6 +461,62 @@ module.exports = {
       thatOptionAlreadyExists: 'that project, purpose and channel are already set up',
       thatRoleIsForAnotherDepartment: 'the role of that manager is meant for another department',
       thisCodeIsUsedByTheSystem: 'the code {code} is used by the system and cannot be changed or deleted'
+    },
+    fields: {
+      dateOfBirth: 'the date of birth',
+      email: 'the email address',
+      established: 'the founding date',
+      mobile: 'the mobile number',
+      phone: 'the phone number'
+    },
+    problems: {
+      addressIsTooLong: 'the address is longer than {max} characters',
+      birthYearIsOutOfRange: 'the year of birth is out of range',
+      chooseAContactType: 'choose a contact type',
+      chooseAPartyType: 'the type must be a person or an organization',
+      companySizeIsNotABand: 'the company size is not one of the bands',
+      contactIsTooLong: 'the contact is longer than {max} characters',
+      containsLetters: '{label} "{value}" contains letters',
+      genderMustBeMOrF: 'the gender must be M or F',
+      isBefore1900: '{label} is before 1900',
+      isInTheFuture: '{label} is in the future',
+      jobTitleIsNotOnTheList: 'the job title is not on the job list',
+      jobTitleIsSwitchedOff: 'the job title is switched off on the job list',
+      locationIsNotOnTheList: 'the location is not on the location list',
+      mustBeADate: '{label} must be a date (YYYY-MM-DD)',
+      nameCannotBeBlank: 'the name cannot be blank',
+      nameIsRequired: 'the name is required',
+      nameIsTooLong: 'the name is longer than {max} characters',
+      notAnEmailAddress: '{label} "{value}" is not an email address',
+      notAPhoneNumber: '{label} "{value}" is not a phone number',
+      notARealDate: '{label} is not a real date',
+      projectDoesNotExist: 'the project does not exist',
+      registrationNumberIsTooLong: 'the registration number is longer than {max} characters',
+      tooManyDigits: '{label} "{value}" has too many digits',
+      websiteMustStartWithHttp: 'the website must start with http:// or https://'
+    },
+    matching: {
+      birth_date: 'same date of birth',
+      location: 'same location',
+      name: 'same name',
+      occupation: 'same job title',
+      phone: 'same phone number',
+      same_user_pk: 'same user PK'
+    },
+    registrations: {
+      chooseAPerson: 'choose a person',
+      chooseLinkOrReject: 'choose link or reject',
+      chooseMergeNewOrAssign: 'choose merge, register as new, or assign',
+      listedInAnImportedSheet: 'listed for this customer in an imported spreadsheet (unverified)',
+      resolveTheMatchingPendingFirst: 'resolve the matching pending registration first',
+      unverifiedProjectAssignment: 'unverified project assignment'
+    },
+    integration: {
+      aValidApiKeyIsRequired: 'a valid department API key is required',
+      externalAccountIdIsRequired: 'external_account_id is required (at most {max} characters)',
+      externalLoginIsTooLong: 'external_login is longer than {max} characters',
+      fullNameIsRequired: 'party.full_name is required',
+      thisProjectIsInactive: 'this project is inactive'
     }
   }
 };

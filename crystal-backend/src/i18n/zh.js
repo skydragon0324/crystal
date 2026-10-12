@@ -249,6 +249,7 @@ module.exports = {
       chooseAStaffMember: '请选择员工',
       chooseATag: '请选择标签',
       chooseATeamRole: '请选择客户团队中的角色',
+      chooseTheOriginProject: '请选择客户的来源项目',
       chooseTheRelatedCustomer: '请选择关联客户',
       contactValueIsRequired: '请填写联系方式',
       itCannotEndBeforeItStarts: '结束日期不能早于开始日期',
@@ -270,9 +271,19 @@ module.exports = {
       unknownContactType: '未知的联系方式类型'
     },
     customerImport: {
+      alsoOnAnotherRow: '{column} {value} 也出现在第 {row} 行，但对应的是另一个人或另一个 {idColumn}',
+      birthdayIsRequired: '出生日期为必填项，格式为 YYYY-MM-DD',
       chooseAnActiveOriginProject: '请选择一个启用中的项目作为来源项目',
+      isLongerThan: '{column} 超过 {max} 个字符',
+      isRequired: '{column} 为必填项',
+      jobTitleIdIsNotOnTheList: '职位 ID {id} 不在职位列表中',
+      locationIdIsNotOnTheList: '地点 ID {id} 不在地点列表中',
+      mustBeANumberFromItsList: '{column}“{value}”必须是其列表中的编号',
+      mustBeAWholeNumber: '{column}“{value}”必须是整数',
       noEshopProject: '没有项目被设为“电商”身份角色：请在“设置 > 项目”中为电商项目设置',
       noUserManagementProject: '没有项目被设为“用户管理”身份角色：请在“设置 > 项目”中为用户管理项目设置',
+      originProjectIsNotActive: '来源项目“{value}”不是启用中项目的代码或 ID',
+      originProjectIsRequired: '来源项目为必填项：请填写 Origin project 列，或在导入界面选择一个项目',
       requiredColumnsAreMissing: '工作表缺少必填列',
       theFileHasNoRows: '表头下方没有数据行',
       theFileHasNoSheet: '文件中没有可读取的工作表',
@@ -400,9 +411,12 @@ module.exports = {
       unknownRuleField: '规则不支持“{field}”'
     },
     analysis: {
-      analysisFinished: '分析完成'
+      analysisFinished: '分析完成',
+      theCustomerIdMustBeANumber: '客户编号必须是数字'
     },
     settings: {
+      apiKeyIssued: 'API 密钥已生成：请立即复制，之后不会再显示',
+      apiKeyRevoked: 'API 密钥已撤销',
       anotherProjectHasThatRole: '另一个项目已有该身份角色：请先在那里清除（每个角色只能有一个项目）',
       aValueIsTooLong: '{column} 的内容超出长度限制',
       inUseCannotChangeCode: '代码 {code} 已被 {tables} 使用，不能修改；可以修改名称，或先删除这些记录',
@@ -413,6 +427,62 @@ module.exports = {
       thatOptionAlreadyExists: '该项目、目的和渠道组合已存在',
       thatRoleIsForAnotherDepartment: '该管理员的角色属于其他部门',
       thisCodeIsUsedByTheSystem: '代码 {code} 为系统使用，不能修改或删除'
+    },
+    fields: {
+      dateOfBirth: '出生日期',
+      email: '邮箱',
+      established: '成立日期',
+      mobile: '手机号',
+      phone: '电话'
+    },
+    problems: {
+      addressIsTooLong: '地址超过 {max} 个字符',
+      birthYearIsOutOfRange: '出生年份超出范围',
+      chooseAContactType: '请选择联系方式类型',
+      chooseAPartyType: '类型必须是个人或组织',
+      companySizeIsNotABand: '公司规模不在可选范围内',
+      contactIsTooLong: '联系方式超过 {max} 个字符',
+      containsLetters: '{label}“{value}”包含字母',
+      genderMustBeMOrF: '性别必须是 M 或 F',
+      isBefore1900: '{label}早于 1900 年',
+      isInTheFuture: '{label}晚于今天',
+      jobTitleIsNotOnTheList: '职位不在职位列表中',
+      jobTitleIsSwitchedOff: '该职位已在职位列表中停用',
+      locationIsNotOnTheList: '地点不在地点列表中',
+      mustBeADate: '{label}必须是日期（YYYY-MM-DD）',
+      nameCannotBeBlank: '名称不能为空',
+      nameIsRequired: '名称为必填项',
+      nameIsTooLong: '名称超过 {max} 个字符',
+      notAnEmailAddress: '{label}“{value}”不是有效的邮箱地址',
+      notAPhoneNumber: '{label}“{value}”不是有效的电话号码',
+      notARealDate: '{label}不是有效的日期',
+      projectDoesNotExist: '项目不存在',
+      registrationNumberIsTooLong: '注册号超过 {max} 个字符',
+      tooManyDigits: '{label}“{value}”位数过多',
+      websiteMustStartWithHttp: '网站必须以 http:// 或 https:// 开头'
+    },
+    matching: {
+      birth_date: '出生日期相同',
+      location: '地点相同',
+      name: '姓名相同',
+      occupation: '职位相同',
+      phone: '电话相同',
+      same_user_pk: '用户 PK 相同'
+    },
+    registrations: {
+      chooseAPerson: '请选择个人客户',
+      chooseLinkOrReject: '请选择关联或拒绝',
+      chooseMergeNewOrAssign: '请选择合并、登记为新客户或分配',
+      listedInAnImportedSheet: '在导入的表格中列在该客户名下（未核实）',
+      resolveTheMatchingPendingFirst: '请先处理匹配的待审核登记',
+      unverifiedProjectAssignment: '未核实的项目分配'
+    },
+    integration: {
+      aValidApiKeyIsRequired: '需要有效的部门 API 密钥',
+      externalAccountIdIsRequired: '必须提供 external_account_id（最多 {max} 个字符）',
+      externalLoginIsTooLong: 'external_login 超过 {max} 个字符',
+      fullNameIsRequired: '必须提供 party.full_name',
+      thisProjectIsInactive: '该项目已停用'
     }
   }
 };

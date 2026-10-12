@@ -575,6 +575,11 @@ export const crm = {
     list: () => client.get(CRM + '/settings/status-map'),
     save: (payload) => client.put(CRM + '/settings/status-map', payload),
     remove: (projectId, code) => client.delete(CRM + '/settings/status-map/' + projectId + '/' + encodeURIComponent(code))
+  },
+  apiKeys: {
+    list: () => client.get(CRM + '/settings/api-keys'),
+    issue: (payload) => client.post(CRM + '/settings/api-keys', payload),
+    revoke: (id) => client.post(CRM + '/settings/api-keys/' + id + '/revoke')
   }
 };
 

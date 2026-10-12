@@ -125,7 +125,7 @@ async function create(body, actor) {
   /* Where the customer came from is chosen on the form; no project is assumed. */
   const origin = /^[1-9][0-9]*$/.test(String(body.origin_project_id || ''))
     ? await db('crm_project').where({ project_id: body.origin_project_id, status: 'ACTIVE' }).first('project_id') : null;
-  if (!origin) rules.assert([{ field: 'origin_project_id', message: 'Choose the project the customer came from' }]);
+  if (!origin) rules.assert([{ field: 'origin_project_id', message: 'crm.customers.chooseTheOriginProject' }]);
 
   const contacts = [];
   if (body.mobile) contacts.push({ contact_type: 'MOBILE', contact_value: body.mobile, source_project_id: origin.project_id });
@@ -239,7 +239,7 @@ async function addContact(partyId, body, actor) {
   if (!party) throw new HttpError(404, 'common.notFound');
 
   const problem = rules.contactProblem(body.contact_type, body.contact_value);
-  rules.assert(problem ? [{ field: 'contact_value', message: problem }] : []);
+  rules.assert(problem ? [Object.assign({ field: 'contact_value' }, problem)] : []);
 
   const row = await transaction(async function (trx) {
     if (body.is_primary) {
@@ -261,7 +261,7 @@ async function updateContact(partyId, contactId, body, actor) {
 
   if (body.contact_value !== undefined) {
     const problem = rules.contactProblem(before.contact_type, body.contact_value);
-    rules.assert(problem ? [{ field: 'contact_value', message: problem }] : []);
+    rules.assert(problem ? [Object.assign({ field: 'contact_value' }, problem)] : []);
   }
 
   const after = await transaction(async function (trx) {

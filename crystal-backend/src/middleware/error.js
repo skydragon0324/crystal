@@ -1,5 +1,5 @@
 const { HttpError } = require('../utils/response');
-const { translate } = require('../i18n');
+const { translate, translateMessage, isAddress } = require('../i18n');
 
 function notFound(req, res, next) {
   next(new HttpError(404, 'error.endpointNotFound', null, {
@@ -213,7 +213,25 @@ function errorHandler(err, req, res, next) {
      * won whenever a constraint fired, so the check is on the error's TYPE
      * rather than on the shape of what is in it.
      */
-    detail: err instanceof HttpError ? (err.detail || null) : null
+    detail: err instanceof HttpError ? translatedDetail(req.locale, err.detail) : null
+  });
+}
+
+/**
+ * A list of problems - [{ field, message, params? }] - in the reader's
+ * language, each message translated whole and its params spent on it.
+ *
+ * Only items whose message is an ADDRESS: a detail of any other shape (the
+ * blockers of a purge, a sheet's missing column headers) is sent as it was.
+ */
+function translatedDetail(locale, detail) {
+  if (!Array.isArray(detail)) return detail || null;
+
+  return detail.map(function (item) {
+    if (!item || typeof item !== 'object' || !isAddress(item.message)) return item;
+    const out = Object.assign({}, item, { message: translateMessage(locale, item) });
+    delete out.params;
+    return out;
   });
 }
 

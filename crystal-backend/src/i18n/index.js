@@ -121,6 +121,35 @@ function translate(locale, text, params) {
   return interpolate(english === undefined ? key : english, params);
 }
 
+/**
+ * A MESSAGE KEPT FOR LATER, translated - an item of an error's `detail`, a
+ * reason stored with a row, a candidate's reason.
+ *
+ * Either an address, or { message, params } when it carries values; a
+ * sentence stored before these were addresses comes back as written. A
+ * parameter that is itself an address in the catalog - the label of the
+ * field a problem is about - is translated too, so "{label} is not a real
+ * date" reads in one language throughout. A value somebody typed is never an
+ * address the catalog has, so it is left alone.
+ */
+function translateMessage(locale, item) {
+  if (!item || typeof item !== 'object') return translate(locale, item);
+
+  const params = {};
+  Object.keys(item.params || {}).forEach(function (name) {
+    const value = item.params[name];
+    const known = typeof value === 'string' && value.indexOf(' ') === -1 && walk(catalogs[SOURCE_LOCALE], value) !== undefined;
+    params[name] = known ? translate(locale, value) : value;
+  });
+
+  return translate(locale, item.message, params);
+}
+
+/** True for a dotted address with no spaces - what translate() looks up rather than passes through. */
+function isAddress(text) {
+  return typeof text === 'string' && text.indexOf('.') !== -1 && text.indexOf(' ') === -1;
+}
+
 /** One step per dotted segment; undefined the moment a segment is missing. */
 function walk(catalog, key) {
   const parts = key.split('.');
@@ -147,6 +176,8 @@ module.exports = {
   language: language,
   localeOf: localeOf,
   translate: translate,
+  translateMessage: translateMessage,
+  isAddress: isAddress,
   /*
    * The catalogs ARE the languages now that English is one of them - it used
    * to be prepended, because it had no catalog to be counted from.

@@ -11,8 +11,9 @@ const { HttpError } = require('../../utils/response');
  *
  * `check(values, mode)` collects EVERY problem rather than stopping at the
  * first, so a form or a sheet row can be fixed in one go. A problem is
- * { field, message }; `assert` turns a non-empty list into a 400 whose
- * `detail` is that list.
+ * { field, message, params? }, the message an address the error handler
+ * translates; `assert` turns a non-empty list into a 400 whose `detail` is
+ * that list.
  */
 
 const GENDERS = ['M', 'F', 'OTHER', 'UNKNOWN'];
@@ -23,38 +24,46 @@ function present(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
 }
 
-/** YYYY-MM-DD that is a real day, from 1900 to today. */
+/**
+ * One problem: { message, params? }. The message is an address, and so is a
+ * `label` param - the field's name, translated along with the sentence.
+ */
+function problem(message, params) {
+  return params ? { message: message, params: params } : { message: message };
+}
+
+/** YYYY-MM-DD that is a real day, from 1900 to today. `label` is an address under crm.fields. */
 function dateProblem(value, label) {
   const text = String(value).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return label + ' must be a date (YYYY-MM-DD)';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return problem('crm.problems.mustBeADate', { label: label });
   const date = new Date(text + 'T00:00:00Z');
-  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text) return label + ' is not a real date';
-  if (text < '1900-01-01') return label + ' is before 1900';
-  if (date.getTime() > Date.now()) return label + ' is in the future';
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text) return problem('crm.problems.notARealDate', { label: label });
+  if (text < '1900-01-01') return problem('crm.problems.isBefore1900', { label: label });
+  if (date.getTime() > Date.now()) return problem('crm.problems.isInTheFuture', { label: label });
   return null;
 }
 
 /** A phone number: at least 7 digits once spaces and dashes are taken out, at most 15. */
 function phoneProblem(value, label) {
   const digits = contact.normalise('MOBILE', value).replace('+', '');
-  if (digits.length < 7) return label + ' "' + value + '" is not a phone number';
-  if (digits.length > 15) return label + ' "' + value + '" has too many digits';
-  if (/[a-z]/i.test(String(value))) return label + ' "' + value + '" contains letters';
+  if (digits.length < 7) return problem('crm.problems.notAPhoneNumber', { label: label, value: value });
+  if (digits.length > 15) return problem('crm.problems.tooManyDigits', { label: label, value: value });
+  if (/[a-z]/i.test(String(value))) return problem('crm.problems.containsLetters', { label: label, value: value });
   return null;
 }
 
 function emailProblem(value, label) {
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value).trim()) ? null : label + ' "' + value + '" is not an email address';
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value).trim()) ? null : problem('crm.problems.notAnEmailAddress', { label: label, value: value });
 }
 
 /** The problem with one contact value for its type, or null. */
 function contactProblem(type, value) {
   const kind = String(type || '').toUpperCase();
-  if (CONTACT_TYPES.indexOf(kind) === -1) return 'Choose a contact type';
-  if (!present(value)) return 'The contact is required';
-  if (String(value).trim().length > 500) return 'The contact is longer than 500 characters';
-  if (kind === 'EMAIL') return emailProblem(value, 'Email');
-  if (kind === 'MOBILE' || kind === 'PHONE') return phoneProblem(value, kind === 'MOBILE' ? 'Mobile' : 'Phone');
+  if (CONTACT_TYPES.indexOf(kind) === -1) return problem('crm.problems.chooseAContactType');
+  if (!present(value)) return problem('crm.customers.contactValueIsRequired');
+  if (String(value).trim().length > 500) return problem('crm.problems.contactIsTooLong', { max: 500 });
+  if (kind === 'EMAIL') return emailProblem(value, 'crm.fields.email');
+  if (kind === 'MOBILE' || kind === 'PHONE') return phoneProblem(value, kind === 'MOBILE' ? 'crm.fields.mobile' : 'crm.fields.phone');
   return null;
 }
 
@@ -70,66 +79,66 @@ function contactProblem(type, value) {
 async function check(values, mode, partyType, current) {
   const details = values || {};
   const problems = [];
-  const add = function (field, message) { if (message) problems.push({ field: field, message: message }); };
+  const add = function (field, found) { if (found) problems.push(Object.assign({ field: field }, typeof found === 'string' ? problem(found) : found)); };
   const isPerson = partyType !== 'ORGANIZATION';
   const sent = function (field) { return mode === 'create' ? present(details[field]) : details[field] !== undefined && details[field] !== null && details[field] !== ''; };
 
   if (mode === 'create' && ['PERSON', 'ORGANIZATION', undefined, null, ''].indexOf(details.party_type) === -1) {
-    add('party_type', 'Type must be a person or an organization');
+    add('party_type', 'crm.problems.chooseAPartyType');
   }
 
   /* the name */
   const nameField = details.display_name !== undefined ? 'display_name' : 'full_name';
   if (mode === 'create' && !present(details.display_name) && !present(details.full_name)
-    && !present(details.legal_name) && !present(details.trading_name)) add('display_name', 'Name is required');
-  if (mode === 'update' && details.display_name !== undefined && !present(details.display_name)) add('display_name', 'Name cannot be blank');
+    && !present(details.legal_name) && !present(details.trading_name)) add('display_name', 'crm.problems.nameIsRequired');
+  if (mode === 'update' && details.display_name !== undefined && !present(details.display_name)) add('display_name', 'crm.problems.nameCannotBeBlank');
   [nameField, 'full_name', 'legal_name', 'trading_name'].forEach(function (field) {
-    if (present(details[field]) && String(details[field]).trim().length > 250) add(field, 'Name is longer than 250 characters');
+    if (present(details[field]) && String(details[field]).trim().length > 250) add(field, problem('crm.problems.nameIsTooLong', { max: 250 }));
   });
 
   /* contacts given with the customer */
-  if (sent('mobile')) add('mobile', phoneProblem(details.mobile, 'Mobile'));
-  if (sent('email')) add('email', emailProblem(details.email, 'Email'));
+  if (sent('mobile')) add('mobile', phoneProblem(details.mobile, 'crm.fields.mobile'));
+  if (sent('email')) add('email', emailProblem(details.email, 'crm.fields.email'));
 
   if (isPerson) {
-    if (sent('gender_code') && GENDERS.indexOf(String(details.gender_code)) === -1) add('gender_code', 'Gender must be M or F');
-    if (sent('birth_date')) add('birth_date', dateProblem(details.birth_date, 'Date of birth'));
+    if (sent('gender_code') && GENDERS.indexOf(String(details.gender_code)) === -1) add('gender_code', 'crm.problems.genderMustBeMOrF');
+    if (sent('birth_date')) add('birth_date', dateProblem(details.birth_date, 'crm.fields.dateOfBirth'));
     if (sent('birth_year')) {
       const year = Number(details.birth_year);
-      if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) add('birth_year', 'Year of birth is out of range');
+      if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) add('birth_year', 'crm.problems.birthYearIsOutOfRange');
     }
-    if (sent('address_line') && String(details.address_line).length > 255) add('address_line', 'Address is longer than 255 characters');
+    if (sent('address_line') && String(details.address_line).length > 255) add('address_line', problem('crm.problems.addressIsTooLong', { max: 255 }));
 
     if (sent('job_title_id')) {
       const job = await db('crm_job_title').where('job_title_id', Number(details.job_title_id) || 0).first('job_title_id', 'is_active');
       const keeping = current && String(current.job_title_id) === String(details.job_title_id);
-      if (!job) add('job_title_id', 'Job title is not on the job list');
-      else if (!job.is_active && !keeping) add('job_title_id', 'Job title is switched off on the job list');
+      if (!job) add('job_title_id', 'crm.problems.jobTitleIsNotOnTheList');
+      else if (!job.is_active && !keeping) add('job_title_id', 'crm.problems.jobTitleIsSwitchedOff');
     }
     if (sent('home_location_pk')) {
       const place = await db('crm_location').where('location_pk', Number(details.home_location_pk) || 0).first('location_pk');
-      if (!place) add('home_location_pk', 'Location is not on the location list');
+      if (!place) add('home_location_pk', 'crm.problems.locationIsNotOnTheList');
     }
   } else {
     if (sent('location_pk')) {
       const place = await db('crm_location').where('location_pk', Number(details.location_pk) || 0).first('location_pk');
-      if (!place) add('location_pk', 'Location is not on the location list');
+      if (!place) add('location_pk', 'crm.problems.locationIsNotOnTheList');
     }
-    if (sent('founded_date')) add('founded_date', dateProblem(details.founded_date, 'Established'));
+    if (sent('founded_date')) add('founded_date', dateProblem(details.founded_date, 'crm.fields.established'));
     if (sent('website_url') && !/^https?:\/\/[^\s]+\.[^\s]+$/i.test(String(details.website_url).trim())) {
-      add('website_url', 'Website must start with http:// or https://');
+      add('website_url', 'crm.problems.websiteMustStartWithHttp');
     }
     if (sent('employee_count_band') && SIZE_BANDS.indexOf(String(details.employee_count_band)) === -1) {
-      add('employee_count_band', 'Company size is not one of the bands');
+      add('employee_count_band', 'crm.problems.companySizeIsNotABand');
     }
     if (sent('registration_number') && String(details.registration_number).length > 100) {
-      add('registration_number', 'Registration number is longer than 100 characters');
+      add('registration_number', problem('crm.problems.registrationNumberIsTooLong', { max: 100 }));
     }
   }
 
   if (sent('origin_project_id')) {
     const project = await db('crm_project').where('project_id', Number(details.origin_project_id) || 0).first('project_id');
-    if (!project) add('origin_project_id', 'Project does not exist');
+    if (!project) add('origin_project_id', 'crm.problems.projectDoesNotExist');
   }
 
   return problems;
@@ -144,6 +153,7 @@ module.exports = {
   GENDERS: GENDERS,
   check: check,
   assert: assert,
+  problem: problem,
   contactProblem: contactProblem,
   dateProblem: dateProblem,
   phoneProblem: phoneProblem,

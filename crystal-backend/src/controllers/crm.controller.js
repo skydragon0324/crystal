@@ -235,8 +235,9 @@ module.exports = {
       const dryRun = String(req.query.dry_run || '') === '1' || req.query.dry_run === 'true';
       // The origin project chosen on the import screen, for rows whose Origin project cell is empty.
       const options = { origin_project_id: (req.body && req.body.origin_project_id) || req.query.origin_project_id, file_name: req.file.originalname };
-      if (dryRun) return ok(res, await personImport.preview(req.file.buffer, options));
-      return ok(res, await personImport.importPeople(req.file.buffer, req.actor, options), 'common.imported');
+      // Every row's reasons and matches come back as addresses; they are read here, in the reader's language.
+      if (dryRun) return ok(res, personImport.translateRows(await personImport.preview(req.file.buffer, options), req.locale));
+      return ok(res, personImport.translateRows(await personImport.importPeople(req.file.buffer, req.actor, options), req.locale), 'excel.imported');
     },
     importTemplate: async function (req, res) {
       const buffer = await personImport.template();

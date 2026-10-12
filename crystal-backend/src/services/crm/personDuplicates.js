@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const contact = require('./contact');
+const { translate, translateMessage } = require('../../i18n');
 const WEIGHTS = { phone: 40, name: 25, birth_date: 25, location: 15, occupation: 5 };
 /* 70 or more: the same person, merged. 50-69: an administrator decides. Below 50: a new customer. */
 const MERGE_FROM = 70;
@@ -119,5 +120,18 @@ function rank(candidate, rows, options) {
 async function findSimilar(candidate, options) {
  return rank(candidate, await loadCandidates([candidate], options), options);
 }
+/*
+ * Why a candidate was offered, in the reader's language. A scored match is
+ * spelled out from its evidence (stored with it, so a registration staged
+ * long ago reads the same way); any other reason is an address, or a
+ * sentence stored before reasons were addresses, which reads as written.
+ */
+function reasonOf(match, locale) {
+ if (!Array.isArray(match.evidence) || !match.evidence.length) return translateMessage(locale, match.reason);
+ return match.evidence.map(item => {
+  const address = 'crm.matching.' + item.field; const word = translate(locale, address);
+  return (word === address ? item.field : word) + ' +' + item.points;
+ }).join(', ');
+}
 function sameInFile(a,b,options) { const match = score(a,b,options); return match.score >= REVIEW_FROM ? match : null; }
-module.exports = { WEIGHTS, MERGE_FROM, REVIEW_FROM, score, userPks, findSimilar, sameInFile, phoneKey, createIndex, loadCandidates, rank };
+module.exports = { WEIGHTS, MERGE_FROM, REVIEW_FROM, score, reasonOf, userPks, findSimilar, sameInFile, phoneKey, createIndex, loadCandidates, rank };

@@ -115,7 +115,12 @@ router.get('/parties/import/template', read(PAGES.CUSTOMERS), crmController.part
 router.post('/parties/import', write(PAGES.CUSTOMERS), sheetUpload.single('file'), crmController.parties.importPeople);
 /* Rows of a customer import that failed the file check: kept with their reasons until dismissed. */
 const personImport = require('../services/crm/personImport.service');
-router.get('/import-errors', read(PAGES.CUSTOMERS), async (req, res) => require('../utils/response').ok(res, await personImport.importErrors(req.query)));
+// The reasons are stored as addresses and sent in the reader's language.
+router.get('/import-errors', read(PAGES.CUSTOMERS), async (req, res) => {
+ const result = await personImport.importErrors(req.query);
+ result.rows = result.rows.map(row => Object.assign({}, row, { errors: personImport.translateErrors(row.errors, req.locale) }));
+ return require('../utils/response').ok(res, result);
+});
 router.post('/import-errors/:id/dismiss', write(PAGES.CUSTOMERS), async (req, res) => require('../utils/response').ok(res, await personImport.dismissImportError(req.params.id, req.actor)));
 router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicates);
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
@@ -126,8 +131,16 @@ router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.part
 // Not under /registrations: that path belongs to product registrations below.
 const intake = require('../services/crm/registrationIntake.service');
 const response = require('../utils/response');
-router.get('/identity-intakes', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.list(req.query)));
-router.get('/identity-intakes/:id', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.detail(req.params.id)));
+// Each candidate's reason is stored as an address or evidence and sent in the reader's language.
+router.get('/identity-intakes', read(PAGES.CUSTOMERS), async (req, res) => {
+ const result = await intake.list(req.query);
+ result.rows = result.rows.map(row => Object.assign({}, row, { candidates: intake.translateCandidates(row.candidates, req.locale) }));
+ return response.ok(res, result);
+});
+router.get('/identity-intakes/:id', read(PAGES.CUSTOMERS), async (req, res) => {
+ const found = await intake.detail(req.params.id);
+ return response.ok(res, Object.assign(found, { candidates: intake.translateCandidates(found.candidates, req.locale) }));
+});
 router.post('/identity-intakes/:id/decide', write(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await intake.decide(req.params.id, req.body, req.actor)));
 router.get('/parties/:id/unverified-accounts', read(PAGES.CUSTOMERS), async (req, res) => {
  if (!/^[1-9][0-9]*$/.test(String(req.params.id))) throw new HttpError(400, 'common.notFound');
@@ -549,6 +562,35 @@ router.delete('/settings/status-map/:projectId/:code', write(PAGES.SETTINGS), as
     .where({ project_id: req.params.projectId, source_status_code: req.params.code }).del();
   if (!removed) throw new HttpError(404, 'common.notFound');
   return require('../utils/response').ok(res, null, 'common.deleted');
+});
+
+/*
+ * DEPARTMENT API KEYS - what /api/integration/crm lets in, one project per key.
+ *
+ * The secret is in the reply to the POST and nowhere else, ever: only its
+ * hash is stored, so a lost key is revoked and replaced, not looked up. The
+ * audit row records who issued it and the prefix, never the key.
+ */
+const apiKeys = require('../services/crm/projectApiKeys.service');
+
+router.get('/settings/api-keys', read(PAGES.SETTINGS), async function (req, res) {
+  return response.ok(res, await apiKeys.list());
+});
+
+router.post('/settings/api-keys', write(PAGES.SETTINGS), async function (req, res) {
+  const body = req.body || {};
+  const issued = await apiKeys.issueForProject(body.project_id, body.label);
+  require('../services/audit.service').created(req.actor, 'crm_project_api_key', issued.api_key_id,
+    { project_id: issued.project_id, key_prefix: issued.key_prefix, label: issued.label }, PAGES.SETTINGS);
+  return response.ok(res, issued, 'crm.settings.apiKeyIssued');
+});
+
+router.post('/settings/api-keys/:id/revoke', write(PAGES.SETTINGS), async function (req, res) {
+  if (!/^[1-9][0-9]*$/.test(String(req.params.id))) throw new HttpError(404, 'common.notFound');
+  if (!(await apiKeys.revoke(req.params.id))) throw new HttpError(404, 'common.notFound');
+  require('../services/audit.service').updated(req.actor, 'crm_project_api_key', req.params.id,
+    { revoked: false }, { revoked: true }, PAGES.SETTINGS);
+  return response.ok(res, { api_key_id: req.params.id }, 'crm.settings.apiKeyRevoked');
 });
 
 /*

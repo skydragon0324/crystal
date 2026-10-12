@@ -6,6 +6,7 @@ const { transaction } = require('../../repositories/shared/transaction');
 const audit = require('../audit.service');
 const PAGE = '/admin/crm/customers';
 const { publicParty } = require('./partyId');
+const { searchBirthday, wherePersonBorn, textPattern } = require('./birthday');
 
 async function lock(trx) { await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', ['crm_identity_registration']); }
 // Request-scoped only. For writes, build this after taking the registration
@@ -65,7 +66,7 @@ async function attachAccount(trx, partyPk, account, reviewed) {
  const key = { project_id: account.project_id, external_account_id: String(account.external_account_id) };
  const existing = await trx('crm_project_account').where(key).whereNull('unlinked_at').first();
  if (existing) {
-  if (String(existing.party_pk) !== String(partyPk)) throw new HttpError(409, 'Account is already assigned to another customer');
+  if (String(existing.party_pk) !== String(partyPk)) throw new HttpError(409, 'crm.customers.thatAccountIsAlreadyLinked');
   return;
  }
  const primary = await trx('crm_project_account').where({ party_pk: partyPk, project_id: account.project_id }).whereNull('unlinked_at').first();
@@ -81,7 +82,7 @@ async function stageUnverifiedAccounts(trx, party, accounts) {
   const linked = await trx('crm_project_account').where({ project_id: account.project_id, external_account_id: String(account.external_account_id), party_pk: party.party_pk }).whereNull('unlinked_at').first();
   if (linked) continue;
   await submit(trx, { display_name: party.display_name }, { project_id: account.project_id, source_record_id: account.external_account_id, category: 'ESHOP', account,
-   candidates: [{ party_pk: String(party.party_pk), display_name: party.display_name, reason: 'Listed for this customer in an imported spreadsheet (unverified)' }] });
+   candidates: [{ party_pk: String(party.party_pk), display_name: party.display_name, reason: 'crm.registrations.listedInAnImportedSheet' }] });
  }
 }
 async function finish(trx, intake, party, status, actor) {
@@ -113,7 +114,7 @@ async function submit(trx, data, options) {
  }
  const found = category === 'ESHOP' ? (opts.candidates || []) : data.party_type === 'ORGANIZATION' ? [] : await candidates(trx, data, opts.candidateContext);
  if (category !== 'ESHOP') (opts.candidates || []).forEach(hint => {
-  if (!found.some(row => String(row.party_pk) === String(hint.party_pk))) found.push(Object.assign({ reason: 'Unverified project assignment' }, hint));
+  if (!found.some(row => String(row.party_pk) === String(hint.party_pk))) found.push(Object.assign({ reason: 'crm.registrations.unverifiedProjectAssignment' }, hint));
  });
  const [intake] = await trx('crm_registration_intake').insert({ source_project_id: project, source_record_id: source, category, payload: JSON.stringify({ party: data, account: opts.account || null, unverified_accounts: opts.unverified_accounts || [] }), candidates: JSON.stringify(found) }).returning('*');
  const strong = found.filter(row => row.score >= duplicates.MERGE_FROM);
@@ -129,7 +130,9 @@ async function list(filters) {
  const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
  const page = Math.max(1, Number(filters.page) || 1);
  const base = db('crm_registration_intake as intake').leftJoin('crm_project as project', 'project.project_id', 'intake.source_project_id');
- if (filters.status === 'RESOLVED') base.whereNot('intake.status', 'PENDING'); else base.where('intake.status', 'PENDING');
+ // Resolved means merged into a customer who already existed. Every customer the CRM creates leaves a
+ // CREATED registration behind, so "everything but PENDING" listed the whole customer base.
+ if (filters.status === 'RESOLVED') base.where('intake.status', 'MERGED'); else base.where('intake.status', 'PENDING');
  if (filters.category) base.where('intake.category', filters.category);
  // One box searches the registration number, the customer number, the source project and record, and
  // everything the registration carried - name, phones, birthday, address, e-shop and user identifiers.
@@ -138,6 +141,14 @@ async function list(filters) {
   this.whereRaw('intake.intake_id::text = ?', [term]).orWhereRaw('intake.party_pk::text = ?', [term])
    .orWhere('intake.source_record_id', 'ilike', '%' + term + '%').orWhere('project.project_name', 'ilike', '%' + term + '%')
    .orWhereRaw('intake.payload::text ILIKE ?', ['%' + term + '%']).orWhereRaw('intake.candidates::text ILIKE ?', ['%' + term + '%']);
+  // A date, a year or a day of birth typed as the screen shows it (03.05.1990, 1990, 05-03): in what
+  // the registration carried, and on the customer it became.
+  const birthday = searchBirthday(term);
+  if (birthday) {
+   this.orWhereRaw("intake.payload->'party'->>'birth_date' ~ ?", [textPattern(birthday)])
+    .orWhereExists(function () { wherePersonBorn(this.select(db.raw(1)).from('crm_person as born').whereRaw('born.party_pk = intake.party_pk'), 'born', birthday); });
+   if (birthday.year) this.orWhereRaw("intake.payload->'party'->>'birth_year' = ?", [String(birthday.year)]);
+  }
  });
  const [count, rows] = await Promise.all([base.clone().count({ total: '*' }).first(), base.clone().select('intake.*','project.project_name').orderBy('intake.created_at','desc').limit(limit).offset((page-1)*limit)]);
  return { rows, total: Number(count.total), page, limit };
@@ -159,21 +170,21 @@ async function decide(id, body, actor) {
    let pk = body.party_pk;
    if (body.candidate_intake_id) {
     const other = await trx('crm_registration_intake').where('intake_id', body.candidate_intake_id).first();
-    if (!other || !other.party_pk) throw new HttpError(409, 'Resolve the matching pending registration first');
+    if (!other || !other.party_pk) throw new HttpError(409, 'crm.registrations.resolveTheMatchingPendingFirst');
     pk = other.party_pk;
    }
-   if (!/^[1-9][0-9]*$/.test(String(pk || ''))) throw new HttpError(400, 'Choose a customer');
+   if (!/^[1-9][0-9]*$/.test(String(pk || ''))) throw new HttpError(400, 'crm.common.chooseACustomer');
    party = await trx('crm_party').where('party_pk', pk).whereIn('party_status',['ACTIVE','INACTIVE']).first();
    if (!party) throw new HttpError(404, 'common.notFound');
-   if (party.party_type !== 'PERSON') throw new HttpError(400, 'Choose a person');
-  } else throw new HttpError(400, 'Choose merge, register as new, or assign');
+   if (party.party_type !== 'PERSON') throw new HttpError(400, 'crm.registrations.chooseAPerson');
+  } else throw new HttpError(400, 'crm.registrations.chooseMergeNewOrAssign');
   return finish(trx, intake, party, intake.category === 'ESHOP' ? 'ASSIGNED' : body.action === 'NEW' ? 'CREATED' : 'MERGED', actor);
  });
  audit.updated(actor, 'crm_registration_intake', id, null, result, PAGE);
  return result;
 }
 async function resolutions(projectId) {
- if (!/^[1-9][0-9]*$/.test(String(projectId || ''))) throw new HttpError(400, 'Project is required');
+ if (!/^[1-9][0-9]*$/.test(String(projectId || ''))) throw new HttpError(400, 'crm.serviceCases.chooseAProject');
  return db('crm_identity_resolution').where('source_project_id', projectId).whereNull('acknowledged_at').orderBy('resolution_id').limit(500);
 }
 async function acknowledge(id, projectId) {
@@ -300,7 +311,7 @@ async function detail(id) {
 // It goes through the same assignment review as Customers > E-shop
 // assignments; an identifier never staged for review is staged first.
 async function decideUnverified(partyPk, body, actor) {
- if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'Choose link or reject');
+ if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'crm.registrations.chooseLinkOrReject');
  const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_account_id) === String(body.external_account_id));
  if (!item) throw new HttpError(404, 'common.notFound');
  if (item.review_status && item.review_status !== 'PENDING') throw new HttpError(409, 'crm.common.alreadyDecided');
@@ -316,4 +327,9 @@ async function decideUnverified(partyPk, body, actor) {
  }
  return decide(reviewId, body.action === 'LINK' ? { action: 'ASSIGN', party_pk: partyPk } : { action: 'REJECT' }, actor);
 }
-module.exports = { detail, unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
+// Candidates as sent: each reason in the reader's language. Stored as addresses
+// or evidence; a reason stored as an English sentence reads as it was written.
+function translateCandidates(candidates, locale) {
+ return (candidates || []).map(candidate => Object.assign({}, candidate, { reason: duplicates.reasonOf(candidate, locale) }));
+}
+module.exports = { detail, translateCandidates, unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };

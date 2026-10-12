@@ -249,6 +249,7 @@ module.exports = {
       chooseAStaffMember: 'выберите сотрудника',
       chooseATag: 'выберите метку',
       chooseATeamRole: 'выберите роль в команде клиента',
+      chooseTheOriginProject: 'выберите проект, из которого пришёл клиент',
       chooseTheRelatedCustomer: 'выберите связанного клиента',
       contactValueIsRequired: 'укажите контактные данные',
       itCannotEndBeforeItStarts: 'окончание не может быть раньше начала',
@@ -270,9 +271,19 @@ module.exports = {
       unknownContactType: 'неизвестный тип контакта'
     },
     customerImport: {
+      alsoOnAnotherRow: '{column} {value} также указан в строке {row} для другого человека или с другим {idColumn}',
+      birthdayIsRequired: 'дата рождения обязательна, в формате ГГГГ-ММ-ДД',
       chooseAnActiveOriginProject: 'выберите действующий проект как проект-источник',
+      isLongerThan: '{column}: длиннее {max} символов',
+      isRequired: '{column}: обязательное поле',
+      jobTitleIdIsNotOnTheList: 'должности с ID {id} нет в списке должностей',
+      locationIdIsNotOnTheList: 'места с ID {id} нет в списке мест',
+      mustBeANumberFromItsList: '{column} «{value}»: нужен номер из соответствующего списка',
+      mustBeAWholeNumber: '{column} «{value}»: нужно целое число',
       noEshopProject: 'ни у одного проекта нет роли «Интернет-магазин»: задайте её проекту магазина в Настройки > Проекты',
       noUserManagementProject: 'ни у одного проекта нет роли «Управление пользователями»: задайте её проекту в Настройки > Проекты',
+      originProjectIsNotActive: 'проект-источник «{value}» не является кодом или ID действующего проекта',
+      originProjectIsRequired: 'нужен проект-источник: заполните столбец Origin project или выберите проект на экране импорта',
       requiredColumnsAreMissing: 'на листе нет обязательных столбцов',
       theFileHasNoRows: 'под заголовком нет строк',
       theFileHasNoSheet: 'в файле нет листа для чтения',
@@ -400,9 +411,12 @@ module.exports = {
       unknownRuleField: 'в правиле нельзя использовать «{field}»'
     },
     analysis: {
-      analysisFinished: 'анализ завершён'
+      analysisFinished: 'анализ завершён',
+      theCustomerIdMustBeANumber: 'номер клиента должен быть числом'
     },
     settings: {
+      apiKeyIssued: 'API-ключ выпущен: скопируйте его сейчас, больше он показан не будет',
+      apiKeyRevoked: 'API-ключ отозван',
       anotherProjectHasThatRole: 'эта роль уже есть у другого проекта: сначала снимите её там (одна роль - один проект)',
       aValueIsTooLong: 'значение длиннее, чем допускает {column}',
       inUseCannotChangeCode: 'код {code} используется в {tables}, его нельзя изменить; измените название или сначала удалите эти записи',
@@ -413,6 +427,62 @@ module.exports = {
       thatOptionAlreadyExists: 'такая комбинация проекта, цели и канала уже есть',
       thatRoleIsForAnotherDepartment: 'роль этого менеджера предназначена для другого отдела',
       thisCodeIsUsedByTheSystem: 'код {code} используется системой, его нельзя менять или удалять'
+    },
+    fields: {
+      dateOfBirth: 'дата рождения',
+      email: 'адрес e-mail',
+      established: 'дата основания',
+      mobile: 'мобильный номер',
+      phone: 'телефон'
+    },
+    problems: {
+      addressIsTooLong: 'адрес длиннее {max} символов',
+      birthYearIsOutOfRange: 'год рождения вне допустимого диапазона',
+      chooseAContactType: 'выберите тип контакта',
+      chooseAPartyType: 'тип должен быть «человек» или «организация»',
+      companySizeIsNotABand: 'размер компании не входит в список диапазонов',
+      contactIsTooLong: 'контакт длиннее {max} символов',
+      containsLetters: '{label} «{value}» содержит буквы',
+      genderMustBeMOrF: 'пол должен быть M или F',
+      isBefore1900: '{label}: раньше 1900 года',
+      isInTheFuture: '{label}: дата в будущем',
+      jobTitleIsNotOnTheList: 'должности нет в списке должностей',
+      jobTitleIsSwitchedOff: 'должность отключена в списке должностей',
+      locationIsNotOnTheList: 'места нет в списке мест',
+      mustBeADate: '{label}: нужна дата (ГГГГ-ММ-ДД)',
+      nameCannotBeBlank: 'имя не может быть пустым',
+      nameIsRequired: 'имя обязательно',
+      nameIsTooLong: 'имя длиннее {max} символов',
+      notAnEmailAddress: '{label} «{value}» не является адресом e-mail',
+      notAPhoneNumber: '{label} «{value}» не является номером телефона',
+      notARealDate: '{label}: такой даты не существует',
+      projectDoesNotExist: 'такого проекта нет',
+      registrationNumberIsTooLong: 'регистрационный номер длиннее {max} символов',
+      tooManyDigits: '{label} «{value}»: слишком много цифр',
+      websiteMustStartWithHttp: 'адрес сайта должен начинаться с http:// или https://'
+    },
+    matching: {
+      birth_date: 'та же дата рождения',
+      location: 'то же место',
+      name: 'то же имя',
+      occupation: 'та же должность',
+      phone: 'тот же телефон',
+      same_user_pk: 'тот же User PK'
+    },
+    registrations: {
+      chooseAPerson: 'выберите человека',
+      chooseLinkOrReject: 'выберите: привязать или отклонить',
+      chooseMergeNewOrAssign: 'выберите: объединить, зарегистрировать как нового или назначить',
+      listedInAnImportedSheet: 'указан для этого клиента в импортированной таблице (не проверено)',
+      resolveTheMatchingPendingFirst: 'сначала разберите совпадающую ожидающую регистрацию',
+      unverifiedProjectAssignment: 'непроверенная привязка из проекта'
+    },
+    integration: {
+      aValidApiKeyIsRequired: 'нужен действующий API-ключ отдела',
+      externalAccountIdIsRequired: 'нужен external_account_id (не более {max} символов)',
+      externalLoginIsTooLong: 'external_login длиннее {max} символов',
+      fullNameIsRequired: 'нужно указать party.full_name',
+      thisProjectIsInactive: 'этот проект не активен'
     }
   }
 };

@@ -84,9 +84,11 @@ const importPeople = load('personImport.service.js', Object.assign({}, common, {
 }));
 // Every Excel run names its origin project (the import screen's choice); none is assumed.
 const ORIGIN = { origin_project_id: 1 };
+// Reasons come back as addresses and are read in English here, as the controller reads them for an English reader.
+const english = result => importPeople.translateRows(result, 'en');
 const excel = {
- preview: (bytes, options) => importPeople.preview(bytes, options || ORIGIN),
- importPeople: (bytes, who, options) => importPeople.importPeople(bytes, who, options || ORIGIN)
+ preview: async (bytes, options) => english(await importPeople.preview(bytes, options || ORIGIN)),
+ importPeople: async (bytes, who, options) => english(await importPeople.importPeople(bytes, who, options || ORIGIN))
 };
 const identity = load('identity.service.js', Object.assign({}, common, { './registrationIntake.service': intake }));
 const person = { party_type: 'PERSON', full_name: 'Ada', mobile: '1234567890', birth_date: '1980-01-01', origin_project_id: 1 };
@@ -195,7 +197,7 @@ async function main() {
   row('9100', 'second', 'Second Owner', '1981-01-01', '5353535353', '4 Street')
  ]).xlsx.writeBuffer());
  assert.equal(incomplete.rows[0].status, 'ERROR');
- ['E-shop PK is required', 'E-shop ID is required', 'User PK is required', 'User ID is required', 'Birthday is required as YYYY-MM-DD', 'Address is required']
+ ['E-shop PK is required', 'E-shop ID is required', 'User PK is required', 'User ID is required', 'the date of birth is required, as YYYY-MM-DD', 'Address is required']
   .forEach(message => assert(incomplete.rows[0].errors.includes(message), message));
  assert.equal(incomplete.rows[1].status, 'NEW');
  assert.equal(incomplete.rows[2].status, 'ERROR');
@@ -263,9 +265,9 @@ async function main() {
   row('9502', 'origin-b', 'Origin Column', '1961-06-06', '6262626262', '2 B Road', '', 702, 'appstore'),
   row('9503', 'origin-c', 'Origin Unknown', '1962-06-06', '6363636363', '3 C Road', '', 701, 'NOPE')
  ]).xlsx.writeBuffer();
- const noOrigin = await importPeople.preview(originBytes, {});
+ const noOrigin = english(await importPeople.preview(originBytes, {}));
  assert.equal(noOrigin.rows.map(r => r.status).join(','), 'ERROR,NEW,ERROR', 'a row with no origin project and none chosen is an error');
- assert(noOrigin.rows[0].errors.some(e => /Origin project is required/.test(e)));
+ assert(noOrigin.rows[0].errors.some(e => /origin project is required/.test(e)));
  assert(noOrigin.rows[2].errors.some(e => /"NOPE" is not an active project/.test(e)));
  const withOrigin = await excel.preview(originBytes, { origin_project_id: 2 });
  assert.equal(withOrigin.rows[0].values.origin_project_id, 2, 'an empty cell takes the chosen project');
@@ -303,7 +305,11 @@ async function main() {
  assert.equal(records('crm_party').length, partyCount + 1, 'the valid row became a customer');
  const kept = records('crm_person_import_error').filter(r => r.file_name === 'mixed.xlsx');
  assert.equal(kept.length, 1); assert.equal(kept[0].row_number, 3);
- assert(JSON.parse(kept[0].errors).some(e => /Birthday/.test(e))); assert.equal(JSON.parse(kept[0].cells).full_name, 'Mixed Invalid');
+ // Stored as addresses, read in whichever language opens the list; a row stored as English sentences still reads.
+ assert(JSON.parse(kept[0].errors).some(e => e.message === 'crm.problems.mustBeADate' && e.params.label === 'crm.fields.dateOfBirth'));
+ assert(importPeople.translateErrors(kept[0].errors, 'en').includes('the date of birth must be a date (YYYY-MM-DD)'));
+ assert(importPeople.translateErrors(kept[0].errors, 'zh').includes('出生日期必须是日期（YYYY-MM-DD）'));
+ assert.deepEqual(importPeople.translateErrors('["Birthday is not a real date"]', 'zh'), ['Birthday is not a real date']); assert.equal(JSON.parse(kept[0].cells).full_name, 'Mixed Invalid');
  // Increasing file sizes must not reload the database per preview row.
  for (const size of [2000, 1000, 1000, 500]) {
   const rows = [];

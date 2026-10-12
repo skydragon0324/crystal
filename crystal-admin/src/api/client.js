@@ -113,7 +113,16 @@ export function translate(address, params) {
 }
 
 export const localeStore = {
-  get: () => read(LOCALE_KEY) || DEFAULT_LOCALE,
+  /*
+   * Only a language the console has a dictionary for. A code saved by a build
+   * that offered more (or a hand-edited storage entry) would otherwise reach
+   * the lookup as an undefined dictionary and take the whole console down.
+   */
+  get: () => {
+    const saved = read(LOCALE_KEY);
+    if (saved && Object.prototype.hasOwnProperty.call(dictionaries, saved)) return saved;
+    return Object.prototype.hasOwnProperty.call(dictionaries, DEFAULT_LOCALE) ? DEFAULT_LOCALE : 'en';
+  },
   set: (locale) => write(LOCALE_KEY, locale)
 };
 

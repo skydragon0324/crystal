@@ -7,9 +7,11 @@ const identityProjects = require('./identityProjects');
 const duplicates = require('./personDuplicates');
 const locations = require('./locations');
 const rules = require('./personRules');
+const { searchBirthday, textPattern } = require('./birthday');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
+const { translateMessage } = require('../../i18n');
 
 /** Excel rows use the shared weighted registration gate. Preview writes nothing;
  * import rechecks under the same lock as project and console registration.
@@ -84,36 +86,46 @@ function cellText(value) {
 
 /* ------------------------------------------------------------ parsing */
 
+/*
+ * A row's reasons are addresses - an address, or { message, params } when it
+ * carries a value - so the rows kept in crm_person_import_error read in the
+ * language of whoever opens them later (translateErrors, below). A column is
+ * named by its header, which is the file's own wording and stays as written.
+ */
+const BIRTHDAY = 'crm.fields.dateOfBirth';
+const problem = rules.problem;
+
 function parseGender(text) {
   const value = text.trim().toUpperCase();
   if (!value) return { value: null };
   if (['M', 'MALE', '男'].indexOf(value) !== -1) return { value: 'M' };
   if (['F', 'FEMALE', '女'].indexOf(value) !== -1) return { value: 'F' };
-  return { error: 'Gender must be M or F' };
+  return { error: 'crm.problems.genderMustBeMOrF' };
 }
 
 /** A birthday as a date, or a year alone; Excel date cells arrive as Date objects. */
 function parseBirthday(raw) {
   if (raw === null || raw === undefined || raw === '') return { value: null };
   if (raw instanceof Date) {
-    if (isNaN(raw.getTime())) return { error: 'Birthday is not a date' };
+    if (isNaN(raw.getTime())) return { error: rules.problem('crm.problems.mustBeADate', { label: BIRTHDAY }) };
     return checkedDate(raw.toISOString().slice(0, 10));
   }
   const text = cellText(raw);
   if (/^\d{4}$/.test(text)) {
     const year = Number(text);
-    if (year < 1900 || year > new Date().getFullYear()) return { error: 'Birthday year is out of range' };
+    if (year < 1900 || year > new Date().getFullYear()) return { error: 'crm.problems.birthYearIsOutOfRange' };
     return { value: null, year: year };
   }
   const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-  if (!match) return { error: 'Birthday must be YYYY-MM-DD' };
+  if (!match) return { error: rules.problem('crm.problems.mustBeADate', { label: BIRTHDAY }) };
   return checkedDate(match[1] + '-' + match[2].padStart(2, '0') + '-' + match[3].padStart(2, '0'));
 }
 
 function checkedDate(iso) {
   const date = new Date(iso + 'T00:00:00Z');
-  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== iso) return { error: 'Birthday is not a real date' };
-  if (iso < '1900-01-01' || date > new Date()) return { error: 'Birthday is out of range' };
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== iso) return { error: rules.problem('crm.problems.notARealDate', { label: BIRTHDAY }) };
+  if (iso < '1900-01-01') return { error: rules.problem('crm.problems.isBefore1900', { label: BIRTHDAY }) };
+  if (date > new Date()) return { error: rules.problem('crm.problems.isInTheFuture', { label: BIRTHDAY }) };
   return { value: iso, year: Number(iso.slice(0, 4)) };
 }
 
@@ -158,10 +170,10 @@ async function loadLookups(originProjectId) {
  * An id cell: a whole number, or nothing. Excel hands a typed number back as
  * a number and a pasted one as text, so both are accepted.
  */
-function parseId(rawValue, label) {
+function parseId(rawValue, column) {
   const text = cellText(rawValue);
   if (!text) return { value: null };
-  if (!/^\d+$/.test(text)) return { error: label + ' "' + text + '" must be a number from its list' };
+  if (!/^\d+$/.test(text)) return { error: problem('crm.customerImport.mustBeANumberFromItsList', { column: column, value: text }) };
   return { value: Number(text) };
 }
 
@@ -215,53 +227,57 @@ function checkRow(record, lookups) {
   const raw = record.raw;
   const errors = [];
   const out = {};
+  const required = function (column) { return problem('crm.customerImport.isRequired', { column: column }); };
+  const tooLong = function (column, max) { return problem('crm.customerImport.isLongerThan', { column: column, max: max }); };
+  const notWhole = function (column, value) { return problem('crm.customerImport.mustBeAWholeNumber', { column: column, value: value }); };
 
   const eshopPk = cellText(raw.eshop_pk);
-  if (!eshopPk) errors.push('E-shop PK is required');
-  else if (!/^[1-9][0-9]{0,17}$/.test(eshopPk)) errors.push('E-shop PK "' + eshopPk + '" must be a whole number');
+  if (!eshopPk) errors.push(required('E-shop PK'));
+  else if (!/^[1-9][0-9]{0,17}$/.test(eshopPk)) errors.push(notWhole('E-shop PK', eshopPk));
   else out.eshop_pk = eshopPk;
 
   const eshopId = cellText(raw.eshop_id);
-  if (!eshopId) errors.push('E-shop ID is required');
-  else if (eshopId.length > ESHOP_ID_MAX) errors.push('E-shop ID is longer than ' + ESHOP_ID_MAX + ' characters');
+  if (!eshopId) errors.push(required('E-shop ID'));
+  else if (eshopId.length > ESHOP_ID_MAX) errors.push(tooLong('E-shop ID', ESHOP_ID_MAX));
   else out.eshop_id = eshopId;
 
   const userPk = cellText(raw.user_pk);
-  if (!userPk) errors.push('User PK is required');
-  else if (!/^[1-9][0-9]{0,17}$/.test(userPk)) errors.push('User PK "' + userPk + '" must be a whole number');
+  if (!userPk) errors.push(required('User PK'));
+  else if (!/^[1-9][0-9]{0,17}$/.test(userPk)) errors.push(notWhole('User PK', userPk));
   else out.user_pk = userPk;
 
   const userId = cellText(raw.user_id);
-  if (!userId) errors.push('User ID is required');
-  else if (userId.length > ESHOP_ID_MAX) errors.push('User ID is longer than ' + ESHOP_ID_MAX + ' characters');
+  if (!userId) errors.push(required('User ID'));
+  else if (userId.length > ESHOP_ID_MAX) errors.push(tooLong('User ID', ESHOP_ID_MAX));
   else out.user_id = userId;
 
   out.full_name = cellText(raw.full_name).replace(/\s+/g, ' ');
-  if (!out.full_name) errors.push('Full name is required');
-  else if (out.full_name.length > 250) errors.push('Full name is longer than 250 characters');
+  if (!out.full_name) errors.push(required('Full name'));
+  else if (out.full_name.length > 250) errors.push(tooLong('Full name', 250));
 
   const mobileText = cellText(raw.mobile);
-  if (!mobileText) errors.push('Mobile is required');
-  else if (rules.phoneProblem(mobileText, 'Mobile')) errors.push(rules.phoneProblem(mobileText, 'Mobile'));
+  const mobileProblem = mobileText ? rules.phoneProblem(mobileText, 'crm.fields.mobile') : null;
+  if (!mobileText) errors.push(required('Mobile'));
+  else if (mobileProblem) errors.push(mobileProblem);
   out.mobile = mobileText;
 
   const gender = parseGender(cellText(raw.gender));
   if (gender.error) errors.push(gender.error);
-  else if (!gender.value) errors.push('Gender is required');
+  else if (!gender.value) errors.push(required('Gender'));
   else out.gender_code = gender.value;
 
   // Matching needs the full date; a year alone is not a complete birthday.
   const birthday = parseBirthday(raw.birth_date);
   if (birthday.error) errors.push(birthday.error);
-  else if (!birthday.value) errors.push('Birthday is required as YYYY-MM-DD');
+  else if (!birthday.value) errors.push('crm.customerImport.birthdayIsRequired');
   else { out.birth_date = birthday.value; out.birth_year = birthday.year; }
 
   const locationId = parseId(raw.location_id, 'Location ID');
   if (locationId.error) errors.push(locationId.error);
-  else if (locationId.value === null) errors.push('Location ID is required');
+  else if (locationId.value === null) errors.push(required('Location ID'));
   else {
     const place = lookups.locationById[locationId.value];
-    if (!place) errors.push('Location ID ' + locationId.value + ' is not on the location list');
+    if (!place) errors.push(problem('crm.customerImport.locationIdIsNotOnTheList', { id: locationId.value }));
     else { out.home_location_pk = place.location_pk; out.location_label = place.full_name || place.location_name; }
   }
 
@@ -269,19 +285,19 @@ function checkRow(record, lookups) {
   if (jobTitleId.error) errors.push(jobTitleId.error);
   else if (jobTitleId.value !== null) {
     const job = lookups.jobById[jobTitleId.value];
-    if (!job) errors.push('Job title ID ' + jobTitleId.value + ' is not on the job list');
+    if (!job) errors.push(problem('crm.customerImport.jobTitleIdIsNotOnTheList', { id: jobTitleId.value }));
     else { out.job_title_id = job.job_title_id; out.job_name = job.job_name; }
   }
 
   out.address_line = cellText(raw.address).replace(/\s+/g, ' ');
-  if (!out.address_line) errors.push('Address is required');
-  else if (out.address_line.length > 255) errors.push('Address is longer than 255 characters');
+  if (!out.address_line) errors.push(required('Address'));
+  else if (out.address_line.length > 255) errors.push(tooLong('Address', 255));
 
   // The row's own origin project wins; an empty cell takes the one chosen on the import screen.
   const originText = cellText(raw.origin_project);
   const origin = originText ? lookups.projectByKey[originText.toUpperCase()] : lookups.defaultProject;
-  if (originText && !origin) errors.push('Origin project "' + originText + '" is not an active project code or ID');
-  else if (!origin) errors.push('Origin project is required: fill the Origin project column or choose a project on the import screen');
+  if (originText && !origin) errors.push(problem('crm.customerImport.originProjectIsNotActive', { value: originText }));
+  else if (!origin) errors.push('crm.customerImport.originProjectIsRequired');
   else { out.origin_project_id = origin.project_id; out.origin_project_code = origin.project_code; }
 
   return { values: out, errors: errors };
@@ -293,8 +309,8 @@ function checkRow(record, lookups) {
  * else is an error in the file rather than something to stage.
  */
 function addEshopConflicts(checkedRows, records) {
-  // The same rule for both identifiers a row carries: [pk field, id field, label].
-  [['eshop_pk', 'eshop_id', 'E-shop'], ['user_pk', 'user_id', 'User']].forEach(function (identifier) {
+  // The same rule for both identifiers a row carries: [pk field, id field, pk column, id column].
+  [['eshop_pk', 'eshop_id', 'E-shop PK', 'E-shop ID'], ['user_pk', 'user_id', 'User PK', 'User ID']].forEach(function (identifier) {
     const firstByPk = {};
     checkedRows.forEach(function (checked, index) {
       const pk = checked.values[identifier[0]];
@@ -303,7 +319,7 @@ function addEshopConflicts(checkedRows, records) {
       if (first === undefined) { firstByPk[pk] = index; return; }
       const earlier = checkedRows[first].values;
       if (earlier[identifier[1]] !== checked.values[identifier[1]] || duplicates.score(earlier, checked.values, EXCEL_SCORING).score < duplicates.MERGE_FROM) {
-        checked.errors.push(identifier[2] + ' PK ' + pk + ' is also on row ' + records[first].row_number + ' for a different person or ' + identifier[2] + ' ID');
+        checked.errors.push(problem('crm.customerImport.alsoOnAnotherRow', { column: identifier[2], value: pk, row: records[first].row_number, idColumn: identifier[3] }));
       }
     });
   });
@@ -435,6 +451,21 @@ async function importPeople(buffer, actor, options) {
  return { summary, rows: report.rows };
 }
 
+/* ------------------------------------------------------------ in the reader's language */
+
+// A row's reasons as sentences. Kept as addresses; a row stored before they
+// were (a JSON array of English sentences) reads as it was written.
+function translateErrors(errors, locale) {
+ const list = typeof errors === 'string' ? JSON.parse(errors) : errors;
+ return (list || []).map(item => translateMessage(locale, item));
+}
+// A preview or an import, as sent: every reason and every match explained in the reader's language.
+function translateRows(result, locale) {
+ return Object.assign({}, result, { rows: result.rows.map(row => Object.assign({}, row,
+  row.errors ? { errors: translateErrors(row.errors, locale) } : {},
+  row.similar ? { similar: row.similar.map(match => Object.assign({}, match, { reason: duplicates.reasonOf(match, locale) })) } : {})) });
+}
+
 /* ------------------------------------------------------------ rows that failed, kept for review */
 
 async function importErrors(filters) {
@@ -446,6 +477,10 @@ async function importErrors(filters) {
  if (term) base.where(function () {
   this.where('failed.file_name', 'ilike', '%' + term + '%')
    .orWhereRaw('failed.cells::text ILIKE ?', ['%' + term + '%']).orWhereRaw('failed.errors::text ILIKE ?', ['%' + term + '%']);
+  // A date, a year or a day of birth typed as the screen shows it, against the Birthday cell as it
+  // was written (1990/5/3, 1990) or read from a date cell (1990-05-03).
+  const birthday = searchBirthday(term);
+  if (birthday) this.orWhereRaw("failed.cells->>'birth_date' ~ ?", [textPattern(birthday)]);
  });
  const [count, rows] = await Promise.all([
   base.clone().count({ total: '*' }).first(),
@@ -571,5 +606,7 @@ module.exports = {
   importPeople: importPeople,
   template: template,
   importErrors: importErrors,
-  dismissImportError: dismissImportError
+  dismissImportError: dismissImportError,
+  translateErrors: translateErrors,
+  translateRows: translateRows
 };

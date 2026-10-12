@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Flex, Stack, Text, useDisclosure, useToast } from '@chakra-ui/react';
+import {
+  Alert, AlertIcon, Box, Button, Code, Flex, HStack, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
+  Stack, Text, useDisclosure, useToast
+} from '@chakra-ui/react';
 
 import Card from '../../components/Card';
 import CrudPage from '../../components/CrudPage';
 import DataTable from '../../components/DataTable';
 import FormModal from '../../components/FormModal';
 import SelectField from '../../components/SelectField';
+import { useConfirm } from '../../components/ConfirmDialog';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
+import { dateTime } from '../../utils/format';
 import { Status, choices, forgetCrmMeta, optionsFrom, rowsOf, translateOptions, useCrmMeta, word } from './shared';
 
 export const PAGE = '/admin/crm/settings';
@@ -70,7 +75,7 @@ export default function Settings() {
               isClearable={false}
               isSearchable
               value={current}
-              options={translateOptions(translate, lists.map((list) => ({ value: list.path, label: list.title })).concat([{ value: 'status-map', label: 'Status map' }, { value: 'staff-departments', label: 'Staff and departments' }]))}
+              options={translateOptions(translate, lists.map((list) => ({ value: list.path, label: list.title })).concat([{ value: 'status-map', label: 'Status map' }, { value: 'staff-departments', label: 'Staff and departments' }, { value: 'api-keys', label: 'API keys' }]))}
               onChange={(value) => setCurrent(value || 'projects')}
             />
           </Box>
@@ -79,7 +84,8 @@ export default function Settings() {
 
       {current === 'staff-departments' ? <StaffDepartments /> : null}
       {current === 'status-map' ? <StatusMap /> : null}
-      {current === 'status-map' || current === 'staff-departments' ? null : (
+      {current === 'api-keys' ? <ApiKeys /> : null}
+      {['status-map', 'staff-departments', 'api-keys'].indexOf(current) !== -1 ? null : (
         <CrudPage
           key={chosen.path + ':' + revision}
           page={PAGE}
@@ -385,6 +391,123 @@ function classification(path, title, primaryKey, code, parent, projects, rows) {
     ].concat(parent ? [{ name: parent, label: 'Under', type: 'select', options: parents }] : []).concat([activeField]),
     emptyRow: { is_active: true }
   };
+}
+
+/**
+ * DEPARTMENT API KEYS - what lets another project's system call the CRM.
+ *
+ * A key is issued here, shown ONCE, and handed to that department to keep in
+ * its own configuration; the CRM stores only its hash, so a lost key is
+ * revoked and a new one issued. Revoking is immediate and cannot be undone.
+ */
+function ApiKeys() {
+  const translate = useT();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const meta = useCrmMeta();
+  const form = useDisclosure();
+  const { canWrite } = usePermission(PAGE);
+  const [rows, setRows] = useState([]);
+  const [issued, setIssued] = useState(null);
+  const projects = optionsFrom((meta.projects || []).filter((project) => project.status === 'ACTIVE'), 'project_id', 'project_name');
+
+  const load = () => crm.apiKeys.list().then(({ data }) => setRows(rowsOf(data))).catch(() => setRows([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
+
+  const issue = async (values) => {
+    try {
+      const { data } = await crm.apiKeys.issue(values);
+      form.onClose();
+      setIssued(data);
+      load();
+      return true;
+    } catch (error) {
+      toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
+      return false;
+    }
+  };
+
+  const revoke = async (row) => {
+    const agreed = await confirm({
+      tone: 'danger',
+      title: translate('crm.settings.revokeApiKey'),
+      body: translate('crm.settings.revokeApiKeyExplained'),
+      detail: (row.project_code || '') + '  ' + row.label + '  (crmk_' + row.key_prefix + '_...)',
+      confirmLabel: translate('crm.settings.revoke')
+    });
+    if (!agreed) return;
+    try {
+      await crm.apiKeys.revoke(row.api_key_id);
+      toast({ title: translate('crm.settings.apiKeyRevoked'), status: 'success', duration: 2500 });
+      load();
+    } catch (error) {
+      toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
+    }
+  };
+
+  const copy = () => {
+    try {
+      navigator.clipboard.writeText(issued.key);
+      toast({ title: translate('crm.customer360.copied'), status: 'success', duration: 1500 });
+    } catch (error) {
+      toast({ title: translate('crm.settings.copyByHand'), status: 'info', duration: 3000 });
+    }
+  };
+
+  return (
+    <Card
+      title={translate('crm.settings.apiKeys')}
+      actions={canWrite ? <Button size="xs" variant="subtle" onClick={form.onOpen}>{translate('crm.settings.issueApiKey')}</Button> : null}
+    >
+      <Text fontSize="sm" mb={3}>{translate('crm.settings.apiKeysHint')}</Text>
+      <DataTable
+        hidePagination
+        rows={rows}
+        rowKey={(row) => row.api_key_id}
+        columns={[
+          { key: 'project_code', label: 'Project', render: (row) => row.project_name || row.project_code },
+          { key: 'label', label: translate('crm.settings.apiKeyLabel') },
+          { key: 'key_prefix', label: translate('crm.settings.apiKeyStartsWith'), render: (row) => <Code fontSize="xs">{'crmk_' + row.key_prefix + '_...'}</Code> },
+          { key: 'created_at', label: translate('crm.settings.issuedAt'), render: (row) => dateTime(row.created_at) },
+          { key: 'last_used_at', label: translate('crm.settings.lastUsed'), render: (row) => (row.last_used_at ? dateTime(row.last_used_at) : translate('crm.settings.neverUsed')) },
+          { key: 'revoked_at', label: 'Status', render: (row) => <Status value={row.revoked_at ? 'INACTIVE' : 'ACTIVE'} /> }
+        ]}
+        actions={canWrite ? [{ key: 'revoke', label: translate('crm.settings.revoke'), hidden: (row) => !!row.revoked_at, onClick: revoke }] : []}
+        actionsIconOnly={false}
+      />
+
+      <FormModal
+        isOpen={form.isOpen}
+        onClose={form.onClose}
+        title={translate('crm.settings.issueApiKey')}
+        onSubmit={issue}
+        fields={[
+          { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
+          { name: 'label', label: translate('crm.settings.apiKeyLabel'), help: translate('crm.settings.apiKeyLabelHelp') }
+        ]}
+      />
+
+      {/* The only time the key exists in readable form: closing this dialog is the end of it. */}
+      <Modal isOpen={!!issued} onClose={() => setIssued(null)} size="xl" closeOnOverlayClick={false}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{translate('crm.settings.apiKeyIssuedTitle')}</ModalHeader>
+          <ModalBody>
+            <Alert status="warning" borderRadius="md" fontSize="sm" mb={3}><AlertIcon />{translate('crm.settings.apiKeyShownOnce')}</Alert>
+            <Code display="block" whiteSpace="normal" wordBreak="break-all" p={3} borderRadius="md" fontSize="sm">{issued ? issued.key : ''}</Code>
+            <Text fontSize="sm" mt={3}>{translate('crm.settings.apiKeyHowToUse')}</Text>
+          </ModalBody>
+          <ModalFooter>
+            <HStack>
+              <Button onClick={copy}>{translate('crm.settings.copyKey')}</Button>
+              <Button variant="brand" onClick={() => setIssued(null)}>{translate('crm.settings.iHaveSavedIt')}</Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Card>
+  );
 }
 
 /** Each project's own status codes, and the CRM status each one reads as. */
