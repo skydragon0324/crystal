@@ -129,7 +129,7 @@ export default function Sidebar({ onNavigate, collapsed }) {
           <Flex
             as="button" type="button" w="100%" align="center" justify="space-between"
             px={3} pt="0.875rem" pb="0.375rem"
-            fontSize="0.625rem" fontWeight="600" letterSpacing="0.06em"
+            fontSize="0.9rem" fontWeight="600" letterSpacing="0.06em"
             textTransform="uppercase" color={menuColors.muted} opacity={0.8}
             onClick={() => setExpanded(expanded === group.page_id ? null : group.page_id)}
             aria-expanded={expanded === group.page_id}

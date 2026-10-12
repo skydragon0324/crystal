@@ -133,14 +133,12 @@ export default function Navbar({ onOpenSidebar, title }) {
               </Box>
               <MenuDivider />
               <MenuItem
-                fontSize="0.9rem"
                 icon={<Icon as={MdVpnKey} w="0.9375rem" h="0.9375rem" />}
                 onClick={password.onOpen}
               >
                 {t('common.changePassword')}
               </MenuItem>
               <MenuItem
-                fontSize="0.9rem"
                 icon={<Icon as={MdExitToApp} w="0.9375rem" h="0.9375rem" />}
                 onClick={signOut}
               >
