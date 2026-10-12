@@ -2807,7 +2807,7 @@ CREATE TABLE crm_project (
 );
 COMMENT ON COLUMN crm_project.identity_role IS 'ESHOP or USER_MANAGEMENT: the project whose identifiers the Excel import carries in its E-shop and User columns. At most one project per role.';
 CREATE UNIQUE INDEX uq_crm_project_identity_role ON crm_project(identity_role) WHERE identity_role IS NOT NULL;
-COMMENT ON TABLE crm_project IS 'Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA.';
+COMMENT ON TABLE crm_project IS 'Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. None are seeded: projects are added in Settings > Projects.';
 
 CREATE TABLE crm_currency (
     currency_code                      varchar(3)     PRIMARY KEY,
@@ -4543,15 +4543,6 @@ WHERE registration.valid_to IS NULL;
 -- ---------------------------------------------------------------------
 -- seed vocabularies
 -- ---------------------------------------------------------------------
-INSERT INTO crm_project (project_code, project_name, project_type_code, source_system_code) VALUES
- ('PLATFORM',  'Vendor platform (PID)',       'PLATFORM', 'VENDOR_ORACLE'),
- ('CRYSTAL',   'Crystal web and console',     'SERVICE',  'CRYSTAL_PG'),
- ('EPRODUCT',  'Eproduct site and agencies',  'SERVICE',  'EPROD_API'),
- ('ESHOP',     'Eshop',                       'COMMERCE', 'ESHOP_API'),
- ('APPSTORE',  'Appstore',                    'SOFTWARE', 'APPSTORE_API'),
- ('KARAOKE',   'Karaoke licence service',     'SOFTWARE', 'LICENSE_DB'),
- ('BMEDIA',    'Broadcast media licences',    'CONTENT',  'MEDIA_DB');
-
 INSERT INTO crm_currency (currency_code, currency_name, is_reporting) VALUES ('USD', 'US dollar', true);
 
 INSERT INTO crm_communication_channel (channel_code, channel_name, required_contact_type) VALUES
@@ -4637,22 +4628,12 @@ INSERT INTO crm_service_status (status_code, display_name, sequence_no, is_termi
 INSERT INTO crm_service_priority (priority_code, priority_name, rank_no) VALUES
  ('LOW', 'Low', 1), ('NORMAL', 'Normal', 2), ('HIGH', 'High', 3), ('URGENT', 'Urgent', 4);
 
-INSERT INTO crm_service_status_map (project_id, source_status_code, service_status_id, source_status_label)
-SELECT project.project_id, seed.src, status.service_status_id, seed.label
-FROM (VALUES ('0','RECEIVED','Received'), ('1','DIAGNOSING','Diagnosing'), ('2','WAITING_PARTS','Waiting for parts'),
-             ('3','WAITING_APPROVAL','Waiting for approval'), ('4','IN_REPAIR','Repairing'), ('5','QUALITY_CHECK','Quality check'),
-             ('6','READY','Ready for collection'), ('7','CLOSED','Closed'), ('9','CANCELLED','Cancelled')) AS seed(src, code, label)
-JOIN crm_service_status status ON status.status_code = seed.code
-JOIN crm_project project ON project.project_code = 'CRYSTAL';
-
-INSERT INTO crm_point_type (point_type_code, point_type_name, owner_project_id, is_dream_managed, decimal_places)
-SELECT seed.code, seed.name, project.project_id, seed.managed, seed.dp
-FROM (VALUES ('ACTIVITY', 'Activity points', 'PLATFORM', true, 1),
-             ('SOFT', 'Software points (Appstore, Karaoke, Media)', NULL, true, 3),
-             ('REGISTER', 'Registration points (phone, eproduct)', 'PLATFORM', true, 1),
-             ('CRYSTAL', 'Crystal member points', 'CRYSTAL', true, 3),
-             ('ESHOP_PRIZE', 'Eshop prize balance', 'ESHOP', false, 3)) AS seed(code, name, proj, managed, dp)
-LEFT JOIN crm_project project ON project.project_code = seed.proj;
+/* The point currencies. Each needs an owner project, set in Settings > Point types, before points can be posted to it. */
+INSERT INTO crm_point_type (point_type_code, point_type_name, is_dream_managed, decimal_places) VALUES
+ ('ACTIVITY', 'Activity points', true, 1),
+ ('SOFT', 'Software points', true, 3),
+ ('REGISTER', 'Registration points (phone, eproduct)', true, 1),
+ ('MEMBER', 'Member points', true, 3);
 
 INSERT INTO crm_point_event_type (event_code, display_name, direction) VALUES
  ('EARN', 'Earned', 1), ('REDEEM', 'Redeemed', -1), ('EXPIRE', 'Expired', -1), ('ADJUST', 'Manual adjustment', 0),
@@ -4730,29 +4711,7 @@ INSERT INTO crm_metric_definition (metric_code, metric_name, value_type, unit_co
  ('IS_MULTI_PROJECT', 'Customer of more than one project', 'BOOLEAN', NULL, 'True when the party holds accounts in two or more projects.'),
  ('LAST_SERVICE_DATE', 'Last service case', 'DATE', NULL, 'Date the most recent service case was received.');
 
-/* What each project may send, and whether it needs consent first (design 5.1). */
-INSERT INTO crm_project_communication_option (project_id, purpose_id, channel_id, consent_required)
-SELECT project.project_id, purpose.purpose_id, channel.channel_id, seed.needs
-FROM (VALUES
-  ('CRYSTAL', 'TRANSACTIONAL', 'EMAIL', false), ('CRYSTAL', 'TRANSACTIONAL', 'SMS', false),
-  ('CRYSTAL', 'SERVICE_NOTICE', 'SMS', false), ('CRYSTAL', 'SERVICE_NOTICE', 'EMAIL', false),
-  ('CRYSTAL', 'MARKETING', 'EMAIL', true), ('CRYSTAL', 'MARKETING', 'SMS', true), ('CRYSTAL', 'SURVEY', 'EMAIL', true),
-  ('ESHOP', 'TRANSACTIONAL', 'SMS', false), ('ESHOP', 'MARKETING', 'EMAIL', true), ('ESHOP', 'MARKETING', 'SMS', true),
-  ('ESHOP', 'MARKETING', 'PUSH', true),
-  ('APPSTORE', 'TRANSACTIONAL', 'IN_APP', false), ('APPSTORE', 'MARKETING', 'PUSH', true), ('APPSTORE', 'MARKETING', 'IN_APP', true),
-  ('PLATFORM', 'EVENT_NOTICE', 'SMS', true), ('PLATFORM', 'EVENT_NOTICE', 'IN_APP', false),
-  ('PLATFORM', 'MARKETING', 'EMAIL', true), ('PLATFORM', 'MARKETING', 'SMS', true)
-) AS seed(project, purpose, channel, needs)
-JOIN crm_project project ON project.project_code = seed.project
-JOIN crm_communication_purpose purpose ON purpose.purpose_code = seed.purpose
-JOIN crm_communication_channel channel ON channel.channel_code = seed.channel;
-
-/* The Eshop's card levels, which are its member tiers. */
-INSERT INTO crm_project_tier (project_id, tier_code, tier_name, rank_no, tier_kind, source_code)
-SELECT project.project_id, 'LV' || level_no, 'Eshop card level ' || level_no, level_no, 'CARD_CLASS', level_no::text
-FROM generate_series(1, 5) AS level_no JOIN crm_project project ON project.project_code = 'ESHOP';
-
-/* The currency the Eshop and the Appstore call native; converted at the rate in system settings. */
+/* A project's own (native) currency; converted at the rate in system settings. */
 INSERT INTO crm_currency (currency_code, currency_name, decimal_places) VALUES ('NTV', 'Native currency', 2);
 
 

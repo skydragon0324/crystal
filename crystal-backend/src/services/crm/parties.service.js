@@ -276,8 +276,12 @@ async function updateContact(partyId, contactId, body, actor) {
     if (body.status !== undefined) {
       if (['ACTIVE', 'INVALID', 'RETIRED'].indexOf(body.status) === -1) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
       patch.status = body.status;
-      if (body.status !== 'ACTIVE') { patch.is_primary = false; patch.valid_to = trx.fn.now(); }
+      /* Switched off, it stops being anyone's first choice; switched back on, it is current again. */
+      if (body.status !== 'ACTIVE') { patch.is_primary = false; patch.valid_to = before.valid_to || trx.fn.now(); }
+      else patch.valid_to = null;
     }
+    const status = patch.status || before.status;
+    if (body.is_primary && status !== 'ACTIVE') throw new HttpError(400, 'crm.customers.onlyAnActiveContactCanBePrimary');
     if (body.is_primary) {
       await trx('crm_contact_point')
         .where({ party_pk: partyId, contact_type: before.contact_type })
@@ -294,6 +298,27 @@ async function updateContact(partyId, contactId, body, actor) {
 
   audit.updated(actor, 'crm_contact_point', contactId, before, after, PAGE);
   return after;
+}
+
+/*
+ * A contact typed in by mistake can go. One that was ever used - a consent
+ * names it, a campaign sent to it, an interaction went through it - is part of
+ * that history, so it is refused: mark it RETIRED (no longer theirs) or
+ * INVALID (never worked) instead, and the history still says where things went.
+ */
+async function deleteContact(partyId, contactId, actor) {
+  if (!/^[1-9][0-9]*$/.test(String(partyId)) || !/^[1-9][0-9]*$/.test(String(contactId))) throw new HttpError(404, 'common.notFound');
+  const before = await db('crm_contact_point').where({ party_pk: partyId, contact_point_id: contactId }).first();
+  if (!before) throw new HttpError(404, 'common.notFound');
+
+  const uses = await Promise.all(['crm_party_communication_consent', 'crm_campaign_recipient', 'crm_party_interaction'].map(function (table) {
+    return db(table).where('contact_point_id', contactId).first(db.raw(1));
+  }));
+  if (uses.some(Boolean)) throw new HttpError(409, 'crm.customers.contactIsInUse');
+
+  await db('crm_contact_point').where('contact_point_id', contactId).del();
+  audit.deleted(actor, 'crm_contact_point', contactId, before, PAGE);
+  return { contact_point_id: contactId };
 }
 
 async function linkAccount(partyId, body, actor) {
@@ -640,18 +665,19 @@ async function merge(survivorId, mergedId, reason, method, actor) {
 
 /** Apply the weighted matcher to historical parties; review existing pairs manually. */
 async function scanDuplicates(actor) {
- const platform = await vocabulary.idOf('crm_project', 'PLATFORM');
  let found = 0;
  await transaction(async trx => {
   const people = await trx('crm_party as p').join('crm_person as person','person.party_pk','p.party_pk')
    .whereIn('p.party_status',['ACTIVE','INACTIVE']).select('person.*','p.origin_project_id');
   for (const person of people) {
+   // A pair is filed under the newer person's origin project; one without an origin cannot be filed.
+   if (!person.origin_project_id) continue;
    person.contacts = await trx('crm_contact_point').where({ party_pk: person.party_pk, status: 'ACTIVE' });
    const matches = await duplicates.findSimilar(person, { trx, excludePartyId: person.party_pk });
    for (const match of matches) {
     if (BigInt(match.party_pk) >= BigInt(person.party_pk)) continue;
     const inserted = await trx('crm_identity_match_candidate').insert({
-     incoming_project_id: person.origin_project_id || platform, incoming_external_record_id: String(person.party_pk),
+     incoming_project_id: person.origin_project_id, incoming_external_record_id: String(person.party_pk),
      incoming_party_pk: person.party_pk, candidate_party_pk: match.party_pk,
      match_rule_code: match.rule_code, match_score: match.score, explanation_json: JSON.stringify({ reason: match.reason })
     }).onConflict(['incoming_project_id','incoming_external_record_id','candidate_party_pk']).ignore().returning('match_candidate_id');
@@ -759,6 +785,7 @@ module.exports = {
   assignGrade: assignGrade,
   addContact: addContact,
   updateContact: updateContact,
+  deleteContact: deleteContact,
   linkAccount: linkAccount,
   unlinkAccount: unlinkAccount,
   setConsent: setConsent,

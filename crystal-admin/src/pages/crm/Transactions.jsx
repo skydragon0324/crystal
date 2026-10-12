@@ -38,9 +38,12 @@ export default function Transactions() {
   const location = useLocation();
   const meta = useCrmMeta();
   const surface = useSurface();
-  const openId = new URLSearchParams(location.search).get('txn');
+  const query = new URLSearchParams(location.search);
+  const openId = query.get('txn');
+  /* ?project= opens the list on one project's transactions. */
+  const project = query.get('project') ? Number(query.get('project')) : undefined;
 
-  const list = useList((params) => crm.transactions.list(params), { page: 1, limit: 25, sort: 'transaction_at', dir: 'desc' });
+  const list = useList((params) => crm.transactions.list(params), { page: 1, limit: 25, sort: 'transaction_at', dir: 'desc', project_id: project });
   const summary = list.summary || {};
 
   return (

@@ -16,6 +16,18 @@
  * validation for slots 1-3 in both modes on the all-pairs list; nothing here
  * re-steps or re-orders them, so that result carries over.
  */
+/*
+ * EIGHT SERIES COLOURS, ALWAYS IN THIS ORDER - blue, orange, aqua, yellow,
+ * magenta, green, violet, red - validated for colour-blind separation between
+ * neighbours in both modes. A chart gives slot n to the same thing every time
+ * (a project keeps its slot on every chart); a ninth series folds into "other".
+ * series1 and series2 below are the first two slots.
+ */
+const CATEGORICAL = {
+  light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
+  dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
+};
+
 export const VIZ = {
   light: {
     series1: '#2a78d6',
@@ -26,7 +38,9 @@ export const VIZ = {
     textPrimary: '#0b0b0b',
     textSecondary: '#52514e',
     tooltipSurface: '#ffffff',
-    tooltipBorder: '#d8d8d4'
+    tooltipBorder: '#d8d8d4',
+    categorical: CATEGORICAL.light,
+    other: '#a3a29c'
   },
   dark: {
     series1: '#3987e5',
@@ -39,7 +53,9 @@ export const VIZ = {
     // A tooltip floats above the card, and the console's dark card is very
     // nearly black - so this steps UP from the surface rather than matching it.
     tooltipSurface: '#242428',
-    tooltipBorder: '#3f3f46'
+    tooltipBorder: '#3f3f46',
+    categorical: CATEGORICAL.dark,
+    other: '#6d6c66'
   }
 };
 

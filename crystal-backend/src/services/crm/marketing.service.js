@@ -721,7 +721,7 @@ async function prepareAction(campaignId, actionId, actor) {
 
     const channel = await trx('crm_communication_channel').where('channel_id', action.channel_id).first();
     const purpose = await trx('crm_communication_purpose').where('purpose_id', action.purpose_id).first();
-    const projectId = campaign.project_id || await vocabulary.idOf('crm_project', 'PLATFORM', trx);
+    const projectId = campaign.project_id;
     // Without a project nothing is offered on any channel: say so rather than skip every recipient.
     if (!projectId) throw new HttpError(409, 'crm.marketing.campaignNeedsAProject');
     /* The option, enabled or not: a disabled one is a reason of its own, not "not offered". */

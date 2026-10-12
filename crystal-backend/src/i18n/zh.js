@@ -240,6 +240,8 @@ module.exports = {
       unknownChannel: '未知渠道'
     },
     customers: {
+      contactIsInUse: '该联系方式已被使用（同意记录、营销活动或互动），不能删除：请将状态改为“已停用”或“无效”',
+      onlyAnActiveContactCanBePrimary: '只有有效的联系方式才能设为主要联系方式',
       aCustomerCannotBeRelatedToThemselves: '客户不能与自己建立关系',
       alreadyUnlinked: '该账号已解除关联',
       chooseAGrade: '请选择一个启用中的企业等级',

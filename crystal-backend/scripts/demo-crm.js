@@ -3,11 +3,14 @@
 /**
  * DEMO DATA FOR EVERY CRM SCREEN.
  *
- *   npm run demo:crm          (also run by seed 10_crm_demo after the imports)
+ *   npm run demo:crm          (also run by seed 10_crm_demo, after demo-crm-base)
  *
- * The imports fill the CRM with what Crystal, the Eshop and the Appstore
- * already know: customers, accounts, purchases, devices, repair tickets,
- * points. What no project knows yet is what the CRM itself is for - the
+ * demo-crm-base.js adds the demo's projects - UID (the user management
+ * system), SMARTPHONE, EPRODUCT, APPSTORE and ESHOP - and fills them with
+ * customers, accounts, purchases, devices, repairs and points. Test data: the
+ * project codes named here exist only because that script adds them.
+ *
+ * What it leaves out is what the CRM itself is for - the
  * organizations behind the agencies, what each customer agreed to be sent,
  * how a complaint was classified, an eventme with entries and prizes, a
  * campaign that went out and what came back. This script adds that, so every
@@ -112,7 +115,7 @@ async function run(options) {
     const already = await db('crm_segment').where('segment_code', MARKER).first();
     const context = await buildContext(signIn);
     const { admin, ops, branch, random, pick, meta, byCode, projectId, channelId, purposeId, activityPoints, people } = context;
-    if (people.length < 10) { log('CRM demo: fewer than ten customers - run the imports first'); return { skipped: true }; }
+    if (people.length < 10) { log('CRM demo: fewer than ten customers - run scripts/demo-crm-base.js first'); return { skipped: true }; }
 
     /* Loaded before the Customer 360 record existed: add only what the record needs. */
     if (already) {
@@ -191,7 +194,7 @@ async function run(options) {
       await existingOr('crm_registration_question', 'question_code', question.question_code, async function () {
         const created = data(await admin.post('/crm/settings/registration-questions', {
           question_code: question.question_code, question_label: question.question_label, answer_type: question.answer_type,
-          project_id: projectId('CRYSTAL'), product_class_id: smartphoneClass.product_class_id || null,
+          project_id: projectId('SMARTPHONE'), product_class_id: smartphoneClass.product_class_id || null,
           is_required: !!question.is_required, sort_order: question.sort_order, is_active: true
         }));
         await db('crm_registration_question_option').insert(question.options.map(function (label, position) {
@@ -234,23 +237,23 @@ async function run(options) {
     const organizations = [
       { legal_name: 'Harbor Electronics Trading Co., Ltd.', trading_name: 'Harbor Electronics', registration_number: 'BR-2018-00412',
         website_url: 'https://harbor-electronics.example', founded_date: '2018-03-12', mobile: '+86 138 0000 4101', email: 'contact@harbor-electronics.example',
-        types: [['SALES_AGENCY', 'ESHOP'], ['BUSINESS_CUSTOMER', null]], industry: 'ELECTRONICS_RETAIL', roles: [['OWNER', 'Management'], ['SALES_STAFF', 'Sales floor']] },
+        origin: 'ESHOP', types: [['SALES_AGENCY', 'ESHOP'], ['BUSINESS_CUSTOMER', null]], industry: 'ELECTRONICS_RETAIL', roles: [['OWNER', 'Management'], ['SALES_STAFF', 'Sales floor']] },
       { legal_name: 'City Repair Partners LLC', trading_name: 'City Repair Partners', registration_number: 'BR-2020-01877',
         website_url: 'https://cityrepair.example', founded_date: '2020-07-01', mobile: '+86 138 0000 4102', email: 'desk@cityrepair.example',
-        types: [['SERVICE_CENTER_OPERATOR', 'CRYSTAL']], industry: 'REPAIR_SERVICES', roles: [['MANAGER', 'Workshop'], ['TECHNICIAN', 'Workshop']] },
+        origin: 'SMARTPHONE', types: [['SERVICE_CENTER_OPERATOR', 'SMARTPHONE']], industry: 'REPAIR_SERVICES', roles: [['MANAGER', 'Workshop'], ['TECHNICIAN', 'Workshop']] },
       { legal_name: 'Northwind Logistics Group', trading_name: 'Northwind Logistics', registration_number: 'BR-2015-00093',
         website_url: 'https://northwind.example', founded_date: '2015-01-20', mobile: '+86 138 0000 4103', email: 'ops@northwind.example',
-        types: [['LOGISTICS_PARTNER', 'ESHOP'], ['COLLECTION_POINT_OPERATOR', 'CRYSTAL']], industry: 'LOGISTICS', roles: [['FINANCE_CONTACT', 'Finance']] },
+        origin: 'ESHOP', types: [['LOGISTICS_PARTNER', 'ESHOP'], ['COLLECTION_POINT_OPERATOR', 'EPRODUCT']], industry: 'LOGISTICS', roles: [['FINANCE_CONTACT', 'Finance']] },
       { legal_name: 'Bright Future International School', trading_name: 'Bright Future School', registration_number: 'ED-2011-00007',
         website_url: 'https://brightfuture.example', founded_date: '2011-09-01', mobile: '+86 138 0000 4104', email: 'it@brightfuture.example',
-        types: [['BUSINESS_CUSTOMER', null]], industry: 'EDUCATION', roles: [['PROCUREMENT_CONTACT', 'IT office']] }
+        origin: 'APPSTORE', types: [['BUSINESS_CUSTOMER', null]], industry: 'EDUCATION', roles: [['PROCUREMENT_CONTACT', 'IT office']] }
     ];
     const createdOrganizations = [];
     for (const organization of organizations) {
       // eslint-disable-next-line no-await-in-loop
       const party = await attempt('organization ' + organization.trading_name, async function () {
         const created = data(await admin.post('/crm/parties', {
-          party_type: 'ORGANIZATION', legal_name: organization.legal_name, trading_name: organization.trading_name,
+          party_type: 'ORGANIZATION', origin_project_id: projectId(organization.origin), legal_name: organization.legal_name, trading_name: organization.trading_name,
           registration_number: organization.registration_number, website_url: organization.website_url,
           founded_date: organization.founded_date, organization_status: 'ACTIVE', mobile: organization.mobile, email: organization.email
         }));
@@ -299,10 +302,16 @@ async function run(options) {
         .join('crm_communication_channel as channel', 'channel.channel_id', 'option.channel_id')
         .where('option.consent_required', true).where('option.is_enabled', true)
         .select('option.project_communication_option_id', 'option.project_id', 'channel.channel_code');
-      const platformId = projectId('PLATFORM');
-      const accounts = await db('crm_project_account').whereNull('unlinked_at').select('party_pk', 'project_id');
+      const uidId = projectId('UID');
+      /* A project a person deals with: an account there, or a product, a case or a purchase in it. */
+      const dealings = await db.raw(`
+        SELECT party_pk, project_id FROM crm_project_account WHERE unlinked_at IS NULL
+        UNION SELECT party_pk, project_id FROM crm_product_registration
+        UNION SELECT party_pk, project_id FROM crm_service_case
+        UNION SELECT buyer.party_pk, sale.project_id FROM crm_transaction sale
+                JOIN crm_transaction_party buyer ON buyer.transaction_id = sale.transaction_id`).then(function (result) { return result.rows; });
       const projectsOf = {};
-      accounts.forEach(function (account) { (projectsOf[account.party_pk] = projectsOf[account.party_pk] || {})[account.project_id] = true; });
+      dealings.forEach(function (row) { (projectsOf[row.party_pk] = projectsOf[row.party_pk] || {})[row.project_id] = true; });
       const contacts = await db('crm_contact_point').where('status', 'ACTIVE').select('contact_point_id', 'party_pk', 'contact_type');
       const contactOf = {};
       contacts.forEach(function (contact) { contactOf[contact.party_pk + ':' + contact.contact_type] = contactOf[contact.party_pk + ':' + contact.contact_type] || contact.contact_point_id; });
@@ -310,7 +319,7 @@ async function run(options) {
       let written = 0;
       for (const person of people) {
         for (const option of options) {
-          const inProject = option.project_id === platformId || (projectsOf[person.party_pk] || {})[option.project_id];
+          const inProject = option.project_id === uidId || (projectsOf[person.party_pk] || {})[option.project_id];
           if (!inProject || random() < 0.2) continue;
           const contactType = { EMAIL: 'EMAIL', SMS: 'MOBILE' }[option.channel_code];
           const roll = random();
@@ -338,7 +347,7 @@ async function run(options) {
     /* And one a manager changed, on the phone, with the reason the console asks for. */
     await attempt('consent by a manager', async function () {
       const crystalMarketingEmail = await db('crm_project_communication_option')
-        .where({ project_id: projectId('CRYSTAL'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
+        .where({ project_id: projectId('SMARTPHONE'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
       if (!crystalMarketingEmail) return null;
       return admin.put('/crm/parties/' + people[0].party_pk + '/consents', {
         project_communication_option_id: crystalMarketingEmail.project_communication_option_id,
@@ -356,7 +365,7 @@ async function run(options) {
       if (!withMobile) return;
       // A 65-point match waits in intake without creating a second party.
       await admin.post('/crm/parties', {
-        party_type: 'PERSON', full_name: withMobile.display_name, mobile: withMobile.contact_value
+        party_type: 'PERSON', origin_project_id: projectId('SMARTPHONE'), full_name: withMobile.display_name, mobile: withMobile.contact_value
       });
     });
 
@@ -386,14 +395,14 @@ async function run(options) {
     const serviceCentres = await db('crm_service_center').where({ service_center_kind: 'SERVICE_CENTER', status: 'ACTIVE' })
       .orderBy('service_center_id').limit(12).select('service_center_id', 'service_center_name');
     const newCases = [
-      ['COMPLAINT', 'CRYSTAL', 'HIGH', 'DIAGNOSING', 'PHONE', 'Repair took three weeks and the screen still flickers', 'DELAY'],
-      ['COMPLAINT', 'CRYSTAL', 'URGENT', 'RECEIVED', 'WALK_IN', 'Staff refused a warranty repair at the counter', 'STAFF'],
-      ['INQUIRY', 'CRYSTAL', 'NORMAL', 'CLOSED', 'APP', 'Is the Phone 9 covered for water damage?', null],
+      ['COMPLAINT', 'SMARTPHONE', 'HIGH', 'DIAGNOSING', 'PHONE', 'Repair took three weeks and the screen still flickers', 'DELAY'],
+      ['COMPLAINT', 'SMARTPHONE', 'URGENT', 'RECEIVED', 'WALK_IN', 'Staff refused a warranty repair at the counter', 'STAFF'],
+      ['INQUIRY', 'SMARTPHONE', 'NORMAL', 'CLOSED', 'APP', 'Is the Phone 9 covered for water damage?', null],
       ['SOFTWARE_SUPPORT', 'APPSTORE', 'NORMAL', 'IN_REPAIR', 'WEB', 'Karaoke licence not recognised after the update', 'ACCOUNT'],
       ['RETURN_SUPPORT', 'ESHOP', 'HIGH', 'WAITING_APPROVAL', 'APP', 'Order arrived with a cracked box - wants a return', 'DELIVERY'],
       ['INQUIRY', 'ESHOP', 'LOW', 'CLOSED', 'PHONE', 'When will LV3 members get the new coupon?', null],
       ['COMPLAINT', 'ESHOP', 'NORMAL', 'CLOSED', 'WEB', 'Refund was smaller than the price paid', 'DELIVERY'],
-      ['INSTALLATION', 'CRYSTAL', 'NORMAL', 'READY', 'ON_SITE', 'Set-top box installation at home', null]
+      ['INSTALLATION', 'EPRODUCT', 'NORMAL', 'READY', 'ON_SITE', 'Set-top box installation at home', null]
     ];
     let opened = 0;
     for (const [typeCode, projectCode, priorityCode, statusCode, channelCode, title, issueCode] of newCases) {
@@ -402,7 +411,7 @@ async function run(options) {
         const caseRow = data(await admin.post('/crm/cases', {
           party_pk: pick(people).party_pk, project_id: projectId(projectCode), case_type_id: caseType(typeCode),
           service_priority_id: priorityId(priorityCode), reception_channel_code: channelCode, title: title,
-          service_center_id: projectCode === 'CRYSTAL' && serviceCentres.length ? pick(serviceCentres).service_center_id : null,
+          service_center_id: (projectCode === 'SMARTPHONE' || projectCode === 'EPRODUCT') && serviceCentres.length ? pick(serviceCentres).service_center_id : null,
           received_at: daysAgo(2 + Math.floor(random() * 40))
         }));
         if (statusCode !== 'RECEIVED') await admin.put('/crm/cases/' + caseRow.case_id, { service_status_id: statusId(statusCode) });
@@ -550,10 +559,10 @@ async function run(options) {
             }, reporting.currency_code);
           }
         });
-        /* Most of them agreed to platform marketing email in the app, long ago - which is what lets the win-back reach them. */
+        /* Most of them agreed to member marketing email when they made their login, long ago - which is what lets the win-back reach them. */
         if (position % 4 !== 3) {
           const platformEmail = await db('crm_project_communication_option')
-            .where({ project_id: projectId('PLATFORM'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
+            .where({ project_id: projectId('UID'), purpose_id: purposeId('MARKETING'), channel_id: channelId('EMAIL') }).first();
           const emailContact = await db('crm_contact_point').where({ party_pk: party.party_pk, contact_type: 'EMAIL' }).first();
           if (platformEmail) {
             const agreedAt = daysAgo(lastOrderDaysAgo + 200);
@@ -583,14 +592,14 @@ async function run(options) {
       [MARKER, 'VIP customers (AA and above)', 'Corporate grade AA or AAA across Dream.', { all: [{ field: 'corporate_grade', min_rank: 4 }] }],
       ['DEMO_AT_RISK', 'At risk or lapsed', 'Bought before but not lately - the win-back list.',
         { any: [{ field: 'activity_status', value: 'AT_RISK' }, { field: 'activity_status', value: 'LAPSED' }] }],
-      ['DEMO_CROSS_SHOPPERS', 'Crystal members who buy on the Eshop', 'Members of Crystal with an Eshop purchase in the last year.',
-        { all: [{ field: 'project_member', project: 'CRYSTAL' }, { field: 'bought_in_project', project: 'ESHOP', days: 365 }] }],
+      ['DEMO_CROSS_SHOPPERS', 'Members who buy on the Eshop', 'Members with a login and an Eshop purchase in the last year.',
+        { all: [{ field: 'project_member', project: 'UID' }, { field: 'bought_in_project', project: 'ESHOP', days: 365 }] }],
       ['DEMO_FREQUENT', 'Frequent buyers', 'Five or more purchases in 12 months.',
         { all: [{ field: 'snapshot', measure: 'transaction_count_12m', op: '>=', value: 5 }] }],
       ['DEMO_STB_PROSPECTS', 'Smartphone owners without a set-top box', 'Own a smartphone but no set-top box - a cross-sell list.',
         { all: [{ field: 'owns_class', class: 'SMARTPHONE', min: 1 }, { field: 'owns_no_class', class: 'STB' }] }],
-      ['DEMO_EMAIL_OK', 'Agreed to Crystal marketing email', 'Consent in force for Crystal marketing by email.',
-        { all: [{ field: 'consented', project: 'CRYSTAL', purpose: 'MARKETING', channel: 'EMAIL' }] }]
+      ['DEMO_EMAIL_OK', 'Agreed to smartphone marketing email', 'Consent in force for smartphone marketing by email.',
+        { all: [{ field: 'consented', project: 'SMARTPHONE', purpose: 'MARKETING', channel: 'EMAIL' }] }]
     ];
     const segments = {};
     for (const [code, name, description, rule] of segmentDefinitions) {
@@ -615,7 +624,7 @@ async function run(options) {
       for (const centre of serviceCentres.slice(0, 2)) {
         // eslint-disable-next-line no-await-in-loop
         await attempt('reservation pickup capability', function () {
-          return admin.post('/crm/sites/' + centre.service_center_id + '/capabilities', { capability_code: 'RESERVATION_PICKUP', project_id: projectId('CRYSTAL') });
+          return admin.post('/crm/sites/' + centre.service_center_id + '/capabilities', { capability_code: 'RESERVATION_PICKUP', project_id: projectId('SMARTPHONE') });
         });
       }
       pickupSites = serviceCentres.slice(0, 2).map(function (centre) { return { service_center_id: centre.service_center_id }; });
@@ -625,7 +634,7 @@ async function run(options) {
     /* No centre hands out prizes yet: equip the first pickup centre for it, as a manager would on the Service network screen. */
     if (!prizeSites.length && pickupSites.length) {
       await attempt('prize pickup capability', function () {
-        return admin.post('/crm/sites/' + pickupSites[0].service_center_id + '/capabilities', { capability_code: 'PRIZE_PICKUP', project_id: projectId('CRYSTAL') });
+        return admin.post('/crm/sites/' + pickupSites[0].service_center_id + '/capabilities', { capability_code: 'PRIZE_PICKUP', project_id: projectId('SMARTPHONE') });
       });
       prizeSites = [{ service_center_id: pickupSites[0].service_center_id }];
     }
@@ -634,7 +643,7 @@ async function run(options) {
     const launch = await attempt('launch event', async function () {
       const event = data(await admin.post('/crm/events', {
         event_code: 'DEMO-P9-LAUNCH', event_name: 'Phone 9 launch - reserve yours first', event_type: 'RESERVATION',
-        project_id: projectId('CRYSTAL'), eligibility_basis: 'PRODUCT_REGISTRATION', eligibility_rule: { product_class_code: 'SMARTPHONE', min_count: 1 },
+        project_id: projectId('SMARTPHONE'), eligibility_basis: 'PRODUCT_REGISTRATION', eligibility_rule: { product_class_code: 'SMARTPHONE', min_count: 1 },
         summary: 'Owners of a smartphone may reserve the Phone 9 before the public launch.',
         description: 'One entry per owner, two for owners of more than one device. Collect at a participating centre.',
         number_prefix: 'P9-', number_start: 1, number_end: 500, starts_at: daysAgo(10), ends_at: daysAhead(30), fulfilment_ends_at: daysAhead(45)
@@ -706,7 +715,7 @@ async function run(options) {
     /* 2. A thank-you draw for the best customers, already paid out. */
     const draw = await attempt('thank-you draw', async function () {
       const event = data(await admin.post('/crm/events', {
-        event_code: 'DEMO-VIP-DRAW', event_name: 'VIP thank-you draw', event_type: 'LOTTERY', project_id: projectId('PLATFORM'),
+        event_code: 'DEMO-VIP-DRAW', event_name: 'VIP thank-you draw', event_type: 'LOTTERY', project_id: projectId('UID'),
         eligibility_basis: 'CORPORATE_GRADE', eligibility_rule: { min_grade_rank: 4 },
         summary: 'Every AA and AAA customer is in the draw for 200 activity points.', starts_at: daysAgo(40), ends_at: daysAgo(5)
       }));
@@ -733,7 +742,7 @@ async function run(options) {
     /* 3. An open day still waiting for a second manager to approve it. */
     const openDay = await attempt('open day event', async function () {
       return data(await admin.post('/crm/events', {
-        event_code: 'DEMO-OPEN-DAY', event_name: 'Service centre open day', event_type: 'EVENT_ATTENDANCE', project_id: projectId('CRYSTAL'),
+        event_code: 'DEMO-OPEN-DAY', event_name: 'Service centre open day', event_type: 'EVENT_ATTENDANCE', project_id: projectId('SMARTPHONE'),
         eligibility_basis: 'SERVICE_CENTER_ACTIVITY', eligibility_rule: { activity_code: 'REPAIR_INTAKE', since_days: 365, min_count: 1 },
         summary: 'Customers who brought a device in this year are invited to a behind-the-scenes tour.',
         starts_at: daysAhead(14), ends_at: daysAhead(15)
@@ -832,19 +841,19 @@ async function run(options) {
 
     const campaigns = [];
     for (const spec of [
-      { code: 'DEMO-WINBACK', name: 'We miss you - 10% back on your next order', type: 'WIN_BACK', project: 'PLATFORM', segment: 'DEMO_AT_RISK',
+      { code: 'DEMO-WINBACK', name: 'We miss you - 10% back on your next order', type: 'WIN_BACK', project: 'UID', segment: 'DEMO_AT_RISK',
         channel: 'EMAIL', purpose: 'MARKETING', stage: 'COMPLETED', startAt: daysAgo(14), endAt: daysAgo(1),
         actionName: 'Win-back email', title: 'It has been a while', body: 'Come back this month and get 10% back in points.',
         description: 'Customers who stopped buying, across every project.', costs: [['EMAIL_PROVIDER', 35], ['COUPON', 120]] },
-      { code: 'DEMO-VIP-LAUNCH', name: 'Phone 9 early access for VIPs', type: 'PRODUCT_LAUNCH', project: 'CRYSTAL', segment: MARKER,
+      { code: 'DEMO-VIP-LAUNCH', name: 'Phone 9 early access for VIPs', type: 'PRODUCT_LAUNCH', project: 'SMARTPHONE', segment: MARKER,
         channel: 'SMS', purpose: 'MARKETING', stage: 'ACTIVE', startAt: daysAgo(13), endAt: daysAhead(20),
         actionName: 'Launch SMS', title: 'Phone 9', body: 'VIP early access: reserve your Phone 9 before anyone else.',
         description: 'AA and AAA customers hear first.', costs: [['SMS', 18.5]] },
-      { code: 'DEMO-CROSS-SELL', name: 'Eshop picks for Crystal members', type: 'PROMOTION', project: 'ESHOP', segment: 'DEMO_CROSS_SHOPPERS',
+      { code: 'DEMO-CROSS-SELL', name: 'Eshop picks for our members', type: 'PROMOTION', project: 'ESHOP', segment: 'DEMO_CROSS_SHOPPERS',
         channel: 'EMAIL', purpose: 'MARKETING', stage: 'APPROVED', startAt: daysAhead(3), endAt: daysAhead(30),
         actionName: 'Weekly picks', title: 'Picked for you', body: 'Accessories for the phone you already own.',
         description: 'Approved and prepared; not sent yet.', costs: [] },
-      { code: 'DEMO-SURVEY', name: 'How was your repair?', type: 'SURVEY', project: 'CRYSTAL', stage: 'DRAFT', startAt: daysAhead(7), endAt: daysAhead(37),
+      { code: 'DEMO-SURVEY', name: 'How was your repair?', type: 'SURVEY', project: 'SMARTPHONE', stage: 'DRAFT', startAt: daysAhead(7), endAt: daysAhead(37),
         description: 'Waiting for a second manager to approve it.' }
     ]) {
       // eslint-disable-next-line no-await-in-loop
@@ -874,7 +883,7 @@ async function run(options) {
       const created = await attempt('event ' + title, function () {
         return admin.post('/crm/site-events', Object.assign({
           service_center_id: centre.service_center_id, event_type_code: typeCode, title: title, status: status,
-          project_id: projectId('CRYSTAL'), planned_start_at: startAt.toISOString(), planned_end_at: endAt.toISOString(),
+          project_id: projectId('SMARTPHONE'), planned_start_at: startAt.toISOString(), planned_end_at: endAt.toISOString(),
           actual_start_at: status === 'COMPLETED' ? startAt.toISOString() : null, actual_end_at: status === 'COMPLETED' ? endAt.toISOString() : null,
           capacity: capacity, attendee_count: attendees,
           outcome_note: status === 'COMPLETED' ? 'Busy all day; most visitors asked about trade-in prices.' : null
@@ -986,9 +995,9 @@ async function customer360Demo(context, attempt) {
     .where('party.party_status', 'ACTIVE').orderBy('party.party_pk').select('party.party_pk', 'party.display_name');
   const profileOf = {
     'Harbor Electronics': { local_name: '海港电子贸易有限公司', employee_count_band: '201-1000', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
-      description: 'Regional distributor and retailer of smartphones, set-top boxes and accessories, with eleven stores and an online shop. A Dream partner since 2018 and one of the largest resellers of Crystal phones in the east.' },
+      description: 'Regional distributor and retailer of smartphones, set-top boxes and accessories, with eleven stores and an online shop. A Dream partner since 2018 and one of the largest resellers of Dream smartphones in the east.' },
     'City Repair Partners': { local_name: '城市维修伙伴', employee_count_band: '51-200', headquarters_address: '220 Zhongshan Road, Guangzhou',
-      description: 'Independent repair network that runs authorised Crystal service counters in shopping centres.' },
+      description: 'Independent repair network that runs authorised Dream service counters in shopping centres.' },
     'Northwind Logistics': { local_name: '北风物流集团', employee_count_band: '1001-5000', headquarters_address: '9 Airport Logistics Park, Shenzhen',
       description: 'Courier and warehousing group that delivers Eshop orders and runs collection points for repairs.' },
     'Bright Future School': { local_name: '光明未来国际学校', employee_count_band: '201-1000', headquarters_address: '66 Garden Road, Hangzhou',
@@ -1007,7 +1016,7 @@ async function customer360Demo(context, attempt) {
   /* A group: Harbor Holdings over Harbor Electronics and a new Harbor Online, Northwind an affiliate, City Repair a partner. */
   const holdings = await attempt('group company', async function () {
     return data(await admin.post('/crm/parties', {
-      party_type: 'ORGANIZATION', legal_name: 'Harbor Holdings Group Co., Ltd.', trading_name: 'Harbor Holdings', local_name: '海港控股集团',
+      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), legal_name: 'Harbor Holdings Group Co., Ltd.', trading_name: 'Harbor Holdings', local_name: '海港控股集团',
       registration_number: 'BR-2009-00051', employee_count_band: '5001+', website_url: 'https://harbor-holdings.example',
       founded_date: '2009-06-01', organization_status: 'ACTIVE', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
       description: 'Holding company of the Harbor retail and online businesses.', mobile: '+86 21 5000 1000', email: 'office@harbor-holdings.example'
@@ -1015,7 +1024,7 @@ async function customer360Demo(context, attempt) {
   });
   const online = await attempt('subsidiary', async function () {
     return data(await admin.post('/crm/parties', {
-      party_type: 'ORGANIZATION', legal_name: 'Harbor Online Commerce Co., Ltd.', trading_name: 'Harbor Online', local_name: '海港在线',
+      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), legal_name: 'Harbor Online Commerce Co., Ltd.', trading_name: 'Harbor Online', local_name: '海港在线',
       registration_number: 'BR-2021-00733', employee_count_band: '51-200', founded_date: '2021-02-15', organization_status: 'ACTIVE',
       description: 'The group\'s web shop; resells Eshop accessories.', email: 'shop@harbor-online.example'
     }));
@@ -1078,7 +1087,7 @@ async function customer360Demo(context, attempt) {
   const isoDate = function (offsetDays) { return new Date(today.getTime() + offsetDays * DAY).toISOString().slice(0, 10); };
   const contracts = [
     [harbor, { agreement_type: 'ENTERPRISE', agreement_no: 'EA-2025-0412', title: 'Enterprise agreement 2025-2027', start_date: isoDate(-540),
-      end_date: isoDate(190), renewal_date: isoDate(120), status: 'ACTIVE', annual_value: 480000, note: 'Volume pricing on Crystal phones and accessories.' }],
+      end_date: isoDate(190), renewal_date: isoDate(120), status: 'ACTIVE', annual_value: 480000, note: 'Volume pricing on Dream smartphones and accessories.' }],
     [northwind, { agreement_type: 'SERVICE_LEVEL', agreement_no: 'SLA-2024-0093', title: 'Delivery and collection SLA', start_date: isoDate(-700),
       end_date: isoDate(30), renewal_date: isoDate(0), status: 'ACTIVE', annual_value: 96000 }],
     [cityRepair, { agreement_type: 'PARTNERSHIP', agreement_no: 'PA-2023-0021', title: 'Authorised repair partner', start_date: isoDate(-900), status: 'ACTIVE' }],
@@ -1133,7 +1142,7 @@ async function customer360Demo(context, attempt) {
   }
 
   /* Devices registered to the organizations, and the cases they raised. */
-  const catalogue = await db('crm_product_catalog').where({ project_id: projectId('CRYSTAL'), status: 'ACTIVE' })
+  const catalogue = await db('crm_product_catalog').whereIn('project_id', [projectId('SMARTPHONE'), projectId('EPRODUCT')]).where('status', 'ACTIVE')
     .whereNot('product_name', 'like', 'CHK%').orderBy('product_id').limit(4).select('product_id', 'product_name');
   let assets = 0;
   for (const [party, count, prefix] of [[harbor, 6, 'HB'], [school, 5, 'BF'], [northwind, 3, 'NW']]) {
@@ -1164,7 +1173,7 @@ async function customer360Demo(context, attempt) {
     // eslint-disable-next-line no-await-in-loop
     const created = await attempt('organization case', async function () {
       const serviceCase = data(await admin.post('/crm/cases', {
-        party_pk: party.party_pk, project_id: projectId('CRYSTAL'), case_type_id: caseType(typeCode), title: title,
+        party_pk: party.party_pk, project_id: projectId(typeCode === 'SOFTWARE_SUPPORT' ? 'APPSTORE' : 'SMARTPHONE'), case_type_id: caseType(typeCode), title: title,
         reception_channel_code: 'PHONE', received_at: new Date(today.getTime() - (5 + organizationCases * 9) * DAY).toISOString()
       }));
       if (statusCode !== 'RECEIVED') await admin.put('/crm/cases/' + serviceCase.case_id, { service_status_id: statusId(statusCode) });
@@ -1211,7 +1220,7 @@ async function customer360Demo(context, attempt) {
     // eslint-disable-next-line no-await-in-loop
     if (await attempt('message', function () {
       return admin.post('/crm/parties/' + person.party_pk + '/messages', {
-        project_id: projectId('CRYSTAL'), channel_id: channelId('SMS'), purpose_id: purposeId('SERVICE_NOTICE'),
+        project_id: projectId('SMARTPHONE'), channel_id: channelId('SMS'), purpose_id: purposeId('SERVICE_NOTICE'),
         subject: 'Your device is ready', body: 'Your repaired device is ready for collection at the service centre.'
       });
     })) interactions += 1;

@@ -50,7 +50,7 @@ Rules that run through everything:
 
 | Screen | What it is for | Main code |
 |---|---|---|
-| Overview | Headline figures, grade distribution, imports from other systems. | `analysisRead.service.js`, `crystalImport.service.js`, `vendorImport.service.js` |
+| Overview | Headline figures, trends, work waiting and data-feed health. | `analysis.service.js` |
 | Customers | Customer list, Customer 360 record, Excel import, review tabs (pending registrations, e-shop assignments, duplicates). | `parties.service.js`, `customer360.service.js`, `registrationIntake.service.js` |
 | Products | Catalogue, product instances, registrations. | `products.service.js` |
 | Transfers | Requests to hand a product to someone else. | `products.service.js` |
@@ -67,9 +67,9 @@ Rules that run through everything:
 ## 4. Projects
 
 Screen: **Settings > Projects**. Codes and names are the administrator's own. The Excel import and the User PK rule
-find their projects by **identity role**, never by code. Only the imports from the old systems look projects up by
-code: the Crystal import needs a project coded `CRYSTAL`, and platform-account links, point types without an owner
-project and campaigns without a project fall back to `PLATFORM` when one exists.
+find their projects by **identity role**, never by code. No code looks a project up by its code, and none is created on install:
+whatever needs a project and has none is refused with a message saying which one to set - a point type without an owner
+project, a campaign without a project, a customer without an origin project.
 
 | Change | Allowed when | Notes |
 |---|---|---|
@@ -78,8 +78,7 @@ project and campaigns without a project fall back to `PLATFORM` when one exists.
 | Code (`project_code`) | Only while no row in any other table references the project | The check reads the foreign keys from the database, so it covers every table. When blocked, the message names the tables that use the project. |
 | Delete | Only while no row references the project | Same check. A project in use can be set INACTIVE instead. |
 
-Renaming a code the old-system imports look up (`CRYSTAL`, `PLATFORM`) means those imports no longer find the project;
-do that only deliberately. Identity roles can be moved between projects at any time.
+Identity roles can be moved between projects at any time.
 
 ## 5. Customers and identity
 
@@ -449,12 +448,8 @@ on the customer (`crm_party.assigned_grade_*`) and recorded in the audit log.
 
 ## 13. Imports from other systems
 
-Screen: **Overview > Import**. Every import only reads its source and can be re-run.
-
-| Import | Code | What it brings |
-|---|---|---|
-| Crystal | `crystalImport.service.js` | Locations (the vendor list), service centres and their services, members (through the same identity resolution, plus their platform account), registered devices, point logs, repair tickets. Each step is its own transaction, in dependency order. |
-| Eshop and Appstore | `vendorImport.service.js` | Accounts (which account belongs to which member comes from the vendor platform's merge table), memberships and card levels, orders as sales and refunds, app purchases as purchases plus entitlements. |
+There are none. Customers arrive through the Excel import (Customers > Import from Excel), the console's own forms and
+the department API (`/api/integration/crm`), which each take the project from the user or from the API key.
 
 ## 14. Settings and internal organization
 
@@ -468,16 +463,16 @@ again: new ones added, changed ones updated, none removed), metric definitions a
 | Rule | Applies to |
 |---|---|
 | A value in use cannot be deleted | Every list (the foreign keys refuse it). |
-| A code the system depends on cannot be renamed or deleted | e.g. point type CRYSTAL, activity RESERVATION_PICKUP, case type REPAIR. Names, order and flags stay editable. |
+| A code the system depends on cannot be renamed or deleted | e.g. activity RESERVATION_PICKUP, case type REPAIR. Names, order and flags stay editable. |
 | Code change and delete only while unused | Projects (section 4). |
 
 **Starting from an empty CRM**, enter the basic data first. Codes are free except these, which the program looks up:
 
 | List | Codes the program uses |
 |---|---|
-| Projects | Identity roles **E-shop** and **User management** on two projects (needed by the Excel import); `CRYSTAL` only for the Crystal import |
+| Projects | Identity roles **E-shop** and **User management** on two projects (needed by the Excel import); no project codes |
 | Currencies | `USD`, one currency marked as the reporting currency |
-| Point types / point event types | `CRYSTAL` / `EARN`, `REDEEM`, `EXPIRE`, `ADJUST`, `REFUND`, `RESERVATION_COST`, `EVENT_AWARD`, `MERGE_CARRY_OVER` |
+| Point types / point event types | none / `EARN`, `REDEEM`, `EXPIRE`, `ADJUST`, `REFUND`, `RESERVATION_COST`, `EVENT_AWARD`, `MERGE_CARRY_OVER` |
 | Product classes | `SMARTPHONE`, `EPRODUCT`, `SOFTWARE`, `STB`, `PC`, `CAMERA`, `KARAOKE_LICENCE`, `MEDIA_LICENCE` |
 | Ways to hold a product | `OWNER`, `USER`, `REGISTERED_USER`, `LESSEE`, `LICENSEE` |
 | Acquisition types | `PURCHASED`, `TRANSFER`, `COMPANY_ASSIGNED` |

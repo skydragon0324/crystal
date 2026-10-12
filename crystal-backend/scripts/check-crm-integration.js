@@ -145,7 +145,7 @@ async function main() {
     return (await status(admin.get('/crm/settings/projects/' + project.project_id))) === 404 ? true : 'still there';
   });
   const meta = data(await admin.get('/crm/meta'));
-  const crystal = (meta.projects || []).filter(function (row) { return row.project_code === 'CRYSTAL'; })[0];
+  const crystal = (meta.projects || []).filter(function (row) { return row.project_code === 'SMARTPHONE'; })[0];
   await check('a project in use keeps its code, naming what uses it', async function () {
     try {
       await admin.put('/crm/settings/projects/' + crystal.project_id, { project_code: 'RENAMED' });

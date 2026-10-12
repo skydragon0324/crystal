@@ -295,8 +295,8 @@ const SETTINGS = [
     'Points a device licence costs', null],
   /*
    * What one unit of the Eshop's and the Appstore's native currency is worth in
-   * the CRM's reporting currency. The CRM's Dream-wide spend adds those projects
-   * to Crystal's, and nothing upstream converts them - see services/crm/vendorImport.
+   * the CRM's reporting currency. The Eshop and Appstore importer that read it
+   * has been removed; nothing reads it now.
    */
   ['company.native_currency_rate', '0.01', 'number', 'company',
     'Native currency to reporting currency rate',

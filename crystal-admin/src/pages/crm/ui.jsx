@@ -57,7 +57,14 @@ export function ScoreMeter({ value, compact }) {
   );
 }
 
-const PROJECT_COLOUR = { CRYSTAL: 'blue', ESHOP: 'orange', APPSTORE: 'purple', PLATFORM: 'gray', EPRODUCT: 'teal', KARAOKE: 'pink', BMEDIA: 'cyan' };
+/* Projects are whatever Settings holds, so a tag's colour comes from its code: the same project is always the same colour. */
+const TAG_COLOURS = ['blue', 'orange', 'purple', 'teal', 'pink', 'cyan', 'green', 'yellow', 'red'];
+
+function colourOf(code) {
+  let sum = 0;
+  for (let index = 0; index < code.length; index += 1) sum = (sum * 31 + code.charCodeAt(index)) % 9973;
+  return TAG_COLOURS[sum % TAG_COLOURS.length];
+}
 
 export function ProjectTags({ codes, size }) {
   const list = (Array.isArray(codes) ? codes : String(codes || '').split(',')).filter(Boolean);
@@ -66,7 +73,7 @@ export function ProjectTags({ codes, size }) {
     <Wrap spacing={1}>
       {list.map((code) => (
         <WrapItem key={code}>
-          <Tag size={size || 'sm'} colorScheme={PROJECT_COLOUR[code] || 'gray'} variant="subtle" borderRadius="full">{code}</Tag>
+          <Tag size={size || 'sm'} colorScheme={colourOf(code)} variant="subtle" borderRadius="full">{code}</Tag>
         </WrapItem>
       ))}
     </Wrap>

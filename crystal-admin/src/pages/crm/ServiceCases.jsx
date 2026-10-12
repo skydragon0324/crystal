@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Box, Button, Modal, ModalBody, ModalCloseButton, ModalContent, ModalHeader, ModalOverlay, SimpleGrid,
-  Stack, Text, Textarea, useDisclosure, useToast
+  Box, Button, Flex, HStack, Heading, Modal, ModalBody, ModalCloseButton, ModalContent, ModalHeader, ModalOverlay, SimpleGrid,
+  Stack, Tab, TabList, Tabs, Tag, Text, Textarea, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 
@@ -15,7 +15,9 @@ import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { dateTime, money } from '../../utils/format';
+import { date, dateTime, money, number } from '../../utils/format';
+import { useSurface } from '../../theme/tokens';
+import { ProjectTags } from './ui';
 import { Fact, Facts, PartyPicker, choices, optionsFrom, useCrmMeta, useSiteOptions, word, filtersFor, translateOptions, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/service-cases';
@@ -23,28 +25,45 @@ export const PAGE = '/admin/crm/service-cases';
 /**
  * SERVICE CASES - one summary per service event, whichever project ran it.
  *
- * Crystal's repair tickets arrive here through the import and stay tickets:
- * the bench, the parts and the claim are on the ticket screen, and a case
- * that mirrors a ticket is not edited here. What the CRM adds is the reading
- * every project's service has in common - what the customer reported, what
- * was actually wrong, why, and what fixed it - so a fault can be counted
- * across Crystal's centres and the vendor's agencies in one place.
+ * Five tabs: every case, the open ones, the ones past their due date, and the
+ * same counted per project and per case type - a row there opens the list
+ * narrowed to it. What the CRM adds to a project's own repair records is the
+ * reading every project's service has in common - what the customer
+ * reported, what was actually wrong, why, and what fixed it.
  *
  * Complaints, enquiries and other non-repair cases are opened here.
  */
+const TABS = ['all', 'open', 'overdue', 'project', 'type'];
+
 export default function ServiceCases() {
   const translate = useT();
   const toast = useToast();
   const history = useHistory();
   const location = useLocation();
+  const surface = useSurface();
   const meta = useCrmMeta();
   const sites = useSiteOptions();
   const form = useDisclosure();
   const { canWrite } = usePermission(PAGE);
   const [saving, setSaving] = useState(false);
+  const [summary, setSummary] = useState({});
 
-  const openCase = new URLSearchParams(location.search).get('case');
-  const list = useList((params) => crm.cases.list(params), { page: 1, limit: 20, open: '1', dir: 'desc' });
+  const query = new URLSearchParams(location.search);
+  const openCase = query.get('case');
+  /* ?overdue=1 opens the Overdue tab. */
+  const [tab, setTab] = useState(query.get('overdue') === '1' ? 'overdue' : 'all');
+  const list = useList((params) => crm.cases.list(params), { page: 1, limit: 20, dir: 'desc', overdue: tab === 'overdue' ? '1' : undefined });
+
+  const loadSummary = useCallback(() => {
+    crm.cases.summary().then(({ data }) => setSummary(data || {})).catch(() => setSummary({}));
+  }, []);
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+
+  const showTab = (next, narrowing) => {
+    setTab(next);
+    if (next === 'project' || next === 'type') return;
+    list.setFilter(Object.assign({ open: next === 'open' ? '1' : undefined, overdue: next === 'overdue' ? '1' : undefined }, narrowing || {}));
+  };
 
   const create = async (values) => {
     setSaving(true);
@@ -53,6 +72,7 @@ export default function ServiceCases() {
       toast({ title: translate('Created'), status: 'success', duration: 2500 });
       form.onClose();
       list.reload();
+      loadSummary();
       if (data && data.case_id) history.push(PAGE + '?case=' + data.case_id);
       return true;
     } catch (error) {
@@ -63,72 +83,111 @@ export default function ServiceCases() {
     }
   };
 
-  const crystal = (meta.projects || []).filter((project) => project.project_code === 'CRYSTAL')[0];
+  const counts = summary.counts || {};
+  const tabLabels = {
+    all: [translate('crm.serviceCases.allCases'), counts.total],
+    open: [translate('crm.serviceCases.openCases'), counts.open],
+    overdue: [translate('crm.serviceCases.overdue'), counts.overdue],
+    project: [translate('crm.serviceCases.byProject')],
+    type: [translate('crm.serviceCases.byType')]
+  };
 
   return (
     <Card bodyProps={false}>
-      <Toolbar
-        search={list.params.q}
-        onSearch={(searchText) => list.setFilter({ q: searchText })}
-        filters={filtersFor(translate, [
-          { key: 'open', label: 'Open or all', value: list.params.open,
-            options: [{ value: '1', label: 'Open only' }],
-            onChange: (value) => list.setFilter({ open: value || undefined }) },
-          { key: 'service_status_id', label: 'Status', value: list.params.service_status_id,
-            options: optionsFrom(meta.service_statuses, 'service_status_id', 'display_name'),
-            onChange: (value) => list.setFilter({ service_status_id: value || undefined }) },
-          { key: 'case_type_id', label: 'Type', value: list.params.case_type_id,
-            options: optionsFrom(meta.case_types, 'case_type_id', 'display_name'),
-            onChange: (value) => list.setFilter({ case_type_id: value || undefined }) },
-          { key: 'project_id', label: 'Project', value: list.params.project_id,
-            options: optionsFrom(meta.projects, 'project_id', 'project_code'),
-            onChange: (value) => list.setFilter({ project_id: value || undefined }) },
-          { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
-            options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
-          { key: 'unclassified', label: 'Classification', value: list.params.unclassified,
-            options: [{ value: '1', label: 'Not classified yet' }],
-            onChange: (value) => list.setFilter({ unclassified: value || undefined }) }
-        ])}
-        actions={canWrite ? (
+      <Flex px={5} pt={4} pb={2} justify="space-between" align="center" wrap="wrap" gap={3} data-gap="12" data-gap-wrap>
+        <Box>
+          <Heading size="md">{translate('crm.serviceCases.title')}</Heading>
+          <Text fontSize="sm" color={surface.muted} mt={0.5}>{translate('crm.serviceCases.lead')}</Text>
+        </Box>
+        {canWrite ? (
           <Button size="sm" variant="brand" leftIcon={<AddIcon w="0.5625rem" h="0.5625rem" />} onClick={form.onOpen}>
             {translate('crm.serviceCases.newCase')}
           </Button>
         ) : null}
-      />
-      <Box px="0.5rem" pb="0.5rem">
-        <DataTable
-          columns={[
-            { key: 'external_case_id', label: 'Case', render: (row) => row.external_case_id || ('#' + row.case_id) },
-            { key: 'party_name', label: 'Customer', render: (row) => (row.party_name || '-') + '  ' + partyIdLabel(row.party_pk) },
-            { key: 'case_type_name', label: 'Type', render: (row) => translate(row.case_type_name || '-') },
-            { key: 'status_name', label: 'Status', render: (row) => translate(row.status_name || '-') },
-            { key: 'service_center_name', label: 'Service location', maxW: '12rem' },
-            { key: 'product_name', label: 'Product' },
-            { key: 'is_classified', label: 'Classified', render: (row) => (row.is_classified ? translate('common.yes') : '-') },
-            { key: 'received_at', label: 'Received', render: (row) => dateTime(row.received_at) },
-            { key: 'due_at', label: 'Due', render: (row) => dateTime(row.due_at) }
-          ]}
-          rows={list.rows}
-          loading={list.loading}
-          page={list.params.page}
-          limit={list.params.limit}
-          total={list.total}
-          sort={list.params.sort}
-          dir={list.params.dir}
-          onSort={list.setSort}
-          onPageChange={list.setPage}
-          onLimitChange={(limit) => list.setFilter({ limit: limit })}
-          rowKey={(row) => row.case_id || row.id}
-          onRowClick={(row) => history.push(PAGE + '?case=' + (row.case_id || row.id))}
-          storageKey={PAGE}
-        />
-      </Box>
+      </Flex>
+
+      <Tabs index={TABS.indexOf(tab)} onChange={(index) => showTab(TABS[index])} variant="line" colorScheme="brand">
+        <TabList px={4}>
+          {TABS.map((key) => (
+            <Tab key={key} fontSize="sm">
+              <HStack spacing={2}>
+                <Text as="span">{tabLabels[key][0]}</Text>
+                {tabLabels[key][1] === undefined ? null : (
+                  <Tag size="sm" borderRadius="full" colorScheme={key === 'overdue' && tabLabels[key][1] > 0 ? 'red' : 'gray'}>{number(tabLabels[key][1])}</Tag>
+                )}
+              </HStack>
+            </Tab>
+          ))}
+        </TabList>
+      </Tabs>
+
+      {tab === 'project' || tab === 'type' ? (
+        <CaseSummary rows={tab === 'project' ? summary.by_project || [] : summary.by_type || []} byProject={tab === 'project'}
+          onPick={(row) => showTab('all', tab === 'project' ? { project_id: row.project_id, case_type_id: undefined } : { case_type_id: row.case_type_id, project_id: undefined })} />
+      ) : (
+        <>
+          <Toolbar
+            search={list.params.q}
+            onSearch={(searchText) => list.setFilter({ q: searchText })}
+            filters={filtersFor(translate, [
+              { key: 'service_status_id', label: 'Status', value: list.params.service_status_id,
+                options: optionsFrom(meta.service_statuses, 'service_status_id', 'display_name'),
+                onChange: (value) => list.setFilter({ service_status_id: value || undefined }) },
+              { key: 'case_type_id', label: 'Type', value: list.params.case_type_id,
+                options: optionsFrom(meta.case_types, 'case_type_id', 'display_name'),
+                onChange: (value) => list.setFilter({ case_type_id: value || undefined }) },
+              { key: 'project_id', label: 'Project', value: list.params.project_id,
+                options: optionsFrom(meta.projects, 'project_id', 'project_name'),
+                onChange: (value) => list.setFilter({ project_id: value || undefined }) },
+              { key: 'service_center_id', label: 'Service location', value: list.params.service_center_id, width: '14rem',
+                options: sites, onChange: (value) => list.setFilter({ service_center_id: value || undefined }) },
+              { key: 'unclassified', label: 'Classification', value: list.params.unclassified,
+                options: [{ value: '1', label: 'Not classified yet' }],
+                onChange: (value) => list.setFilter({ unclassified: value || undefined }) }
+            ])}
+          />
+          <Box px="0.5rem" pb="0.5rem">
+            <DataTable
+              columns={[
+                { key: 'external_case_id', label: translate('crm.serviceCases.caseNo'),
+                  render: (row) => <Text as="span" fontWeight="600" color="brand.500">{caseNumber(row)}</Text> },
+                { key: 'party_name', label: translate('crm.serviceCases.customer'), render: (row) => (
+                  <Box>
+                    <Text fontSize="sm" noOfLines={1}>{row.party_name || '-'}</Text>
+                    <Text fontSize="xs" color={surface.muted}>{partyIdLabel(row.party_pk)}</Text>
+                  </Box>
+                ) },
+                { key: 'project_code', label: translate('crm.serviceCases.project'), render: (row) => <ProjectTags codes={[row.project_code]} /> },
+                { key: 'case_type_name', label: translate('crm.serviceCases.type'), render: (row) => translate(row.case_type_name || '-') },
+                { key: 'status_name', label: translate('crm.serviceCases.status'), render: (row) => <CaseStatus row={row} /> },
+                { key: 'priority_name', label: translate('crm.serviceCases.priority'), render: (row) => <CasePriority row={row} /> },
+                { key: 'received_at', label: translate('crm.serviceCases.created'), render: (row) => date(row.received_at) },
+                { key: 'due_at', label: translate('crm.serviceCases.due'),
+                  render: (row) => <Text as="span" color={isOverdue(row) ? 'red.500' : undefined}>{dateTime(row.due_at)}</Text> }
+              ]}
+              rows={list.rows}
+              loading={list.loading}
+              page={list.params.page}
+              limit={list.params.limit}
+              total={list.total}
+              sort={list.params.sort}
+              dir={list.params.dir}
+              onSort={list.setSort}
+              onPageChange={list.setPage}
+              onLimitChange={(limit) => list.setFilter({ limit: limit })}
+              rowKey={(row) => row.case_id || row.id}
+              onRowClick={(row) => history.push(PAGE + '?case=' + (row.case_id || row.id))}
+              storageKey={PAGE + ':v2'}
+            />
+          </Box>
+        </>
+      )}
 
       <FormModal
         isOpen={form.isOpen}
         onClose={form.onClose}
         title={translate('crm.serviceCases.newCase')}
-        initial={{ project_id: crystal ? crystal.project_id : null, reception_channel_code: 'PHONE' }}
+        initial={{ reception_channel_code: 'PHONE' }}
         onSubmit={create}
         saving={saving}
         fields={[
@@ -149,8 +208,67 @@ export default function ServiceCases() {
         ]}
       />
 
-      <CaseDetail id={openCase} onClose={() => { history.push(PAGE); list.reload(); }} />
+      <CaseDetail id={openCase} onClose={() => { history.push(PAGE); list.reload(); loadSummary(); }} />
     </Card>
+  );
+}
+
+/** The project's own case number, or the CRM's when the case was opened here. */
+function caseNumber(row) {
+  return row.external_case_id || ('SC-' + String(row.case_id).padStart(6, '0'));
+}
+
+function isOverdue(row) {
+  return !row.is_terminal && row.due_at && new Date(row.due_at).getTime() < Date.now();
+}
+
+/* Where a case stands, as a coloured pill: waiting, being worked on, ready, done, dropped. */
+const STATUS_SCHEME = {
+  RECEIVED: 'blue', DIAGNOSING: 'orange', WAITING_PARTS: 'orange', WAITING_APPROVAL: 'orange', IN_REPAIR: 'orange',
+  QUALITY_CHECK: 'orange', READY: 'teal', CLOSED: 'green', CANCELLED: 'gray'
+};
+const PRIORITY_SCHEME = { LOW: 'gray', NORMAL: 'blue', HIGH: 'orange', URGENT: 'red' };
+
+function CaseStatus({ row }) {
+  const translate = useT();
+  return (
+    <HStack spacing={1}>
+      <Tag size="sm" borderRadius="full" variant="subtle" colorScheme={STATUS_SCHEME[row.status_code] || 'gray'}>{translate(row.status_name || '-')}</Tag>
+      {isOverdue(row) ? <Tag size="sm" borderRadius="full" variant="subtle" colorScheme="red">{translate('crm.serviceCases.overdue')}</Tag> : null}
+    </HStack>
+  );
+}
+
+function CasePriority({ row }) {
+  const translate = useT();
+  if (!row.priority_code) return <Text as="span">-</Text>;
+  return <Tag size="sm" borderRadius="full" variant="subtle" colorScheme={PRIORITY_SCHEME[row.priority_code] || 'gray'}>{translate(row.priority_name)}</Tag>;
+}
+
+/** The By project and By type tabs: the counts per group, a row opening the list narrowed to it. */
+function CaseSummary({ rows, byProject, onPick }) {
+  const translate = useT();
+  return (
+    <Box px="0.5rem" py="0.5rem">
+      <DataTable
+        hidePagination
+        rows={rows}
+        rowKey={(row) => (byProject ? row.project_id : row.case_type_id)}
+        onRowClick={onPick}
+        columns={[
+          byProject
+            ? { key: 'project_name', label: translate('crm.serviceCases.project'),
+              render: (row) => <HStack spacing={2}><ProjectTags codes={[row.project_code]} /><Text as="span">{translate(row.project_name)}</Text></HStack> }
+            : { key: 'case_type_name', label: translate('crm.serviceCases.type'), render: (row) => translate(row.case_type_name) },
+          { key: 'open', label: translate('crm.serviceCases.openCases'), isNumeric: true, render: (row) => number(row.open) },
+          { key: 'overdue', label: translate('crm.serviceCases.overdue'), isNumeric: true,
+            render: (row) => <Text as="span" color={row.overdue > 0 ? 'red.500' : undefined} fontWeight={row.overdue > 0 ? '700' : undefined}>{number(row.overdue)}</Text> },
+          { key: 'closed_30d', label: translate('crm.serviceCases.closed30Days'), isNumeric: true, render: (row) => number(row.closed_30d) },
+          { key: 'days_to_close', label: translate('crm.serviceCases.daysToClose'), isNumeric: true, render: (row) => number(row.days_to_close, 1) },
+          { key: 'total', label: translate('crm.serviceCases.total'), isNumeric: true, render: (row) => number(row.total) }
+        ]}
+      />
+    </Box>
   );
 }
 

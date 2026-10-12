@@ -73,7 +73,7 @@ async function main() {
 
   const meta = data(await admin.get('/crm/meta'));
   const byCode = function (list, field, code) { return (meta[list] || []).filter(function (row) { return row[field] === code; })[0]; };
-  const crystal = byCode('projects', 'project_code', 'CRYSTAL');
+  const crystal = byCode('projects', 'project_code', 'SMARTPHONE');
   const activityPoints = byCode('point_types', 'point_type_code', 'ACTIVITY');
 
   console.log('vocabularies and the grid');
@@ -89,7 +89,7 @@ async function main() {
   });
   await check('the overview answers', async function () {
     const overview = data(await admin.get('/crm/overview'));
-    return overview.parties && overview.cases && overview.points ? true : 'incomplete';
+    return overview.customers && overview.service && overview.points ? true : 'incomplete';
   });
   await check('a project in use keeps its code', function () {
     return refused(admin.put('/crm/settings/projects/' + crystal.project_id, { project_code: 'RENAMED' }), 409);

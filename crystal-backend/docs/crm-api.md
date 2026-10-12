@@ -14,12 +14,12 @@ and repository behind it) and `src/services/crm/*`. When the code changes, this 
 |---|---|---|
 | 1 | [Conventions](#1-conventions) | Base URL, authentication, permissions, X-Lang, envelope, paging, errors |
 | 2 | [Shared lookups](#2-shared-lookups) | `GET /meta`, `GET /parties/lookup`, `GET /instances/lookup`, `GET /catalog/lookup`, `GET /sites/options`, `GET /segments/options`, `GET /segments/fields`, `GET /events/options`, `GET /campaigns/options` |
-| 3 | [Overview and imports](#3-overview-and-imports) | `GET /overview`, `POST /import`, `POST /recalculate`, `POST /import/vendor` |
+| 3 | [Overview](#3-overview) | `GET /overview`, `POST /recalculate` |
 | 4 | [Analysis](#4-analysis) | `GET /analysis/summary`, `GET /analysis/snapshots`, `GET /analysis/metrics`, `GET /analysis/model`, `POST /analysis/run` |
 | 5 | [Transactions](#5-transactions) | `GET /transactions`, `GET /transactions/:id` |
 | 6 | [Memberships](#6-memberships) | `GET /memberships`, `GET /memberships/distribution`, `GET /memberships/:id/history`, `POST /memberships/:id/tier`, `POST /memberships/:id/status` |
 | 7 | [Internal departments](#7-internal-departments) | `GET /departments/staff`, `GET /departments/roles`, `PUT /departments/staff/:managerId`, `PUT /departments/roles/:roleId` |
-| 8 | [Customers (parties)](#8-customers-parties) | `GET /parties`, `POST /parties`, `GET /parties/similar`, `GET /parties/:id`, `PUT /parties/:id`, `POST /parties/:id/status`, `PUT /parties/:id/grade`, `POST /parties/:id/checked`, `POST /parties/:id/contacts`, `PUT /parties/:id/contacts/:contactId`, `POST /parties/:id/accounts`, `POST /parties/:id/accounts/:accountId/unlink`, `PUT /parties/:id/consents`, `POST /parties/:id/merge` |
+| 8 | [Customers (parties)](#8-customers-parties) | `GET /parties`, `POST /parties`, `GET /parties/similar`, `GET /parties/:id`, `PUT /parties/:id`, `POST /parties/:id/status`, `PUT /parties/:id/grade`, `POST /parties/:id/checked`, `POST /parties/:id/contacts`, `PUT /parties/:id/contacts/:contactId`, `DELETE /parties/:id/contacts/:contactId`, `POST /parties/:id/accounts`, `POST /parties/:id/accounts/:accountId/unlink`, `PUT /parties/:id/consents`, `POST /parties/:id/merge` |
 | 9 | [Customer import (Excel)](#9-customer-import-excel) | `GET /parties/import/template`, `POST /parties/import`, `GET /import-errors`, `POST /import-errors/:id/dismiss` |
 | 10 | [Duplicates](#10-duplicates) | `GET /duplicates`, `POST /duplicates/scan`, `POST /duplicates/:id/accept`, `POST /duplicates/:id/reject` |
 | 11 | [Organizations](#11-organizations) | `POST /parties/:id/org-types`, `POST /parties/:id/org-types/:assignmentId/end`, `PUT /parties/:id/industries`, `DELETE /parties/:id/industries/:industryId`, `POST /parties/:id/people`, `POST /parties/:id/people/:relationshipId/end` |
@@ -87,7 +87,7 @@ The pages:
 
 | Page | Screen |
 |---|---|
-| `/admin/crm/overview` | Overview and imports |
+| `/admin/crm/overview` | Overview |
 | `/admin/crm/customers` | Customers, Customer 360, Excel import, duplicates, identity intakes |
 | `/admin/crm/products` | Product instances, registrations, catalogue |
 | `/admin/crm/transfers` | Transfers |
@@ -280,7 +280,7 @@ Every CRM vocabulary in one read, so a screen can fill all its drop-downs from o
   "success": true,
   "message": "ok",
   "data": {
-    "projects": [{ "project_id": 2, "project_code": "CRYSTAL", "project_name": "Crystal", "project_type_code": null, "source_system_code": null, "legal_entity_code": null, "status": "ACTIVE", "identity_role": null, "created_at": "2026-09-01T00:00:00.000Z", "updated_at": "2026-09-01T00:00:00.000Z" }],
+    "projects": [{ "project_id": 2, "project_code": "SMARTPHONE", "project_name": "Smartphones", "project_type_code": null, "source_system_code": null, "legal_entity_code": null, "status": "ACTIVE", "identity_role": null, "created_at": "2026-09-01T00:00:00.000Z", "updated_at": "2026-09-01T00:00:00.000Z" }],
     "currencies": [{ "currency_code": "USD", "currency_name": "US dollar", "decimal_places": 2, "is_reporting": true, "is_active": true }],
     "corporate_grades": [{ "corporate_grade_id": 1, "grade_code": "BRONZE", "grade_name": "Bronze", "rank_no": 1, "min_score": "0.0000", "max_score": "40.0000", "is_active": true }],
     "areas": [{ "location_pk": "11", "location_id": "11", "location_name": "Central", "location_code": "01", "parent_code": "0", "position": 1, "full_name": "Central", "level": 0 }],
@@ -374,7 +374,7 @@ Finds product instances (devices, licences, entitlements) for a picker. It uses 
   "success": true,
   "message": "ok",
   "data": [
-    { "product_instance_id": "881", "product_id": "14", "project_id": 2, "external_product_instance_id": "IMEI-356789104512345", "instance_kind": "DEVICE", "serial_number": null, "imei": "356789104512345", "license_key_hash": null, "bound_instance_id": null, "provider_party_pk": null, "valid_until": null, "manufactured_at": null, "batch_code": null, "activated_at": "2026-03-02T08:10:00.000Z", "status": "ACTIVE", "created_at": "2026-09-01T10:00:00.000Z", "updated_at": "2026-09-01T10:00:00.000Z", "product_name": "Dream X9", "product_code": "X9", "project_code": "CRYSTAL", "class_code": "SMARTPHONE", "class_name": "Smartphone", "holder_name": "Bat-Erdene D.", "registration_cnt": 1 }
+    { "product_instance_id": "881", "product_id": "14", "project_id": 2, "external_product_instance_id": "IMEI-356789104512345", "instance_kind": "DEVICE", "serial_number": null, "imei": "356789104512345", "license_key_hash": null, "bound_instance_id": null, "provider_party_pk": null, "valid_until": null, "manufactured_at": null, "batch_code": null, "activated_at": "2026-03-02T08:10:00.000Z", "status": "ACTIVE", "created_at": "2026-09-01T10:00:00.000Z", "updated_at": "2026-09-01T10:00:00.000Z", "product_name": "Dream X9", "product_code": "X9", "project_code": "SMARTPHONE", "class_code": "SMARTPHONE", "class_name": "Smartphone", "holder_name": "Bat-Erdene D.", "registration_cnt": 1 }
   ]
 }
 ```
@@ -412,7 +412,7 @@ Rows with status `DISCONTINUED` are left out. The order is `product_name`, with 
 | project_code | string | |
 
 ```json
-{ "success": true, "message": "ok", "data": [ { "product_id": "14", "product_code": "X9", "product_name": "Dream X9", "product_kind": "DEVICE", "project_id": 2, "project_code": "CRYSTAL" } ] }
+{ "success": true, "message": "ok", "data": [ { "product_id": "14", "product_code": "X9", "product_name": "Dream X9", "product_kind": "DEVICE", "project_id": 2, "project_code": "SMARTPHONE" } ] }
 ```
 
 **Errors**
@@ -544,11 +544,16 @@ Campaigns for a picker.
 
 **Errors:** `403 common.permissionDenied`.
 
-## 3. Overview and imports
+## 3. Overview
 
 ### GET /api/admin/crm/overview
 
-The CRM front page. It reads headline counts across customers, holdings, service cases, points, events, sites and marketing, then breaks customers down by project and holdings down by top-level product class. Every figure is computed live when the endpoint is called.
+The CRM front page: the business, the customers, the work waiting and the health of every data feed, in one read. Every figure is computed live when the endpoint is called; nothing is cached.
+
+Two definitions hold throughout, so the figures agree with the screens they link to:
+
+- **Customers** are parties with `party_status` `ACTIVE` or `INACTIVE`, the set the customer list shows. A customer's grade and activity come from their latest Dream-wide analysis snapshot, and a grade set by hand (`assigned_grade_id`) replaces the computed one, as in the list's grade filter.
+- **Revenue** is the sum of `reporting_net_amount` over transactions in a counted status (`COMPLETED`, `PAID`, `DELIVERED`, `FINISHED`, `ACCEPTED`, `DELIVERING`, `REFUNDED`, `SUCCESS`), the definition the analysis uses. Refunds, returns and reversals carry negative amounts and so reduce revenue. They are left out of every order and buyer count.
 
 **Permission:** READ on `/admin/crm/overview`.
 
@@ -558,49 +563,62 @@ The CRM front page. It reads headline counts across customers, holdings, service
 
 | field | type | notes |
 |---|---|---|
-| parties.active | integer | `party_status = 'ACTIVE'` |
-| parties.persons / parties.organizations | integer | ACTIVE parties of each type |
-| parties.merged | integer | `MERGED` |
-| parties.new_30d | integer | created in the last 30 days, any status |
-| parties.duplicates | integer | `crm_identity_match_candidate` with `match_status = 'PENDING'` |
-| holdings.current | integer | registrations with `valid_to IS NULL` |
-| holdings.new_30d | integer | registered in the last 30 days |
-| holdings.open_transfers | integer | transfers `REQUESTED` or `ACCEPTED` |
-| cases.open | integer | case status not terminal |
-| cases.overdue | integer | open and `due_at < now()` |
-| cases.new_30d | integer | received in the last 30 days |
-| cases.csat_90d | string \| null | average `satisfaction_rating` of cases received in the last 90 days, rounded to 2 places (numeric) |
-| points.outstanding | string | sum of every `crm_point_account.balance`, all currencies together |
+| as_of | string | ISO timestamp of the read |
+| customers.total | integer | customers, as defined above |
+| customers.active | integer | of those, `party_status = 'ACTIVE'` |
+| customers.persons / customers.organizations | integer | customers of each `party_type` |
+| customers.new_30d / customers.new_prior_30d | integer | customers whose `COALESCE(first_seen_at, created_at)` falls in the last 30 days / the 30 days before that |
+| customers.analysed | integer | customers with at least one Dream-wide snapshot |
+| customers.at_risk | integer | customers whose latest activity is `AT_RISK` or `LAPSED` |
+| customers.average_score | string \| null | average latest `corporate_score`, 1 place |
+| revenue.last_12m / revenue.prior_12m | string | revenue over the last 12 months / the 12 months before that |
+| revenue.orders_12m | integer | counted transactions in the last 12 months, refunds excluded |
+| revenue.buyers_12m / revenue.buyers_prior_12m | integer | distinct `BUYER` parties of those transactions, in each 12-month window |
+| months | array | 12 calendar months ending with the current one (which is still running): `{ month: 'YYYY-MM', revenue, orders, new_customers }`. A month with no activity is returned with zeros. |
+| projects | array | every project, by 12-month revenue then id: `{ project_id, project_code, project_name, status, source_system_code, customers, revenue_12m, orders_12m, open_cases, last_data_at }`. `customers` counts distinct customers with a linked account. `last_data_at` is the latest of: account `updated_at`, transaction `ingested_at`, membership `synced_at`, service case `ingested_at` (or `created_at`), and registration intake `created_at`. It is `null` when nothing has arrived from the project. |
+| grades | array | active corporate grades, highest rank first: `{ corporate_grade_id, grade_code, grade_name, parties }` |
+| activity | array | `{ activity_status, parties }` for analysed customers, largest first |
+| analysis.reference_date / analysis.calculated_at | string \| null | latest Dream-wide snapshot date and when it was calculated; `null` when the analysis has never run |
+| service.open / service.overdue | integer | cases not in a terminal status / of those, `due_at < now()` |
+| service.new_30d / service.closed_30d | integer | received / closed in the last 30 days |
+| service.days_to_close_90d | string \| null | average days from `received_at` to `closed_at` for cases closed in the last 90 days, 1 place |
+| service.csat_90d | string \| null | average `satisfaction_rating` of cases received in the last 90 days, 2 places |
+| queues.registrations / queues.assignments | integer | registration intakes `PENDING` in category `PERSON` / `ESHOP` |
+| queues.duplicates | integer | `crm_identity_match_candidate` with `match_status = 'PENDING'` |
+| queues.import_errors | integer | `crm_person_import_error` with `status = 'OPEN'` |
+| queues.transfers | integer | product transfers `REQUESTED` or `ACCEPTED` |
+| queues.awards | integer | activity awards `PENDING`, `READY` or `DISPATCHED` |
+| holdings.current / holdings.new_30d | integer | registrations with `valid_to IS NULL` / registered in the last 30 days |
+| points.outstanding | string | sum of every `crm_point_account.balance`, all point types together |
 | points.earned_30d / points.spent_30d | string | positive and negative `points_delta` over the last 30 days (spent reported as positive) |
 | points.drifted | integer | rows in `v_crm_point_account_drift` |
-| events.running | integer | `crm_event` `TARGETS_FROZEN` or `OPEN` |
-| events.preparing | integer | `DRAFT` or `APPROVED` |
+| events.running / events.preparing | integer | `crm_event` `TARGETS_FROZEN` or `OPEN` / `DRAFT` or `APPROVED` |
 | events.reservations_open | integer | reservations `RESERVED` or `PAID` |
-| events.awards_open | integer | awards `PENDING`, `READY` or `DISPATCHED` |
-| sites.active | integer | sites with status `ACTIVE` |
-| sites.activities_30d | integer | COMPLETED site activities in the last 30 days |
-| sites.events_ahead | integer | site events `PLANNED` or `CONFIRMED` that start from now on |
-| marketing.segments | integer | ACTIVE segments |
-| marketing.campaigns_live | integer | campaigns `APPROVED` or `ACTIVE` |
-| by_project | array | every project, ordered by project_id: `{ project_code, project_name, parties }`, where `parties` is the number of distinct parties with a linked (not unlinked) account |
-| by_class | array | top-level product classes only (`parent_product_class_id IS NULL`), ordered by id: `{ class_code, class_name, product_domain, owned, owners }`. `owned` is the sum of `active_owned_count`; `owners` is the number of parties with `active_owned_count > 0`. Both read `crm_party_product_class_stat`, so they are only as fresh as the last recalculation. |
-| recent_activity | array | Top 8 site activity types by COMPLETED count over the last 30 days: `{ activity_code, activity_name, cnt }`, ordered by `cnt` desc. |
+| sites.active | integer | service centers with status `ACTIVE` |
+| sites.activities_30d | integer | COMPLETED service center activities in the last 30 days |
+| sites.events_ahead | integer | service center events `PLANNED` or `CONFIRMED` that start from now on |
+| marketing.segments / marketing.campaigns_live | integer | ACTIVE segments / campaigns `APPROVED` or `ACTIVE` |
 
 ```json
 {
   "success": true,
   "message": "ok",
   "data": {
-    "parties": { "active": 18234, "persons": 18011, "organizations": 223, "merged": 41, "new_30d": 512, "duplicates": 9 },
-    "holdings": { "current": 20877, "new_30d": 640, "open_transfers": 3 },
-    "cases": { "open": 57, "overdue": 6, "new_30d": 188, "csat_90d": "4.32" },
+    "as_of": "2026-10-12T08:30:00.000Z",
+    "customers": { "total": 18234, "active": 18011, "persons": 18011, "organizations": 223, "new_30d": 512, "new_prior_30d": 470, "analysed": 17990, "at_risk": 2140, "average_score": "61.4" },
+    "revenue": { "last_12m": "48210330.0000", "prior_12m": "41877012.0000", "orders_12m": 30412, "buyers_12m": 9120, "buyers_prior_12m": 8433 },
+    "months": [ { "month": "2025-11", "revenue": "3810220.0000", "orders": 2510, "new_customers": 380 } ],
+    "projects": [ { "project_id": 2, "project_code": "ESHOP", "project_name": "Eshop", "status": "ACTIVE", "source_system_code": null, "customers": 12002, "revenue_12m": "30110200.0000", "orders_12m": 21003, "open_cases": 0, "last_data_at": "2026-10-12T07:58:12.000Z" } ],
+    "grades": [ { "corporate_grade_id": 1, "grade_code": "S", "grade_name": "Strategic", "parties": 120 } ],
+    "activity": [ { "activity_status": "ACTIVE", "parties": 9120 } ],
+    "analysis": { "reference_date": "2026-10-11", "calculated_at": "2026-10-12T01:00:05.000Z" },
+    "service": { "open": 57, "overdue": 6, "new_30d": 188, "closed_30d": 175, "days_to_close_90d": "3.4", "csat_90d": "4.32" },
+    "queues": { "registrations": 10, "assignments": 41, "duplicates": 9, "import_errors": 19, "transfers": 3, "awards": 5 },
+    "holdings": { "current": 20877, "new_30d": 640 },
     "points": { "outstanding": "1250430.000", "earned_30d": "48210.000", "spent_30d": "12005.000", "drifted": 0 },
-    "events": { "running": 1, "preparing": 2, "reservations_open": 34, "awards_open": 5 },
+    "events": { "running": 1, "preparing": 2, "reservations_open": 34 },
     "sites": { "active": 46, "activities_30d": 930, "events_ahead": 2 },
-    "marketing": { "segments": 7, "campaigns_live": 1 },
-    "by_project": [ { "project_code": "PLATFORM", "project_name": "Vendor platform", "parties": 17020 }, { "project_code": "CRYSTAL", "project_name": "Crystal", "parties": 17020 } ],
-    "by_class": [ { "class_code": "SMARTPHONE", "class_name": "Smartphone", "product_domain": "SMARTPHONE", "owned": 15012, "owners": 13877 } ],
-    "recent_activity": [ { "activity_code": "REPAIR_INTAKE", "activity_name": "Repair intake", "cnt": 402 } ]
+    "marketing": { "segments": 7, "campaigns_live": 1 }
   }
 }
 ```
@@ -610,67 +628,6 @@ The CRM front page. It reads headline counts across customers, holdings, service
 | status | message key | when |
 |---|---|---|
 | 403 | `common.permissionDenied` | no READ on the Overview page |
-
-### POST /api/admin/crm/import
-
-Runs the Crystal adapter. It copies Crystal's own data into the CRM: the vendor location list, agencies as sites, symptoms as fault categories, products as catalogue entries, members as parties, registered products, point logs, repair tickets as service cases, and wallet, repair and licence payments as transactions. It then rebuilds the per-class holding counts. The import is idempotent: every row it creates carries its Crystal key, so a second run updates rows instead of duplicating them. Crystal's tables are only read, never written.
-
-The call is **synchronous and long-running**. The reply arrives only after every step has finished: the steps are `locations`, `sites`, `faults`, `catalogue`, `members`, `registrations`, `points`, `cases` and `transactions`, run in that order, followed by the class-stat rebuild. Work is done row by row, and many steps open one transaction per row. There is no job id and no progress reporting. A successful run is written to the audit log as an IMPORT of `crm_party`, with the summary attached.
-
-**What it reads:**
-- Crystal's tables in the main Postgres database: `agencies`, `agency_services`, `symptom_catalog`, `products`, `product_categories`, `users`, `registered_products`, `point_logs`, `wallets`, `repair_tickets`, `wallet_transactions` and `licenses`.
-- The CRM vocabularies.
-- The vendor location list through the legacy handle (`config/legacy.js`): `<LEGACY_PID_SCHEMA>.locations`, where `LEGACY_PID_SCHEMA` defaults to `ora_pid`. `LEGACY_DRIVER` selects `postgres` (the default) or `oracle`.
-
-The import requires a `CRYSTAL` row in `crm_project`. New members go through identity resolution, which may link a member to an existing party, create a new one, or queue the member for review.
-
-**Permission:** WRITE on `/admin/crm/overview`.
-
-**Request body:** None. Nothing is read from the body.
-
-**Response** `200`, message `crm.common.importFinished` ("import finished"): `data` is the run summary, with one object per step.
-
-| field | type | notes |
-|---|---|---|
-| locations | `{ added, updated }` | vendor locations upserted into `crm_location` |
-| sites | `{ added, updated }` | agencies to `crm_service_center` (capabilities follow along) |
-| faults | `{ added }` | new fault categories from `symptom_catalog` |
-| catalogue | `{ added }` | new catalogue products. Products that already existed are updated but not counted. |
-| members | `{ added, updated, outcomes }` | `outcomes` maps each identity-resolution outcome (`CREATED`, `EXISTING`, `MERGED`, `QUEUED`, ...) to a count. Queued members get no party yet. |
-| registrations | `{ added }` | |
-| points | `{ added }` | `{ added: 0 }` if the CRYSTAL point type is missing |
-| cases | `{ added, updated }` | |
-| transactions | `{ added, updated, unmatched_refunds }` | `unmatched_refunds` counts wallet refunds that no earlier purchase could cover; they are not imported |
-| class_stats | `{ rows }` | rows written to `crm_party_product_class_stat` by the rebuild |
-
-All counts are integers.
-
-```json
-{
-  "success": true,
-  "message": "import finished",
-  "data": {
-    "locations": { "added": 0, "updated": 341 },
-    "sites": { "added": 1, "updated": 45 },
-    "faults": { "added": 0 },
-    "catalogue": { "added": 2 },
-    "members": { "added": 37, "updated": 16980, "outcomes": { "EXISTING": 16980, "CREATED": 37, "QUEUED": 3 } },
-    "registrations": { "added": 52 },
-    "points": { "added": 410 },
-    "cases": { "added": 12, "updated": 88 },
-    "transactions": { "added": 140, "updated": 9120, "unmatched_refunds": 1 },
-    "class_stats": { "rows": 31877 }
-  }
-}
-```
-
-**Errors**
-
-| status | message key | when |
-|---|---|---|
-| 403 | `common.permissionDenied` | no WRITE on Overview |
-| 500 | `common.internalServerError` | Any step fails, the CRYSTAL project is missing, or the legacy database cannot be reached. The step name is added to the server-side log message, not to the reply. The run stops at that step, and whatever earlier steps and earlier rows already wrote stays in place. |
-| 400 | `crm.settings.aValueIsTooLong` | a Crystal value is longer than its CRM column (SQLSTATE 22001, mapped by the CRM router's own error handler). The run stops at that step, as above. |
 
 ### POST /api/admin/crm/recalculate
 
@@ -695,56 +652,6 @@ Rebuilds `crm_party_product_class_stat` from the registrations: for every party 
 | status | message key | when |
 |---|---|---|
 | 403 | `common.permissionDenied` | no WRITE on Overview |
-
-### POST /api/admin/crm/import/vendor
-
-Runs the Eshop and Appstore adapters for every Crystal member the CRM already knows. A member qualifies if they have a linked, not-unlinked CRYSTAL account, an `ACTIVE` or `INACTIVE` party, and a `users` row. For each member the adapter asks the vendor platform for the member's Eshop and Appstore keys, then pulls the following.
-
-- **Eshop:** the account (through identity resolution); the membership, with the card level mapped to a tier through `crm_project_tier.source_code` of the project whose `identity_role = 'ESHOP'`, and tier changes appended to the tier history; every order as a `SALE` with its lines, the goods becoming catalogue products; and every refunded order as an extra `REFUND` row.
-- **Appstore:** the account; every purchase as an `APP_PURCHASE`; and each completed app purchase as an `ENTITLEMENT` instance with a `LICENSEE` registration.
-
-The call is **synchronous and long-running**. Members are processed one after another, with several HTTP calls each: card info, orders (first page of 200), one order-detail call per order, and purchases (first page of 200). Run it after `POST /import`, because it starts from the members that import created. A member whose lookup or remote calls fail is counted in `unavailable` and skipped, and the run continues. A successful run is written to the audit log as an IMPORT of `crm_transaction`.
-
-**What it reads:**
-- The vendor merge table `<LEGACY_PID_SCHEMA>.user_merge_ids` through the legacy handle. As a fallback, it reads the legacy customer record in `ora_old_db.customers`.
-- The remote services in `config/remote.js`: `ESHOP_SERVER_URL` and `APPSTORE_SERVER_URL`. With `REMOTE_MOCK=true`, which is the default, an in-process mock answers instead.
-- The `system_settings` key `company.native_currency_rate`, used to convert native-currency and coin amounts into the reporting currency.
-- The reporting currency (`crm_currency.is_reporting`; `USD` if none is set).
-
-The import requires `ESHOP` and `APPSTORE` rows in `crm_project`.
-
-**Permission:** WRITE on `/admin/crm/overview`.
-
-**Request body:** None.
-
-**Response** `200`, message `crm.common.importFinished` ("import finished").
-
-| field | type | notes |
-|---|---|---|
-| members | integer | Crystal members examined |
-| accounts | integer | Eshop or Appstore accounts newly linked (resolution outcome other than `EXISTING`) |
-| memberships | integer | Eshop memberships created |
-| tier_changes | integer | tier changes recorded on existing Eshop memberships |
-| transactions | integer | transaction rows created; refreshed rows are not counted |
-| entitlements | integer | Appstore LICENSEE registrations created |
-| unavailable | integer | members skipped because the platform lookup or a remote call failed |
-| not_on_platform | integer | members with neither an Eshop nor an Appstore key |
-| pending | integer | **present only when non-zero**: accounts queued for identity review instead of being linked |
-
-```json
-{
-  "success": true,
-  "message": "import finished",
-  "data": { "members": 17020, "accounts": 214, "memberships": 180, "tier_changes": 12, "transactions": 2310, "entitlements": 96, "unavailable": 4, "not_on_platform": 15020, "pending": 6 }
-}
-```
-
-**Errors**
-
-| status | message key | when |
-|---|---|---|
-| 403 | `common.permissionDenied` | no WRITE on Overview |
-| 500 | `common.internalServerError` | the ESHOP or APPSTORE project is missing, or the members query itself fails (failures for a single member do not stop the run) |
 
 ## 4. Analysis
 
@@ -962,7 +869,7 @@ The corporate-score model as the code defines it, so the screen can explain how 
 
 Runs the analysis for one reference date. It loads every fact up to the end of that date: counted transactions where the party is BUYER, service cases, current OWNER and LICENSEE holdings, points earned, and completed site visits. From these it writes a snapshot per party and project, a Dream-wide snapshot per party carrying the corporate score and grade, and metric values.
 
-Only parties with at least one such fact get rows, and the run does not filter on party status. PLATFORM-project rows are left out. The grade is the active `crm_corporate_grade` band with `min_score <= score < max_score`, where a null bound is open. Activity status is derived as follows: `NEVER_BOUGHT` with no purchase; `NEW` if the first purchase was 90 days or less before the date; otherwise `ACTIVE` if the last purchase was 180 days or less before it, `AT_RISK` if 365 days or less, and `LAPSED` beyond that.
+Only parties with at least one such fact get rows, and the run does not filter on party status. The grade is the active `crm_corporate_grade` band with `min_score <= score < max_score`, where a null bound is open. Activity status is derived as follows: `NEVER_BOUGHT` with no purchase; `NEW` if the first purchase was 90 days or less before the date; otherwise `ACTIVE` if the last purchase was 180 days or less before it, `AT_RISK` if 365 days or less, and `LAPSED` beyond that.
 
 The call is synchronous. All the writes happen in one transaction. First it deletes **every** snapshot for that reference date, whatever its model version, and every metric value for that date with model `dream-v1`. Then it inserts the new rows in batches of 500. Running it twice for the same date therefore gives the same result once. A run is written to the audit log as an IMPORT of `crm_party_analysis_snapshot`.
 
@@ -1533,7 +1440,7 @@ The contact-point alternatives look at every contact the party has, including IN
 | first_seen_at, last_seen_at, created_at | string\|null | ISO timestamps |
 | mobile | string\|null | First ACTIVE MOBILE contact (primary first, then lowest id), as typed |
 | email | string\|null | First ACTIVE EMAIL contact, same rule |
-| projects | string\|null | Comma-separated distinct codes of projects with a linked account, e.g. `"ESHOP,PLATFORM"` |
+| projects | string\|null | Comma-separated distinct codes of projects with a linked account, e.g. `"ESHOP,UID"` |
 | holding_cnt | integer | Current product registrations (`valid_to IS NULL`) |
 | case_cnt | integer | All service cases |
 | corporate_score | string\|null | Latest Dream-wide snapshot (numeric) |
@@ -1561,7 +1468,7 @@ The contact-point alternatives look at every contact the party has, including IN
         "created_at": "2026-02-01T09:00:00.000Z",
         "mobile": "+86 138 0013 8000",
         "email": "li.wei@example.com",
-        "projects": "ESHOP,PLATFORM",
+        "projects": "ESHOP,UID",
         "holding_cnt": 2,
         "case_cnt": 1,
         "corporate_score": "73.5000",
@@ -2042,8 +1949,8 @@ Edits one contact point of the customer. The contact type cannot be changed.
 | contact_value | string | no | Validated for the contact's existing type, as on add. It is re-normalised. |
 | label | string | no | Empty becomes null |
 | is_verified | boolean | no | |
-| status | string | no | `ACTIVE`, `INVALID` or `RETIRED`. A status other than ACTIVE also clears `is_primary` and sets `valid_to` to now. |
-| is_primary | boolean | no | `true`: this contact becomes the only primary of its type. `false`: it is no longer primary. |
+| status | string | no | `ACTIVE`, `INVALID` or `RETIRED`. A status other than ACTIVE also clears `is_primary` and sets `valid_to` (to now, unless it was already set). Setting ACTIVE again clears `valid_to`. |
+| is_primary | boolean | no | `true`: this contact becomes the only primary of its type; refused unless the contact is (or is being set) ACTIVE. `false`: it is no longer primary. |
 
 **Response** `200`, message `common.updated`. `data` is the updated contact row (same shape as above).
 
@@ -2058,8 +1965,26 @@ Edits one contact point of the customer. The contact type cannot be changed.
 | 400 | crm.common.checkTheDetails | The new value is invalid (`detail` names `contact_value`) |
 | 400 | crm.customers.contactValueIsRequired | The value normalises to nothing |
 | 400 | crm.common.notAStatusYouCanSet | Unknown status |
+| 400 | crm.customers.onlyAnActiveContactCanBePrimary | `is_primary: true` on a contact that is INVALID or RETIRED |
 | 404 | common.notFound | The contact does not exist on this party |
 | 409 | crm.customers.thisContactIsAlready | The new value duplicates another contact of the same type on the party (unique constraint) |
+
+### DELETE /api/admin/crm/parties/:id/contacts/:contactId
+
+Deletes a contact point that was entered by mistake. A contact that has ever been used is part of the record's history and is refused: set its `status` to `RETIRED` or `INVALID` with the PUT above instead.
+
+**Permission:** WRITE on `/admin/crm/customers`. Written to the audit trail with the whole deleted row.
+
+**Path parameters:** `id` (`party_pk`) and `contactId` (`contact_point_id`, which must belong to this party). **Query parameters / body:** none.
+
+**Response** `200`, message `common.deleted`: `{ "success": true, "message": "deleted", "data": { "contact_point_id": "5311" } }`
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 404 | common.notFound | Either id is not a positive integer, or the contact does not exist on this party |
+| 409 | crm.customers.contactIsInUse | A consent (`crm_party_communication_consent`), campaign recipient (`crm_campaign_recipient`) or interaction (`crm_party_interaction`) refers to the contact |
 
 ### POST /api/admin/crm/parties/:id/accounts
 
@@ -2560,7 +2485,7 @@ The order is always `created_at` descending; `sort` and `dir` are ignored. Only 
 | field | type | notes |
 |---|---|---|
 | match_candidate_id | string | |
-| incoming_project_id | integer | The newer party's origin project (or the PLATFORM project) |
+| incoming_project_id | integer | The newer party's origin project; a person without one is not scanned |
 | incoming_external_record_id | string | For scanned pairs, the newer party's `party_pk` |
 | incoming_party_pk | string | The newer party. A merge removes this one. |
 | candidate_party_pk | string | The older party. It survives an accept. |
@@ -3478,7 +3403,7 @@ Terms used in the tables below:
 
 **`accounts[]`**
 
-There is at least one row per `ACTIVE` project except `PLATFORM`, ordered by `project_id`.
+There is at least one row per `ACTIVE` project, ordered by `project_id`.
 
 | field | type | notes |
 |---|---|---|
@@ -4557,7 +4482,7 @@ Lists product instances with their product, project, class, current owner name a
         "updated_at": "2026-03-01T09:12:00.000Z",
         "product_name": "Crystal X5 128GB",
         "product_code": "X5-128",
-        "project_code": "CRYSTAL",
+        "project_code": "SMARTPHONE",
         "class_code": "PHONE",
         "class_name": "Phones",
         "holder_name": "Li Wei",
@@ -4630,7 +4555,7 @@ One instance with its full holding history, the transfer requests against it, it
       "updated_at": "2026-03-01T09:12:00.000Z",
       "product_name": "Crystal X5 128GB",
       "product_code": "X5-128",
-      "project_code": "CRYSTAL",
+      "project_code": "SMARTPHONE",
       "class_code": "PHONE",
       "class_name": "Phones",
       "bound_external_id": null
@@ -4829,7 +4754,7 @@ Lists product registrations (who holds which instance, how, and when) across all
         "product_code": "X5-128",
         "class_code": "PHONE",
         "class_name": "Phones",
-        "project_code": "CRYSTAL",
+        "project_code": "SMARTPHONE",
         "relationship_name": "Owner",
         "registered_at_location_name": null,
         "previous_owner_name": null
@@ -5411,7 +5336,7 @@ Lists service cases with names for the party, type, status, priority, centre and
         "service_status_id": 2,
         "service_priority_id": 2,
         "party_name": "Li Wei",
-        "project_code": "CRYSTAL",
+        "project_code": "SMARTPHONE",
         "case_type_code": "REPAIR",
         "case_type_name": "Repair",
         "status_code": "DIAGNOSING",
@@ -5731,7 +5656,7 @@ Points live in one ledger, `crm_point_event`, but each **point type** is its own
 
 - rounds `points_delta` to 3 decimals (the column scale) and refuses a result of 0;
 - requires the event type code to exist, the point type to exist and be active;
-- assigns the event to the given project, else the point type's `owner_project_id`, else the `PLATFORM` project, else refuses;
+- assigns the event to the given project, else the point type's `owner_project_id`, else refuses;
 - creates the account on first use and locks it;
 - refuses a movement that would make the balance negative;
 - inserts the event with `points_balance_after`, then updates `balance`, `lifetime_earned` (positive deltas) and `lifetime_spent` (negative deltas, as a positive number) and `last_event_at`.
@@ -5803,7 +5728,7 @@ Lists point accounts (one per party per point type), with totals over all matchi
         "updated_at": "2026-10-11T02:30:00.000Z",
         "party_name": "Li Wei",
         "party_status": "ACTIVE",
-        "point_type_code": "CRYSTAL",
+        "point_type_code": "MEMBER",
         "point_type_name": "Crystal points",
         "decimal_places": 0
       }
@@ -5907,11 +5832,11 @@ There is no `party_pk` filter here; use `q` with the party id, or `point_account
         "created_at": "2026-10-11T03:30:00.000Z",
         "party_pk": "1042",
         "party_name": "Li Wei",
-        "point_type_code": "CRYSTAL",
+        "point_type_code": "MEMBER",
         "point_type_name": "Crystal points",
         "event_code": "ADJUST",
         "event_name": "Manual adjustment",
-        "project_code": "CRYSTAL",
+        "project_code": "SMARTPHONE",
         "rule_code": null,
         "rule_name": null,
         "manager_name": "Zhang Min",
@@ -5969,7 +5894,7 @@ Accounts whose cached balance no longer equals the sum of their ledger events (v
       "balance": "500.000",
       "ledger_balance": "450.000",
       "party_name": "Wang Fang",
-      "point_type_code": "CRYSTAL"
+      "point_type_code": "MEMBER"
     }
   ]
 }
@@ -5999,7 +5924,7 @@ Posts a manual adjustment (event type `ADJUST`) to a party's account for one poi
 | `point_type_id` | integer | yes | Must exist and be active. |
 | `points_delta` | number | yes | Finite and non-zero, positive or negative. Rounded to 3 decimals; if that rounds to 0 it is refused. A negative value may not take the balance below 0. |
 | `description` | string | yes | The reason. Trimmed, must not be empty; stored up to 500 characters. |
-| `project_id` | integer | no | Default: the point type's owner project, else the `PLATFORM` project. |
+| `project_id` | integer | no | Default: the point type's owner project. |
 
 The event records the signed-in manager as `performed_by_manager_id` and the request IP as `ip_address`. The account is created if the party had none for this point type. Audited.
 
@@ -6047,7 +5972,7 @@ The event records the signed-in manager as `performed_by_manager_id` and the req
 | 400 | `crm.points.unknownPointEvent` | The `ADJUST` event type is missing from the vocabulary (configuration problem). |
 | 403 | `common.permissionDenied` | Role lacks WRITE on the page. |
 | 409 | `crm.points.pointTypeIsInactive` | The point type is not active. |
-| 409 | `crm.points.pointTypeNeedsAProject` | No `project_id`, the point type has no owner project, and there is no `PLATFORM` project. |
+| 409 | `crm.points.pointTypeNeedsAProject` | No `project_id`, and the point type has no owner project (set one in Settings > Point types). |
 | 409 | `crm.points.notEnoughPoints` | The adjustment would make the balance negative. Text: "not enough points: the balance is {balance}, {needed} are needed". |
 | 409 | `common.referencedRecordIsMissing` | `party_pk` or `project_id` does not exist. |
 
@@ -6238,7 +6163,7 @@ Lists events, with live counts of targets, reservations and awards for each.
         "approved_at": "2026-10-10T08:12:44.000Z",
         "created_at": "2026-10-09T02:00:00.000Z",
         "updated_at": "2026-10-10T08:12:44.000Z",
-        "project_code": "CRYSTAL",
+        "project_code": "SMARTPHONE",
         "target_cnt": 500,
         "reservation_cnt": 212,
         "award_cnt": 0
@@ -6378,10 +6303,10 @@ Note that `counts.awards` excludes `FAILED` awards while the list's `award_cnt` 
       "event_name": "New phone launch reservations",
       "event_type": "RESERVATION",
       "status": "OPEN",
-      "project_code": "CRYSTAL",
+      "project_code": "SMARTPHONE",
       "segment_name": null,
-      "ranking_point_type_code": "CRYSTAL",
-      "cost_point_type_code": "CRYSTAL",
+      "ranking_point_type_code": "MEMBER",
+      "cost_point_type_code": "MEMBER",
       "reserved_product_name": "Crystal X2",
       "created_by_name": "Ana Li",
       "approved_by_name": "Ben Wu"
@@ -7413,7 +7338,7 @@ Lists sites with their area, operator, active capabilities and a 30-day activity
         "updated_at": "2026-09-01T02:10:00.000Z",
         "area_name": "Central District",
         "operator_name": "Crystal Service Co.",
-        "source_project_code": "CRYSTAL",
+        "source_project_code": "SMARTPHONE",
         "capabilities": "DEVICE_SALE,REPAIR",
         "activity_30d": 87
       }
@@ -7536,7 +7461,7 @@ One site with all its capabilities (active and ended) and up to 20 CRM events it
       "location_pk": "3",
       "area_name": "Central District",
       "operator_name": "Crystal Service Co.",
-      "source_project_code": "CRYSTAL"
+      "source_project_code": "SMARTPHONE"
     },
     "capabilities": [
       {
@@ -7549,7 +7474,7 @@ One site with all its capabilities (active and ended) and up to 20 CRM events it
         "valid_to": null,
         "is_active": true,
         "created_at": "2026-09-01T02:10:00.000Z",
-        "project_code": "CRYSTAL"
+        "project_code": "SMARTPHONE"
       }
     ],
     "events": [
@@ -8271,9 +8196,9 @@ Example:
     { "field": "no_service_cases", "days": 365 },
     { "any": [
       { "field": "snapshot", "measure": "purchase_amount_12m", "op": ">", "value": 1000 },
-      { "field": "tier", "project": "CRYSTAL", "tier": "GOLD" }
+      { "field": "tier", "project": "ESHOP", "tier": "LV3" }
     ] },
-    { "field": "consented", "project": "PLATFORM", "purpose": "MARKETING", "channel": "SMS" }
+    { "field": "consented", "project": "UID", "purpose": "MARKETING", "channel": "SMS" }
   ]
 }
 ```
@@ -8725,7 +8650,7 @@ Only a `DRAFT` action can be edited. Status changes through `POST .../status` do
 
 | skip_reason_code | when |
 |---|---|
-| `PROJECT_OPTION_DISABLED` | The campaign's project (or `PLATFORM` when the campaign has none) has no communication option for this purpose and channel, or the option is disabled. |
+| `PROJECT_OPTION_DISABLED` | The campaign's project has no communication option for this purpose and channel, or the option is disabled. |
 | `WITHDRAWN` | The member's consent for that option is `WITHDRAWN`. |
 | `DENIED` | The consent is `DENIED`. |
 | `NO_CONSENT` | Opt-in is needed (option `consent_required` or purpose `requires_opt_in`) and there is no `GRANTED` consent in force (within `effective_from`/`effective_to`). |
@@ -8798,7 +8723,7 @@ Lists campaigns.
         "approved_at": "2026-10-10T08:00:00.000Z",
         "created_at": "2026-10-05T02:00:00.000Z",
         "updated_at": "2026-10-10T08:00:00.000Z",
-        "project_code": "PLATFORM",
+        "project_code": "UID",
         "owner_name": "Ri Song",
         "audience_cnt": 4188,
         "cost_total": "150.0000"
@@ -8831,7 +8756,7 @@ Creates a campaign in `DRAFT`.
 | `campaign_code` | string | yes | Max 50; unique per project (null project counts as one). |
 | `campaign_name` | string | yes | Max 250. |
 | `campaign_type` | string | yes | `PROMOTION`, `RETENTION`, `WIN_BACK`, `PRODUCT_LAUNCH`, `SERVICE`, `EVENT_NOTICE`, `SURVEY`. |
-| `project_id` | integer | no | Decides which communication options apply at prepare time; without it `PLATFORM` is used. |
+| `project_id` | integer | no | Decides which communication options apply at prepare time; a campaign without one cannot be prepared. |
 | `description` | string | no | |
 | `start_at`, `end_at` | string | no | ISO timestamps; end not before start (DB). |
 | `owner_manager_id` | integer | no | Defaults to the caller. |
@@ -8888,7 +8813,7 @@ One campaign with its audiences, actions (with content and recipient counts), co
       "campaign_type": "PROMOTION",
       "campaign_status": "APPROVED",
       "project_id": 1,
-      "project_code": "PLATFORM",
+      "project_code": "UID",
       "owner_name": "Ri Song",
       "created_by_name": "Ri Song",
       "approved_by_name": "Pak Mi"
@@ -9241,7 +9166,7 @@ Decides, for every frozen member of the action's audience, whether they may be c
 | 409 | `crm.marketing.thisCampaignIsFinished` | Campaign `COMPLETED`/`CANCELLED`. |
 | 409 | `crm.marketing.approveTheCampaignFirst` ("approve the campaign before preparing its actions") | Campaign is `DRAFT`. |
 | 409 | `crm.marketing.thisActionIsAlreadyPrepared` ("this action has already been prepared") | Action is not `DRAFT`. |
-| 409 | `crm.marketing.campaignNeedsAProject` | Campaign has no project and no `PLATFORM` project exists. |
+| 409 | `crm.marketing.campaignNeedsAProject` | Campaign has no project. |
 
 ### POST /api/admin/crm/campaigns/:id/actions/:actionId/status
 
@@ -9592,7 +9517,7 @@ Example list row:
   "crystal_product_id": 42, "model_code": "X200", "imei_prefixes": ["35847211"], "list_price": "299.0000",
   "currency_code": "USD", "is_reservable": false, "status": "ACTIVE",
   "created_at": "2026-03-01T10:00:00.000Z", "updated_at": "2026-03-01T10:00:00.000Z",
-  "project_code": "CRYSTAL", "class_code": "SMARTPHONE", "class_name": "Smartphone",
+  "project_code": "SMARTPHONE", "class_code": "SMARTPHONE", "class_name": "Smartphone",
   "crystal_product_name": "Crystal X200", "instance_cnt": 1520 }
 ```
 
@@ -9730,7 +9655,7 @@ How each project's own service status codes map to CRM service statuses. Not pag
 ```json
 { "success": true, "message": "ok",
   "data": [ { "project_id": 1, "source_status_code": "R3", "service_status_id": 4, "source_status_label": "Repaired",
-              "project_code": "CRYSTAL", "status_code": "REPAIRED", "display_name": "Repaired" } ] }
+              "project_code": "SMARTPHONE", "status_code": "REPAIRED", "display_name": "Repaired" } ] }
 ```
 
 ### PUT /api/admin/crm/settings/status-map
@@ -9907,8 +9832,6 @@ Validation is `personRules.check(..., 'create', 'PERSON')`, the same checks as t
 | `QUEUED` | Any other result: a 50-69 match, two or more 70+ matches, or a pending registration scoring 50+. | Intake stored as PENDING with its candidates; nothing is linked. `party_pk` is null. The result arrives later through the resolution feed. |
 
 If the same `external_account_id` was submitted before and is not (or no longer) linked, the earlier intake is returned as is and the new body is ignored: `QUEUED` with the same `intake_id` while it is still PENDING, otherwise the stored status (`MERGED` or `CREATED`) with its `party_pk`. In that last case (an account unlinked since) the account is not linked again.
-
-Notes: the code also knows an outcome `PLATFORM` and an ESHOP-category route, but both depend on inputs (`resolved_party_pk`, `known_party_pk`) this endpoint never passes, so this endpoint returns only the four outcomes above.
 
 **Response** `200`
 

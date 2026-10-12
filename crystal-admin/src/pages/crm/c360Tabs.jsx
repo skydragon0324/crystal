@@ -546,6 +546,7 @@ export function AnalyticsTab({ record, view, model }) {
 export function ConsentTab({ record, view, act }) {
   const translate = useT();
   const surface = useSurface();
+  const party = record.party || {};
   const reach = view.reach || {};
   return (
     <Stack spacing={4}>
@@ -563,7 +564,22 @@ export function ConsentTab({ record, view, act }) {
             { key: 'is_verified', label: 'Verified', render: (row) => (row.is_verified ? translate('common.yes') : '-') },
             { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
             { key: 'valid_from', label: 'Added', render: (row) => date(row.valid_from || row.created_at) }
-          ]}
+          ].concat(act.editable ? [{
+            key: 'actions', label: '',
+            render: (row) => (
+              <HStack spacing={1} justify="flex-end">
+                <Button size="xs" variant="ghost" onClick={() => act.open('editContact', {
+                  contact_point_id: row.contact_point_id, contact_value: row.contact_value, label: row.label || '',
+                  status: row.status, is_primary: !!row.is_primary, is_verified: !!row.is_verified
+                })}>{translate('common.edit')}</Button>
+                {/* Only a contact never used can go; the server says so for the others. */}
+                <Button size="xs" variant="ghost" colorScheme="red" onClick={() => act.ask('crm.customer360.deleteContact', 'crm.customer360.deleteContactExplained',
+                  word(translate, row.contact_type) + '  ' + row.contact_value, () => crm.parties.deleteContact(party.party_pk, row.contact_point_id))}>
+                  {translate('common.delete')}
+                </Button>
+              </HStack>
+            )
+          }] : [])}
         />
       </Card360>
       <Card360 icon={Md.MdTune} title={translate('crm.customer360Tabs.channelsAtAGlance')}>

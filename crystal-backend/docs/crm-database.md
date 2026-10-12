@@ -47,21 +47,21 @@ Each Dream business system is one project. Department systems call the CRM with 
 
 | Table | Kind | Purpose |
 |---|---|---|
-| [crm_project](#crm_project) | table | Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA. |
+| [crm_project](#crm_project) | table | Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. None are seeded: projects are added in Settings > Projects. |
 | [crm_project_api_key](#crm_project_api_key) | table | Keys a department system uses for /api/integration/crm. Only the SHA-256 of the secret is stored; the project comes from the key, never the request. |
 | [crm_project_tier](#crm_project_tier) | table | Levels calculated by a project. Rank is meaningful only inside the project. |
 | [crm_currency](#crm_currency) | table | Currencies used by transactions, costs, rewards and reporting. |
 
 ### crm_project
 
-Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA.
+Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. None are seeded: projects are added in Settings > Projects.
 
 | About | |
 |---|---|
 | **Used by** | Settings > Projects; imports and the department API. The Excel import finds its e-shop and user-management projects by `identity_role`, not by code. |
 | **Primary key** | `project_id` |
 | **Unique** | (project_code)<br>(identity_role, (partial: (identity_role IS NOT NULL))) |
-| **Code** | `scripts/`: crm-import-mock<br>`src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, events.service, identity.service, identityProjects, ledger, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service, vendorImport.service |
+| **Code** | `scripts/`: crm-import-mock<br>`src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, cases.service, customer360.service, engagement.service, events.service, identityProjects, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -85,7 +85,7 @@ Keys a department system uses for /api/integration/crm. Only the SHA-256 of the 
 | **Used by** | Department API authentication (`/api/integration/crm`); issued with `npm run crm:api-key`. |
 | **Primary key** | `api_key_id` |
 | **Unique** | (key_prefix) |
-| **Code** | `src/services/crm/`: projectApiKeys.service |
+| **Code** | `src/routes/`: crm.routes<br>`src/services/crm/`: projectApiKeys.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -107,7 +107,7 @@ Levels calculated by a project. Rank is meaningful only inside the project.
 | **Used by** | Settings > Project tiers; Memberships; vendor import (e-shop card levels). |
 | **Primary key** | `project_tier_id` |
 | **Unique** | (project_id, tier_code, tier_kind)<br>(project_tier_id, project_id)<br>(project_id, tier_kind, tier_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: marketing.service, memberships.service, parties.service, vendorImport.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: marketing.service, memberships.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -130,7 +130,7 @@ Currencies used by transactions, costs, rewards and reporting.
 | **Used by** | Every money field; Settings. |
 | **Primary key** | `currency_code` |
 | **Unique** | (is_reporting, (partial: is_reporting)) |
-| **Code** | `scripts/`: demo-crm<br>`src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRun.service, crystalImport.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRun.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -172,7 +172,7 @@ Central identity root. Every person and organization known to Dream gets one par
 | **Primary key** | `party_pk` |
 | **Unique** | (party_id) |
 | **Rules** | `CHECK (((party_id) ~ '^[A-Za-z0-9_-]{1,32}$'))`<br>`CHECK ((((party_status) = 'MERGED') = (merged_into_party_pk IS NOT NULL)))`<br>`CHECK (((merged_into_party_pk IS NULL) OR (merged_into_party_pk <> party_pk)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset, 09_crm, 10_crm_demo<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: accountTeam.service, analysis.service, analysisRead.service, cases.service, customer360.service, engagement.service, events.service, identity.service, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, points.service, products.service, registrationIntake.service, relationships.service, search.service, sites.service, transactions.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset, 09_crm, 10_crm_demo<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: accountTeam.service, analysis.service, analysisRead.service, cases.service, customer360.service, engagement.service, events.service, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, points.service, products.service, registrationIntake.service, relationships.service, search.service, sites.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -202,7 +202,7 @@ Person-only attributes for a PERSON party.
 | **Used by** | Customers (create, edit, Excel import), duplicate check, Customer 360. |
 | **Primary key** | `party_pk` |
 | **Rules** | `CHECK (((birth_year >= 1900) AND (birth_year <= 2100)))`<br>`CHECK (((birth_date IS NULL) OR (birth_year IS NULL) OR ((birth_year) = EXTRACT(year FROM birth_date))))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: customer360.service, parties.service, personDuplicates, registrationIntake.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: birthday, customer360.service, parties.service, personDuplicates, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -302,7 +302,7 @@ The vendor location list (ora_pid.locations), same columns and keys. Province = 
 | **Used by** | Every location picker; refreshed by Overview > Import (step "locations"); Excel template "Locations" sheet. |
 | **Primary key** | `location_pk` |
 | **Unique** | (location_code) |
-| **Code** | `scripts/`: crm-customers-sample, crm-import-mock<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, customer360.service, locations, personRules, registrationIntake.service, sites.service |
+| **Code** | `scripts/`: crm-customers-sample, crm-import-mock<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: customer360.service, locations, personRules, registrationIntake.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -473,7 +473,7 @@ Contracts with a customer (mostly organizations): reseller, service level, purch
 |---|---|
 | **Used by** | Customer 360 > Agreements. |
 | **Primary key** | `agreement_id` |
-| **Rules** | `CHECK ((annual_value >= (0)))`<br>`CHECK (((end_date IS NULL) OR (end_date >= start_date)))` |
+| **Rules** | `CHECK (((end_date IS NULL) OR (end_date >= start_date)))`<br>`CHECK ((annual_value >= (0)))` |
 | **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: accountTeam.service, customer360.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
@@ -503,7 +503,7 @@ One contact with a customer outside a campaign: a call taken, an email answered,
 | **Used by** | Customer 360 > Interactions; "send message" from the customer record. |
 | **Primary key** | `interaction_id` |
 | **Rules** | `CHECK ((duration_seconds >= 0))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: customer360.service, engagement.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: customer360.service, engagement.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -699,7 +699,7 @@ Links a party to the account id a project issues. Main cross-project identity ma
 | **Primary key** | `project_account_id` |
 | **Unique** | (project_id, external_account_id, (partial: (unlinked_at IS NULL))) |
 | **Rules** | `CHECK (((link_confidence >= (0)) AND (link_confidence <= (1))))`<br>`CHECK (((unlinked_at IS NULL) OR (unlinked_at >= linked_at)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -730,7 +730,7 @@ Every incoming registration (console, Excel row, department API, imports) and ev
 | **Used by** | Customers > Pending registrations / Account assignments / Resolved registrations; department API; Excel import. |
 | **Primary key** | `intake_id` |
 | **Unique** | (source_project_id, source_record_id, category) |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: parties.service, personDuplicates, personImport.service, registrationIntake.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, parties.service, personDuplicates, personImport.service, registrationIntake.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -852,7 +852,7 @@ Customer Excel import rows that failed the file check, with the cells as written
 | **Used by** | Customers > Import errors; written by the customer Excel import for rows that failed the file check. |
 | **Primary key** | `import_error_id` |
 | **Unique** | (batch_hash, row_number) |
-| **Code** | `src/services/crm/`: personImport.service |
+| **Code** | `src/services/crm/`: analysis.service, personImport.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1020,7 +1020,7 @@ One classification for every product line, replacing the vendor per-user counter
 | **Used by** | Settings > Product classes; catalogue; point rules; analysis per class. |
 | **Primary key** | `product_class_id` |
 | **Unique** | (class_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, crystalImport.service, customer360.service, events.service, marketing.service, products.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, customer360.service, events.service, marketing.service, products.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1043,7 +1043,7 @@ Project-owned product definitions at the level CRM needs: device models, eproduc
 | **Used by** | Products > Catalogue; registrations; transactions; events (reserved product); point rules. |
 | **Primary key** | `product_id` |
 | **Unique** | (project_id, product_code)<br>(product_id, project_id) |
-| **Code** | `scripts/`: demo-crm<br>`src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, cases.service, crystalImport.service, customer360.service, events.service, products.service, search.service, transactions.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, cases.service, customer360.service, events.service, products.service, search.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1075,7 +1075,7 @@ One concrete thing a party can hold: a phone (IMEI), an eproduct (serial), a lic
 | **Primary key** | `product_instance_id` |
 | **Unique** | (project_id, external_product_instance_id) |
 | **Rules** | `CHECK (((bound_instance_id IS NULL) OR (bound_instance_id <> product_instance_id)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, cases.service, crystalImport.service, customer360.service, events.service, products.service, search.service, transactions.service, vendorImport.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, cases.service, customer360.service, events.service, products.service, search.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1107,7 +1107,7 @@ Time-bounded party <-> instance relationship: registration, ownership, assignmen
 | **Primary key** | `product_registration_id` |
 | **Unique** | (product_instance_id, (partial: (((relationship_code)::text = ANY ((ARRAY['OWNER'::character varying, 'LICENSEE'::character varying])::text[])) AND (valid_to IS NULL))))<br>(product_instance_id, party_pk, relationship_type_id, (partial: (valid_to IS NULL)))<br>(project_id, source_record_id, (partial: (source_record_id IS NOT NULL))) |
 | **Rules** | `CHECK (((valid_to IS NULL) OR (valid_to >= valid_from)))`<br>`CHECK (((previous_owner_party_pk IS NULL) OR (previous_owner_party_pk <> party_pk)))`<br>`CHECK (((valid_to IS NULL) = ((registration_status) = 'ACTIVE')))`<br>`CHECK ((((registration_status) = 'ACTIVE') OR (end_reason_code IS NOT NULL)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, customer360.service, marketing.service, parties.service, products.service, search.service, vendorImport.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, marketing.service, parties.service, products.service, search.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1147,7 +1147,7 @@ How a party relates to an instance. Seeded: OWNER, USER (assigned user), REGISTE
 | **Used by** | Registrations and transfers. |
 | **Primary key** | `relationship_type_id` |
 | **Unique** | (relationship_code)<br>(relationship_type_id, relationship_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, products.service, vendorImport.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: products.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1203,7 +1203,7 @@ How the holder obtained it. Seeded: PURCHASED, GIFT, TRANSFER, SECOND_HAND, COMP
 | **Used by** | Registrations and transfers. |
 | **Primary key** | `acquisition_type_id` |
 | **Unique** | (acquisition_code) |
-| **Code** | `src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, products.service, vendorImport.service |
+| **Code** | `src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: products.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1358,7 +1358,7 @@ Transaction header. A refund/return/reversal is its own row pointing at the orig
 | **Primary key** | `transaction_id` |
 | **Unique** | (project_id, external_transaction_id) |
 | **Rules** | `CHECK (((net_amount IS NULL) OR (((transaction_type_code) IN ('REFUND', 'RETURN', 'REVERSAL')) = (net_amount < (0))) OR (net_amount = (0))))`<br>`CHECK ((((transaction_type_code) <> ALL ((ARRAY['REFUND', 'RETURN', 'REVERSAL']))) OR (original_transaction_id IS NOT NULL)))` |
-| **Code** | `src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysisRun.service, customer360.service, marketing.service, parties.service, search.service, transactions.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, marketing.service, parties.service, search.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1417,7 +1417,7 @@ Parties in a transaction and their role.
 | **Used by** | Transaction detail; Customer 360 > Orders. |
 | **Primary key** | `transaction_party_id` |
 | **Unique** | (transaction_id, party_pk, party_role_code) |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysisRun.service, customer360.service, marketing.service, parties.service, search.service, transactions.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, marketing.service, parties.service, search.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1452,7 +1452,7 @@ Current membership state of a party in a project.
 | **Primary key** | `membership_id` |
 | **Unique** | (party_pk, project_id)<br>(project_id, external_member_id, (partial: (external_member_id IS NOT NULL))) |
 | **Rules** | `CHECK (((left_at IS NULL) OR (joined_at IS NULL) OR (left_at >= joined_at)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: crystalImport.service, marketing.service, memberships.service, parties.service, vendorImport.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, marketing.service, memberships.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1479,7 +1479,7 @@ History of tier changes.
 |---|---|
 | **Used by** | Customer 360 > tier changes. |
 | **Primary key** | `membership_tier_history_id` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: memberships.service, parties.service, vendorImport.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: memberships.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1500,7 +1500,7 @@ A point currency. Currencies are not interchangeable (karaoke points cannot buy 
 | **Primary key** | `point_type_id` |
 | **Unique** | (point_type_code) |
 | **Rules** | `CHECK ((expires_after_days > 0))` |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service, events.service, ledger, marketing.service, points.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: events.service, ledger, marketing.service, points.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1523,7 +1523,7 @@ Balance of one party in one currency: the cached total of crm_point_event, like 
 | **Primary key** | `point_account_id` |
 | **Unique** | (party_pk, point_type_id) |
 | **Rules** | `CHECK ((balance = (lifetime_earned - lifetime_spent)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, events.service, ledger, marketing.service, parties.service, points.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, events.service, ledger, marketing.service, parties.service, points.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1547,7 +1547,7 @@ Append-only point ledger for every currency. Generalises crm_membership_point_ev
 | **Primary key** | `point_event_id` |
 | **Unique** | (project_id, source_table_code, external_event_id, (partial: (external_event_id IS NOT NULL))) |
 | **Rules** | `CHECK ((points_delta <> (0)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, crystalImport.service, events.service, ledger, parties.service, points.service, products.service, transactions.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, events.service, ledger, parties.service, points.service, products.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1669,7 +1669,7 @@ CRM-level service summary. Detailed repair workflow stays in the project (Crysta
 | **Primary key** | `case_id` |
 | **Unique** | (crystal_repair_ticket_id)<br>(project_id, external_case_id, (partial: (external_case_id IS NOT NULL))) |
 | **Rules** | `CHECK (((satisfaction_rating >= 1) AND (satisfaction_rating <= 5)))`<br>`CHECK (((closed_at IS NULL) OR (closed_at >= received_at)))`<br>`CHECK (((reopened_from_case_id IS NULL) OR (reopened_from_case_id <> case_id)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, cases.service, crystalImport.service, customer360.service, engagement.service, marketing.service, parties.service, products.service, search.service, transactions.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, cases.service, customer360.service, engagement.service, marketing.service, parties.service, products.service, search.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1714,7 +1714,7 @@ Case types. Seeded: REPAIR, WARRANTY_REPAIR, COMPLAINT, INQUIRY, RETURN_SUPPORT,
 | **Used by** | Settings > Case types; service cases. |
 | **Primary key** | `case_type_id` |
 | **Unique** | (case_type_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRun.service, cases.service, crystalImport.service, customer360.service, products.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRun.service, cases.service, customer360.service, products.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1749,7 +1749,7 @@ Maps each project's own status codes to a CRM status, so sync code carries no ha
 |---|---|
 | **Used by** | Settings > Status map; imports. |
 | **Primary key** | `project_id`, `source_status_code` |
-| **Code** | `src/routes/`: crm.routes<br>`src/services/crm/`: crystalImport.service |
+| **Code** | `src/routes/`: crm.routes |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1767,7 +1767,7 @@ Priorities. Seeded: LOW, NORMAL, HIGH, URGENT (Crystal priority 0-2 map to LOW..
 | **Used by** | Settings > Priorities; service cases. |
 | **Primary key** | `service_priority_id` |
 | **Unique** | (priority_code) |
-| **Code** | `src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: cases.service, crystalImport.service |
+| **Code** | `src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: cases.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1785,7 +1785,7 @@ Current structured classification of a case (one per case).
 | **Used by** | Service case detail. |
 | **Primary key** | `service_case_classification_id` |
 | **Unique** | (case_id) |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: cases.service, crystalImport.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: cases.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1828,7 +1828,7 @@ Technical fault found, hierarchical. Crystal symptom_catalog rows load here.
 | **Used by** | Settings > Fault categories; service cases; Crystal import. |
 | **Primary key** | `fault_category_id` |
 | **Unique** | (crystal_symptom_id) |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: cases.service, crystalImport.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: cases.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1900,7 +1900,7 @@ A service centre, sales agency, collection point, partner shop, office or event 
 | **Primary key** | `service_center_id` |
 | **Unique** | (service_center_code)<br>(crystal_agency_id)<br>(source_table_code, source_service_center_key, (partial: (source_service_center_key IS NOT NULL))) |
 | **Rules** | `CHECK (((closed_on IS NULL) OR (opened_on IS NULL) OR (closed_on >= opened_on)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, cases.service, crystalImport.service, customer360.service, events.service, parties.service, points.service, products.service, sites.service, transactions.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, cases.service, customer360.service, events.service, parties.service, points.service, products.service, sites.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1934,7 +1934,7 @@ What a site is allowed to do, per project, with validity dates. Mirrors agency_s
 | **Primary key** | `capability_id` |
 | **Unique** | (service_center_id, COALESCE(project_id, 0, (partial: is_active)) |
 | **Rules** | `CHECK (((valid_to IS NULL) OR (valid_from IS NULL) OR (valid_to >= valid_from)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: crystalImport.service, sites.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1957,7 +1957,7 @@ Dictionary of activities that can happen at a site.
 | **Used by** | Settings > Activity types; Site activity. |
 | **Primary key** | `activity_type_id` |
 | **Unique** | (activity_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, cases.service, crystalImport.service, events.service, marketing.service, products.service, sites.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: cases.service, events.service, marketing.service, products.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1980,7 +1980,7 @@ One activity or service actually performed at a site: a repair taken in, a devic
 | **Primary key** | `service_center_activity_id` |
 | **Unique** | (project_id, activity_type_id, external_activity_id, (partial: (external_activity_id IS NOT NULL))) |
 | **Rules** | `CHECK ((quantity >= (0)))`<br>`CHECK (((amount IS NULL) OR (currency_code IS NOT NULL)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, cases.service, crystalImport.service, events.service, marketing.service, parties.service, products.service, sites.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, cases.service, events.service, marketing.service, parties.service, products.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2619,7 +2619,7 @@ One delivery attempt for one frozen member, with the consent decision used.
 | **Primary key** | `recipient_id` |
 | **Unique** | (action_id, audience_member_id)<br>(recipient_id, campaign_id, party_pk) |
 | **Rules** | `CHECK ((((recipient_status) = 'SKIPPED') = (skip_reason_code IS NOT NULL)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: customer360.service, marketing.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: customer360.service, marketing.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2746,7 +2746,7 @@ Periodic snapshot per party: project row or Dream-wide row (project_id NULL). Re
 | **Primary key** | `analysis_snapshot_id` |
 | **Unique** | (party_pk, COALESCE(project_id, 0) |
 | **Rules** | `CHECK (((project_id IS NULL) OR ((corporate_score IS NULL) AND (corporate_grade_id IS NULL))))` |
-| **Code** | `scripts/`: demo-crm<br>`src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysisRead.service, analysisRun.service, customer360.service, events.service, marketing.service |
+| **Code** | `scripts/`: demo-crm<br>`src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, customer360.service, events.service, marketing.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2786,7 +2786,7 @@ Dream-wide grade bands produced from the corporate score. Replaces vendor integr
 | **Primary key** | `corporate_grade_id` |
 | **Unique** | (grade_code)<br>(rank_no) |
 | **Rules** | `CHECK (((max_score IS NULL) OR (min_score IS NULL) OR (max_score > min_score)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRead.service, analysisRun.service, customer360.service, events.service, marketing.service, parties.service |
+| **Code** | `scripts/`: demo-crm<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, analysisRun.service, customer360.service, events.service, marketing.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|

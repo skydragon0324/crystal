@@ -46,7 +46,16 @@ export default function Customers() {
   const reviewed = () => setRevision(value => value + 1);
   /* ?tab= opens a tab by name; the order is the TabList's below. */
   const TAB_NAMES = ['customers', 'pending', 'assignments', 'resolved', 'duplicates', 'import-errors'];
-  const initialTab = Math.max(0, TAB_NAMES.indexOf(new URLSearchParams(location.search).get('tab') || 'customers'));
+  const query = new URLSearchParams(location.search);
+  const initialTab = Math.max(0, TAB_NAMES.indexOf(query.get('tab') || 'customers'));
+  /* ?grade= ?activity= ?type= ?project= open the list already narrowed - the overview links here with them. */
+  const idOf = (name) => (query.get(name) ? Number(query.get(name)) : undefined);
+  const narrowedTo = {
+    corporate_grade_id: idOf('grade'),
+    activity_status: query.get('activity') || undefined,
+    party_type: query.get('type') || undefined,
+    project_id: idOf('project')
+  };
 
   return (
     <Card bodyProps={false}>
@@ -60,7 +69,7 @@ export default function Customers() {
           <Tab fontSize="sm">{translate('crm.customers.importErrorsTab')}</Tab>
         </TabList>
         <TabPanels>
-          <TabPanel px={0}><CustomerList key={revision} grade={new URLSearchParams(location.search).get('grade') ? Number(new URLSearchParams(location.search).get('grade')) : undefined} /></TabPanel>
+          <TabPanel px={0}><CustomerList key={revision} narrowedTo={narrowedTo} /></TabPanel>
           <TabPanel px={0}><RegistrationReview category="PERSON" onDecided={reviewed} /></TabPanel>
           <TabPanel px={0}><RegistrationReview category="ESHOP" onDecided={reviewed} /></TabPanel>
           <TabPanel px={0}><RegistrationReview key={revision} resolved /></TabPanel>
@@ -74,7 +83,7 @@ export default function Customers() {
 
 const NEW_CUSTOMER = { party_type: 'PERSON' };
 
-function CustomerList({ grade }) {
+function CustomerList({ narrowedTo }) {
   const translate = useT();
   const toast = useToast();
   const history = useHistory();
@@ -85,7 +94,7 @@ function CustomerList({ grade }) {
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState(NEW_CUSTOMER);
 
-  const list = useList((params) => crm.parties.list(params), { page: 1, limit: 20, sort: 'corporate_score', dir: 'desc', corporate_grade_id: grade });
+  const list = useList((params) => crm.parties.list(params), Object.assign({ page: 1, limit: 20, sort: 'corporate_score', dir: 'desc' }, narrowedTo));
 
   const openForm = () => { setValues(NEW_CUSTOMER); form.onOpen(); };
 
@@ -181,7 +190,7 @@ function CustomerList({ grade }) {
             { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> },
             { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
             { key: 'activity_status', label: 'Activity', sortable: false, render: (row) => (row.activity_status ? <Dot value={row.activity_status} /> : '-') },
-            { key: 'projects', label: 'Projects', sortable: false, render: (row) => <ProjectTags codes={String(row.projects || '').split(',').filter((projectCode) => projectCode !== 'PLATFORM')} /> },
+            { key: 'projects', label: 'Projects', sortable: false, render: (row) => <ProjectTags codes={String(row.projects || '').split(',')} /> },
             { key: 'mobile', label: 'Mobile', sortable: false },
             { key: 'holding_cnt', label: 'Products', sortable: false, isNumeric: true, render: (row) => number(row.holding_cnt) },
             { key: 'case_cnt', label: 'Service cases', sortable: false, isNumeric: true, render: (row) => number(row.case_cnt) },

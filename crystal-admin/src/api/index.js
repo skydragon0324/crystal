@@ -323,10 +323,7 @@ const CRM = '/crm';
 
 export const crm = {
   meta: () => client.get(CRM + '/meta'),
-  overview: () => client.get(CRM + '/overview'),
-  importCrystal: () => client.post(CRM + '/import'),
-  importVendor: () => client.post(CRM + '/import/vendor'),
-  recalculate: () => client.post(CRM + '/recalculate'),
+  overview: (params) => client.get(CRM + '/overview', { params }),
 
   analysis: {
     summary: (date) => client.get(CRM + '/analysis/summary', { params: { reference_date: date } }),
@@ -423,6 +420,7 @@ export const crm = {
     setChecked: (id, checked) => client.post(CRM + '/parties/' + id + '/checked', { is_checked_manually: checked }),
     addContact: (id, payload) => client.post(CRM + '/parties/' + id + '/contacts', payload),
     updateContact: (id, contactId, payload) => client.put(CRM + '/parties/' + id + '/contacts/' + contactId, payload),
+    deleteContact: (id, contactId) => client.delete(CRM + '/parties/' + id + '/contacts/' + contactId),
     linkAccount: (id, payload) => client.post(CRM + '/parties/' + id + '/accounts', payload),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
@@ -463,6 +461,7 @@ export const crm = {
 
   cases: {
     list: (params) => client.get(CRM + '/cases', { params }),
+    summary: () => client.get(CRM + '/cases/summary'),
     get: (id) => client.get(CRM + '/cases/' + id),
     create: (payload) => client.post(CRM + '/cases', payload),
     update: (id, payload) => client.put(CRM + '/cases/' + id, payload),

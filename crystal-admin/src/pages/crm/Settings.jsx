@@ -32,7 +32,7 @@ const activeField = { name: 'is_active', label: 'In use', type: 'checkbox' };
  * and purposes consent is asked about. They change a few times a year, and
  * none of them is worth a release.
  *
- * A code the CRM itself relies on - CRYSTAL, OWNER, REPAIR_INTAKE - can be
+ * A code the CRM itself relies on - OWNER, REPAIR_INTAKE - can be
  * renamed on screen but not re-coded or deleted: the server refuses, and says
  * which code it is protecting. A value still in use by a record cannot be
  * deleted either; its records have to go first.

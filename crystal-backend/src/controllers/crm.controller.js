@@ -4,7 +4,6 @@ const { readPaging } = require('../utils/query');
 
 const vocabulary = require('../repositories/crm/vocabulary.repository');
 const analysis = require('../services/crm/analysis.service');
-const crystalImport = require('../services/crm/crystalImport.service');
 const parties = require('../services/crm/parties.service');
 const products = require('../services/crm/products.service');
 const cases = require('../services/crm/cases.service');
@@ -12,7 +11,6 @@ const points = require('../services/crm/points.service');
 const events = require('../services/crm/events.service');
 const sites = require('../services/crm/sites.service');
 const marketing = require('../services/crm/marketing.service');
-const vendorImport = require('../services/crm/vendorImport.service');
 const analysisRun = require('../services/crm/analysisRun.service');
 const analysisRead = require('../services/crm/analysisRead.service');
 const transactionsService = require('../services/crm/transactions.service');
@@ -54,19 +52,7 @@ function scopedLister(search, param) {
 module.exports = {
   /* ---- shared ---- */
   meta: async function (req, res) { return ok(res, await vocabulary.all()); },
-  overview: async function (req, res) { return ok(res, await analysis.overview()); },
-
-  importCrystal: async function (req, res) {
-    const summary = await crystalImport.run();
-    require('../services/audit.service').imported(req.actor, 'crm_party', summary, '/admin/crm/overview');
-    return ok(res, summary, 'crm.common.importFinished');
-  },
-
-  importVendor: async function (req, res) {
-    const summary = await vendorImport.run();
-    require('../services/audit.service').imported(req.actor, 'crm_transaction', summary, '/admin/crm/overview');
-    return ok(res, summary, 'crm.common.importFinished');
-  },
+  overview: async function (req, res) { return ok(res, await analysis.overview(req.query)); },
 
   /* ---- analysis ---- */
   analysis: {
@@ -207,6 +193,9 @@ module.exports = {
     updateContact: async function (req, res) {
       return ok(res, await parties.updateContact(req.params.id, req.params.contactId, req.body, req.actor), 'common.updated');
     },
+    deleteContact: async function (req, res) {
+      return ok(res, await parties.deleteContact(req.params.id, req.params.contactId, req.actor), 'common.deleted');
+    },
     linkAccount: async function (req, res) {
       return ok(res, await parties.linkAccount(req.params.id, req.body, req.actor), 'common.created');
     },
@@ -292,6 +281,7 @@ module.exports = {
   /* ---- service cases ---- */
   cases: {
     list: lister(cases.search, ['received_at', 'due_at', 'closed_at'], 'received_at'),
+    summary: async function (req, res) { return ok(res, await cases.summary()); },
     detail: async function (req, res) { return ok(res, await cases.detail(req.params.id)); },
     create: async function (req, res) { return ok(res, await cases.create(req.body, req.actor), 'common.created'); },
     update: async function (req, res) { return ok(res, await cases.update(req.params.id, req.body, req.actor), 'common.updated'); },

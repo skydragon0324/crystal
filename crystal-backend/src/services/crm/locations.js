@@ -1,4 +1,5 @@
 const db = require('../../config/db');
+const legacy = require('../../config/legacy');
 
 /**
  * THE VENDOR'S LOCATION LIST, READ ONE WAY.
@@ -59,7 +60,38 @@ async function all(trx) {
   return rows.sort(function (left, right) { return String(left.full_name).localeCompare(String(right.full_name)); });
 }
 
+
+/**
+ * THE VENDOR'S LOCATION LIST, copied as it is: same columns, same keys
+ * (crm_location.location_pk = ora_pid.locations.location_pk). Read through the
+ * legacy handle, so it works whether the vendor runs on PostgreSQL or Oracle.
+ * A row already here is updated; nothing is deleted - a location a customer
+ * points at stays even if the vendor removes it.
+ */
+async function refresh(connection) {
+  const rows = await legacy.connection()(legacy.pid('locations'))
+    .select('location_pk', 'location_name', 'location_code', 'parent_code', 'position');
+  let added = 0;
+  let updated = 0;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    // eslint-disable-next-line no-await-in-loop
+    const result = await connection.raw(`
+      INSERT INTO crm_location (location_pk, location_name, location_code, parent_code, position)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (location_pk) DO UPDATE SET
+        location_name = EXCLUDED.location_name, location_code = EXCLUDED.location_code,
+        parent_code = EXCLUDED.parent_code, position = EXCLUDED.position
+      RETURNING (xmax = 0) AS inserted`,
+    [row.location_pk, row.location_name, row.location_code, row.parent_code === undefined ? null : row.parent_code, Number(row.position) || 0]);
+    if (result.rows[0] && result.rows[0].inserted) added += 1; else updated += 1;
+  }
+  return { added: added, updated: updated };
+}
+
 module.exports = {
+  refresh: refresh,
   isTop: isTop,
   fullNameOf: fullNameOf,
   all: all

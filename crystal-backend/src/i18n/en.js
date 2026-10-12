@@ -274,6 +274,8 @@ module.exports = {
       unknownChannel: 'unknown channel'
     },
     customers: {
+      contactIsInUse: 'the contact has been used (consent, campaign or interaction), so it cannot be deleted: set its status to Retired or Invalid instead',
+      onlyAnActiveContactCanBePrimary: 'only an active contact can be primary',
       aCustomerCannotBeRelatedToThemselves: 'a customer cannot be related to themselves',
       alreadyUnlinked: 'this account is already unlinked',
       chooseAGrade: 'choose one of the active corporate grades',

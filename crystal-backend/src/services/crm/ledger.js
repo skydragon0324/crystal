@@ -51,7 +51,7 @@ async function lockAccount(trx, partyId, pointTypeId) {
  *
  *   entry.party_pk, entry.point_type_id, entry.points_delta   required
  *   entry.event_code                                          EARN | REDEEM | ADJUST | ...
- *   entry.project_id                                          defaults to the currency's owner, else PLATFORM
+ *   entry.project_id                                          defaults to the currency's owner project
  *   entry.allow_negative                                      the importer only
  *   everything else is copied onto the event if it is one of its columns
  */
@@ -66,9 +66,8 @@ async function post(trx, entry) {
   if (!pointType) throw new HttpError(400, 'crm.points.unknownPointType');
   if (!pointType.is_active && !entry.allow_inactive) throw new HttpError(409, 'crm.points.pointTypeIsInactive');
 
-  let projectId = entry.project_id || pointType.owner_project_id;
-  if (!projectId) projectId = await vocabulary.idOf('crm_project', 'PLATFORM', trx);
-  // Every ledger entry belongs to a project: without an owner project (and no PLATFORM to fall back on) say so, instead of failing on the column.
+  const projectId = entry.project_id || pointType.owner_project_id;
+  // Every ledger entry belongs to a project: without one given and no owner project on the point type, say so, instead of failing on the column.
   if (!projectId) throw new HttpError(409, 'crm.points.pointTypeNeedsAProject', null, { point_type: pointType.point_type_code });
 
   const account = await lockAccount(trx, entry.party_pk, entry.point_type_id);

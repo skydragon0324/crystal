@@ -10,19 +10,8 @@ async function resolveAccount(trx, input) {
   await intake.addEvidence(trx, linked.party_pk, Object.assign({}, input.party || {}, { contacts: input.contacts || [] }));
   return { party_pk: linked.party_pk, outcome: 'EXISTING' };
  }
- const project = await trx('crm_project').where('project_id', input.project_id).first();
- // A legacy e-shop link (known_party_pk from the vendor data) is a candidate
- // for review. An e-shop account the department registers itself is matched
- // like any other project's account and linked when the match is certain.
- const eshop = project && project.identity_role === 'ESHOP' && input.known_party_pk != null;
- // The PLATFORM alias is written only after Crystal has resolved this person.
- // Other project hints are candidates and must pass matching or review.
- if (input.resolved_party_pk && project && project.project_code === 'PLATFORM') {
-  await intake.attachAccount(trx, input.resolved_party_pk, input, false);
-  return { party_pk: input.resolved_party_pk, outcome: 'PLATFORM' };
- }
- const candidate = input.known_party_pk ? await trx('crm_party').where('party_pk', input.known_party_pk).first('party_pk','display_name') : null;
+ // A new account, from whichever project, is matched against the customers already known and linked when the match is certain.
  const data = Object.assign({ party_type: 'PERSON', origin_project_id: input.project_id, first_seen_at: input.source_created_at, last_seen_at: input.source_updated_at }, input.party || {}, { contacts: input.contacts || [] });
- return intake.submit(trx, data, { project_id: input.project_id, source_record_id: key.external_account_id, account: input, category: eshop ? 'ESHOP' : 'PERSON', candidates: candidate ? [candidate] : [] });
+ return intake.submit(trx, data, { project_id: input.project_id, source_record_id: key.external_account_id, account: input, category: 'PERSON' });
 }
 module.exports = { resolveAccount };

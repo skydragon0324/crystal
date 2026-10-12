@@ -625,6 +625,23 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       ],
       submit: (values) => run(() => crm.parties.addContact(party.party_pk, values), 'Created')
     },
+    /* The type stays: a phone that should have been an email is a new contact, not an edit. */
+    editContact: {
+      title: translate('crm.customer360.editContact'),
+      fields: [
+        { name: 'contact_value', label: 'Contact', required: true },
+        { name: 'label', label: 'Label' },
+        { name: 'status', label: 'Status', type: 'select', required: true, isClearable: false, options: choices(['ACTIVE', 'INVALID', 'RETIRED']),
+          help: translate('crm.customer360.contactStatusHelp') },
+        { name: 'is_primary', label: 'Primary for this type', type: 'checkbox' },
+        { name: 'is_verified', label: 'Verified', type: 'checkbox' }
+      ],
+      /* The form sends only its fields; which contact is being edited comes from what it was opened with. */
+      submit: (values) => run(() => crm.parties.updateContact(party.party_pk, dialog.initial.contact_point_id, {
+        contact_value: values.contact_value, label: values.label, status: values.status,
+        is_primary: values.status === 'ACTIVE' ? !!values.is_primary : false, is_verified: !!values.is_verified
+      }))
+    },
     account: {
       title: translate('crm.customer360.customerLinkAccount'),
       fields: [

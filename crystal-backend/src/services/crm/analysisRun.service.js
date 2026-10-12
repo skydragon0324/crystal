@@ -237,18 +237,16 @@ async function run(options) {
   const refDate = (options && options.referenceDate) || new Date().toISOString().slice(0, 10);
   const ref = new Date(refDate + 'T23:59:59Z');
 
-  const [data, grades, definitions, reporting, balances, accounts, lastService, platform] = await Promise.all([
+  const [data, grades, definitions, reporting, balances, accounts, lastService] = await Promise.all([
     load(connection, refDate),
     connection('crm_corporate_grade').where('is_active', true).orderBy('rank_no', 'desc'),
     connection('crm_metric_definition').where('is_active', true),
     connection('crm_currency').where('is_reporting', true).first('currency_code'),
     connection('crm_point_account').select('party_pk').sum({ balance_total: 'balance' }).groupBy('party_pk'),
-    connection('crm_project_account as account').join('crm_project as project', 'project.project_id', 'account.project_id')
-      .whereNull('account.unlinked_at').whereNot('project.project_code', 'PLATFORM')
+    connection('crm_project_account as account').whereNull('account.unlinked_at')
       .select('account.party_pk').countDistinct({ project_count: 'account.project_id' }).groupBy('account.party_pk'),
     connection('crm_service_case').where('received_at', '<', connection.raw('?::date + 1', [refDate]))
-      .select('party_pk').max({ last_received_at: 'received_at' }).groupBy('party_pk'),
-    connection('crm_project').where('project_code', 'PLATFORM').first('project_id')
+      .select('party_pk').max({ last_received_at: 'received_at' }).groupBy('party_pk')
   ]);
 
   const rows = accumulate(data, ref);
@@ -274,7 +272,6 @@ async function run(options) {
   definitions.forEach(function (definition) { defs[definition.metric_code] = definition; });
 
   const snapshots = rows
-    .filter(function (facts) { return !platform || facts.project_id !== platform.project_id; })
     .map(function (facts) {
       const row = {
         party_pk: facts.party_pk,

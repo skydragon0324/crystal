@@ -199,8 +199,34 @@ async function classify(id, body, actor) {
   return row;
 }
 
+/**
+ * THE CASE LIST'S TABS: how many cases in all, open and overdue, and the same
+ * per project and per case type - with what closed in the last 30 days and how
+ * long cases closed in the last 90 took, so a backlog can be told from a busy month.
+ */
+async function summary() {
+  const figures = `COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE NOT st.is_terminal)::int AS open,
+      COUNT(*) FILTER (WHERE NOT st.is_terminal AND service_case.due_at < now())::int AS overdue,
+      COUNT(*) FILTER (WHERE service_case.closed_at >= now() - interval '30 days')::int AS closed_30d,
+      ROUND((AVG(EXTRACT(EPOCH FROM service_case.closed_at - service_case.received_at) / 86400)
+             FILTER (WHERE service_case.closed_at >= now() - interval '90 days'))::numeric, 1) AS days_to_close`;
+  const from = `FROM crm_service_case service_case JOIN crm_service_status st ON st.service_status_id = service_case.service_status_id`;
+  const [counts, byProject, byType] = await Promise.all([
+    db.raw(`SELECT ${figures} ${from}`).then(function (result) { return result.rows[0]; }),
+    db.raw(`SELECT project.project_id, project.project_code, project.project_name, ${figures}
+              ${from} JOIN crm_project project ON project.project_id = service_case.project_id
+             GROUP BY project.project_id ORDER BY open DESC, total DESC`).then(function (result) { return result.rows; }),
+    db.raw(`SELECT ct.case_type_id, ct.case_type_code, ct.display_name AS case_type_name, ${figures}
+              ${from} JOIN crm_service_case_type ct ON ct.case_type_id = service_case.case_type_id
+             GROUP BY ct.case_type_id ORDER BY open DESC, total DESC`).then(function (result) { return result.rows; })
+  ]);
+  return { counts: counts, by_project: byProject, by_type: byType };
+}
+
 module.exports = {
   PAGE: PAGE,
+  summary: summary,
   search: search,
   detail: detail,
   create: create,

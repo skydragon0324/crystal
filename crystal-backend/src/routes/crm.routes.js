@@ -69,9 +69,7 @@ router.get('/campaigns/options', anyCrm, crmController.campaigns.options);
 
 /* ---- overview ---- */
 router.get('/overview', read(PAGES.OVERVIEW), crmController.overview);
-router.post('/import', write(PAGES.OVERVIEW), crmController.importCrystal);
 router.post('/recalculate', write(PAGES.OVERVIEW), crmController.recalculate);
-router.post('/import/vendor', write(PAGES.OVERVIEW), crmController.importVendor);
 
 /* ---- analysis, metrics and corporate grades ---- */
 router.get('/analysis/summary', read(PAGES.ANALYSIS), crmController.analysis.summary);
@@ -157,6 +155,7 @@ router.put('/parties/:id/grade', write(PAGES.CUSTOMERS), crmController.parties.a
 router.post('/parties/:id/checked', write(PAGES.CUSTOMERS), crmController.parties.setChecked);
 router.post('/parties/:id/contacts', write(PAGES.CUSTOMERS), crmController.parties.addContact);
 router.put('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.updateContact);
+router.delete('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.deleteContact);
 router.post('/parties/:id/accounts', write(PAGES.CUSTOMERS), crmController.parties.linkAccount);
 router.post('/parties/:id/accounts/:accountId/unlink', write(PAGES.CUSTOMERS), crmController.parties.unlinkAccount);
 router.put('/parties/:id/consents', write(PAGES.CUSTOMERS), crmController.parties.setConsent);
@@ -229,6 +228,7 @@ router.post('/transfers/:id/status', write(PAGES.TRANSFERS), crmController.produ
 
 /* ---- service cases ---- */
 router.get('/cases', read(PAGES.CASES), crmController.cases.list);
+router.get('/cases/summary', read(PAGES.CASES), crmController.cases.summary);
 router.post('/cases', write(PAGES.CASES), crmController.cases.create);
 router.get('/cases/:id', read(PAGES.CASES), crmController.cases.detail);
 router.put('/cases/:id', write(PAGES.CASES), crmController.cases.update);
@@ -397,8 +397,7 @@ const VOCABULARIES = [
   { path: 'project-tiers', table: 'crm_project_tier', pk: 'project_tier_id', code: 'tier_code', filterable: ['project_id'],
     columns: ['project_id', 'tier_code', 'tier_name', 'rank_no', 'tier_kind', 'source_code', 'min_value', 'is_active'] },
   { path: 'point-types', table: 'crm_point_type', pk: 'point_type_id', code: 'point_type_code',
-    columns: ['point_type_code', 'point_type_name', 'owner_project_id', 'is_dream_managed', 'decimal_places', 'expires_after_days', 'is_active'],
-    system: ['CRYSTAL'] },
+    columns: ['point_type_code', 'point_type_name', 'owner_project_id', 'is_dream_managed', 'decimal_places', 'expires_after_days', 'is_active'] },
   { path: 'activity-types', table: 'crm_service_center_activity_type', pk: 'activity_type_id', code: 'activity_code',
     columns: ['activity_code', 'activity_name', 'activity_group', 'required_capability_code', 'counts_quantity', 'counts_amount', 'is_active'],
     system: ['REPAIR_INTAKE', 'REPAIR_DELIVERY', 'RESERVATION_PICKUP', 'PRIZE_HANDOVER', 'REGISTRATION_ASSIST'] },
@@ -474,13 +473,12 @@ const VOCABULARIES = [
 ];
 
 /*
- * The vendor's location list, copied again on its own (the same step the
- * Crystal import starts with): new locations are added, changed ones updated,
- * none removed.
+ * The vendor's location list, copied again: new locations are added, changed
+ * ones updated, none removed.
  */
 router.post('/settings/locations/refresh', write(PAGES.SETTINGS), async function (req, res) {
   const result = await require('../repositories/shared/transaction').transaction(function (trx) {
-    return require('../services/crm/crystalImport.service').importLocations(trx);
+    return require('../services/crm/locations').refresh(trx);
   });
   require('../services/audit.service').updated(req.actor, 'crm_location', null, null, result, PAGES.SETTINGS);
   return require('../utils/response').ok(res, result);

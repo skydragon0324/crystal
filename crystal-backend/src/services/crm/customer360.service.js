@@ -157,7 +157,7 @@ async function serviceFacts(partyId) {
  */
 async function accountsByProject(partyId) {
   const [projects, accounts, lastActivity] = await Promise.all([
-    db('crm_project').where('status', 'ACTIVE').whereNot('project_code', 'PLATFORM').orderBy('project_id')
+    db('crm_project').where('status', 'ACTIVE').orderBy('project_id')
       .select('project_id', 'project_code', 'project_name'),
     db('crm_project_account').where('party_pk', partyId).orderBy([{ column: 'unlinked_at', order: 'desc' }, { column: 'is_primary', order: 'desc' }]),
     db.raw(`

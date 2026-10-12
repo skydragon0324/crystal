@@ -240,6 +240,8 @@ module.exports = {
       unknownChannel: 'неизвестный канал'
     },
     customers: {
+      contactIsInUse: 'этот контакт уже использовался (согласие, кампания или взаимодействие), удалить его нельзя: установите статус «Выведено» или «Недействителен»',
+      onlyAnActiveContactCanBePrimary: 'основным может быть только действующий контакт',
       aCustomerCannotBeRelatedToThemselves: 'клиент не может быть связан сам с собой',
       alreadyUnlinked: 'этот аккаунт уже отвязан',
       chooseAGrade: 'выберите один из действующих корпоративных рейтингов',
