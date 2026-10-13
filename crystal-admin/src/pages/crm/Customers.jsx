@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Box, Button, HStack, Icon, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
+  Box, Button, HStack, Icon, Link, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
@@ -305,10 +305,11 @@ function Duplicates() {
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
           columns={[
+            /* Each side of the pair opens its own record; the rest of the row opens nothing. */
             { key: 'incoming_party_pk', label: 'Newer customer',
-              render: (row) => (row.incoming_name || '-') + '  ' + partyIdLabel(row.incoming_party_pk) },
+              render: (row) => <CustomerLink partyPk={row.incoming_party_pk} name={row.incoming_name} onOpen={(id) => history.push(PAGE + '/' + id)} /> },
             { key: 'candidate_party_pk', label: 'Older customer',
-              render: (row) => (row.candidate_name || '-') + '  ' + partyIdLabel(row.candidate_party_pk) },
+              render: (row) => <CustomerLink partyPk={row.candidate_party_pk} name={row.candidate_name} onOpen={(id) => history.push(PAGE + '/' + id)} /> },
             { key: 'match_rule_code', label: 'Matched on',
               render: (row) => word(translate, String(row.match_rule_code || '').replace('SAME_', '')) },
             { key: 'match_score', label: 'Score', isNumeric: true, render: (row) => number(row.match_score, 2) },
@@ -322,7 +323,6 @@ function Duplicates() {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.match_candidate_id || row.id}
-          onRowClick={(row) => row.incoming_party_pk && history.push(PAGE + '/' + row.incoming_party_pk)}
           actions={canWrite ? [
             { key: 'merge', label: translate('crm.customers.merge'), onClick: (row) => decide(row, true) },
             { key: 'reject', label: translate('crm.customers.keepApart'), onClick: (row) => decide(row, false) }
@@ -331,5 +331,15 @@ function Duplicates() {
         />
       </Box>
     </Box>
+  );
+}
+
+/** One customer of a duplicate pair: their name and number, opening their own record. */
+function CustomerLink({ partyPk, name, onOpen }) {
+  if (!partyPk) return <Text as="span">{name || '-'}</Text>;
+  return (
+    <Link color="brand.500" fontWeight="600" onClick={(event) => { event.stopPropagation(); onOpen(partyPk); }}>
+      {(name || '-') + '  ' + partyIdLabel(partyPk)}
+    </Link>
   );
 }
