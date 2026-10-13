@@ -130,6 +130,7 @@ const CrmSegments = deferred(() => import(/* webpackChunkName: "admin-crm" */ '.
 const CrmCampaigns = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Campaigns'));
 const CrmCampaignDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/CampaignDetail'));
 const CrmSettings = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Settings'));
+const Terminology = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Terminology'));
 
 /**
  * Every screen, addressed by the SAME url the permission grid uses.
@@ -243,7 +244,8 @@ const routes = [
   { path: '/admin/crm/segments', component: CrmSegments },
   { path: '/admin/crm/campaigns/:id', component: CrmCampaignDetail },
   { path: '/admin/crm/campaigns', component: CrmCampaigns },
-  { path: '/admin/crm/settings', component: CrmSettings }
+  { path: '/admin/crm/settings', component: CrmSettings },
+  { path: '/admin/crm/terminology', component: Terminology }
 ];
 
 /**

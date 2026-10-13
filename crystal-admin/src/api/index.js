@@ -166,6 +166,7 @@ export const series = createResource('/series');
  */
 export const notices = createResource('/notices');
 export const noticeOrigins = createResource('/notice-origins');
+export const terms = createResource('/crm/terms');
 
 /*
  * THE ABOUT PAGE, as three master tables.
@@ -617,7 +618,7 @@ const api = {
   replenishments, claims, analysis,
   products, productImages, productOsHistory,
   categories, series, specGroups, specDefinitions, osVersions,
-  notices, noticeOrigins,
+  notices, noticeOrigins, terms,
   homeAdverts,
   smartphoneAdverts,
   popupAdverts,

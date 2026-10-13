@@ -23,8 +23,8 @@ const { EDGES } = require('./customer360.service');
 
 const PAGE = '/admin/crm/customers';
 
-async function requireParty(id) {
-  const party = await db('crm_party').where('party_pk', id).first('party_pk', 'party_type', 'party_status', 'display_name');
+async function requireParty(id, connection) {
+  const party = await (connection || db)('crm_party').where('party_pk', id).first('party_pk', 'party_type', 'party_status', 'display_name');
   if (!party) throw new HttpError(404, 'common.notFound');
   return party;
 }
@@ -43,13 +43,18 @@ async function wouldLoop(childId, parentId) {
   return result.rows.length > 0;
 }
 
-async function add(partyId, body, actor) {
-  const party = await requireParty(partyId);
+/**
+ * `connection` is the transaction to work in, when the caller has one open - a
+ * registration review relates the customer it has just created, before it commits.
+ */
+async function add(partyId, body, actor, connection) {
+  const run = connection || db;
+  const party = await requireParty(partyId, connection);
   if (!body.related_party_pk) throw new HttpError(400, 'crm.customers.chooseTheRelatedCustomer');
-  const related = await requireParty(body.related_party_pk);
+  const related = await requireParty(body.related_party_pk, connection);
   if (String(party.party_pk) === String(related.party_pk)) throw new HttpError(409, 'crm.customers.aCustomerCannotBeRelatedToThemselves');
 
-  const type = await db('crm_party_relationship_type').where({ relationship_type_code: body.relationship_type_code, is_active: true }).first();
+  const type = await run('crm_party_relationship_type').where({ relationship_type_code: body.relationship_type_code, is_active: true }).first();
   if (!type) throw new HttpError(400, 'crm.customers.chooseARelationship');
   if (type.applies_to !== 'ANY' && (party.party_type !== type.applies_to || related.party_type !== type.applies_to)) {
     throw new HttpError(409, 'crm.customers.thatRelationshipIsNotForThem', null, { relationship: type.relationship_name });
@@ -64,17 +69,17 @@ async function add(partyId, body, actor) {
   }
 
   /* The same fact entered from the other end is already there. */
-  const already = await db('crm_party_relationship').where('status', 'ACTIVE').where(function () {
+  const already = await run('crm_party_relationship').where('status', 'ACTIVE').where(function () {
     this.where({ party_pk: party.party_pk, related_party_pk: related.party_pk, relationship_type_code: type.relationship_type_code })
       .orWhere({ party_pk: related.party_pk, related_party_pk: party.party_pk, relationship_type_code: type.inverse_code });
   }).first();
   if (already) throw new HttpError(409, 'crm.customers.theyAreAlreadyRelatedThatWay');
 
-  const [row] = await db('crm_party_relationship').insert({
+  const [row] = await run('crm_party_relationship').insert({
     party_pk: party.party_pk,
     related_party_pk: related.party_pk,
     relationship_type_code: type.relationship_type_code,
-    valid_from: body.valid_from || db.raw('CURRENT_DATE'),
+    valid_from: body.valid_from || run.raw('CURRENT_DATE'),
     note: body.note ? String(body.note).slice(0, 255) : null,
     created_by_manager_id: actor.manager_id
   }).returning('*');

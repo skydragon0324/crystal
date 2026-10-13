@@ -14,7 +14,7 @@ import { useT } from '../i18n';
  * console ends up with the same spacing, the same "all" option and the same
  * behaviour when a filter is cleared.
  */
-export default function Toolbar({ search, onSearch, filters, actions, children }) {
+export default function Toolbar({ search, onSearch, filters, actions, children, placeholder, beside }) {
   const t = useT();
   const [typed, setTyped] = useState(search || '');
   const searchHandler = useRef(onSearch);
@@ -38,7 +38,7 @@ export default function Toolbar({ search, onSearch, filters, actions, children }
           </InputLeftElement>
           <Input
             borderRadius="lg"
-            placeholder={t('common.search')}
+            placeholder={placeholder || t('common.search')}
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
             onKeyDown={(event) => {
@@ -47,6 +47,9 @@ export default function Toolbar({ search, onSearch, filters, actions, children }
           />
         </InputGroup>
       )}
+
+      {/* More search boxes of the screen's own, kept next to the main one. */}
+      {beside}
 
       <Wrap spacing={2}>
         {(filters || []).map((filter) => (

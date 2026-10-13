@@ -1404,7 +1404,11 @@ The customer list: one row per party with its first mobile and email, its projec
 | limit | integer | no | 20 | Rows per page, clamped to 1..200 |
 | sort | string | no | `party_pk` | One of `party_pk`, `display_name`, `last_seen_at`, `created_at`, `corporate_score`, `purchase_amount_12m`. Any other value falls back to `party_pk`. Always sorted `NULLS LAST`. There is no secondary sort key. |
 | dir | string | no | `desc` | `desc` gives descending. Any other value given gives ascending. |
-| q | string | no | | Free-text search, trimmed. See the table below. |
+| q | string | no | | Free-text search, trimmed: the all-in-one search the customer pickers use. See the table below. |
+| name | string | no | | The customer list's main box: customer number (`party_pk`, as `q` reads it) or part of the display name. Combined with AND with every other filter. |
+| birthday | string | no | | A date, a year or a day of birth, in any form the birthday search accepts (1985-03-12, 1985.03.12, 12.03.1985, 1985, 03-12). Text that is not a birthday finds no one. |
+| phone | string | no | | Part of any MOBILE or PHONE contact of the party, matched on its normalised form, so spaces, dashes and the country code do not matter. |
+| location_pk | integer | no | | A place and everywhere inside it (a province finds its cities and districts): a person's home location or an organization's location. |
 | party_status | string | no | ACTIVE and INACTIVE | Exact status: `ACTIVE`, `INACTIVE`, `MERGED` or `DELETED`. When omitted, merged and deleted parties are hidden. An unknown value returns no rows. |
 | party_type | string | no | | `PERSON` or `ORGANIZATION` (exact) |
 | corporate_grade_id | integer | no | | The effective grade: the grade set by hand (`assigned_grade_id`) if there is one, otherwise the grade on the latest Dream-wide snapshot |
@@ -1420,7 +1424,7 @@ How `q` matches. The alternatives below are combined with OR, so a party matches
 | Name | `display_name ILIKE '%term%'`. `%` and `_` in the term are not escaped, so they act as wildcards. |
 | Phone digits | If the term has 4 or more digits: every non-digit is removed (`"138 0013-8000"` becomes `"13800138000"`), and the result is matched as a substring of any contact point's `normalized_value` (`LIKE '%digits%'`). |
 | Text / email | If the lower-cased term contains `@` or a letter: matched as a substring of any contact point's `normalized_value` (`LIKE`, case-sensitive). Emails are stored lower-cased. Other contact types (WeChat id and so on) are stored only trimmed, so for them the case must match. |
-| Birthday | Three forms (`services/crm/birthday.js`). **A whole date** from 1900, typed as `1990-05-03`, `1990.5.3`, `1990/05/03`, `19900503`, `03.05.1990` or `03/05/1990` (day first, unless the second part is over 12, as in `05/23/1990`): `crm_person.birth_date` equals it. **A year alone**, `1990` (1900 to this year): `crm_person.birth_year` or the year of `birth_date` equals it, so people known only by their year are found. **A month and day alone**, `05-03`, `03.05` or `5/3`: `birth_date` falls on that day in any year; when both parts could be the month, both readings (3 May and 5 March) are searched. Anything else, or an impossible date, is not treated as a birthday. |
+| Birthday | Three forms (`services/crm/birthday.js`). **A whole date** from 1900, typed as `1990-05-03`, `1990.5.3`, `1990/05/03`, `19900503`, `03.05.1990`, `03/05/1990`, `1990年5月3日`, `1990년 5월 3일` or `1990 5 3` (day first, unless the second part is over 12, as in `05/23/1990`): `crm_person.birth_date` equals it. **A year alone**, `1990` (1900 to this year): `crm_person.birth_year` or the year of `birth_date` equals it, so people known only by their year are found. **A month and day alone**, `05-03`, `03.05`, `5/3` or `5월 3일`: `birth_date` falls on that day in any year; when both parts could be the month, both readings (3 May and 5 March) are searched. Anything else, or an impossible date, is not treated as a birthday. |
 | Account | Any `crm_project_account` where `external_account_id` equals the term exactly (case-sensitive), or `external_login ILIKE term` (whole value, any case). Unlinked accounts are included. |
 
 The contact-point alternatives look at every contact the party has, including INVALID and RETIRED ones.
@@ -3065,6 +3069,8 @@ An administrator resolves a PENDING intake: merge it into a customer, register i
 | `action` | string | yes | `MERGE`, `ASSIGN`, `NEW` or `REJECT`. `NEW` is accepted only for a `PERSON` intake; `REJECT` only for an `ESHOP` intake. `MERGE` and `ASSIGN` are interchangeable and work for both categories. Anything else is 400. |
 | `party_pk` | string or integer | for MERGE/ASSIGN, unless `candidate_intake_id` is given | Must match `^[1-9][0-9]*$`; must be an ACTIVE or INACTIVE party of type PERSON. |
 | `candidate_intake_id` | string or integer | no | MERGE/ASSIGN into whatever customer another intake (typically a pending-registration candidate) has since resolved to. Overrides `party_pk`. That intake must exist and have a `party_pk`. |
+| `use_incoming` | array of strings | no | PERSON + MERGE only. The details the customer takes from the registration instead of keeping their own: any of `full_name` (also the display name), `birth_date` (with the year), `gender_code`, `address` (street address and home location), `job_title`, `phone` (the registration's mobile becomes the primary mobile; the old one stays on file). Values always come from the stored registration; a field it left empty is not taken. Unknown names are ignored. Omitted: the customer keeps their details and blanks are filled, as below. |
+| `relationship` | object | no | PERSON + NEW only. `{ related_party_pk, relationship_type_code, note? }`: the new customer is related to an existing one in the same transaction, read as "the related customer is the new customer's <type>" (e.g. SPOUSE, PARENT). Same rules as POST `/parties/:id/relationships`; a refusal rolls the whole decision back. |
 
 What each decision does (all in one transaction, under the registration lock):
 

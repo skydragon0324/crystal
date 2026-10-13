@@ -67,6 +67,20 @@ router.get('/segments/fields', anyCrm, crmController.segments.fields);
 router.get('/events/options', anyCrm, crmController.events.options);
 router.get('/campaigns/options', anyCrm, crmController.campaigns.options);
 
+/* ---- terminology ---- */
+/*
+ * THE COMPANY'S TERMINOLOGY: a term per language, what it means, and notes.
+ * A term already defined in that language is refused by the unique index.
+ */
+router.use('/terms', crudFactory({
+  table: 'terms', pk: 'id', page: '/admin/crm/terminology',
+  columns: ['term', 'language', 'meaning', 'description'],
+  searchable: ['term', 'meaning', 'description'],
+  filterable: ['language'],
+  sortable: ['id', 'term', 'language', 'updated_at'],
+  defaultSort: 'term'
+}));
+
 /* ---- overview ---- */
 router.get('/overview', read(PAGES.OVERVIEW), crmController.overview);
 router.post('/recalculate', write(PAGES.OVERVIEW), crmController.recalculate);

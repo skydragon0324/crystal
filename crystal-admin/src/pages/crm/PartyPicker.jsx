@@ -29,6 +29,9 @@ import { useT } from '../../i18n';
 const MIN_LETTERS = 2;
 const WAIT_MS = 300;
 
+/* Long enough to search: two letters, or any customer number - 7 is a whole party_pk. */
+const searchable = (term) => term.length >= MIN_LETTERS || /^\d+$/.test(term);
+
 /** A customer's address, once: the address text, or the place it is in when there is none. */
 export function partyAddress(party) {
   return party.address_line || party.home_place || '';
@@ -54,7 +57,8 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
 
   /* Name the customer we were handed, so an edit opens showing who it is. */
   useEffect(() => {
-    if (!value) { setChosen(null); return; }
+    /* Cleared from outside (not by typing, which drops the choice first): the box empties too. */
+    if (!value) { if (chosen) setText(''); setChosen(null); return; }
     if (chosen && String(chosen.party_pk) === String(value)) return;
     crm.parties.lookup('', String(value))
       .then(({ data }) => {
@@ -68,7 +72,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
   /* Search while the list is open, once the text is long enough and has settled. */
   useEffect(() => {
     const term = text.trim();
-    if (!open || term.length < MIN_LETTERS) { setFound([]); return undefined; }
+    if (!open || !searchable(term)) { setFound([]); return undefined; }
     let alive = true;
     const timer = setTimeout(() => {
       setBusy(true);
@@ -110,7 +114,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
     else if (event.key === 'Escape') { setOpen(false); }
   };
 
-  const showList = open && text.trim().length >= MIN_LETTERS;
+  const showList = open && searchable(text.trim());
 
   return (
     <Box position="relative">
@@ -124,7 +128,7 @@ export default function PartyPicker({ value, onChange, placeholder, isDisabled }
           isDisabled={isDisabled}
           placeholder={placeholder || translate('crm.components.findACustomer')}
           onChange={(event) => type(event.target.value)}
-          onFocus={() => { if (!chosen && text.trim().length >= MIN_LETTERS) setOpen(true); }}
+          onFocus={() => { if (!chosen && searchable(text.trim())) setOpen(true); }}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
           role="combobox"

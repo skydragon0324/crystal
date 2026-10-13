@@ -308,3 +308,31 @@ If you look at `C:\sky\crystal_v2\crystal-admin\src\i18n\dictionaries.js`, you c
 We should avoid this approach in the future and instead create translations that are clearly organized by page and functional area.
 For now, please organize the existing CRM-related phrases.
 ----------------------------------------------------------------------
+When manually reviewing the list of pending registrations, the following scenario may arise:
+The name, date of birth, and gender differ, yet the phone number and home address are identical.
+In this case, the match score is 55, placing them on the administrator's review list.
+However, differing names and dates of birth combined with identical contact details suggest they may be family members.
+Naturally, these individuals should be registered as separate customers.
+It would be beneficial, however, to add a relationship link between them during this process—such as designating them as a married couple or parent and child—at the same time they are registered.
+
+Another scenario encountered during manual review is as follows:
+Currently, a newly arriving user is linked to the `party_pk` of an already registered user.
+However, the information for the existing customer may be inaccurate.
+Therefore, the system should select the correct details from both the new and existing records to update the customer's information.
+In other words, while the existing `party_pk` is retained, the associated data should be updated with the correct information.
+To enhance user convenience, the standard approach is to merge the new user into the existing record; if data changes are required, a mechanism (such as specific parameters) should be provided to allow the user to specify the new values.
+
+Additionally, regarding the "Pending Registrations" tab, the system currently displays a list of customers eligible for merging with the new entry; the following layout would likely be more user-friendly:
+Display the new customer's information on the left.
+Display the list of potential merge candidates on the right. Add a dropdown menu in the upper-right area to select the customer with whom the current record will be merged.
+When a registered customer is selected from this list, the system displays only that customer's information on the right side.
+This allows the user to intuitively compare the details of both customers and proceed with the merge.
+Include a toggle button below that allows the user to choose which customer's data should be used for the update during the merge process.
+By default, the toggle is set to "off," using the information from the selected registered customer; however, when switched to "on," the user should be able to specify exactly which customer's data to use for each field—such as name, date of birth, address, occupation, and phone number.
+----------------------------------------------
+on all customers tab, we are searching by name, party_pk, phone number, birthday in one place
+I think we need to separate these searches
+with current search field, we should be able to search by party_pk and name
+and we need to add other search fields for birthday, location, phone number
+so, we can search by name, birthday, phone number, and location at the same time
+------------------------------------------------------------

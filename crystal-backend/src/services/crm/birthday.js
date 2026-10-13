@@ -1,7 +1,8 @@
 /*
  * A birthday typed into a search box, read the way the person meant it.
  *
- *   a whole date   1990-05-03, 1990.05.03, 1990/5/3, 19900503, 03.05.1990, 03/05/1990
+ *   a whole date   1990-05-03, 1990.05.03, 1990/5/3, 19900503, 03.05.1990, 03/05/1990,
+ *                  1990年5月3日, 1990년 5월 3일, 1990 5 3
  *   a year alone   1990                  (1900 to this year)
  *   a day alone    05-03, 03.05, 5/3     (any year)
  *
@@ -16,7 +17,7 @@
  * the helpers below turn it into a condition on a person row or on text.
  */
 function searchBirthday(value) {
- const text = String(value == null ? '' : value).trim();
+ const text = separated(value);
  let year, month, day, match;
  if ((match = text.match(/^(\d{4})$/))) {
   const only = Number(match[1]);
@@ -37,6 +38,15 @@ function searchBirthday(value) {
  const date = new Date(iso + 'T00:00:00Z');
  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== iso || iso < '1900-01-01') return null;
  return { date: iso };
+}
+
+/* 1990年5月3日, 1990년 5월 3일, "1990 5 3" -> 1990.5.3: every way of writing the parts apart, as a dot. */
+function separated(value) {
+ return String(value == null ? '' : value).trim()
+  .replace(/[日일]$/, '')
+  .replace(/\s*[年月년월,\s]\s*/g, '.')
+  .replace(/\.+/g, '.')
+  .replace(/^\.|\.$/g, '');
 }
 
 function pad(number) { return String(number).padStart(2, '0'); }

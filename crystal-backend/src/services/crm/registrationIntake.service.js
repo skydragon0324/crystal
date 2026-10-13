@@ -178,7 +178,16 @@ async function decide(id, body, actor) {
    if (!party) throw new HttpError(404, 'common.notFound');
    if (party.party_type !== 'PERSON') throw new HttpError(400, 'crm.registrations.chooseAPerson');
   } else throw new HttpError(400, 'crm.registrations.chooseMergeNewOrAssign');
-  return finish(trx, intake, party, intake.category === 'ESHOP' ? 'ASSIGNED' : body.action === 'NEW' ? 'CREATED' : 'MERGED', actor);
+  const done = await finish(trx, intake, party, intake.category === 'ESHOP' ? 'ASSIGNED' : body.action === 'NEW' ? 'CREATED' : 'MERGED', actor);
+  if (intake.category === 'PERSON' && body.action === 'MERGE') await takeFromRegistration(trx, party.party_pk, intake.payload.party || {}, body.use_incoming, actor);
+  // Registered as new, but related to a candidate - the same phone and address, another person: a spouse, a parent.
+  if (intake.category === 'PERSON' && body.action === 'NEW' && body.relationship && body.relationship.relationship_type_code) {
+   await require('./relationships.service').add(party.party_pk, {
+    related_party_pk: body.relationship.related_party_pk, relationship_type_code: body.relationship.relationship_type_code,
+    note: body.relationship.note || null
+   }, actor, trx);
+  }
+  return done;
  });
  audit.updated(actor, 'crm_registration_intake', id, null, result, PAGE);
  return result;
@@ -196,23 +205,37 @@ async function acknowledge(id, projectId) {
 // project accounts, with where each assignment review stands. Shown on the
 // customer record so an administrator can check a caller's identity.
 async function unverifiedAccounts(partyPk) {
- const intakes = await db('crm_registration_intake').where({ party_pk: partyPk, category: 'PERSON' })
-  .whereRaw("jsonb_array_length(COALESCE(payload->'unverified_accounts', '[]'::jsonb)) > 0").orderBy('created_at').select('intake_id', 'payload', 'created_at');
+ return (await unverifiedAccountsFor([partyPk])).get(String(partyPk)) || [];
+}
+// The same for several customers in three queries, whatever their number - the
+// review screen asks for every candidate at once. Both lookups are indexed
+// (idx_crm_intake_party, idx_crm_intake_eshop_record), so the cost follows the
+// candidates shown, not the size of the customer base.
+async function unverifiedAccountsFor(partyPks) {
+ const pks = Array.from(new Set((partyPks || []).filter(Boolean).map(String)));
+ const out = new Map(pks.map(pk => [pk, []]));
+ if (!pks.length) return out;
+ const intakes = await db('crm_registration_intake').whereIn('party_pk', pks).where('category', 'PERSON')
+  .whereRaw("jsonb_array_length(COALESCE(payload->'unverified_accounts', '[]'::jsonb)) > 0").orderBy('created_at').select('intake_id', 'party_pk', 'payload', 'created_at');
  // Rows merged into one customer may repeat an identifier; list each once, as first recorded.
- const listed = []; const seen = new Set();
- intakes.forEach(row => row.payload.unverified_accounts.forEach(account => {
-  const key = account.project_id + ':' + account.external_account_id;
-  if (seen.has(key)) return;
-  seen.add(key);
-  listed.push({ account, intake_id: row.intake_id, recorded_at: row.created_at });
- }));
- if (!listed.length) return [];
+ const listedBy = new Map(pks.map(pk => [pk, { listed: [], seen: new Set() }]));
+ intakes.forEach(row => {
+  const own = listedBy.get(String(row.party_pk));
+  row.payload.unverified_accounts.forEach(account => {
+   const key = account.project_id + ':' + account.external_account_id;
+   if (own.seen.has(key)) return;
+   own.seen.add(key);
+   own.listed.push({ account, intake_id: row.intake_id, recorded_at: row.created_at });
+  });
+ });
+ const everyone = [].concat(...pks.map(pk => listedBy.get(pk).listed));
+ if (!everyone.length) return out;
  const [reviews, projects] = await Promise.all([
-  db('crm_registration_intake').where('category', 'ESHOP').whereIn('source_record_id', Array.from(new Set(listed.map(item => String(item.account.external_account_id)))))
+  db('crm_registration_intake').where('category', 'ESHOP').whereIn('source_record_id', Array.from(new Set(everyone.map(item => String(item.account.external_account_id)))))
    .select('intake_id', 'source_project_id', 'source_record_id', 'status', 'party_pk'),
-  db('crm_project').whereIn('project_id', Array.from(new Set(listed.map(item => item.account.project_id)))).select('project_id', 'project_name')
+  db('crm_project').whereIn('project_id', Array.from(new Set(everyone.map(item => item.account.project_id)))).select('project_id', 'project_name')
  ]);
- return listed.map(item => {
+ pks.forEach(partyPk => out.set(partyPk, listedBy.get(partyPk).listed.map(item => {
   const review = reviews.find(row => String(row.source_project_id) === String(item.account.project_id) && row.source_record_id === String(item.account.external_account_id));
   const project = projects.find(row => String(row.project_id) === String(item.account.project_id));
   return {
@@ -222,7 +245,8 @@ async function unverifiedAccounts(partyPk) {
    // PENDING, REJECTED, ASSIGNED (to this customer) or ASSIGNED_ELSEWHERE.
    review_status: !review ? null : review.status === 'ASSIGNED' && String(review.party_pk) !== String(partyPk) ? 'ASSIGNED_ELSEWHERE' : review.status
   };
- });
+ })));
+ return out;
 }
 // EVERYTHING A REVIEWER COMPARES, for one staged registration: the incoming
 // person's basic information with the project it came from and the
@@ -236,10 +260,9 @@ async function detail(id) {
  const candidates = intake.candidates || [];
  const partyPks = candidates.filter(c => c.party_pk).map(c => String(c.party_pk));
  const intakeIds = candidates.filter(c => !c.party_pk && c.intake_id).map(c => String(c.intake_id));
- const [projects, jobs, places, persons, contacts, accounts, others] = await Promise.all([
+ const [projects, jobs, persons, contacts, accounts, others, unverifiedByParty] = await Promise.all([
   db('crm_project').select('project_id', 'project_code', 'project_name'),
   db('crm_job_title').select('job_title_id', 'job_name'),
-  db('crm_location').select('location_pk', db.raw(require('./locations').fullNameOf('crm_location.location_pk') + ' AS full_name')),
   partyPks.length ? db('crm_party as party').leftJoin('crm_person as person', 'person.party_pk', 'party.party_pk').whereIn('party.party_pk', partyPks)
    .select('party.party_pk', 'party.display_name', 'party.party_status', 'party.origin_project_id', 'person.full_name', 'person.gender_code',
     'person.birth_date', 'person.birth_year', 'person.home_location_pk', 'person.address_line', 'person.job_title_id') : [],
@@ -247,8 +270,14 @@ async function detail(id) {
    .select('party_pk', 'contact_type', 'contact_value') : [],
   partyPks.length ? db('crm_project_account').whereIn('party_pk', partyPks).whereNull('unlinked_at')
    .select('party_pk', 'project_id', 'external_account_id', 'external_login') : [],
-  intakeIds.length ? db('crm_registration_intake').whereIn('intake_id', intakeIds).select('intake_id', 'source_project_id', 'payload') : []
+  intakeIds.length ? db('crm_registration_intake').whereIn('intake_id', intakeIds).select('intake_id', 'source_project_id', 'payload') : [],
+  unverifiedAccountsFor(partyPks)
  ]);
+ // Full place names only for the places this screen shows, not for the whole location list.
+ const placePks = Array.from(new Set([(intake.payload || {}).party || {}].concat(persons, others.map(row => (row.payload || {}).party || {}))
+  .map(person => person.home_location_pk).filter(Boolean).map(String)));
+ const places = placePks.length ? await db('crm_location').whereIn('location_pk', placePks)
+  .select('location_pk', db.raw(require('./locations').fullNameOf('crm_location.location_pk') + ' AS full_name')) : [];
  const projectName = pid => { const p = projects.find(row => String(row.project_id) === String(pid)); return p ? p.project_name : null; };
  const jobName = jid => { const j = jobs.find(row => String(row.job_title_id) === String(jid)); return j ? j.job_name : null; };
  const placeName = lid => { const l = places.find(row => String(row.location_pk) === String(lid)); return l ? l.full_name : null; };
@@ -285,7 +314,7 @@ async function detail(id) {
    const own = contacts.filter(row => String(row.party_pk) === pk);
    const linked = accounts.filter(row => String(row.party_pk) === pk);
    // An Excel identifier that has since been verified is listed once, as linked.
-   const listed = (await unverifiedAccounts(pk)).filter(row => !linked.some(account =>
+   const listed = (unverifiedByParty.get(pk) || []).filter(row => !linked.some(account =>
     String(account.project_id) === String(row.project_id) && String(account.external_account_id) === String(row.external_account_id)));
    return Object.assign(base, {
     party_status: person.party_status || null,
@@ -300,6 +329,18 @@ async function detail(id) {
   const other = others.find(row => String(row.intake_id) === String(candidate.intake_id));
   return Object.assign(base, other ? fromPayload(other.payload || {}, other.source_project_id) : { person: null, identifiers: [] });
  }));
+ // An account assignment is an identifier a sheet listed for a customer it had already registered: it
+ // carries only that customer's name. The person behind it is that customer, so their details are shown.
+ const listedFor = intake.category === 'ESHOP' ? enriched.find(candidate => candidate.party_pk && candidate.person) : null;
+ if (listedFor) {
+  const own = incoming.person;
+  const filled = {};
+  Object.keys(listedFor.person).forEach(field => {
+   const value = own[field];
+   filled[field] = value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length) ? listedFor.person[field] : value;
+  });
+  incoming.person = filled;
+ }
  return {
   intake_id: intake.intake_id, category: intake.category, status: intake.status, created_at: intake.created_at,
   party_pk: intake.party_pk, source_project_name: projectName(intake.source_project_id), source_record_id: intake.source_record_id,
@@ -310,6 +351,50 @@ async function detail(id) {
 // Link or reject one of those identifiers from the customer record itself.
 // It goes through the same assignment review as Customers > E-shop
 // assignments; an identifier never staged for review is staged first.
+/*
+ * WHAT A MERGE TAKES FROM THE NEW REGISTRATION.
+ *
+ * By default the customer keeps their own details and the registration only
+ * fills what is missing (finish -> addEvidence). A reviewer who finds the
+ * customer's details wrong names the fields to take from the registration
+ * instead; the values themselves always come from what the registration
+ * carried, never from the request.
+ *
+ *   full_name   the name (and the customer's display name)
+ *   birth_date  the date and year of birth
+ *   gender_code the gender
+ *   address     the street address and the home location, together
+ *   job_title   the job title
+ *   phone       the registration's mobile becomes the main mobile; the old one stays on file
+ */
+const TAKEABLE = {
+ full_name: ['full_name'], birth_date: ['birth_date', 'birth_year'], gender_code: ['gender_code'],
+ address: ['address_line', 'home_location_pk'], job_title: ['job_title_id'], phone: []
+};
+async function takeFromRegistration(trx, partyPk, incoming, fields, actor) {
+ const wanted = (Array.isArray(fields) ? fields : []).filter(field => Object.prototype.hasOwnProperty.call(TAKEABLE, field));
+ if (!wanted.length) return;
+ const before = await trx('crm_person').where('party_pk', partyPk).first();
+ const patch = {};
+ wanted.forEach(field => TAKEABLE[field].forEach(column => {
+  // A field the registration left empty takes nothing: choosing "new" never erases what the customer had.
+  if (incoming[column] !== undefined && incoming[column] !== null && incoming[column] !== '') patch[column] = incoming[column];
+ }));
+ if (patch.birth_date && patch.birth_year === undefined) patch.birth_year = Number(String(patch.birth_date).slice(0, 4));
+ if (Object.keys(patch).length) {
+  await trx('crm_person').where('party_pk', partyPk).update(patch);
+  if (patch.full_name) await trx('crm_party').where('party_pk', partyPk).update({ display_name: patch.full_name, updated_at: trx.fn.now() });
+  audit.updated(actor, 'crm_person', partyPk, before, Object.assign({}, before, patch), PAGE);
+ }
+ if (wanted.indexOf('phone') !== -1 && incoming.mobile) {
+  const normalised = require('./contact').normalise('MOBILE', incoming.mobile);
+  const mobile = normalised && await trx('crm_contact_point').where({ party_pk: partyPk, contact_type: 'MOBILE', normalized_value: normalised }).first();
+  if (mobile && !mobile.is_primary) {
+   await trx('crm_contact_point').where({ party_pk: partyPk, contact_type: 'MOBILE', is_primary: true }).update({ is_primary: false });
+   await trx('crm_contact_point').where('contact_point_id', mobile.contact_point_id).update({ is_primary: true, status: 'ACTIVE', valid_to: null });
+  }
+ }
+}
 async function decideUnverified(partyPk, body, actor) {
  if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'crm.registrations.chooseLinkOrReject');
  const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_account_id) === String(body.external_account_id));
@@ -332,4 +417,4 @@ async function decideUnverified(partyPk, body, actor) {
 function translateCandidates(candidates, locale) {
  return (candidates || []).map(candidate => Object.assign({}, candidate, { reason: duplicates.reasonOf(candidate, locale) }));
 }
-module.exports = { detail, translateCandidates, unverifiedAccounts, decideUnverified, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };
+module.exports = { detail, translateCandidates, unverifiedAccounts, decideUnverified, takeFromRegistration, submit, candidates, candidateContext, list, decide, resolutions, acknowledge, lock, attachAccount, addEvidence };

@@ -144,7 +144,10 @@ const en = {
     resolvedTab: 'Resolved registrations',
     savedForReview: 'Saved for review; no customer created',
     scanForDuplicates: 'Look for duplicates',
-    scanFound: '{n} new pairs found'
+    scanFound: '{n} new pairs found',
+    searchBirthday: 'Birthday, e.g. 1985.03.12',
+    searchNameOrNumber: 'Name or customer number',
+    searchPhone: 'Phone number'
   },
   /* CustomerImport.jsx */
   customerImport: {
@@ -185,32 +188,41 @@ const en = {
     assignIdentifier: 'Assign identifier',
     bestScore: 'Best score',
     candidates: 'Candidates ({n})',
+    chooseDetails: 'Choose which details to keep',
+    chooseDetailsOff: 'Off: the customer keeps their own details, and the new registration only fills in what is missing.',
+    chooseDetailsOn: 'On: for each detail, choose the value the customer keeps after the merge.',
     customer: 'Customer',
     customerNumber: 'Customer #{id}',
     decisionSaved: 'Decision saved',
     enterVerifiedPk: 'Or enter the verified customer\'s party_pk',
     eshopIntro: 'These e-shop and user-management identifiers are candidates. Assign an identifier to a customer only after verifying it.',
     excelRow: 'Excel row {row}',
+    field: 'Detail',
     identifierCandidate: 'Candidate ID (Excel)',
     identifierIncoming: 'Incoming',
     identifierKind: 'Source',
     identifierLinked: 'Linked account',
-    incomingPerson: 'Incoming person',
     match: 'Match',
     mergeIntoSelected: 'Merge into selected',
+    newRegistration: 'New registration',
     noIdentifiers: 'No project identifiers.',
     noPersonDetails: 'No person details supplied',
+    notRelated: 'Not related',
+    notTheSamePerson: 'A different person living with this customer?',
     originProject: 'Origin project',
     pendingRegistrationNumber: 'Pending registration #{id}',
     personIntro: 'No customer has been created for these registrations. Phone +40, name +25, birthday +25, home location (Location ID) +15, occupation +5. 70 or more is merged automatically, 50–69 waits here for review, below 50 is registered as new; conflicting strong matches also remain here.',
     points: '({n} points)',
     registerAsNew: 'Register as new',
+    registerAsNewRelated: 'Register as new and relate',
     registration: 'Registration',
     rejectAssignment: 'Reject assignment',
-    resolvedIntro: 'Registrations merged into a customer who already existed. Merged identities are available to the originating department through the identity resolution feed.',
+    relateHint: 'Register the new person as a separate customer and record how the selected customer is related to them, e.g. the selected customer is their spouse or parent.',
     resolveFirst: 'Resolve a matching pending registration before merging into it. Register as new only after reviewing all candidates.',
+    resolvedIntro: 'Registrations merged into a customer who already existed. Merged identities are available to the originating department through the identity resolution feed.',
     reviewTitle: 'Review registration',
     selectMatch: 'Select a matching customer or registration',
+    selectedCustomer: 'Selected customer',
     source: 'Source: {project} / {record}',
     sourceProject: 'Source project',
     sourceRecord: 'Source record'
@@ -767,6 +779,13 @@ const en = {
     statusMapHint: 'How each project\'s own status codes read as CRM statuses, so its cases can be compared with everyone else\'s.',
     tagsHint: 'Labels staff put on customers from the record - High value, Early adopter. The colour is how the label is drawn.',
     tiersHint: 'Levels a project calculates for its members. A rank only means something inside its project.'
+  },
+  /* Terminology.jsx */
+  terminology: {
+    allLanguages: 'All languages',
+    descriptionHelp: 'Where the term is used, what it does not mean, examples.',
+    oneWordForOneThing: 'One word for one thing in every workflow. A term is defined once per language, with what it means.',
+    searchTerms: 'Search terms'
   }
 };
 
@@ -889,7 +908,10 @@ const zh = {
     resolvedTab: '已处理登记',
     savedForReview: '已保存待审核；未创建客户',
     scanForDuplicates: '查找重复',
-    scanFound: '发现 {n} 组新的疑似重复'
+    scanFound: '发现 {n} 组新的疑似重复',
+    searchBirthday: '生日，如 1985.03.12',
+    searchNameOrNumber: '姓名或客户编号',
+    searchPhone: '电话号码'
   },
   /* CustomerImport.jsx */
   customerImport: {
@@ -930,32 +952,41 @@ const zh = {
     assignIdentifier: '分配标识',
     bestScore: '最高分',
     candidates: '候选（{n}）',
+    chooseDetails: '选择保留哪些信息',
+    chooseDetailsOff: '关闭：保留该客户自己的信息，新登记只补充缺失的内容。',
+    chooseDetailsOn: '开启：逐项选择合并后客户保留的值。',
     customer: '客户',
     customerNumber: '客户 #{id}',
     decisionSaved: '决定已保存',
     enterVerifiedPk: '或输入已核实客户的 party_pk',
     eshopIntro: '这些电商和用户管理系统标识只是候选。请在核实后再分配给客户。',
     excelRow: 'Excel 第 {row} 行',
+    field: '信息',
     identifierCandidate: '候选 ID（Excel）',
     identifierIncoming: '本次传入',
     identifierKind: '来源',
     identifierLinked: '已关联账号',
-    incomingPerson: '新登记的人',
     match: '匹配',
     mergeIntoSelected: '合并到所选',
+    newRegistration: '新登记',
     noIdentifiers: '没有项目标识。',
     noPersonDetails: '未提供个人信息',
+    notRelated: '无关系',
+    notTheSamePerson: '是与该客户同住的另一个人？',
     originProject: '来源项目',
     pendingRegistrationNumber: '待处理登记 #{id}',
     personIntro: '这些登记尚未创建客户。手机 +40，姓名 +25，生日 +25，所在地区（地区 ID）+15，职业 +5。70 分及以上自动合并，50–69 分在此等待审核，低于 50 分登记为新客户；有冲突的强匹配也留在这里。',
     points: '（{n} 分）',
     registerAsNew: '登记为新客户',
+    registerAsNewRelated: '登记为新客户并关联',
     registration: '登记',
     rejectAssignment: '拒绝分配',
-    resolvedIntro: '已合并到现有客户的登记。合并后的身份可通过身份结果接口提供给来源部门。',
+    relateHint: '将新登记的人登记为单独的客户，并记录所选客户与其的关系，例如所选客户是其配偶或父母。',
     resolveFirst: '合并到待处理登记之前，请先处理该登记。只有在审核所有候选后才登记为新客户。',
+    resolvedIntro: '已合并到现有客户的登记。合并后的身份可通过身份结果接口提供给来源部门。',
     reviewTitle: '审核登记',
     selectMatch: '选择匹配的客户或登记',
+    selectedCustomer: '所选客户',
     source: '来源：{project} / {record}',
     sourceProject: '来源项目',
     sourceRecord: '来源记录'
@@ -1512,6 +1543,13 @@ const zh = {
     statusMapHint: '各项目自有状态码对应的 CRM 状态，以便与其他项目的工单比较。',
     tagsHint: '员工可在客户档案中添加的标签，如高价值、尝鲜用户。颜色决定标签的显示样式。',
     tiersHint: '各项目为会员计算的等级。排名只在本项目内有意义。'
+  },
+  /* Terminology.jsx */
+  terminology: {
+    allLanguages: '全部语言',
+    descriptionHelp: '术语的使用场景、不表示的含义、示例。',
+    oneWordForOneThing: '所有业务流程中一词一义。每个术语在每种语言中只定义一次，并写明其含义。',
+    searchTerms: '搜索术语'
   }
 };
 
@@ -1634,7 +1672,10 @@ const ru = {
     resolvedTab: 'Решённые регистрации',
     savedForReview: 'Сохранено для проверки; клиент не создан',
     scanForDuplicates: 'Найти дубли',
-    scanFound: 'Найдено новых пар: {n}'
+    scanFound: 'Найдено новых пар: {n}',
+    searchBirthday: 'Дата рождения, напр. 1985.03.12',
+    searchNameOrNumber: 'Имя или номер клиента',
+    searchPhone: 'Номер телефона'
   },
   /* CustomerImport.jsx */
   customerImport: {
@@ -1675,32 +1716,41 @@ const ru = {
     assignIdentifier: 'Назначить идентификатор',
     bestScore: 'Лучший балл',
     candidates: 'Кандидаты ({n})',
+    chooseDetails: 'Выбрать, какие данные сохранить',
+    chooseDetailsOff: 'Выключено: у клиента остаются его данные, новая регистрация лишь дополняет недостающее.',
+    chooseDetailsOn: 'Включено: для каждого поля выберите значение, которое останется у клиента после объединения.',
     customer: 'Клиент',
     customerNumber: 'Клиент №{id}',
     decisionSaved: 'Решение сохранено',
     enterVerifiedPk: 'Или введите party_pk проверенного клиента',
     eshopIntro: 'Эти идентификаторы интернет-магазина и системы пользователей — только кандидаты. Назначайте идентификатор клиенту только после проверки.',
     excelRow: 'Строка Excel {row}',
+    field: 'Поле',
     identifierCandidate: 'Кандидат ID (Excel)',
     identifierIncoming: 'Входящий',
     identifierKind: 'Источник',
     identifierLinked: 'Привязанный аккаунт',
-    incomingPerson: 'Новый человек',
     match: 'Совпадение',
     mergeIntoSelected: 'Объединить с выбранным',
+    newRegistration: 'Новая регистрация',
     noIdentifiers: 'Нет идентификаторов проектов.',
     noPersonDetails: 'Данные о человеке не переданы',
+    notRelated: 'Не связаны',
+    notTheSamePerson: 'Другой человек, живущий с этим клиентом?',
     originProject: 'Проект-источник',
     pendingRegistrationNumber: 'Ожидающая регистрация №{id}',
     personIntro: 'Для этих регистраций клиент ещё не создан. Телефон +40, имя +25, дата рождения +25, местоположение (ID) +15, профессия +5. От 70 баллов — автоматическое объединение, 50–69 — проверка здесь, меньше 50 — новый клиент; противоречивые сильные совпадения тоже остаются здесь.',
     points: '({n} баллов)',
     registerAsNew: 'Зарегистрировать как нового',
+    registerAsNewRelated: 'Зарегистрировать и связать',
     registration: 'Регистрация',
     rejectAssignment: 'Отклонить назначение',
-    resolvedIntro: 'Регистрации, объединённые с уже существующим клиентом. Объединённые личности доступны исходному отделу через ленту результатов идентификации.',
+    relateHint: 'Зарегистрируйте нового человека отдельным клиентом и укажите, кем ему приходится выбранный клиент, например супруг или родитель.',
     resolveFirst: 'Прежде чем объединять с ожидающей регистрацией, решите её. Регистрируйте как нового только после проверки всех кандидатов.',
+    resolvedIntro: 'Регистрации, объединённые с уже существующим клиентом. Объединённые личности доступны исходному отделу через ленту результатов идентификации.',
     reviewTitle: 'Проверка регистрации',
     selectMatch: 'Выберите подходящего клиента или регистрацию',
+    selectedCustomer: 'Выбранный клиент',
     source: 'Источник: {project} / {record}',
     sourceProject: 'Исходный проект',
     sourceRecord: 'Исходная запись'
@@ -2257,6 +2307,13 @@ const ru = {
     statusMapHint: 'Как собственные коды статусов проекта читаются в CRM, чтобы сравнивать обращения разных проектов.',
     tagsHint: 'Метки, которые сотрудники ставят клиентам в карточке: «Высокая ценность», «Ранний последователь». Цвет задаёт вид метки.',
     tiersHint: 'Уровни, которые проект присваивает участникам. Ранг имеет смысл только внутри проекта.'
+  },
+  /* Terminology.jsx */
+  terminology: {
+    allLanguages: 'Все языки',
+    descriptionHelp: 'Где используется термин, что он не означает, примеры.',
+    oneWordForOneThing: 'Одно слово для одного понятия во всех процессах. Термин определяется один раз для каждого языка, вместе с его значением.',
+    searchTerms: 'Поиск терминов'
   }
 };
 

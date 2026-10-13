@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Box, Button, HStack, Icon, Link, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
+  Box, Button, HStack, Icon, Input, Link, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
@@ -19,8 +19,9 @@ import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { dateTime, number } from '../../utils/format';
-import { Amount, Dot, GradeBadge, PartyAvatar, ProjectTags, ScoreMeter } from './ui';
+import { date, dateTime, number } from '../../utils/format';
+import { birthdayText } from '../../utils/birthday';
+import { Dot, GradeBadge, PartyAvatar, ProjectTags, ScoreMeter } from './ui';
 import { Status, choices, optionsFrom, problemsOf, useCrmMeta, word, filtersFor, partyIdLabel } from './shared';
 
 export const PAGE = '/admin/crm/customers';
@@ -123,9 +124,23 @@ function CustomerList({ narrowedTo }) {
   return (
     <Box>
       <Toolbar
-        search={list.params.q}
-        onSearch={(searchText) => list.setFilter({ q: searchText })}
+        /* Four separate searches, all applied together: number or name here, then birthday, phone and place. */
+        search={list.params.name}
+        onSearch={(searchText) => list.setFilter({ name: searchText || undefined })}
+        placeholder={translate('crm.customers.searchNameOrNumber')}
+        beside={(
+          <>
+            <SearchBox value={list.params.birthday} placeholder={translate('crm.customers.searchBirthday')} rewrite={birthdayText}
+              onSearch={(value) => list.setFilter({ birthday: value || undefined })} />
+            <SearchBox value={list.params.phone} placeholder={translate('crm.customers.searchPhone')}
+              onSearch={(value) => list.setFilter({ phone: value || undefined })} />
+          </>
+        )}
         filters={filtersFor(translate, [
+          {
+            key: 'location_pk', label: 'Location', value: list.params.location_pk, width: '13rem',
+            options: areas, onChange: (value) => list.setFilter({ location_pk: value || undefined })
+          },
           {
             key: 'party_type', label: 'Type', value: list.params.party_type,
             options: choices(['PERSON', 'ORGANIZATION']),
@@ -182,18 +197,20 @@ function CustomerList({ narrowedTo }) {
                   </Box>
                 </HStack>
               ) },
+            /* A full date where it is known, otherwise the year alone. */
+            { key: 'birth_date', label: 'Date of birth', sortable: false,
+              render: (row) => (row.birth_date ? date(row.birth_date) : (row.birth_year || '-')) },
+            { key: 'location_name', label: 'Location', sortable: false, maxW: '14rem', render: (row) => row.location_name || '-' },
+            { key: 'job_title_name', label: 'Job title', sortable: false, render: (row) => (row.job_title_name ? translate(row.job_title_name) : '-') },
+            { key: 'mobile', label: 'Mobile', sortable: false },
             { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => (row.grade_assigned ? (
               <Tooltip hasArrow label={translate('crm.customers.gradeSetByHand')}>
                 <HStack spacing={1} display="inline-flex"><GradeBadge code={row.grade_code} /><Icon as={Md.MdPanTool} boxSize="0.7rem" color="gray.500" /></HStack>
               </Tooltip>
             ) : <GradeBadge code={row.grade_code} />) },
             { key: 'corporate_score', label: 'Score', render: (row) => <ScoreMeter value={row.corporate_score} compact /> },
-            { key: 'purchase_amount_12m', label: 'Spend, 12 months', isNumeric: true, render: (row) => <Amount value={row.purchase_amount_12m} /> },
             { key: 'activity_status', label: 'Activity', sortable: false, render: (row) => (row.activity_status ? <Dot value={row.activity_status} /> : '-') },
             { key: 'projects', label: 'Projects', sortable: false, render: (row) => <ProjectTags codes={String(row.projects || '').split(',')} /> },
-            { key: 'mobile', label: 'Mobile', sortable: false },
-            { key: 'holding_cnt', label: 'Products', sortable: false, isNumeric: true, render: (row) => number(row.holding_cnt) },
-            { key: 'case_cnt', label: 'Service cases', sortable: false, isNumeric: true, render: (row) => number(row.case_cnt) },
             { key: 'party_status', label: 'Status', sortable: false, render: (row) => <Status value={row.party_status} /> }
           ]}
           rows={list.rows}
@@ -341,5 +358,55 @@ function CustomerLink({ partyPk, name, onOpen }) {
     <Link color="brand.500" fontWeight="600" onClick={(event) => { event.stopPropagation(); onOpen(partyPk); }}>
       {(name || '-') + '  ' + partyIdLabel(partyPk)}
     </Link>
+  );
+}
+
+/**
+ * One more search box beside the toolbar's: it searches 300 ms after typing
+ * stops, or at once on Enter - the same feel as the main one.
+ *
+ * With `rewrite` (text -> the standard form, or null when it is not one) the
+ * box searches by the standard form while the reader types, and shows it in
+ * place of what they typed once they press Enter or leave the box - not
+ * before, so the text never changes under their fingers. Text that cannot be
+ * rewritten waits until then, and is searched as typed and marked as wrong.
+ */
+function SearchBox({ value, placeholder, onSearch, rewrite }) {
+  const [typed, setTyped] = useState(value || '');
+  const handler = useRef(onSearch);
+  /* What this box last searched for, so its own search coming back as `value` does not overwrite the typing. */
+  const sent = useRef(value || '');
+  useEffect(() => { handler.current = onSearch; }, [onSearch]);
+  useEffect(() => {
+    if ((value || '') === sent.current) return;
+    sent.current = value || '';
+    setTyped(value || '');
+  }, [value]);
+
+  const standard = (text) => (rewrite && text ? rewrite(text) : text);
+  const search = (text) => {
+    if (text === sent.current) return;
+    sent.current = text;
+    handler.current(text);
+  };
+  const finish = () => {
+    const text = typed.trim();
+    const shown = standard(text);
+    if (shown !== null && shown !== typed) setTyped(shown);
+    search(shown === null ? text : shown);
+  };
+
+  useEffect(() => {
+    const shown = standard(typed.trim());
+    if (shown === null) return undefined;
+    const timer = setTimeout(() => search(shown), 300);
+    return () => clearTimeout(timer);
+  });
+
+  const wrong = !!rewrite && !!typed.trim() && typed.trim() === sent.current && rewrite(typed.trim()) === null;
+  return (
+    <Input size="sm" borderRadius="lg" maxW="11rem" placeholder={placeholder} value={typed} isInvalid={wrong}
+      onChange={(event) => setTyped(event.target.value)} onBlur={finish}
+      onKeyDown={(event) => { if (event.key === 'Enter') finish(); }} />
   );
 }

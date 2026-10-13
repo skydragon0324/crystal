@@ -68,6 +68,62 @@ function narrowed(filters) {
     });
   }
 
+  /*
+   * THE CUSTOMER LIST'S OWN SEARCH FIELDS, combined with AND: a customer number
+   * or name, a birthday, a phone, a place. `q` below is the all-in-one search
+   * the pickers use, where one box has to find anyone by anything.
+   */
+  if (filters.name) {
+    const term = String(filters.name).trim();
+    qb.where(function () {
+      this.whereRaw('??::text ILIKE ?', ['party.party_pk', searchId(term)])
+        .orWhere('party.display_name', 'ilike', '%' + term + '%');
+    });
+  }
+
+  /* A date, a year or a day of birth, typed however the screen shows it; anything else finds no one. */
+  if (filters.birthday) {
+    const birthday = searchBirthday(String(filters.birthday).trim());
+    if (!birthday) qb.whereRaw('false');
+    else {
+      qb.whereExists(function () {
+        wherePersonBorn(this.select(db.raw(1)).from('crm_person as born')
+          .whereRaw('born.party_pk = party.party_pk'), 'born', birthday);
+      });
+    }
+  }
+
+  /* Any of their phone numbers, or part of one, typed with or without spaces, dashes or the country code. */
+  if (filters.phone) {
+    const forms = contact.searchForms(String(filters.phone).trim());
+    if (!forms.length) qb.whereRaw('false');
+    else {
+      qb.whereExists(function () {
+        this.select(db.raw(1)).from('crm_contact_point as phone')
+          .whereRaw('phone.party_pk = party.party_pk').whereIn('phone.contact_type', ['MOBILE', 'PHONE'])
+          .where(function () { forms.forEach((form) => this.orWhere('phone.normalized_value', 'like', '%' + form + '%')); });
+      });
+    }
+  }
+
+  /* A place and everywhere inside it: a province finds its cities and districts too. */
+  if (/^[1-9][0-9]*$/.test(String(filters.location_pk || ''))) {
+    const within = `WITH RECURSIVE within AS (
+        SELECT location_code, location_pk FROM crm_location WHERE location_pk = ?
+        UNION SELECT inner_place.location_code, inner_place.location_pk
+          FROM crm_location inner_place JOIN within ON inner_place.parent_code = within.location_code)
+      SELECT location_pk FROM within`;
+    qb.where(function () {
+      this.whereExists(function () {
+        this.select(db.raw(1)).from('crm_person as resident').whereRaw('resident.party_pk = party.party_pk')
+          .whereRaw('resident.home_location_pk IN (' + within + ')', [filters.location_pk]);
+      }).orWhereExists(function () {
+        this.select(db.raw(1)).from('crm_organization as based').whereRaw('based.party_pk = party.party_pk')
+          .whereRaw('based.location_pk IN (' + within + ')', [filters.location_pk]);
+      });
+    });
+  }
+
   if (filters.q) {
     const term = String(filters.q).trim();
     const forms = contact.searchForms(term);
@@ -122,6 +178,10 @@ async function search(filters, paging) {
 
   const rows = await narrowed(filters)
     .leftJoin('crm_project as origin_project', 'origin_project.project_id', 'party.origin_project_id')
+    /* Who they are, as the list shows it: a person's birthday, job and home, an organization's location. */
+    .leftJoin('crm_person as listed_person', 'listed_person.party_pk', 'party.party_pk')
+    .leftJoin('crm_job_title as listed_job', 'listed_job.job_title_id', 'listed_person.job_title_id')
+    .leftJoin('crm_organization as listed_organization', 'listed_organization.party_pk', 'party.party_pk')
     .select(
       'party.party_pk', 'party.party_type', 'party.party_status', 'party.display_name',
       'party.origin_project_id', 'origin_project.project_code as origin_project_code',
@@ -131,10 +191,12 @@ async function search(filters, paging) {
       db.raw(`(SELECT string_agg(DISTINCT pj.project_code, ',')
                  FROM crm_project_account account JOIN crm_project pj ON pj.project_id = account.project_id
                 WHERE account.party_pk = party.party_pk AND account.unlinked_at IS NULL) AS projects`),
-      db.raw(`(SELECT COUNT(*) FROM crm_product_registration registration
-                WHERE registration.party_pk = party.party_pk AND registration.valid_to IS NULL)::int AS holding_cnt`),
-      db.raw(`(SELECT COUNT(*) FROM crm_service_case sc
-                WHERE sc.party_pk = party.party_pk)::int AS case_cnt`),
+      /* As text, so a date of birth is the same calendar day in every time zone. */
+      db.raw("to_char(listed_person.birth_date, 'YYYY-MM-DD') AS birth_date"),
+      'listed_person.birth_year',
+      'listed_job.job_name as job_title_name',
+      db.raw('COALESCE(' + locations.fullNameOf('listed_person.home_location_pk') + ', '
+        + locations.fullNameOf('listed_organization.location_pk') + ', listed_person.address_line) AS location_name'),
       'snapshot.corporate_score', 'snapshot.purchase_amount_12m', 'snapshot.activity_status', 'snapshot.transaction_count_12m',
       db.raw('(SELECT grade.grade_code FROM crm_corporate_grade grade WHERE grade.corporate_grade_id = COALESCE(party.assigned_grade_id, snapshot.corporate_grade_id)) AS grade_code'),
       db.raw('(party.assigned_grade_id IS NOT NULL) AS grade_assigned')
@@ -176,6 +238,8 @@ function lookup(term, ids) {
     .leftJoin('crm_person as person', 'person.party_pk', 'party.party_pk')
     .whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
     .select(LOOKUP_COLUMNS)
+    /* A typed customer number first, so phones holding the same digits never push it out of the twenty. */
+    .orderByRaw('CASE WHEN CAST(party.party_pk AS text) = ? THEN 0 ELSE 1 END', [searchId(term)])
     .orderBy('party.party_pk', 'desc')
     .limit(20);
 }

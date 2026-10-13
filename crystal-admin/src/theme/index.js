@@ -1,4 +1,4 @@
-import { extendTheme } from '@chakra-ui/react';
+import { extendTheme, theme as chakraTheme } from '@chakra-ui/react';
 import { cssVar, mode } from '@chakra-ui/theme-tools';
 import { DEFAULT_PALETTE, paletteOf } from './palettes';
 
@@ -391,6 +391,35 @@ const components = {
         boxShadow: mode(shadows.overlay, shadows.overlayDark)(props),
         zIndex: 'tooltip'
       };
+    }
+  },
+
+  /**
+   * A radio and a checkbox.
+   *
+   * Each is a label around a real <input>, hidden with `position: absolute`.
+   * Chakra's label is not positioned, so the input is placed against some
+   * ancestor far up the page instead of beside its circle - and clicking the
+   * circle focuses the input, and the browser scrolls the DOCUMENT to show
+   * it. Far enough down a long page (the CRM rows of the permission grid)
+   * that scroll carries the whole console off screen: a blank page, with no
+   * error, until a refresh. Positioning the label keeps each input at its
+   * own circle, where it is already in view.
+   *
+   * Chakra's own base style is kept and extended - extendTheme would
+   * otherwise replace it (see Tooltip below).
+   */
+  Radio: {
+    baseStyle: (props) => {
+      const base = chakraTheme.components.Radio.baseStyle(props);
+      return { ...base, container: { ...base.container, position: 'relative' } };
+    }
+  },
+
+  Checkbox: {
+    baseStyle: (props) => {
+      const base = chakraTheme.components.Checkbox.baseStyle(props);
+      return { ...base, container: { ...base.container, position: 'relative' } };
     }
   },
 
