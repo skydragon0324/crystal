@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="A globe">
+  <defs>
+    <radialGradient id="ocean" cx="0.36" cy="0.3" r="0.82">
+      <stop offset="0%" stop-color="hsl(198, 90%, 62%)"/>
+      <stop offset="70%" stop-color="hsl(209, 76%, 40%)"/>
+      <stop offset="100%" stop-color="hsl(216, 72%, 28%)"/>
+    </radialGradient>
+    <clipPath id="ball">
+      <circle cx="210" cy="210" r="190"/>
+    </clipPath>
+  </defs>
+
+  <circle cx="210" cy="210" r="190" fill="url(#ocean)"/>
+
+  <g clip-path="url(#ball)" fill="hsl(145, 48%, 52%)" opacity="0.92">
+    <!-- Three continents: suggestive, not a map. -->
+    <path d="M96 150 q38 -34 84 -16 q34 14 20 46 q-16 36 -58 40 q-46 4 -54 -22 q-8 -28 8 -48 Z"/>
+    <path d="M196 236 q44 -14 70 16 q22 26 4 58 q-20 34 -58 30 q-36 -4 -40 -40 q-4 -36 24 -64 Z"/>
+    <path d="M268 120 q40 -10 56 18 q14 24 -10 40 q-28 18 -50 2 q-20 -14 4 -60 Z"/>
+  </g>
+
+  <g clip-path="url(#ball)" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="2">
+    <!-- parallels -->
+    <ellipse cx="210" cy="210" rx="190" ry="64"/>
+    <ellipse cx="210" cy="210" rx="190" ry="132"/>
+    <line x1="20" y1="210" x2="400" y2="210"/>
+    <!-- meridians -->
+    <ellipse cx="210" cy="210" rx="64" ry="190"/>
+    <ellipse cx="210" cy="210" rx="132" ry="190"/>
+    <line x1="210" y1="20" x2="210" y2="400"/>
+  </g>
+
+  <!-- The rim light, which seats it against the sky. -->
+  <circle cx="210" cy="210" r="189" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+</svg>

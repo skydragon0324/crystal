@@ -19,7 +19,7 @@ import { useSurface } from '@/theme/tokens';
  * rather than to a generic trophy icon, which would say less than the words
  * already do.
  */
-export default function CertificateCard({ certificate, onOpen, eager }) {
+export default function CertificateCard({ certificate, onOpen, eager, ratio }) {
   const surface = useSurface();
 
   return (
@@ -42,7 +42,15 @@ export default function CertificateCard({ certificate, onOpen, eager }) {
       _hover={{ borderColor: 'brand.500', transform: 'translateY(-3px)' }}
       onClick={() => onOpen(certificate)}
     >
-      <AspectRatio ratio={3 / 4} bg={surface.raised} w="100%" flexShrink={0}>
+      {/*
+        * THE FRAME IS THE SHAPE OF THE SCAN, which is what lets the whole of
+        * it show. `contain` already refuses to crop, but a landscape
+        * certificate contained in a portrait box is a small picture in two
+        * grey bands - not cropped, and not shown either. The caller names the
+        * shape because the two sets of scans are not the same: the corporate
+        * certificates are 274x204 and the factory's are portrait.
+        */}
+      <AspectRatio ratio={ratio || 3 / 4} bg={surface.raised} w="100%" flexShrink={0}>
         {certificate.image ? (
           <Image
             src={certificate.image}
@@ -51,8 +59,13 @@ export default function CertificateCard({ certificate, onOpen, eager }) {
              * `contain`, not `cover`: a certificate is a document with a
              * border and a seal, and cropping it to a card's shape cuts off
              * whichever edge carries the issuer's mark.
+             *
+             * INLINE, because the AspectRatio around it emits
+             * `& > img { object-fit: cover }` and a descendant selector beats
+             * the class a prop would mint - this said `contain` for a while
+             * and cropped every scan regardless.
              */
-            objectFit="contain"
+            style={{ objectFit: 'contain' }}
             loading={eager ? 'eager' : 'lazy'}
           />
         ) : (

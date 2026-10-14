@@ -6611,3 +6611,11 @@ The quality certifications should be shown next to the factory image. Also we ma
 - Overview picture animated but when mouse hover and out, its restarts. The animation should be not related with mouse.
 - On about page, hide eyebrow (not remove code, only hide it) and hide ChapterNavigation.
 - /auth/reganam is standalone url, while when clicking signin button on the header of desktop view, x509 login is processed according to the original code.
+
+
+-------------------------------------------------------------
+
+- on about page, for overview section, AboutScene ratio should be 16/9 for mobile, 16/5 for desktop.
+The background of AboutScene features a few white clouds drifting near the horizon; these clouds shift slightly in response to mouse movements. A globe sits on the left side of the screen, while an airplane flies from off-screen left toward the center, leaving a motion trail behind it. Once the plane comes to a stop, the text "Crystal Trading Company" smoothly appears beneath it, and the phrase "Bluesky is everywhere" gradually fades into view to the right of the aircraft.
+- VisionSection, on desktop, vision description is showing only on the left, but I'd like to show it full-width
+- RecognitionSection, the recognision image size is 274x204, and it should be shown fully without crop or cover.

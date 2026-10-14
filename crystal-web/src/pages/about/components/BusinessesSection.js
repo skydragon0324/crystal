@@ -77,10 +77,17 @@ export default function BusinessesSection({ vision, section, businesses }) {
 
   return (
     <Box>
-      {/* The vision opens the chapter: one sentence, given room. */}
+      {/*
+        * THE VISION OPENS THE CHAPTER, ACROSS THE WHOLE WIDTH.
+        *
+        * It was capped at 820px, which is the right measure for a paragraph
+        * of body copy and the wrong one here: on a desktop it left the
+        * statement huddled in the left half with the rest of the band empty
+        * beside it, reading as a column that had lost its neighbour rather
+        * than as the chapter opening.
+        */}
       {vision && (
         <Box
-          maxW="820px"
           mb={{ base: 10, md: 16 }}
           pb={{ base: 8, md: 12 }}
           borderBottom="1px solid"

@@ -124,6 +124,66 @@ export const ANIMATIONS = {
   },
 
   /*
+   * 11. clouds - sideways, and never arriving.
+   *
+   * `floating` is the same idea vertically, and a cloud that bobs up and
+   * down reads as a balloon. Continuous and alternating, so it drifts out
+   * and back rather than jumping home when the keyframes wrap.
+   */
+  drifting: {
+    keyframes: 'from { transform: translateX(0); } to { transform: translateX(34px); }',
+    still: { transform: 'translateX(0)' },
+    continuous: true,
+    direction: 'alternate'
+  },
+
+  /*
+   * 12. an aircraft, arriving from outside the frame and stopping.
+   *
+   * NAMED FOR THE SIDE IT COMES FROM, like `slide-right` above it: this one
+   * begins off the RIGHT of the frame and travels leftward. Whatever uses it
+   * has to be drawn facing that way - an aeroplane mirrored the wrong way is
+   * an aeroplane flying backwards, and nothing in a keyframe can fix that.
+   *
+   * NOT `slide-right` with a longer duration. That travels 300 units - a
+   * nudge, right for a line of copy sliding into place and wrong for
+   * something supposed to have come from somewhere. This starts 1100 units
+   * out, which clears a 1200-wide frame from anywhere in its right two
+   * thirds, so a layer placed there genuinely ENTERS rather than
+   * materialising inside the picture.
+   *
+   * It is not enough for every frame: the default authored width is 1920,
+   * and a layer near the left edge of one would still begin inside it. A
+   * longer travel is not the answer, because the distance is covered in the
+   * same time - most of the flight would happen off-screen and the thing
+   * would appear to jump in. A scene that needs more should give the layer
+   * more duration, or place it further right.
+   *
+   * NO OPACITY, either: a plane that fades in has not flown in. Pair it with
+   * `ease-out`, which is what makes it decelerate to its stop.
+   */
+  'fly-in-right': {
+    keyframes: 'from { transform: translateX(1100px); } to { transform: translateX(0); }',
+    still: { transform: 'translateX(0)' }
+  },
+
+  /*
+   * 13. the streak behind whatever is flying in from the right.
+   *
+   * It travels with its aircraft and DISSIPATES: full while the thing is
+   * moving, gone by the time it has stopped. That is why it is an animation
+   * rather than part of the aircraft's own artwork - a trail baked into the
+   * plane is a stopped plane with a speed streak on it, forever.
+   */
+  'trailing-right': {
+    keyframes: 'from { opacity: 0; transform: translateX(1100px); } '
+      + '18% { opacity: 0.9; } '
+      + '70% { opacity: 0.45; } '
+      + 'to { opacity: 0; transform: translateX(0); }',
+    still: { opacity: 0, transform: 'translateX(0)' }
+  },
+
+  /*
    * A layer that does not move, for the plate a scene is built on. Named
    * rather than implied, so a scene says what it means.
    */

@@ -1,5 +1,5 @@
 import React, { useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import { Box, useColorMode } from '@chakra-ui/react';
+import { Box, useBreakpointValue, useColorMode } from '@chakra-ui/react';
 
 import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
 
@@ -8,21 +8,29 @@ import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
  *
  * ResponsiveMedia beside this draws the same four files as a still. This
  * draws the chosen one as a SCENE - the engine the storefront's adverts use -
- * so the picture drifts rather than sitting there, and keeps drifting for as
+ * so the picture moves rather than sitting there, and keeps moving for as
  * long as the chapter is on screen.
  *
- * ONE PLATE, OR A WHOLE SCENE. `layers` is a slot's pictures, each carrying
- * its own `layer` geometry (see images.js): the first is the ground and the
- * rest arrive over it, which is what the engine is actually for. Without it -
- * a chapter whose slot holds a single file - this draws that file as one
- * drifting plate, which is what every other chapter wants.
+ * ONE PLATE, OR A COMPOSITION.
  *
- * THE CROPS ARE CHOSEN THE SAME WAY in the one-plate case: a desktop crop, a
- * mobile crop, and a dark rendering of each, with desktop as the fallback for
- * mobile and the light file as the fallback for dark. What differs from
- * ResponsiveMedia is that ONE of them is drawn rather than both - a scene is
- * not a pair of <img> elements that CSS can hide, so the crop is chosen here,
- * in JavaScript, from the same `md` breakpoint.
+ *   ONE PLATE is the ordinary case and what every other chapter wants: a
+ *   photograph, drifting. It picks between the four files the way
+ *   ResponsiveMedia does - a desktop crop, a mobile crop, and a dark
+ *   rendering of each, with desktop as the fallback for mobile and the light
+ *   file as the fallback for dark. What differs is that ONE of them is drawn
+ *   rather than both: a scene is not a pair of <img> elements CSS can hide,
+ *   so the crop is chosen here, in JavaScript, at the same `md` breakpoint.
+ *
+ *   A COMPOSITION is `compose` plus `layers` - a slot's pictures, and a
+ *   function that places them. The function is handed the frame it is being
+ *   drawn in and returns the engine's layers, which is what lets ONE
+ *   composition be correct at two different frame shapes. See overviewScene.js
+ *   for the only one so far, and why it has to work that way.
+ *
+ * `ratio` MAY BE A BREAKPOINT OBJECT, and for a composition it usually is:
+ * the Overview chapter is 16:9 on a phone and 16:5 on a desktop. It has to be
+ * resolved to a NUMBER here, because the frame's height is a division and
+ * Chakra's responsive props cannot express one.
  *
  * NOT VERIFIED, and that is correct rather than a shortcut. These pictures
  * are bundled into the build (pages/about/images.js), not uploaded, so there
@@ -30,7 +38,7 @@ import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
  * the build. `verified={false}` says so out loud; an advert's layers, which
  * ARE uploads, are checked as they always were.
  *
- * IT LOOPS, AND IT CAN BE STOPPED. `loop` is the engine's default now, so the
+ * IT LOOPS, AND IT CAN BE STOPPED. `loop` is the engine's default, so the
  * motion repeats for as long as the chapter is in front of somebody. To stop
  * it from code, hold a ref to this and call `pause()` - or pass
  * `isPlaying={false}`, which is the declarative half of the same switch:
@@ -39,19 +47,24 @@ import ImageAnimator from '@/components/ImageAnimator/ImageAnimator';
  *     <AboutScene ref={picture} ... />
  *     picture.current.pause();     // and play(), restart(), reset()
  *
- * THE HANDLE DRIVES BOTH CROPS, because both are mounted and only one is
- * shown. Handing the same ref to the two animators would leave the second to
- * mount holding it, so pausing would stop the desktop scene while the phone
- * kept playing the one actually on screen - a bug that only appears on the
- * narrower of the two layouts, which is the harder one to notice.
+ * THE HANDLE DRIVES BOTH CROPS, because in the one-plate case both are
+ * mounted and only one is shown. Handing the same ref to the two animators
+ * would leave the second to mount holding it, so pausing would stop the
+ * desktop scene while the phone kept playing the one actually on screen - a
+ * bug that only appears on the narrower of the two layouts, which is the
+ * harder one to notice.
  */
 
-/** How long one pass of the drift takes. Slow enough not to be a distraction. */
+/** The frame's width in scene units. Everything else is scaled from it. */
+const FRAME_WIDTH = 1200;
+
+/** How long one pass of a single plate's drift takes. */
 const DRIFT_MS = 9000;
 
 const AboutScene = React.forwardRef(function AboutScene(props, ref) {
   const {
-    desktop, mobile, desktopDark, mobileDark, alt, ratio, isPlaying, loop, fit, layers
+    desktop, mobile, desktopDark, mobileDark, alt, ratio,
+    isPlaying, loop, fit, layers, compose, duration
   } = props;
 
   const { colorMode } = useColorMode();
@@ -61,14 +74,18 @@ const AboutScene = React.forwardRef(function AboutScene(props, ref) {
   const wide = (isDark && desktopDark) || desktop || null;
   const narrow = (isDark && mobileDark) || mobile || (isDark && desktopDark) || desktop || null;
 
-  const shape = ratio || 16 / 10;
-
   /*
-   * One scene per crop. The frame is 1200 wide in scene units and as tall as
-   * the ratio asks, so the picture fills it exactly and the engine's scaling
-   * does the rest - which is what makes it full width on a phone rather than
-   * a fixed-size picture sitting in a wider box.
+   * A NUMBER, whatever was passed. `useBreakpointValue` is called
+   * unconditionally - hooks cannot be - and its answer is used only when the
+   * prop is actually a breakpoint object.
    */
+  const responsive = useBreakpointValue(
+    ratio && typeof ratio === 'object' ? ratio : { base: 0 }
+  );
+  const shape = (typeof ratio === 'number' ? ratio : responsive) || 16 / 10;
+
+  const height = Math.round(FRAME_WIDTH / shape);
+
   /*
    * CROPPED OR WHOLE, the same choice ResponsiveMedia offers and for the same
    * reason - see `fit` there. A photograph fills the frame; artwork that must
@@ -77,47 +94,43 @@ const AboutScene = React.forwardRef(function AboutScene(props, ref) {
   const cropping = fit === 'contain' ? 'contain' : 'cover';
 
   /*
-   * THE LAYERS A SLOT DECLARED, in the shape the engine reads.
-   *
-   * A picture with no `layer` fills the frame and covers it, which makes the
-   * first file of any slot a usable background whether or not anybody wrote
-   * geometry for it. `z` is the position in the list: the order the files are
-   * written in IS the stacking order, so adding a layer in front means
-   * appending one.
+   * THE SLOT'S PICTURES, BY ROLE. A composition asks for "the globe" rather
+   * than "the fifth file", so that inserting a cloud at the top of the list
+   * does not move everything else into the wrong place - see images.js.
    */
-  const declared = useMemo(() => (layers || [])
-    .filter((picture) => picture && picture.src)
-    .map((picture, index) => {
-      const own = picture.layer || {};
-      const first = index === 0;
+  const byRole = useMemo(() => {
+    const found = {};
+    (layers || []).forEach(function (picture) {
+      if (picture && picture.src && picture.role) found[picture.role] = picture;
+    });
+    return found;
+  }, [layers]);
 
-      return {
-        id: 'layer-' + (index + 1),
-        type: 'image',
-        src: picture.src,
-        alt: picture.alt || '',
-        fit: own.fit || (first ? 'cover' : 'contain'),
-        /* Absent placement means "the whole frame", which is what a ground wants. */
-        x: own.x === undefined ? 0 : own.x,
-        y: own.y === undefined ? 0 : own.y,
-        width: own.width,
-        height: own.height,
-        z: index + 1,
-        parallax: own.parallax,
-        sheen: own.sheen,
-        animation: {
-          name: own.animation || 'zoom-out',
-          delay: own.delay || 0,
-          duration: own.duration || DRIFT_MS,
-          easing: own.easing || 'ease-out'
-        }
-      };
-    }), [layers]);
+  /*
+   * A COMPOSITION IS ONE SCENE AT EVERY WIDTH, because its layers are placed
+   * in the frame's own units: the engine scales the whole thing, and the
+   * frame's SHAPE has already been chosen above. Only the one-plate case has
+   * two crops to pick between.
+   */
+  const composed = useMemo(() => {
+    if (typeof compose !== 'function') return null;
+
+    const built = compose(FRAME_WIDTH, height, byRole);
+    if (!built || !built.length) return null;
+
+    return {
+      sceneId: 'about-composed-' + height,
+      width: FRAME_WIDTH,
+      height: height,
+      duration: duration || DRIFT_MS,
+      layers: built
+    };
+  }, [compose, height, byRole, duration]);
 
   const sceneFor = useCallback((src, id) => (src ? {
     sceneId: 'about-' + id,
-    width: 1200,
-    height: Math.round(1200 / shape),
+    width: FRAME_WIDTH,
+    height: height,
     duration: DRIFT_MS,
     layers: [{
       id: 'picture',
@@ -136,21 +149,7 @@ const AboutScene = React.forwardRef(function AboutScene(props, ref) {
        */
       animation: { name: 'zoom-out', duration: DRIFT_MS, easing: 'ease-out' }
     }]
-  } : null), [shape, alt, cropping]);
-
-  /*
-   * A DECLARED SCENE IS THE SAME ON BOTH, because its layers are placed in
-   * the frame's own units rather than cropped for a width - the engine scales
-   * the whole composition, so there is nothing to choose between. Only the
-   * one-plate case has two crops to pick from.
-   */
-  const composed = useMemo(() => (declared.length > 1 ? {
-    sceneId: 'about-composed',
-    width: 1200,
-    height: Math.round(1200 / shape),
-    duration: DRIFT_MS,
-    layers: declared
-  } : null), [declared, shape]);
+  } : null), [height, alt, cropping]);
 
   const wideScene = useMemo(
     () => composed || sceneFor(wide, 'wide'),
@@ -201,7 +200,7 @@ const AboutScene = React.forwardRef(function AboutScene(props, ref) {
       {narrowScene && animator(narrowScene, { base: 'block', md: 'none' }, narrowRef)}
       {wideScene && animator(
         wideScene,
-        /* A composed scene is the only one drawn, at every width. */
+        /* A composition is the only scene drawn, at every width. */
         composed ? 'block' : { base: 'none', md: 'block' },
         wideRef
       )}

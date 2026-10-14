@@ -381,3 +381,54 @@ describe('the presets', () => {
     expect(scene.layers[1].src).toBe('');
   });
 });
+
+test('the three animations the overview scene needs are real, and travel far enough', () => {
+  const { ANIMATIONS, definitionOf } = require('@/components/ImageAnimator/animationRegistry');
+
+  /*
+   * A CLOUD NEVER ARRIVES. `continuous` is what keeps it out of the scene's
+   * own clock - a layer that never settles must not be what the scene waits
+   * for - and `alternate` is what makes it drift out and back rather than
+   * jumping home when the keyframes wrap.
+   */
+  expect(definitionOf('drifting').continuous).toBe(true);
+  expect(definitionOf('drifting').direction).toBe('alternate');
+  expect(ANIMATIONS.drifting.keyframes).toContain('translateX');
+
+  /*
+   * AN AEROPLANE COMES FROM OUTSIDE THE FRAME, and the only way to know that
+   * is to measure the travel against where the aeroplane actually stops. The
+   * existing slides move 300 scene units - a nudge inside a 1200-wide plate -
+   * so this is a cross-check between the registry and the one scene that uses
+   * it: shorten the travel, or move the plane left, and it would appear in
+   * mid-air instead of flying in.
+   *
+   * POSITIVE, because it comes from the RIGHT - the name says which side, as
+   * `slide-right` does.
+   */
+  const flight = ANIMATIONS['fly-in-right'].keyframes;
+  const travel = Number((flight.match(/translateX\((\d+)px\)/) || [])[1]);
+  expect(travel).toBeGreaterThan(300);
+
+  const overviewLayers = require('@/pages/about/overviewScene').default;
+  const pieces = { plane: { src: '/p.svg', role: 'plane', alt: 'plane' } };
+
+  [16 / 9, 16 / 5].forEach((shape) => {
+    const plane = overviewLayers(1200, Math.round(1200 / shape), pieces)
+      .filter((layer) => layer.id === 'plane')[0];
+    /* Its left-hand edge has to begin right of the frame. */
+    expect(plane.x + travel).toBeGreaterThan(1200);
+  });
+  /* And it does not fade: a plane that fades in has not flown in. */
+  expect(flight).not.toContain('opacity');
+
+  /*
+   * ITS WAKE DISSIPATES. A trail that is still there when the aeroplane has
+   * stopped is a stopped plane with a speed streak on it, which is why this
+   * is an animation rather than part of the aircraft's own artwork.
+   */
+  const wake = ANIMATIONS['trailing-right'];
+  expect(wake.keyframes).toContain('opacity: 0');
+  expect(wake.still.opacity).toBe(0);
+  expect(wake.keyframes.indexOf('translateX')).toBeGreaterThan(-1);
+});

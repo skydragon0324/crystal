@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="260" viewBox="0 0 640 260" role="img" aria-label="An aeroplane">
+  <!-- Mirrored: this flies right to left, so it faces left. -->
+  <g data-mirrored="x" transform="translate(640, 0) scale(-1, 1)">
+    <defs>
+      <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffffff"/>
+        <stop offset="62%" stop-color="#eef4fb"/>
+        <stop offset="100%" stop-color="#c3d4e8"/>
+      </linearGradient>
+    </defs>
+  
+    <g>
+      <!-- tailplane and fin -->
+      <path d="M64 108 L150 108 L120 36 L86 36 Z" fill="hsl(206, 72%, 44%)"/>
+      <path d="M60 128 L150 128 L112 186 L78 186 Z" fill="hsl(206, 62%, 54%)"/>
+      <!-- the far wing, behind the hull -->
+      <path d="M250 118 L396 118 L330 44 L286 44 Z" fill="hsl(209, 46%, 70%)"/>
+      <!-- fuselage: blunt tail, tapered nose -->
+      <path d="M58 118 q0 -22 26 -24 L470 94 q96 2 118 36 q-22 34 -118 36 L84 142 q-26 -2 -26 -24 Z" fill="url(#hull)"/>
+      <!-- the near wing, sweeping back and down -->
+      <path d="M236 132 L404 132 L350 220 L300 220 Z" fill="#ffffff"/>
+      <path d="M236 132 L404 132 L350 220 L300 220 Z" fill="rgba(0,0,0,0.06)"/>
+      <!-- engine -->
+      <rect x="292" y="140" width="92" height="34" rx="17" fill="hsl(209, 30%, 86%)"/>
+      <rect x="292" y="140" width="92" height="12" rx="6" fill="#ffffff"/>
+      <!-- the livery stripe -->
+      <path d="M96 128 L470 120 q78 2 96 14 q-18 12 -96 14 L96 140 Z" fill="hsl(206, 82%, 46%)" opacity="0.55"/>
+      <!-- windows -->
+      <g fill="rgba(40,70,104,0.55)">
+        <rect x="150" y="110" width="16" height="10" rx="5"/>
+        <rect x="182" y="109" width="16" height="10" rx="5"/>
+        <rect x="214" y="108" width="16" height="10" rx="5"/>
+        <rect x="246" y="107" width="16" height="10" rx="5"/>
+        <rect x="278" y="106" width="16" height="10" rx="5"/>
+        <rect x="310" y="105" width="16" height="10" rx="5"/>
+      </g>
+      <!-- the flight deck -->
+      <path d="M470 100 q44 2 58 10 q-16 8 -58 10 Z" fill="rgba(40,70,104,0.6)"/>
+    </g>
+  </g>
+</svg>

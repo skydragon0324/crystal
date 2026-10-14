@@ -2,9 +2,10 @@ import React from 'react';
 import { Box, Grid, Heading, SimpleGrid, Text } from '@chakra-ui/react';
 
 import AboutScene from './AboutScene';
+import overviewLayers, { OVERVIEW_MS } from '../overviewScene';
 import { useSurface } from '@/theme/tokens';
 import Prose from './Prose';
-import { chapterNumber, SHOW_EYEBROWS } from '../constants';
+import { chapterNumber, REPEAT_CHAPTER_SCENES, SHOW_EYEBROWS } from '../constants';
 
 /**
  * 01 — WHO WE ARE.
@@ -96,10 +97,17 @@ export default function OverviewSection({ section, facts }) {
             desktopDark={section.image_desktop_dark}
             mobileDark={section.image_mobile_dark}
             alt={section.title}
-            ratio={4 / 3}
-            /* Three files in this slot, so this chapter is a composition - see
-               images.js. */
+            /*
+              WIDE, AND WIDER STILL ON A DESKTOP. The chapter opens with a sky:
+              16:9 is a window on a phone and 16:5 is a horizon across a
+              desktop, which is the shape the composition is drawn for.
+            */
+            ratio={{ base: 16 / 9, md: 16 / 5 }}
             layers={section.images}
+            compose={overviewLayers}
+            duration={OVERVIEW_MS}
+            /* Said out loud rather than left to the engine's default. */
+            loop={REPEAT_CHAPTER_SCENES}
           />
         </Box>
 

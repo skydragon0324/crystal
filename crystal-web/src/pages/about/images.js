@@ -45,9 +45,15 @@
  * content.ru); this is not, and that is a known gap rather than an oversight.
  */
 
-import overview from '@assets/images/about/overview.svg';
-import overviewSkyline from '@assets/images/about/overview-skyline.svg';
-import overviewHandset from '@assets/images/about/overview-handset.svg';
+import overviewSky from '@assets/images/about/overview-sky.svg';
+import overviewCloud1 from '@assets/images/about/overview-cloud-1.svg';
+import overviewCloud2 from '@assets/images/about/overview-cloud-2.svg';
+import overviewCloud3 from '@assets/images/about/overview-cloud-3.svg';
+import overviewGlobe from '@assets/images/about/overview-globe.svg';
+import overviewPlane from '@assets/images/about/overview-plane.svg';
+import overviewTrail from '@assets/images/about/overview-trail.svg';
+import overviewName from '@assets/images/about/overview-name.svg';
+import overviewTagline from '@assets/images/about/overview-tagline.svg';
 
 import institute from '@assets/images/about/institute.svg';
 import instituteResearchSoftware from '@assets/images/about/institute-research-software.svg';
@@ -112,59 +118,34 @@ import presenceShop from '@assets/images/about/presence-shop.svg';
  */
 const ABOUT_IMAGES = {
   /*
-   * THE OVERVIEW SLOT IS A SCENE, which is why it holds three files.
+   * THE OVERVIEW SLOT IS A SCENE, which is why it holds seven files.
    *
-   * `layer` is the only place on the page where a picture carries its own
-   * GEOMETRY, and it belongs here rather than in content.js: where a cut-out
-   * sits in the frame is a property of the artwork, not of the sentence
-   * beside it. AboutScene reads these positionally - the first picture is
-   * the background and the rest arrive over it - and a slot with one file
-   * and no `layer` is still drawn as a single drifting plate.
+   * `role` IS HOW THE SCENE FINDS THEM - overviewScene.js asks for the sky,
+   * the three clouds, the globe, the aeroplane and its trail BY NAME. It was
+   * positional, and positional meant that inserting a cloud at the top of
+   * the list moved every other piece into the wrong place in the picture.
    *
-   * THE NUMBERS ARE SCENE UNITS, not pixels: the frame is 1200 wide and as
-   * tall as the chapter asks (4:3, so 900), and the engine scales the whole
-   * thing to whatever width it is given. That is what makes one set of
-   * coordinates right on a desktop and on a phone.
+   * THERE IS NO GEOMETRY HERE ANY MORE, and that is the point. This chapter
+   * is 16:9 on a phone and 16:5 on a desktop, so where a cloud sits cannot
+   * be a number written next to the file - it is a fraction of whichever
+   * frame is being drawn, and that lives with the composition.
    */
   'overview': [
-    {
-      src: overview,
-      dark: null,
-      alt: 'The main entrance and reception',
-      caption: null,
-      /* The ground. `cover` so no edge of the frame is ever uncovered. */
-      layer: { fit: 'cover', animation: 'zoom-out', duration: 9000 }
-    },
-    {
-      src: overviewSkyline,
-      dark: null,
-      alt: 'The city around it',
-      caption: null,
-      /*
-       * Along the bottom, rising in. A little parallax, because it is the
-       * middle distance - the ground behind it gets none and the handset in
-       * front gets more, which is what reads as depth.
-       */
-      layer: {
-        x: 0, y: 600, width: 1200, height: 300,
-        animation: 'slide-bottom', delay: 300, duration: 1300, parallax: 0.12
-      }
-    },
-    {
-      src: overviewHandset,
-      dark: null,
-      alt: 'A Crystal handset',
-      caption: null,
-      /*
-       * The subject, arriving last and nearest. The sheen is the light
-       * sweep across the screen, which is the one place on this page where
-       * it is doing something a still could not.
-       */
-      layer: {
-        x: 790, y: 170, width: 300, height: 553,
-        animation: 'zoom-in', delay: 1000, duration: 1100, parallax: 0.4, sheen: true
-      }
-    }
+    { src: overviewSky, dark: null, role: 'sky', alt: 'A clear sky', caption: null },
+    { src: overviewCloud3, dark: null, role: 'cloud-far', alt: 'A cloud in the distance', caption: null },
+    { src: overviewCloud2, dark: null, role: 'cloud-mid', alt: 'A drifting cloud', caption: null },
+    { src: overviewCloud1, dark: null, role: 'cloud-near', alt: 'A cloud near the horizon', caption: null },
+    { src: overviewGlobe, dark: null, role: 'globe', alt: 'A globe', caption: null },
+    { src: overviewTrail, dark: null, role: 'trail', alt: 'The trail behind the aeroplane', caption: null },
+    { src: overviewPlane, dark: null, role: 'plane', alt: 'An aeroplane in flight', caption: null },
+    /*
+     * THE TWO LINES ARE PICTURES OF WORDS, so their alt text IS the words.
+     * That is not a description of the artwork - it is the artwork's content,
+     * and a reader who cannot see it is owed the sentence rather than
+     * "a wordmark".
+     */
+    { src: overviewName, dark: null, role: 'name', alt: 'Crystal Trading Company', caption: null },
+    { src: overviewTagline, dark: null, role: 'tagline', alt: 'Bluesky is everywhere', caption: null }
   ],
 
   'institute': [ { src: institute, dark: null, alt: 'Engineers at work in the IT institute', caption: null } ],

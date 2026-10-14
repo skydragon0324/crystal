@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="120" viewBox="0 0 900 120" role="img" aria-label="The aeroplane's trail">
+  <!-- Mirrored: this flies right to left, so it faces left. -->
+  <g data-mirrored="x" transform="translate(900, 0) scale(-1, 1)">
+    <defs>
+      <linearGradient id="streak" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="rgba(255,255,255,0)"/>
+        <stop offset="70%" stop-color="rgba(255,255,255,0.55)"/>
+        <stop offset="100%" stop-color="rgba(255,255,255,0.9)"/>
+      </linearGradient>
+    </defs>
+    <path d="M0 58 L900 44 L900 62 L0 66 Z" fill="url(#streak)"/>
+    <path d="M120 86 L900 78 L900 92 L120 94 Z" fill="url(#streak)" opacity="0.55"/>
+  </g>
+</svg>

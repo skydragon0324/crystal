@@ -80,6 +80,26 @@ export const ANIMATIONS = {
     continuous: true,
     direction: 'alternate'
   },
+  drifting: {
+    label: 'Drift sideways, forever',
+    keyframes: 'from { transform: translateX(0); } to { transform: translateX(34px); }',
+    still: { transform: 'translateX(0)' },
+    continuous: true,
+    direction: 'alternate'
+  },
+  'fly-in-right': {
+    label: 'Fly in from off-frame, right to left',
+    keyframes: 'from { transform: translateX(1100px); } to { transform: translateX(0); }',
+    still: { transform: 'translateX(0)' }
+  },
+  'trailing-right': {
+    label: 'Trail behind something flying leftward',
+    keyframes: 'from { opacity: 0; transform: translateX(1100px); } '
+      + '18% { opacity: 0.9; } '
+      + '70% { opacity: 0.45; } '
+      + 'to { opacity: 0; transform: translateX(0); }',
+    still: { opacity: 0, transform: 'translateX(0)' }
+  },
   none: {
     label: 'Still',
     keyframes: 'from { opacity: 1; } to { opacity: 1; }',

@@ -34,6 +34,7 @@ import { useT } from '@/i18n';
  *
  * @param certificates  [{ id, name, issuer, year, image, ... }]
  * @param perView       how many to show at a time, per breakpoint
+ * @param ratio         the shape of the scans, so they show whole
  * @param ariaLabel     what the row is, named by whoever is showing it -
  *                      the chapter heading above it, rather than a string
  *                      this file invents for both of its callers
@@ -44,7 +45,7 @@ const INTERVAL = 4000;
 
 const DEFAULT_PER_VIEW = { base: 1, sm: 2, md: 3, lg: 4 };
 
-export default function CertificateCarousel({ certificates, perView, ariaLabel }) {
+export default function CertificateCarousel({ certificates, perView, ariaLabel, ratio }) {
   const t = useT();
   const surface = useSurface();
 
@@ -133,6 +134,7 @@ export default function CertificateCarousel({ certificates, perView, ariaLabel }
               <CertificateCard
                 certificate={certificate}
                 onOpen={setOpen}
+                ratio={ratio}
                 /* The ones on screen when the chapter is reached. */
                 eager={index < shown}
               />

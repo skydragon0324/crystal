@@ -37,6 +37,8 @@ export default function RecognitionSection({ section, certificates }) {
       <CertificateCarousel
         certificates={certificates}
         ariaLabel={section ? section.title : undefined}
+        /* The corporate scans are 274x204, and are shown whole. */
+        ratio={274 / 204}
       />
     </Box>
   );

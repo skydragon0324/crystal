@@ -106,3 +106,18 @@ export const NAV_HEIGHT = { base: '52px', md: '56px' };
  */
 export const SHOW_EYEBROWS = false;
 export const SHOW_CHAPTER_NAVIGATION = false;
+
+/**
+ * WHETHER A CHAPTER'S SCENE PLAYS FOR EVER, or plays once and holds.
+ *
+ * The scene engine loops by default and nothing was passing an opinion, so
+ * "repeats infinitely" was a default rather than a decision - and a default
+ * is not something anybody can find when they want it changed.
+ *
+ * OFF IS NOT "NO ANIMATION". A scene still plays from its first frame every
+ * time its chapter is shown; this decides only whether it starts again when
+ * it reaches the end. There is a third way to stop one, for a particular
+ * moment rather than for the whole page: hold a ref to the AboutScene and
+ * call `pause()`, or pass `isPlaying={false}`.
+ */
+export const REPEAT_CHAPTER_SCENES = true;

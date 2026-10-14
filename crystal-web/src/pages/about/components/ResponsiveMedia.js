@@ -66,7 +66,16 @@ export default function ResponsiveMedia({
         <Image
           src={src}
           alt={alt || ''}
-          objectFit={fit === 'contain' ? 'contain' : 'cover'}
+          /*
+           * AN INLINE STYLE, AND IT HAS TO BE.
+           *
+           * The frame around this is a Chakra AspectRatio, which emits
+           * `& > img { object-fit: cover }` - a descendant selector that beats
+           * the class an `objectFit` prop would mint. As a prop this said
+           * `contain` and the picture was cropped anyway. HeroCarousel refuses
+           * to use AspectRatio at all for the neighbouring reason.
+           */
+          style={{ objectFit: fit === 'contain' ? 'contain' : 'cover' }}
           w="100%"
           h="100%"
           /*

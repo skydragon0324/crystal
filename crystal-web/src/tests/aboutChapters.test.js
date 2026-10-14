@@ -403,71 +403,276 @@ test('the technology row advances on its own, and stops under the pointer', () =
   }
 });
 
-test('an overview slot of three files is drawn as three layers', () => {
+/* ------------------------------------------------------------------ */
+/*  the overview composition                                          */
+/* ------------------------------------------------------------------ */
+
+const OVERVIEW_PIECES = {
+  sky: { src: '/sky.svg', role: 'sky', alt: 'A clear sky' },
+  name: { src: '/name.svg', role: 'name', alt: 'Crystal Trading Company' },
+  tagline: { src: '/tagline.svg', role: 'tagline', alt: 'Bluesky is everywhere' },
+  'cloud-far': { src: '/c3.svg', role: 'cloud-far', alt: 'A cloud in the distance' },
+  'cloud-mid': { src: '/c2.svg', role: 'cloud-mid', alt: 'A drifting cloud' },
+  'cloud-near': { src: '/c1.svg', role: 'cloud-near', alt: 'A cloud near the horizon' },
+  globe: { src: '/globe.svg', role: 'globe', alt: 'A globe' },
+  trail: { src: '/trail.svg', role: 'trail', alt: 'The trail' },
+  plane: { src: '/plane.svg', role: 'plane', alt: 'An aeroplane in flight' }
+};
+
+const asList = (pieces) => Object.keys(pieces).map((role) => pieces[role]);
+
+test('the overview is one composition: a sky, clouds, a globe, a plane and two lines', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+
+  /* 16:5, the desktop frame. */
+  const layers = overviewLayers(1200, 375, OVERVIEW_PIECES);
+
+  /*
+   * EVERY PIECE IS PLACED, and in the order it is stacked: the sky at the
+   * back, the aeroplane in front of its own trail, the words over both.
+   */
+  expect(layers.map((layer) => layer.id)).toEqual([
+    'sky', 'cloud-far', 'cloud-mid', 'cloud-near', 'globe', 'trail', 'plane', 'name', 'tagline'
+  ]);
+  expect(layers.map((layer) => layer.z)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  const at = (id) => layers.filter((layer) => layer.id === id)[0];
+
+  /* The sky is the plate: it fills the frame and covers it. */
+  expect(at('sky').fit).toBe('cover');
+  expect(at('sky').width).toBeUndefined();
+  expect(at('sky').animation.name).toBe('none');
+
+  /* The clouds drift for ever, and lean with the pointer by increasing
+     amounts - which is the thing that reads as depth. */
+  const clouds = ['cloud-far', 'cloud-mid', 'cloud-near'].map(at);
+  clouds.forEach((cloud) => expect(cloud.animation.name).toBe('drifting'));
+  expect(clouds[0].parallax).toBeLessThan(clouds[1].parallax);
+  expect(clouds[1].parallax).toBeLessThan(clouds[2].parallax);
+  /* Different periods, or three clouds move as one object. */
+  expect(new Set(clouds.map((cloud) => cloud.animation.duration)).size).toBe(3);
+
+  /*
+   * AND THE CLOUDS ARE THE ONLY THING THE POINTER MOVES. The globe and the
+   * aeroplane had a little parallax each at first, which did not read as
+   * depth - it read as the whole picture tilting.
+   */
+  const leaning = layers.filter((layer) => layer.parallax).map((layer) => layer.id);
+  expect(leaning).toEqual(['cloud-far', 'cloud-mid', 'cloud-near']);
+
+  /* The globe is on the LEFT, and the aeroplane stops to the right of it. */
+  expect(at('globe').x).toBeLessThan(1200 * 0.1);
+  expect(at('plane').x).toBeGreaterThan(at('globe').x + at('globe').width);
+
+  /*
+   * THE AEROPLANE FLIES IN FROM THE RIGHT and decelerates to a stop; the
+   * trail dissipates with it. The direction is in the animation's NAME, like
+   * `slide-right` - and the artwork is mirrored to match, which no keyframe
+   * could do for it.
+   */
+  expect(at('plane').animation.name).toBe('fly-in-right');
+  expect(at('plane').animation.easing).toBe('ease-out');
+  expect(at('trail').animation.name).toBe('trailing-right');
+  expect(at('trail').animation.delay).toBe(at('plane').animation.delay);
+  /* And the trail is BEHIND it - to its RIGHT now, which is where it came
+     from - overlapping the tail. */
+  expect(at('trail').x).toBeGreaterThan(at('plane').x);
+
+  /*
+   * BOTH LINES ARE PICTURES, not text layers: a wordmark and a strapline have
+   * their own faces and arrive as files. What they SAY is in the alt text,
+   * which is the whole of the accessibility story for a picture of words.
+   */
+  expect(at('name').type).toBe('image');
+  expect(at('name').alt).toBe('Crystal Trading Company');
+  expect(at('tagline').type).toBe('image');
+  expect(at('tagline').alt).toBe('Bluesky is everywhere');
+});
+
+test('the words wait for the aeroplane to stop, and arrive where it left room', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+  const layers = overviewLayers(1200, 375, OVERVIEW_PIECES);
+  const at = (id) => layers.filter((layer) => layer.id === id)[0];
+
+  const plane = at('plane');
+  const stops = plane.animation.delay + plane.animation.duration;
+
+  /*
+   * THE SEQUENCE IS THE POINT, and it is the thing a hand-counted set of
+   * delays gets wrong: the name must not begin before the aeroplane has come
+   * to rest, and the line to its right follows the name rather than racing it.
+   */
+  expect(at('name').animation.delay).toBeGreaterThan(stops);
+  expect(at('tagline').animation.delay)
+    .toBeGreaterThanOrEqual(at('name').animation.delay + at('name').animation.duration);
+
+  /* BENEATH the aeroplane, and centred on it. */
+  const name = at('name');
+  expect(name.y).toBeGreaterThan(plane.y + plane.height);
+  expect(Math.round(name.x + name.width / 2)).toBe(Math.round(plane.x + plane.width / 2));
+
+  /* At the artwork's own shape, so `contain` neither crops nor letterboxes. */
+  expect(Math.round((name.width / name.height) * 100) / 100)
+    .toBe(Math.round((900 / 140) * 100) / 100);
+
+  /* TO THE RIGHT of it, and still inside the frame. */
+  const tagline = at('tagline');
+  expect(tagline.x).toBeGreaterThan(plane.x + plane.width);
+  expect(tagline.x + tagline.width).toBeLessThanOrEqual(1200);
+  expect(tagline.animation.name).toBe('fade-in');
+});
+
+test('the same composition fits both frame shapes', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+
+  /*
+   * 16:9 on a phone and 16:5 on a desktop. A composition with its geometry
+   * written as numbers would be wrong in one of them - the globe hanging in
+   * mid-air, the name running off the bottom - which is the whole reason the
+   * positions are derived from the frame.
+   */
+  const shapes = [[1200, Math.round(1200 / (16 / 9))], [1200, Math.round(1200 / (16 / 5))]];
+
+  shapes.forEach(([width, height]) => {
+    const layers = overviewLayers(width, height, OVERVIEW_PIECES);
+    expect(layers.length).toBe(9);
+
+    /* Nothing is NaN, which is what a division by an absent frame gives. */
+    const numbers = layers.reduce((all, layer) => all.concat(
+      ['x', 'y', 'width', 'height'].map((field) => layer[field])
+        .filter((value) => value !== undefined)
+    ), []);
+    expect(numbers.filter((value) => !Number.isFinite(value))).toEqual([]);
+
+    /*
+     * EVERY PIECE SITS INSIDE THE FRAME, except the wake.
+     *
+     * The aeroplane enters from outside the picture by its ANIMATION rather
+     * than by its position - it is placed where it STOPS - so a layer whose
+     * x is off the plate is a mistake in the composition. The trail is the
+     * one exception, and is one on purpose: it is what the aeroplane has
+     * flown through, so it reaches back past the RIGHT edge - the side it
+     * came from - and is clipped there.
+     */
+    const overflowing = layers
+      .filter((layer) => layer.width !== undefined)
+      .filter((layer) => layer.id !== 'trail')
+      .filter((layer) => layer.x < 0 || layer.x + layer.width > width + 1)
+      .map((layer) => layer.id);
+    expect(overflowing).toEqual([]);
+
+    /* And it does reach back behind the aeroplane rather than stopping short. */
+    const wake = layers.filter((layer) => layer.id === 'trail')[0];
+    const flyer = layers.filter((layer) => layer.id === 'plane')[0];
+    expect(wake.x).toBeGreaterThan(flyer.x);
+
+    /*
+     * It is NOT required to reach the edge. On the shallow desktop frame it
+     * ends inside the picture, and that is invisible: the artwork fades to
+     * transparent at the end away from the aircraft, so the wake has no
+     * visible tip to give away where it stops.
+     */
+
+    /* And the words are on the plate rather than off the bottom of it. */
+    const name = layers.filter((layer) => layer.id === 'name')[0];
+    expect(name.y + name.height).toBeLessThan(height);
+  });
+});
+
+test('a piece that has not been drawn yet is left out, not drawn empty', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+
+  /*
+   * The real artwork is replaced a piece at a time; a missing file must not
+   * put an <img> with no src on the page. Now that the two lines are pictures
+   * too, they are left out by the same rule rather than being the one thing
+   * that always draws.
+   */
+  const partial = { sky: OVERVIEW_PIECES.sky, plane: OVERVIEW_PIECES.plane };
+  const layers = overviewLayers(1200, 375, partial);
+
+  expect(layers.map((layer) => layer.id)).toEqual(['sky', 'plane']);
+  layers.forEach((layer) => expect(layer.src).toBeTruthy());
+});
+
+test('the overview chapter draws one scene, whatever the width', () => {
   const AboutScene = require('../pages/about/components/AboutScene').default;
+  const overviewLayers = require('../pages/about/overviewScene').default;
 
   const host = mount(
     <AboutScene
-      alt="x"
-      ratio={4 / 3}
-      layers={[
-        { src: '/ground.svg', alt: 'ground', layer: { fit: 'cover', animation: 'zoom-out' } },
-        { src: '/mid.svg', alt: 'mid', layer: { x: 0, y: 600, width: 1200, height: 300, animation: 'slide-bottom', delay: 300 } },
-        { src: '/fore.svg', alt: 'fore', layer: { x: 790, y: 170, width: 300, height: 553, animation: 'zoom-in', delay: 1000, sheen: true } }
-      ]}
+      alt="Crystal"
+      ratio={{ base: 16 / 9, md: 16 / 5 }}
+      layers={asList(OVERVIEW_PIECES)}
+      compose={overviewLayers}
     />
   );
 
   /*
-   * ONE scene, not one per crop: a composition is placed in the frame's own
-   * units, so there is nothing to choose between a wide and a narrow cut.
+   * ONE, not one per crop: a composition is placed in the frame's own units,
+   * so there is nothing to choose between a wide and a narrow cut of it.
    */
   expect(host.querySelectorAll('[data-scene]').length).toBe(1);
+  expect(host.querySelectorAll('[data-scene-layer]').length).toBe(9);
 
-  const drawn = [...host.querySelectorAll('[data-scene-layer]')];
-  expect(drawn.length).toBe(3);
+  /* The sky covers its frame; the cut-outs over it are never cropped. */
+  const sky = host.querySelector('[data-scene-layer="sky"] img');
+  expect(window.getComputedStyle(sky).objectFit).toBe('cover');
 
-  /* Each layer keeps the animation it declared, in the order declared. */
-  expect(drawn.map((node) => node.getAttribute('data-animation')))
-    .toEqual(['zoom-out', 'slide-bottom', 'zoom-in']);
+  const cloud = host.querySelector('[data-scene-layer="cloud-near"] img');
+  expect(window.getComputedStyle(cloud).objectFit).toBe('contain');
 
-  /* The ground fills the frame; the two cut-outs sit where they were put. */
-  expect(drawn[1].style.top).toBe('600px');
-  expect(drawn[2].style.left).toBe('790px');
-
-  /* And the ground covers while a cut-out is never cropped. */
-  const fits = drawn.map((node) => {
-    const image = node.querySelector('img');
-    return image ? window.getComputedStyle(image).objectFit : null;
-  });
-  expect(fits[0]).toBe('cover');
-  expect(fits.slice(1)).toEqual(['contain', 'contain']);
+  /*
+   * And the two lines are PICTURES of words, so they are found by what they
+   * say in their alt text rather than in the page's text.
+   */
+  expect(host.querySelector('[data-scene-layer="name"] img').getAttribute('alt'))
+    .toBe('Crystal Trading Company');
+  expect(host.querySelector('[data-scene-layer="tagline"] img').getAttribute('alt'))
+    .toBe('Bluesky is everywhere');
+  expect(host.textContent).not.toContain('Crystal Trading Company');
 });
 
 test('moving the pointer over a scene does not restart it', () => {
   const AboutScene = require('../pages/about/components/AboutScene').default;
 
+  /* A two-layer composition, the second of which has depth. */
+  const compose = (width, height, pieces) => [
+    {
+      id: 'ground',
+      type: 'image',
+      src: pieces.sky.src,
+      alt: 'ground',
+      fit: 'cover',
+      x: 0,
+      y: 0,
+      z: 1,
+      animation: { name: 'none', duration: 400 }
+    },
+    {
+      id: 'near',
+      type: 'image',
+      src: pieces.plane.src,
+      alt: 'near',
+      x: width * 0.3,
+      y: height * 0.2,
+      width: width * 0.2,
+      height: height * 0.2,
+      z: 2,
+      parallax: 0.4,
+      animation: { name: 'fly-in-right', duration: 900, easing: 'ease-out' }
+    }
+  ];
+
   const host = mount(
     <AboutScene
       alt="x"
-      ratio={4 / 3}
-      layers={[
-        { src: '/ground.svg', alt: 'ground', layer: { fit: 'cover', animation: 'zoom-out' } },
-        { src: '/fore.svg', alt: 'fore', layer: { x: 790, y: 170, width: 300, height: 553, animation: 'zoom-in', parallax: 0.4 } }
-      ]}
+      ratio={16 / 5}
+      layers={asList(OVERVIEW_PIECES)}
+      compose={compose}
     />
   );
 
-  /*
-   * A REMOUNT IS HOW THIS ENGINE REPLAYS AN ANIMATION ON PURPOSE (`runId`),
-   * so any accidental remount is an accidental replay. The parallax wrapper
-   * used to be rendered only while a pointer existed: the first mouse move
-   * wrapped the layer and leaving unwrapped it, which restarted the scene
-   * twice per hover.
-   *
-   * Node identity is the assertion, because it is the thing that decides it -
-   * the same element, still in place, has not replayed.
-   */
   const frame = host.querySelector('[data-scene]');
 
   /*
@@ -481,7 +686,7 @@ test('moving the pointer over a scene does not restart it', () => {
   });
 
   const depthOf = () => {
-    const layer = host.querySelector('[data-scene-layer="layer-2"]');
+    const layer = host.querySelector('[data-scene-layer="near"]');
     /* The parallax wrapper is the layer's parent - see AnimationLayer. */
     return layer.parentNode.style.transform;
   };
@@ -535,4 +740,45 @@ test('the eyebrows and the between-chapter links are switched off, not deleted',
   expect(host.textContent).toContain('A line.');
   expect(host.textContent).not.toContain('Growth');
   expect(host.textContent).not.toContain('03');
+});
+
+test('a recognition scan is shown whole, in a frame its own shape', () => {
+  const CertificateCard = require('../pages/about/components/CertificateCard').default;
+
+  /*
+   * `contain` alone was not enough. The corporate scans are 274x204 -
+   * landscape - and the card's frame was 3:4, so a scan was shown uncropped
+   * and TINY, in two grey bands. The frame has to be the shape of the thing
+   * in it for "shown fully" to mean anything.
+   */
+  const host = mount(
+    <CertificateCard
+      certificate={{ id: 'c1', name: 'ISO 9001', issuer: 'SGS', year: 2021, image: '/a.png' }}
+      onOpen={() => {}}
+      ratio={274 / 204}
+    />
+  );
+
+  /*
+   * UNCROPPED, AND THE ASSERTION HAS TO BE THE COMPUTED STYLE rather than
+   * the prop. `objectFit="contain"` was set here for a while and did nothing:
+   * the AspectRatio around it emits `& > img { object-fit: cover }`, and a
+   * descendant selector beats the class a prop mints. Reading the prop back
+   * would have agreed with the code and disagreed with the screen.
+   */
+  const image = host.querySelector('img');
+  expect(window.getComputedStyle(image).objectFit).toBe('contain');
+
+  /*
+   * THE FRAME'S SHAPE IS NOT CHECKED HERE, and that is a limit of the runner
+   * rather than an oversight: Chakra reserves it as `padding-bottom` on a
+   * `::before`, jsdom's getComputedStyle does not resolve pseudo-elements,
+   * and Emotion inserts its rules through the CSSOM so the stylesheet cannot
+   * be read back either. Asserting the prop instead would prove only that a
+   * number was passed, which is what the broken `objectFit` already did.
+   *
+   * The crop is the half that CAN be measured, and it was the half that was
+   * wrong: a scan in the wrong-shaped frame is small, a cropped one has its
+   * seal cut off.
+   */
 });

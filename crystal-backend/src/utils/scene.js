@@ -34,6 +34,7 @@ const ANIMATION_NAMES = [
   'zoom-in', 'zoom-out',
   'rotate-in', 'bounce-in',
   'floating',
+  'drifting', 'fly-in-right', 'trailing-right',
   'none'
 ];
 
