@@ -593,7 +593,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'full_name', label: 'Full name' },
         { name: 'gender_code', label: 'Gender', type: 'select',
           options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }, { value: 'OTHER', label: 'Other' }, { value: 'UNKNOWN', label: 'Unknown' }] },
-        { name: 'birth_date', label: 'Date of birth', type: 'date' },
+        { name: 'birth_date', label: 'Date of birth', type: 'date', typeable: true },
         { name: 'job_title_id', label: 'Job title', type: 'select', isSearchable: true,
           options: optionsFrom((meta.job_titles || []).filter((job) => job.is_active || job.job_title_id === (record.person || {}).job_title_id),
             'job_title_id', 'job_name') },

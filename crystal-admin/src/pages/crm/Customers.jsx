@@ -244,7 +244,7 @@ function CustomerList({ narrowedTo }) {
           ...(isPerson ? [
             { name: 'gender_code', label: 'Gender', type: 'select',
               options: [{ value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }] },
-            { name: 'birth_date', label: 'Date of birth', type: 'date' },
+            { name: 'birth_date', label: 'Date of birth', type: 'date', typeable: true },
             { name: 'job_title_id', label: 'Job title', type: 'select', isSearchable: true,
               options: optionsFrom((meta.job_titles || []).filter((job) => job.is_active), 'job_title_id', 'job_name') },
             { name: 'home_location_pk', label: 'Location', type: 'select', isSearchable: true, options: areas }

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Box, Flex, Grid, Text, Icon, Button, Popover, PopoverTrigger, PopoverContent,
+  Box, Flex, Grid, Text, Icon, Button, Input, Popover, PopoverTrigger, PopoverContent,
   PopoverBody, Portal, useColorModeValue, useDisclosure
 } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, CloseIcon } from '@chakra-ui/icons';
@@ -10,6 +10,21 @@ import {
   toISODate, parseISODate, addMonths, startOfMonth, buildCalendarGrid,
   monthNames, weekdayNames, formatDisplayDate, isSameDay, isOutOfRange
 } from '../utils/date';
+import { birthdayText } from '../utils/birthday';
+import { date as standardDate } from '../utils/format';
+
+/**
+ * A whole date typed in any form the console reads (1985.03.12, 1985-3-12,
+ * 19850312, 12.03.1985, 1985年3月12日 ...) as 'YYYY-MM-DD', or null while it
+ * is not one yet. A year or a day alone is not a date to store.
+ */
+function typedDate(text) {
+  const read = birthdayText(text);
+  return read && /^\d{4}\.\d{2}\.\d{2}$/.test(read) ? read.replace(/\./g, '-') : null;
+}
+
+/** Typed to its full length - eight digits, year month and day - so there is nothing left to add. */
+const typedInFull = (text) => String(text).replace(/\D/g, '').length >= 8;
 
 const SIZES = {
   sm: { h: '2.25rem', px: '0.75rem', radius: '0.75rem' },
@@ -29,10 +44,18 @@ const YEAR_PAGE = 20;
  *
  * The month and year views are drawn inside the same panel rather than in
  * nested popovers - a popover inside a popover closes its parent on blur.
+ *
+ * With `typeable` the field is also a text box: the date can be typed as well
+ * as picked. The calendar opens and follows what is typed, showing the day
+ * once it reads as one. A date typed in full (eight digits) is taken and the
+ * calendar closes; a shorter one (1985.3.12) is taken on Enter or on leaving
+ * the box. Text that is not a date is dropped on leaving, and the field goes
+ * back to the date it had. The box shows dates as 1985.03.12 - the form
+ * that can be typed back.
  */
 export default function DatePicker({
   value, onChange, placeholder, isDisabled, isInvalid, isClearable,
-  min, max, size, name, ...rest
+  min, max, size, name, typeable, ...rest
 }) {
   const { t, intlLocale, weekStartsOn } = useI18n();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -41,11 +64,24 @@ export default function DatePicker({
   useDismissOnOutside(isOpen, onClose, [triggerRef, panelRef]);
 
   const dims = SIZES[size] || SIZES.md;
-  const selected = parseISODate(value);
   const today = new Date();
+
+  /* What is being typed, while it is; null when the box shows the value. */
+  const [typing, setTyping] = useState(null);
+  const typedValue = typing === null ? null : typedDate(typing);
+  const typedUsable = !!typedValue && !isOutOfRange(parseISODate(typedValue), min, max);
+  /* The calendar highlights the typed date as soon as it reads as one. */
+  const selected = parseISODate(typedUsable ? typedValue : value);
 
   const [viewDate, setViewDate] = useState(() => startOfMonth(selected || today));
   const [view, setView] = useState('days');
+
+  // Follow the typing: the month of the date typed so far.
+  useEffect(() => {
+    if (!typedUsable) return;
+    setViewDate(startOfMonth(parseISODate(typedValue)));
+    setView('days');
+  }, [typedValue, typedUsable]);
 
   // Re-centre on the current value every time the panel is reopened.
   useEffect(() => {
@@ -122,8 +158,26 @@ export default function DatePicker({
   }, [isOpen, onClose]);
 
   const pick = (date) => {
+    setTyping(null);
     onChange(toISODate(date));
     onClose();
+  };
+
+  /* Typing: a date typed in full is taken at once and closes the calendar. */
+  const type = (text) => {
+    setTyping(text);
+    if (!isOpen) onOpen();
+    const typed = typedDate(text);
+    if (typed && typedInFull(text) && !isOutOfRange(parseISODate(typed), min, max)) pick(parseISODate(typed));
+  };
+
+  /* Enter or leaving the box: take a date, clear an emptied box, drop anything else. */
+  const settle = (closing) => {
+    if (typing === null) return;
+    const text = typing.trim();
+    if (typedUsable) pick(parseISODate(typedValue));
+    else if (!text && isClearable !== false) { setTyping(null); onChange(''); if (closing) onClose(); }
+    else setTyping(null);
   };
 
   const step = (direction) => {
@@ -166,7 +220,7 @@ export default function DatePicker({
       <PopoverTrigger>
         <Flex
           ref={triggerRef}
-          role="button" tabIndex={isDisabled ? -1 : 0}
+          role="button" tabIndex={isDisabled || typeable ? -1 : 0}
           aria-haspopup="dialog" aria-expanded={isOpen} aria-disabled={isDisabled}
           aria-label={t('datepicker.openCalendar')}
           data-name={name}
@@ -182,23 +236,44 @@ export default function DatePicker({
           _focus={{ borderColor: brandColor, boxShadow: 'none' }}
           onClick={() => (isDisabled ? null : (isOpen ? onClose() : onOpen()))}
           onKeyDown={(e) => {
-            if (isDisabled) return;
+            if (isDisabled || typeable) return;
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
             if (e.key === 'Escape' && isOpen) { e.stopPropagation(); onClose(); }
           }}
           {...rest}
         >
-          <Text fontSize="sm" noOfLines={1} color={value ? textColor : mutedColor}>
-            {value
-              ? formatDisplayDate(value, intlLocale, displayPattern, months, shortMonths)
-              : (placeholder || t('datepicker.selectADate'))}
-          </Text>
+          {typeable ? (
+            <Input
+              variant="unstyled" size="sm" fontSize="sm" h="100%" color={textColor}
+              name={name} autoComplete="off" isDisabled={isDisabled}
+              placeholder={placeholder || t('datepicker.typeOrPickADate')}
+              _placeholder={{ color: mutedColor }}
+              value={typing !== null ? typing : (value ? standardDate(value) : '')}
+              /* The box is part of the field: a click in it opens the calendar, never toggles it shut. */
+              onClick={(e) => { e.stopPropagation(); if (!isOpen) onOpen(); }}
+              onChange={(e) => type(e.target.value)}
+              onBlur={(e) => {
+                /* Focus moving INTO the calendar is a day being clicked - let the click decide. */
+                if (panelRef.current && panelRef.current.contains(e.relatedTarget)) return;
+                settle(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); settle(true); }
+              }}
+            />
+          ) : (
+            <Text fontSize="sm" noOfLines={1} color={value ? textColor : mutedColor}>
+              {value
+                ? formatDisplayDate(value, intlLocale, displayPattern, months, shortMonths)
+                : (placeholder || t('datepicker.selectADate'))}
+            </Text>
+          )}
 
           <Flex align="center" ms="0.5rem" flexShrink="0">
             {showClear ? (
               <Box
                 as="span" role="button" aria-label={t('common.clear')}
-                onClick={(e) => { e.stopPropagation(); onChange(''); }}
+                onClick={(e) => { e.stopPropagation(); setTyping(null); onChange(''); }}
                 p="0.25rem" me="2px" lineHeight="0"
                 color={mutedColor} _hover={{ color: brandColor }}
               >
@@ -384,7 +459,7 @@ export default function DatePicker({
               </Button>
               <Button
                 variant="subtle" size="sm" borderRadius="0.75rem" fontSize="xs"
-                onClick={() => { onChange(''); onClose(); }}
+                onClick={() => { setTyping(null); onChange(''); onClose(); }}
               >
                 {t('common.clear')}
               </Button>

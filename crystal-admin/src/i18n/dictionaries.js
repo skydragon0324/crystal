@@ -328,7 +328,8 @@ const en = {
     openCalendar: 'Open calendar',
     previousMonth: 'Previous month',
     selectADate: 'Select a date',
-    today: 'Today'
+    today: 'Today',
+    typeOrPickADate: 'Type, e.g. 1985.03.12, or pick'
   },
   dialog: {
     areYouSure: 'Are you sure?',
@@ -1479,7 +1480,8 @@ const zh = {
     openCalendar: '打开日历',
     previousMonth: '上个月',
     selectADate: '选择日期',
-    today: '今天'
+    today: '今天',
+    typeOrPickADate: '输入，如 1985.03.12，或选择'
   },
   dialog: {
     areYouSure: '确定吗？',
@@ -2641,7 +2643,8 @@ const ru = {
     openCalendar: 'Открыть календарь',
     previousMonth: 'Предыдущий месяц',
     selectADate: 'Выберите дату',
-    today: 'Сегодня'
+    today: 'Сегодня',
+    typeOrPickADate: 'Введите, напр. 1985.03.12, или выберите'
   },
   dialog: {
     areYouSure: 'Вы уверены?',

@@ -16,7 +16,7 @@ import { media } from '../api';
 
 /**
  * fields: [{ name, label, type, options, required, placeholder, help, colSpan, isReadOnly, min, max, step, rows, folder }]
- * type: text | password | number | date | select | multiselect | textarea
+ * type: text | password | number | date | select | multiselect | textarea (a date with typeable: true can also be typed)
  *       | checkbox | switch | color | image | files | richtext | section | custom
  *
  * `select`/`multiselect` use the searchable SelectField and `date` the custom
@@ -355,6 +355,7 @@ export default function FormModal({
         return (
           <DatePicker
             name={f.name}
+            typeable={f.typeable}
             value={value ? String(value).slice(0, 10) : ''}
             placeholder={f.placeholder}
             isDisabled={f.isReadOnly}
