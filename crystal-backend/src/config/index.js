@@ -342,6 +342,70 @@ const config = {
     ]
   },
 
+  /*
+   * CUSTOMER LIFECYCLE KPIs - see CUSTOMER_LIFECYCLE_KPI_REQUIREMENTS.md.
+   *
+   * THE TWO TIME ZONES ARE THE PART TO GET RIGHT, and they are two because
+   * they answer different questions:
+   *
+   *   sourceTimezone  what ora_pid's naked DATE columns MEAN. Oracle DATE
+   *                   carries no zone, so 2026-05-04 00:00 is only an instant
+   *                   once somebody says which midnight it was. Getting this
+   *                   wrong shifts every threshold by the offset.
+   *
+   *   reportTimezone  which local calendar DAY a transition is counted in.
+   *                   It never changes how long thirty days is - that is
+   *                   elapsed hours, in services/lifecycle/rules.js.
+   *
+   * BOTH DEFAULT TO Asia/Shanghai because that is where the platform and its
+   * customers are - the institute is in Shanghai and Hangzhou, the factory
+   * outside Suzhou - and because requirement 3 is explicit that a silent UTC
+   * assumption is wrong. The default is a starting point and NOT a verified
+   * fact about the source: confirm it against the vendor's own reporting
+   * before trusting a boundary date, and set it in .env.
+   */
+  lifecycle: {
+    sourceTimezone: str('LIFECYCLE_SOURCE_TIMEZONE', 'Asia/Shanghai'),
+    reportTimezone: str('LIFECYCLE_REPORT_TIMEZONE', 'Asia/Shanghai'),
+
+    /* Rows per Oracle read and per PostgreSQL write. The write ceiling is not
+       taste: PostgreSQL takes 65,535 bind parameters in one statement. */
+    importBatch: int('LIFECYCLE_IMPORT_BATCH', 5000),
+
+    /*
+     * HOW FAR BACK BELOW THE WATERMARK EACH POLL RE-READS.
+     *
+     * TABLE_PK is assigned before commit, so a transaction that commits late
+     * leaves a key below the high-water mark that a plain "greater than the
+     * last one seen" scan will never return. Re-reading a band below it
+     * catches the common case cheaply; only the full key reconciliation
+     * closes the hole. See requirement 8 and the comment on
+     * lifecycle_sync_checkpoint.
+     */
+    pkOverlap: int('LIFECYCLE_PK_OVERLAP', 10000),
+
+    /* Keys per batch when comparing the whole source against the journal. */
+    reconcileBatch: int('LIFECYCLE_RECONCILE_BATCH', 50000),
+
+    /* Older than this and the admin health view calls the data stale. */
+    freshnessWarnMinutes: int('LIFECYCLE_FRESHNESS_WARN_MINUTES', 180),
+
+    /*
+     * How far ahead of now a login may be stamped before it is treated as a
+     * data-quality exception rather than a fact. Clocks differ; hours of
+     * difference are a broken clock.
+     */
+    clockSkewMinutes: int('LIFECYCLE_CLOCK_SKEW_MINUTES', 15),
+
+    /*
+     * THE RULE VERSION, written onto every period and snapshot. Changing the
+     * 30/90-day contract means incrementing this AND backfilling what was
+     * computed under the old one - requirement 4 forbids reinterpreting
+     * history in place.
+     */
+    ruleVersion: int('LIFECYCLE_RULE_VERSION', 1)
+  },
+
   points: {
     productRegister: int('POINTS_PRODUCT_REGISTER', 500),
     dailyLogin: int('POINTS_DAILY_LOGIN', 10),

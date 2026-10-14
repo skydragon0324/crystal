@@ -108,6 +108,52 @@ export const claims = {
 
 /* ---- 9. the scoreboard ---- */
 
+/**
+ * CUSTOMER LIFECYCLE KPIs.
+ *
+ * Reports, the business events they can be compared around, and the
+ * reconciliation - which is a job request rather than a report. See the note
+ * in the backend's routes/lifecycle.routes.js for which of these need WRITE.
+ *
+ * `base` is here for ExcelActions, which asks a resource for its own
+ * `/export`: the three exports are the same rows the screens are showing,
+ * bounded and audited on the server.
+ */
+export const lifecycle = {
+  overview: (params) => client.get('/customer-lifecycle/overview', { params }),
+  trend: (params) => client.get('/customer-lifecycle/trend', { params }),
+  transitionSummary: (params) =>
+    client.get('/customer-lifecycle/transitions/summary', { params }),
+  transitions: (params) => client.get('/customer-lifecycle/transitions', { params }),
+  customers: (params) => client.get('/customer-lifecycle/customers', { params }),
+  timeline: (userPk, params) =>
+    client.get('/customer-lifecycle/customers/' + userPk + '/timeline', { params }),
+  definitions: () => client.get('/customer-lifecycle/definitions'),
+  health: () => client.get('/customer-lifecycle/health'),
+  exceptions: (params) => client.get('/customer-lifecycle/exceptions', { params }),
+  reconcile: () => client.post('/customer-lifecycle/jobs/reconcile'),
+
+  /* ---- the business events ---- */
+  events: () => client.get('/customer-lifecycle/events'),
+  createEvent: (body) => client.post('/customer-lifecycle/events', body),
+  updateEvent: (eventId, body) =>
+    client.put('/customer-lifecycle/events/' + eventId, body),
+  deleteEvent: (eventId) => client.delete('/customer-lifecycle/events/' + eventId),
+
+  /*
+   * The comparison around one. `eventId` may be the string 'ad-hoc', with
+   * `eventAt` in the params, so an instant nobody has stored can still be
+   * compared around.
+   */
+  impact: (eventId, params) =>
+    client.get('/customer-lifecycle/events/' + eventId + '/impact', { params }),
+
+  /* ---- what ExcelActions needs, one base per sheet ---- */
+  stockSheet: { base: '/customer-lifecycle/trend' },
+  transitionSheet: { base: '/customer-lifecycle/transitions' },
+  customerSheet: { base: '/customer-lifecycle/customers' }
+};
+
 export const analysis = {
   agencyHealth: (params) => client.get('/analysis/agency-health', { params }),
   agencyHealthOf: (agencyId) => client.get('/analysis/agency-health/' + agencyId),

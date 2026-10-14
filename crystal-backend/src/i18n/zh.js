@@ -169,6 +169,25 @@ module.exports = {
     tokenExpired: '登录已过期'
   },
 
+  lifecycle: {
+    aDateIsRequired: '{name} 为必填，且必须是日期',
+    thatIsNotADate: '{name} 必须是 YYYY-MM-DD 格式的日期',
+    theRangeEndsBeforeIt: '结束日期早于开始日期',
+    thatRangeIsTooLong: '时间范围最多 {days} 天',
+    thatIsNotAGrouping: '分组方式只能是 DAY、WEEK 或 CUSTOM',
+    aCustomIntervalIsBetween: '自定义间隔需在 2 至 90 天之间',
+    thatIsNotAStatus: '{name} 只能是 NEW、ACTIVE、DORMANT 或 CHURNED',
+    thatIsNotACustomer: '这不是有效的客户主键',
+    noSuchCustomer: '尚未同步该主键对应的客户',
+    aReconciliationIsAlready: '核对任务正在运行，本次请求未重复启动',
+    reconciliationFinished: '核对完成',
+    thatIsNotAnInstant: '{name} 必须是日期和时间',
+    aWindowIsBetween: '对比窗口每侧需在 1 至 {days} 天之间',
+    thatIsNotAnEvent: '这不是有效的事件主键',
+    noSuchEvent: '不存在该主键对应的事件',
+    anEventNeedsAName: '事件名称为必填，且最多 {max} 个字符',
+    thatTextIsTooLong: '{name} 最多 {max} 个字符'
+  },
   scene: {
     aLayerNeedsAPicture: '场景的 {layer} 图层需要一张图片',
     aPictureMustBeAnUpload: '{layer} 图层必须指向已上传的文件，而不是其他地址',

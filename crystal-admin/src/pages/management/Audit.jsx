@@ -18,8 +18,15 @@ import { dateTime } from '../../utils/format';
 
 export const PAGE = '/admin/management/audit';
 
+/*
+ * `export` IS THE ONE ACTION THAT CHANGED NOTHING, and the one worth
+ * watching: it is a copy of records leaving the console. Shown as WATCH
+ * rather than NORMAL for exactly that reason - see services/audit.service.js
+ * and sql/deltas/056.
+ */
 const ACTION_TONE = {
-  create: 'OK', update: 'NORMAL', delete: 'ALERT', restore: 'WATCH', import: 'NORMAL'
+  create: 'OK', update: 'NORMAL', delete: 'ALERT', restore: 'WATCH',
+  import: 'NORMAL', export: 'WATCH'
 };
 
 /**
@@ -90,7 +97,7 @@ export default function Audit() {
             },
             {
               key: 'action', label: 'Action', value: list.params.action,
-              options: ['create', 'update', 'delete', 'restore', 'import']
+              options: ['create', 'update', 'delete', 'restore', 'import', 'export']
                 .map((code) => ({ value: code, label: code })),
               onChange: (value) => list.setFilter({ action: value })
             },

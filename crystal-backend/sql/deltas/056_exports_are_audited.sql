@@ -1,0 +1,22 @@
+-- ---------------------------------------------------------------------
+-- Delta 056 - 'export' becomes an audit action.
+--
+-- WHY A NEW VOCABULARY VALUE RATHER THAN A REUSED ONE. Requirement 13 of the
+-- customer-lifecycle specification asks for sensitive exports to be audited,
+-- and an export is not any of the five things audit_action could already say:
+-- it changed nothing. Recording it as 'import' - the only other bulk action -
+-- would make the trail claim a write that never happened, and recording it
+-- nowhere would leave the one operation that copies customers' birthdays out
+-- of the console as the one operation with no trail.
+--
+-- It is the generic vocabulary, not a lifecycle one, so every other export in
+-- the console can be recorded the same way.
+--
+-- NO DOWN. PostgreSQL cannot remove a value from an enum, and the rollback
+-- that would be needed - rebuild the type, rewrite the column - is a worse
+-- risk than an unused label. See the migration.
+--
+-- Safe to run twice: ADD VALUE IF NOT EXISTS is a no-op the second time.
+-- ---------------------------------------------------------------------
+
+ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'export';
