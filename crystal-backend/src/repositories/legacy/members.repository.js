@@ -71,7 +71,7 @@ function matches(password, stored) {
 /** By login name, which is what the sign-in form asks for. */
 function findByLogin(login) {
   return conn()(legacy.pid(USERS))
-    .whereRaw('LOWER(user_id) = ?', [String(login || '').trim().toLowerCase()])
+    .whereRaw('user_id = ?', [String(login || '').trim()])
     .first();
 }
 
