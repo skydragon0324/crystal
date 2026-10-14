@@ -46,6 +46,7 @@
  */
 
 import overviewSky from '@assets/images/about/overview-sky.svg';
+import overviewSkyMobile from '@assets/images/about/overview-sky-mobile.svg';
 import overviewCloud1 from '@assets/images/about/overview-cloud-1.svg';
 import overviewCloud2 from '@assets/images/about/overview-cloud-2.svg';
 import overviewCloud3 from '@assets/images/about/overview-cloud-3.svg';
@@ -131,7 +132,14 @@ const ABOUT_IMAGES = {
    * frame is being drawn, and that lives with the composition.
    */
   'overview': [
+    /*
+     * TWO SKIES, one the shape of each frame this chapter is drawn in - 16:5
+     * across a desktop and 16:9 on a phone. A single plate has to be cropped
+     * to fit one of them, which makes the background a visibly different
+     * picture at the two widths; see TALL_FRAME in overviewScene.js.
+     */
     { src: overviewSky, dark: null, role: 'sky', alt: 'A clear sky', caption: null },
+    { src: overviewSkyMobile, dark: null, role: 'sky-mobile', alt: 'A clear sky', caption: null },
     { src: overviewCloud3, dark: null, role: 'cloud-far', alt: 'A cloud in the distance', caption: null },
     { src: overviewCloud2, dark: null, role: 'cloud-mid', alt: 'A drifting cloud', caption: null },
     { src: overviewCloud1, dark: null, role: 'cloud-near', alt: 'A cloud near the horizon', caption: null },

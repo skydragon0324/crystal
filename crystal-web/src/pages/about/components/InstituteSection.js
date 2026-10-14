@@ -114,7 +114,6 @@ export default function InstituteSection({ section, researchAreas, technology })
         fontSize={{ base: 'md', md: 'lg' }}
         lineHeight="1.8"
         mt={{ base: 6, md: 8 }}
-        maxW="820px"
       >
         {section.description}
       </Prose>

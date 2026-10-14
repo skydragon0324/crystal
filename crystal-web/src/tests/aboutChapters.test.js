@@ -432,7 +432,7 @@ test('the overview is one composition: a sky, clouds, a globe, a plane and two l
    * back, the aeroplane in front of its own trail, the words over both.
    */
   expect(layers.map((layer) => layer.id)).toEqual([
-    'sky', 'cloud-far', 'cloud-mid', 'cloud-near', 'globe', 'trail', 'plane', 'name', 'tagline'
+    'sky', 'cloud-far', 'cloud-mid', 'cloud-near', 'globe', 'trail', 'plane', 'tagline', 'name'
   ]);
   expect(layers.map((layer) => layer.z)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
@@ -502,9 +502,11 @@ test('the words wait for the aeroplane to stop, and arrive where it left room', 
    * delays gets wrong: the name must not begin before the aeroplane has come
    * to rest, and the line to its right follows the name rather than racing it.
    */
-  expect(at('name').animation.delay).toBeGreaterThan(stops);
-  expect(at('tagline').animation.delay)
-    .toBeGreaterThanOrEqual(at('name').animation.delay + at('name').animation.duration);
+  expect(at('tagline').animation.delay).toBeGreaterThan(stops);
+
+  /* The strapline first, the name after it - not racing it. */
+  expect(at('name').animation.delay)
+    .toBeGreaterThanOrEqual(at('tagline').animation.delay + at('tagline').animation.duration);
 
   /* BENEATH the aeroplane, and centred on it. */
   const name = at('name');
@@ -781,4 +783,88 @@ test('a recognition scan is shown whole, in a frame its own shape', () => {
    * wrong: a scan in the wrong-shaped frame is small, a cropped one has its
    * seal cut off.
    */
+});
+
+test('the scene takes the sky plate cut for the frame it is drawing', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+
+  const pieces = {
+    sky: { src: '/sky-wide.svg', role: 'sky', alt: 'A clear sky' },
+    'sky-mobile': { src: '/sky-tall.svg', role: 'sky-mobile', alt: 'A clear sky' }
+  };
+
+  const skyOf = (shape) => overviewLayers(1200, Math.round(1200 / shape), pieces)
+    .filter((layer) => layer.id === 'sky')[0];
+
+  /*
+   * THE WIDE PLATE ACROSS A DESKTOP AND THE TALL ONE ON A PHONE. One plate
+   * for both is what made the background a visibly different picture at the
+   * two widths - `cover` has to crop something, and whichever shape the file
+   * is drawn at, the other frame pays for it.
+   */
+  expect(skyOf(16 / 5).src).toBe('/sky-wide.svg');
+  expect(skyOf(16 / 9).src).toBe('/sky-tall.svg');
+
+  /* Either way the LAYER is called `sky`: which file it came from is not
+     something the rest of the scene should have to know. */
+  expect(skyOf(16 / 9).id).toBe('sky');
+  expect(skyOf(16 / 9).fit).toBe('cover');
+
+  /* And with only the wide file present, a phone still has a sky - cropped,
+     which is better than a chapter that opens on nothing. */
+  const wideOnly = overviewLayers(1200, 675, { sky: pieces.sky })
+    .filter((layer) => layer.id === 'sky')[0];
+  expect(wideOnly.src).toBe('/sky-wide.svg');
+});
+
+test('the two frame shapes get their own sizes and positions, not one formula', () => {
+  const overviewLayers = require('../pages/about/overviewScene').default;
+  const { layoutFor } = require('../pages/about/overviewScene');
+
+  const pieces = Object.assign({}, OVERVIEW_PIECES, {
+    'sky-mobile': { src: '/sky-tall.svg', role: 'sky-mobile', alt: 'A clear sky' }
+  });
+
+  const shareOf = (shape, id) => {
+    const layer = overviewLayers(1200, Math.round(1200 / shape), pieces)
+      .filter((l) => l.id === id)[0];
+    /* As a fraction of the WIDTH, which is the same 1200 in both - the one
+       way two differently-shaped frames can be compared at all. */
+    return Math.round((layer.width / 1200) * 100);
+  };
+
+  /*
+   * ONE SET OF FRACTIONS USED TO SERVE BOTH, which looked principled and was
+   * not: the frames differ by nearly two to one in height, so the same
+   * numbers gave the aeroplane a fifth of the width on a desktop and over a
+   * third on a phone - a real difference nobody had chosen. Each shape states
+   * its own now, and these are the figures that say so.
+   */
+  expect(shareOf(16 / 5, 'plane')).toBe(20);
+  expect(shareOf(16 / 9, 'plane')).toBe(42);
+
+  /* The wordmark likewise: a narrow viewport needs it to carry more width. */
+  expect(shareOf(16 / 9, 'name')).toBeGreaterThan(shareOf(16 / 5, 'name'));
+
+  /* The layouts really are two objects, picked by the frame's shape. */
+  expect(layoutFor(1200, 375)).not.toBe(layoutFor(1200, 675));
+  expect(layoutFor(1200, 375)).toBe(layoutFor(1920, 600));
+
+  /* DEPTH IS NOT PER-SHAPE, because depth is depth: the clouds lean the same
+     amount whichever frame they are in. */
+  const depths = (shape) => overviewLayers(1200, Math.round(1200 / shape), pieces)
+    .filter((l) => l.parallax)
+    .map((l) => l.parallax);
+  expect(depths(16 / 9)).toEqual(depths(16 / 5));
+
+  /* And nothing in either layout escapes its frame or lands on the wordmark. */
+  [16 / 5, 16 / 9].forEach((shape) => {
+    const height = Math.round(1200 / shape);
+    const layers = overviewLayers(1200, height, pieces);
+    const at = (id) => layers.filter((l) => l.id === id)[0];
+
+    expect(at('name').y + at('name').height).toBeLessThan(height);
+    /* The middle cloud sits above the name rather than through it. */
+    expect(at('cloud-mid').y + at('cloud-mid').height).toBeLessThan(at('name').y);
+  });
 });

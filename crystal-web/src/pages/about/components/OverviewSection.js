@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Heading, SimpleGrid, Text } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Text } from '@chakra-ui/react';
 
 import AboutScene from './AboutScene';
 import overviewLayers, { OVERVIEW_MS } from '../overviewScene';
@@ -15,24 +15,28 @@ import { chapterNumber, REPEAT_CHAPTER_SCENES, SHOW_EYEBROWS } from '../constant
  * first picture on a page is a blank rectangle in the one place nobody will
  * wait for.
  *
- * THREE PIECES, PLACED BY NAME: the heading, the picture, and the prose.
+ * THREE PIECES IN ONE COLUMN, at every width: the heading, the picture, the
+ * prose.
  *
- *   DESKTOP is two columns at 55/45. The heading and the prose stack in the
- *   wider one - the copy is the longer of the two - and the picture sits
- *   beside them both, spanning the pair.
+ * THE PICTURE IS BETWEEN THE HEADING AND THE PROSE, and the order is the
+ * argument. Not above the heading: a chapter that opens with a photograph and
+ * no words has nothing to tell a reader what they are looking at, and the h1
+ * is what the whole page opens with. Not below the prose, which is where it
+ * used to be - that put a headline, a subtitle and a paragraph above the fold
+ * before anything was shown.
  *
- *   MOBILE puts the picture BETWEEN the heading and the prose. Not above the
- *   heading: a chapter that opens with a photograph and no words has nothing
- *   to tell a reader what they are looking at, and the h1 is what the page
- *   opens with. Not below the prose either, which is where it used to be -
- *   that put a headline, a subtitle and a paragraph above the fold before
- *   anything was shown.
+ * IT WAS TWO COLUMNS ON A DESKTOP, 55/45, with the picture beside both pieces
+ * of text. That needed a Grid with named areas, because a picture landing
+ * BETWEEN two blocks on a phone and BESIDE them on a desktop moves from one
+ * column to another and `order` only reshuffles within one. One arrangement
+ * needs none of that, so three stacked boxes replaced it.
  *
- * `templateAreas` RATHER THAN `order`, and that is the whole reason this is a
- * Grid. The picture has to land between two pieces of text on a phone and
- * beside both of them on a desktop - which is a move from one column to
- * another, and `order` only reshuffles within one. Naming the areas says the
- * arrangement once per layout instead of a flag on each child.
+ * It suits what the picture became, too: in a 45% column a 16:5 scene was a
+ * narrow strip, and across the full width it is the horizon it was drawn as.
+ *
+ * THE PROSE RUNS THE FULL WIDTH, as every description on this page now does.
+ * It was capped at a reading measure, which on a desktop left it in the left
+ * half of the band with nothing beside it.
  */
 export default function OverviewSection({ section, facts }) {
   const surface = useSurface();
@@ -40,21 +44,8 @@ export default function OverviewSection({ section, facts }) {
 
   return (
     <Box>
-      <Grid
-        templateColumns={{ base: '1fr', lg: '55fr 45fr' }}
-        templateAreas={{
-          base: '"head" "picture" "body"',
-          lg: '"head picture" "body picture"'
-        }}
-        /*
-         * Separate row and column gaps: the column gap is the space between
-         * the copy and the photograph, and the row gap is the space between a
-         * headline and the sentence under it. One number cannot be both.
-         */
-        gridColumnGap={{ lg: 14 }}
-        gridRowGap={{ base: 6, lg: 4 }}
-      >
-        <Box gridArea="head">
+      <Box>
+        <Box>
           {SHOW_EYEBROWS && section.eyebrow && (
             <Text
               fontSize="xs"
@@ -85,12 +76,8 @@ export default function OverviewSection({ section, facts }) {
           </Heading>
         </Box>
 
-        {/*
-          * THE PICTURE, WITH MOTION IN IT - see AboutScene. It spans both text
-          * rows on a desktop, so it is centred against the pair rather than
-          * tied to the height of either.
-          */}
-        <Box gridArea="picture" alignSelf="center">
+        {/* THE PICTURE, WITH MOTION IN IT - see AboutScene. */}
+        <Box mt={{ base: 6, md: 8 }}>
           <AboutScene
             desktop={section.image_desktop}
             mobile={section.image_mobile}
@@ -111,7 +98,7 @@ export default function OverviewSection({ section, facts }) {
           />
         </Box>
 
-        <Box gridArea="body">
+        <Box mt={{ base: 6, md: 8 }}>
           {section.subtitle && (
             <Text fontSize={{ base: 'lg', md: 'xl' }} color={surface.strong}>
               {section.subtitle}
@@ -124,7 +111,7 @@ export default function OverviewSection({ section, facts }) {
             </Prose>
           )}
         </Box>
-      </Grid>
+      </Box>
 
       {facts && facts.length > 0 && (
         <SimpleGrid

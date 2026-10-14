@@ -27,7 +27,16 @@ export default function SectionHeading({ number, eyebrow, title, description, al
 
   return (
     <Box
-      maxW={centred ? '760px' : '820px'}
+      /*
+       * FULL WIDTH WHEN IT IS LEFT-ALIGNED, and a measure when it is centred.
+       *
+       * Every chapter's standfirst was capped at 820px, which on a desktop
+       * put a paragraph in the left half of the band with nothing beside it.
+       * Centred is the exception: that text is not stranded on one side, and
+       * a long centred line is the worst case for a reader, who has no fixed
+       * left edge to come back to.
+       */
+      maxW={centred ? '760px' : undefined}
       mx={centred ? 'auto' : undefined}
       textAlign={centred ? 'center' : 'left'}
       mb={{ base: 8, md: 12 }}

@@ -206,3 +206,46 @@ test('every picture carries alt text, because the page is read aloud too', () =>
 
   expect(silent).toEqual([]);
 });
+
+test('each overview sky is the shape of the frame it is cut for, so neither is cropped', () => {
+  /*
+   * ONE PLATE CANNOT SERVE BOTH, and trying produced exactly the complaint:
+   * the background was a different picture on a phone from on a desktop. Cut
+   * at 16:5, `cover` scaled it 1.35x on the phone and took 44% off its width,
+   * sun included; cut at 16:9, the desktop kept only the middle 56% of its
+   * height. So there are two, and each fits its own frame exactly.
+   *
+   * A re-export of either file at a convenient size would silently bring the
+   * cropping back, which is why this is a test and not a comment.
+   */
+  const shapeOf = (name) => {
+    const svg = fsp.readFileSync(pathp.join(ASSETS, name), 'utf8');
+    const size = svg.match(/width="(\d+)" height="(\d+)"/);
+    expect(size).toBeTruthy();
+    return Number(size[1]) / Number(size[2]);
+  };
+
+  /* The chapter's two frame shapes - see OverviewSection. */
+  const round = (value) => Math.round(value * 100) / 100;
+
+  expect(round(shapeOf('overview-sky.svg'))).toBe(round(16 / 5));
+  expect(round(shapeOf('overview-sky-mobile.svg'))).toBe(round(16 / 9));
+
+  /*
+   * AND THE SAME PICTURE IS ON BOTH. Every feature is placed as a fraction of
+   * its plate, so the sun sits at the same point of each - which is what
+   * makes the two read as one sky rather than as two backgrounds.
+   */
+  const sunOf = (name) => {
+    const svg = fsp.readFileSync(pathp.join(ASSETS, name), 'utf8');
+    const size = svg.match(/width="(\d+)" height="(\d+)"/);
+    const circle = svg.match(/<circle cx="(\d+)" cy="(\d+)"/);
+    expect(circle).toBeTruthy();
+    return {
+      across: Math.round((Number(circle[1]) / Number(size[1])) * 100),
+      down: Math.round((Number(circle[2]) / Number(size[2])) * 100)
+    };
+  };
+
+  expect(sunOf('overview-sky-mobile.svg')).toEqual(sunOf('overview-sky.svg'));
+});

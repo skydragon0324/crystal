@@ -151,7 +151,8 @@ export default function HistorySection({ section, events }) {
             {active.year}
           </Text>
 
-          <Box flex="1" minW="0" maxW="760px">
+          {/* Full width beside the year, like every other description. */}
+          <Box flex="1" minW="0">
             {active.events.map((event, index) => (
               <Prose
                 key={event.id}

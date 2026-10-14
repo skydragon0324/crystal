@@ -60,7 +60,7 @@ export default function ShopSection({ section, floors }) {
         ratio={21 / 9}
       />
 
-      <Prose color={surface.muted} fontSize={{ base: 'md', md: 'lg' }} mt="6" maxW="820px">
+      <Prose color={surface.muted} fontSize={{ base: 'md', md: 'lg' }} mt="6">
         {section.description}
       </Prose>
 
