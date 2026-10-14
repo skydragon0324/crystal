@@ -24,16 +24,22 @@ import boot from './boot';
 import App from './App';
 import store from './app/store';
 import theme from './theme';
+import { colourModeManager } from './app/colourMode';
 
 boot();
 
 ReactDOM.render(
   <React.StrictMode>
     <Provider store={store}>
-      {/* Reads the stored colour mode before first paint, so a dark-mode
-          visitor does not get a white flash on every load. */}
+      {/*
+        * Settles the colour mode before first paint rather than after it.
+        * While night mode is off this writes light every time, which is the
+        * point: a visitor who once chose dark has it in localStorage, and
+        * correcting that in an effect would show them a frame of the wrong
+        * scheme on every load. See app/colourMode.js.
+        */}
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      <ChakraProvider theme={theme}>
+      <ChakraProvider theme={theme} colorModeManager={colourModeManager}>
         {/* Outside the router, so a language change re-renders every route
             at once rather than only the page that happened to be open. */}
         <I18nProvider>

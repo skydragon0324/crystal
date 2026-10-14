@@ -42,7 +42,18 @@ export const WIDTHS = ['static', 'full'];
 const DEFAULTS = {
   palette: DEFAULT_PALETTE,
   scale: 100,
-  width: 'static'
+  /*
+   * FULL WIDTH BY DEFAULT.
+   *
+   * It was 'static' - a readable measure - which is the right default for
+   * prose and the wrong one for this console: nearly every screen here is a
+   * table, and a table capped at a text measure wastes the half of a wide
+   * monitor that the operator bought the monitor for. Somebody reading a
+   * customer record can still choose the narrow measure.
+   *
+   * A saved preference still wins, so this changes what a NEW browser gets.
+   */
+  width: 'full'
 };
 
 const AppearanceContext = createContext({

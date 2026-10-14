@@ -101,11 +101,13 @@ export default function ProductCard({ product, sectionPath, showCompare }) {
             {product.tagline || (product.series_name ? `${product.series_name}` : '')}
           </Text>
           <Flex align="baseline" gap="2" data-gap="8" mt="2" minH="27px">
-            {Number(product.price) === -1 ? (
-              <Box aria-hidden="true" h="27px" />
-            ) : (
-              <Price amount={product.price} currency={product.currency} fontSize="lg" />
-            )}
+            {/*
+              * Price draws nothing for an unpriced product - 0 and -1 both
+              * mean that; see hasPrice. The row keeps its height from the
+              * `minH` above, so a grid of cards does not reflow around the
+              * ones with no figure.
+              */}
+            <Price amount={product.price} currency={product.currency} fontSize="lg" />
             {product.release_date && (
               <Text fontSize="xs" color={surface.muted}>
                 {String(product.release_date).slice(0, 4)}

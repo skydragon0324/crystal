@@ -601,6 +601,7 @@ const en = {
   pagination: {
     pageNumber: 'Page {number}',
     firstPage: 'First page',
+    fromToOfTotal: '{from}-{to} of {total}',
     go: 'Go',
     goToPage: 'Go to page',
     lastPage: 'Last page',
@@ -608,7 +609,8 @@ const en = {
     page: 'Page',
     pageOf: 'Page {page} of {count}',
     previousPage: 'Previous page',
-    rowsPerPage: 'Rows per page'
+    rowsPerPage: 'Rows per page',
+    showingFromToOfTotalEntries: 'Showing {from} to {to} of {total} entries'
   },
   scene: {
     addALayer: 'Add a layer',
@@ -616,14 +618,17 @@ const en = {
     animation: 'Animation',
     animations: {
       bounceIn: 'Bounce in',
+      driftSidewaysForever: 'Drift sideways, forever',
       fadeIn: 'Fade in',
       floatingNeverStops: 'Floating (never stops)',
+      flyInFromOffFrameRightToLeft: 'Fly in from off-frame, right to left',
       rotateIn: 'Rotate in',
       slideFromTheTop: 'Slide from the top',
       slideInFromTheLeft: 'Slide in from the left',
       slideInFromTheRight: 'Slide in from the right',
       slideUpFromBelow: 'Slide up from below',
       still: 'Still',
+      trailBehindSomethingFlyingLeftward: 'Trail behind something flying leftward',
       zoomIn: 'Zoom in',
       zoomOutSettle: 'Zoom out (settle)'
     },
@@ -1753,6 +1758,7 @@ const zh = {
   pagination: {
     pageNumber: '第 {number} 页',
     firstPage: '首页',
+    fromToOfTotal: '第 {from}-{to} 条，共 {total} 条',
     go: '跳转',
     goToPage: '跳转到',
     lastPage: '末页',
@@ -1760,7 +1766,8 @@ const zh = {
     page: '页',
     pageOf: '第 {page} 页 / 共 {count} 页',
     previousPage: '上一页',
-    rowsPerPage: '每页行数'
+    rowsPerPage: '每页行数',
+    showingFromToOfTotalEntries: '显示第 {from} 至 {to} 条，共 {total} 条'
   },
   scene: {
     addALayer: '添加图层',
@@ -1768,14 +1775,17 @@ const zh = {
     animation: '动画',
     animations: {
       bounceIn: '弹跳进入',
+      driftSidewaysForever: '持续横向漂移',
       fadeIn: '淡入',
       floatingNeverStops: '持续漂浮',
+      flyInFromOffFrameRightToLeft: '自画面右侧飞入',
       rotateIn: '旋转进入',
       slideFromTheTop: '从上滑入',
       slideInFromTheLeft: '从左滑入',
       slideInFromTheRight: '从右滑入',
       slideUpFromBelow: '从下滑入',
       still: '静止',
+      trailBehindSomethingFlyingLeftward: '向左飞行物的尾迹',
       zoomIn: '放大进入',
       zoomOutSettle: '缩小归位'
     },
@@ -2916,6 +2926,7 @@ const ru = {
   pagination: {
     pageNumber: 'Страница {number}',
     firstPage: 'Первая страница',
+    fromToOfTotal: '{from}-{to} из {total}',
     go: 'Перейти',
     goToPage: 'Перейти на страницу',
     lastPage: 'Последняя страница',
@@ -2923,7 +2934,8 @@ const ru = {
     page: 'Страница',
     pageOf: 'Страница {page} из {count}',
     previousPage: 'Предыдущая страница',
-    rowsPerPage: 'Строк на странице'
+    rowsPerPage: 'Строк на странице',
+    showingFromToOfTotalEntries: 'Показаны {from}-{to} из {total} записей'
   },
   scene: {
     addALayer: 'Добавить слой',
@@ -2931,14 +2943,17 @@ const ru = {
     animation: 'Анимация',
     animations: {
       bounceIn: 'Появление с отскоком',
+      driftSidewaysForever: 'Дрейф в сторону (не прекращается)',
       fadeIn: 'Проявление',
       floatingNeverStops: 'Парение (не прекращается)',
+      flyInFromOffFrameRightToLeft: 'Влёт справа из-за кадра',
       rotateIn: 'Поворот',
       slideFromTheTop: 'Выезд сверху',
       slideInFromTheLeft: 'Выезд слева',
       slideInFromTheRight: 'Выезд справа',
       slideUpFromBelow: 'Выезд снизу',
       still: 'Без движения',
+      trailBehindSomethingFlyingLeftward: 'След за летящим влево',
       zoomIn: 'Приближение',
       zoomOutSettle: 'Отдаление (успокоение)'
     },

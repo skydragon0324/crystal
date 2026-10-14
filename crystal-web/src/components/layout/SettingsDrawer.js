@@ -17,6 +17,7 @@ import {
 import { CheckIcon, MoonIcon, SunIcon } from '@chakra-ui/icons';
 
 import { CONTENT_WIDTHS, setContentWidth, useAppearance } from '@/app/appearance';
+import { ALLOW_NIGHT_MODE } from '@/app/colourMode';
 import { useSurface } from '@/theme/tokens';
 import { LOCALES, useI18n } from '@/i18n';
 
@@ -87,6 +88,15 @@ export default function SettingsDrawer({ isOpen, onClose }) {
             </SimpleGrid>
           </Group>
 
+          {/*
+            * THE SCHEME, WHEN THERE IS A CHOICE OF ONE TO MAKE.
+            *
+            * Hidden rather than deleted: the site runs light-only until the
+            * night scheme has been designed, and a control that offers a
+            * choice the site then overrules is worse than no control. See
+            * ALLOW_NIGHT_MODE.
+            */}
+          {ALLOW_NIGHT_MODE && (
           <Group label={t('components.settingsdrawer.appearance')} surface={surface}>
             <SimpleGrid columns={2} spacing="2">
               <Choice
@@ -111,6 +121,7 @@ export default function SettingsDrawer({ isOpen, onClose }) {
               </Choice>
             </SimpleGrid>
           </Group>
+          )}
 
           <Group
             label={t('components.settingsdrawer.contentWidth')}

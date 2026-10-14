@@ -93,6 +93,13 @@ function walk(dir) {
 
     if (!/\.(js|jsx)$/.test(entry.name)) return [];
     if (/\.test\.jsx?$/.test(entry.name)) return [];
+    /*
+     * NOT THE CATALOGUE ITSELF, which is the answer sheet rather than a
+     * question. Scanning it is circular, and with the placeholder rule below
+     * it would report every translated value carrying a {name} as
+     * untranslated text.
+     */
+    if (full.indexOf(path.join('src', 'i18n')) !== -1) return [];
     if (COVERED_ELSEWHERE.some((tail) => full.endsWith(tail))) return [];
 
     return [full];
@@ -127,11 +134,40 @@ function textIndex() {
  * the most noise - a fragment of JavaScript caught between a `>` and a `<`,
  * as in `{(row.is_system ? ... )}`.
  */
+/**
+ * `t('...')` - the lookup itself, which is the most direct way a string
+ * reaches a reader and the one form nothing here scanned.
+ */
+const T_CALL = /\bt\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/g;
+
+/** A sentence written for `t()` to fill in - "Page {page} of {count}". */
+const PLACEHOLDER = /\{[a-z_][a-zA-Z0-9_]*\}/;
+
+/** Any quoted string, with the quote style captured so apostrophes survive. */
+const LITERAL = /(['"])((?:\\.|(?!\1)[^\\])*)\1/g;
+
+/**
+ * An address, which this test does not check: it is looked up by walking the
+ * catalogue rather than by its text, and i18n.test.js holds those.
+ */
+function isAddress(text) {
+  return text.indexOf('.') !== -1 && text.indexOf(' ') === -1;
+}
+
 function readable(text) {
   const value = String(text).trim();
 
   if (value.length < 2) return false;
   if (!/[A-Za-z]{3}/.test(value)) return false;
+
+  /*
+   * A SENTENCE WITH PLACEHOLDERS IS A SENTENCE, and has to be let through
+   * before the brace rule below throws it out. "Showing {from} to {to} of
+   * {total} entries" is prose with holes in it, not an expression - and
+   * reading it as one is how the console's table footer went untranslated in
+   * every language for as long as nobody looked.
+   */
+  if (PLACEHOLDER.test(value) && !/[()[\]]|=>|&&|\|\|/.test(value)) return true;
 
   /* A fragment of an expression, not a sentence. */
   if (/[(){}[\]]|=>|&&|\|\||===|\?\s*$/.test(value)) return false;
@@ -171,6 +207,41 @@ function candidates() {
       if (/^\s*(\*|\/\/|\/\*)/.test(line)) return;
 
       const at = `${relative}:${index + 1}`;
+
+      /*
+       * THE LOOKUP'S OWN ARGUMENT, and without `readable()`: a string being
+       * passed to `t()` is on screen by definition, so the guesswork that
+       * tells a sentence from a CSS value has nothing left to decide.
+       */
+      T_CALL.lastIndex = 0;
+      let call = T_CALL.exec(line);
+      while (call) {
+        const text = call[2].replace(/\\'/g, "'").replace(/\\"/g, '"');
+        /* A prefix the call site completes - t('vocabulary.' + code). */
+        if (!isAddress(text) && !/[.]$/.test(text) && /[A-Za-z]{3}/.test(text)) {
+          found.push({ at, text });
+        }
+        call = T_CALL.exec(line);
+      }
+
+      /*
+       * AND A PLACEHOLDER SENTENCE WHEREVER IT SITS, which is the form that
+       * got past every collector in the console's copy of this file: its
+       * Pagination assigns the row count to a const and passes the const to
+       * `t()`, so there is no literal argument to match and no `label:` to
+       * recognise.
+       */
+      LITERAL.lastIndex = 0;
+      let literal = LITERAL.exec(line);
+      while (literal) {
+        const found_text = literal[2].replace(/\\'/g, "'").replace(/\\"/g, '"');
+        if (PLACEHOLDER.test(found_text)
+          && readable(found_text)
+          && found_text.indexOf(' ') !== -1) {
+          found.push({ at, text: found_text });
+        }
+        literal = LITERAL.exec(line);
+      }
 
       (line.match(/>([^<>{}\n]{2,})</g) || []).forEach((chunk) => {
         const text = chunk.slice(1, -1).trim();
