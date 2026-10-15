@@ -439,6 +439,9 @@ export const crm = {
     /* The customer's e-shop orders, read live from the e-shop: { project_account_id } one account, 'ALL' every one; and one order's lines. */
     eshopOrders: (id, params) => client.get(CRM + '/parties/' + id + '/eshop-orders', { params }),
     eshopOrder: (id, orderId, accountId) => client.get(CRM + '/parties/' + id + '/eshop-orders/' + encodeURIComponent(orderId), { params: { project_account_id: accountId } }),
+    /* The customer's Appstore purchases, read live from the Appstore (same params, plus from, to, q); and one purchase's licence (audited). */
+    appstorePurchases: (id, params) => client.get(CRM + '/parties/' + id + '/appstore-purchases', { params }),
+    appstoreLicence: (id, purchaseId, accountId) => client.get(CRM + '/parties/' + id + '/appstore-purchases/' + encodeURIComponent(purchaseId) + '/licence', { params: { project_account_id: accountId } }),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     /* Look this customer's phone numbers up in the SMARTPHONE_OFFLINE system and link what it finds. */
     autoLinkSmartphoneOffline: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/link'),

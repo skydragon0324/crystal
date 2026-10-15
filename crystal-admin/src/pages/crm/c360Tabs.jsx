@@ -22,6 +22,7 @@ import { usePeek } from './peek';
 import { RewardPointsCard, SHOW_CRM_LEDGER } from './RewardPoints';
 import TierDialog from './MembershipTier';
 import EshopOrdersSection from './EshopOrders';
+import AppstorePurchasesSection from './AppstorePurchases';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -264,7 +265,8 @@ export function OrdersTab({ record }) {
       <TabPanels>
         {projects.map((project) => (
           <TabPanel key={project.project_id} px={0} py={0}>
-            {project.identity_role === 'ESHOP' ? <EshopOrdersSection partyPk={record.party.party_pk} /> : (
+            {project.identity_role === 'ESHOP' ? <EshopOrdersSection partyPk={record.party.party_pk} />
+              : project.project_code === 'APPSTORE' ? <AppstorePurchasesSection partyPk={record.party.party_pk} /> : (
               <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Tabs.projectOrders', { project: translate(project.project_name) })}>
                 <Empty360>{translate('crm.customer360Tabs.ordersNotConnected', { project: translate(project.project_name) })}</Empty360>
               </Card360>

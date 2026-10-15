@@ -307,6 +307,14 @@ router.get('/parties/:id/eshop-orders', read(PAGES.CUSTOMERS), async (req, res) 
 });
 router.get('/parties/:id/eshop-orders/:orderId', read(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await eshopOrders.detail(req.params.id, req.query.project_account_id, req.params.orderId)));
+/* The customer's Appstore purchases, read live from the Appstore by each linked account's PK; and one purchase's licence (audited). */
+const appstorePurchases = require('../services/crm/appstorePurchases.service');
+router.get('/parties/:id/appstore-purchases', read(PAGES.CUSTOMERS), async (req, res) => {
+  const paging = readPaging(Object.assign({ limit: 20 }, req.query), [], 'at');
+  return response.page(res, await appstorePurchases.list(req.params.id, req.query, paging), paging);
+});
+router.get('/parties/:id/appstore-purchases/:purchaseId/licence', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await appstorePurchases.licence(req.params.id, req.query.project_account_id, req.params.purchaseId, req.actor)));
 router.post('/parties/:id/reward-points', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await rewardPoints.create(req.params.id, req.body, req.actor), 'common.created'));
 router.put('/parties/:id/reward-points/:rewardPointsId', write(PAGES.CUSTOMERS), async (req, res) =>
