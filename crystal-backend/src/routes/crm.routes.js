@@ -194,6 +194,9 @@ router.get('/parties/:id/smartphone-offline/devices', read(PAGES.CUSTOMERS), asy
 /* The service history of the customer's devices in SMARTPHONE_OFFLINE, by the same Account IDs. */
 router.get('/parties/:id/smartphone-offline/services', read(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.servicesOfParty(req.params.id)));
+/* The privileges of the customer's devices in SMARTPHONE_OFFLINE (the Privileges tab). */
+router.get('/parties/:id/smartphone-offline/privileges', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.privilegesOfParty(req.params.id)));
 router.post('/parties/:id/smartphone-offline/link', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.linkParty(req.params.id, req.actor)));
 router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>

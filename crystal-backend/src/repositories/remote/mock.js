@@ -1359,6 +1359,38 @@ function phoneServices(params) {
   return { items: items };
 }
 
+const PHONE_PRIVILEGE_TITLES = [
+  'Extended warranty - 12 months', 'Free screen protector replacement', 'Priority repair service',
+  'Free battery check every year', 'Trade-in discount - 10%', 'Free case with the next purchase',
+  'Loan phone during repairs', 'Free data transfer to a new phone'
+];
+
+/**
+ * The privileges of some master ids' devices: two to five per id, the same
+ * ones every time - the device (model, IMEI, colour), the number it is
+ * registered under, and the privilege's one-line title. The server's field
+ * names, `modal` included.
+ */
+function phonePrivileges(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'privileges', 2, 5);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'privilege:' + i;
+      items.push({
+        master_id: id,
+        modal: choose(id, slot + ':model', PHONE_MODELS),
+        imei: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
+        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
+        color: choose(id, slot + ':color', PHONE_COLORS),
+        title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES)
+      });
+    }
+  });
+  return { items: items };
+}
+
 /* ------------------------------------------------------------------ */
 /*  the switchboard                                                    */
 /* ------------------------------------------------------------------ */
@@ -1391,7 +1423,8 @@ const ROUTES = {
   /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
   '/getUserByPhone': phoneUserByPhone,
   '/phone_devices': phoneDevices,
-  '/phone_services': phoneServices
+  '/phone_services': phoneServices,
+  '/phone_privileges': phonePrivileges
 };
 
 /**

@@ -32,6 +32,7 @@ import { HeaderStat, Pill, TagChip } from './ui360';
 import { scoreNote } from './RewardPoints';
 import { RecentEshopOrdersCard, useEshopOrderTotal } from './EshopOrders';
 import { useSmartphoneDevices } from './SmartphoneDevices';
+import PrivilegesTab from './SmartphonePrivileges';
 
 const PAGE = '/admin/crm/customers';
 const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP'];
@@ -39,14 +40,16 @@ const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHAT
 /* The tabs of each kind of customer, in the order the record shows them. */
 const PERSON_TABS = [
   ['overview', 'crm.customer360.tabOverview'], ['accounts', 'crm.customer360.tabAccounts'], ['orders', 'crm.customer360.tabOrders'],
-  ['products', 'crm.customer360.tabProducts'], ['service', 'crm.customer360.tabService'], ['campaigns', 'crm.customer360.tabCampaigns'],
+  ['products', 'crm.customer360.tabProducts'], ['service', 'crm.customer360.tabService'], ['privileges', 'crm.customer360.tabPrivileges'],
+  ['campaigns', 'crm.customer360.tabCampaigns'],
   ['analytics', 'crm.customer360.tabAnalytics'], ['consent', 'crm.customer360.tabConsent'], ['related', 'crm.customer360.tabRelated'],
   ['notes', 'crm.customer360.tabNotes']
 ];
 const ORGANIZATION_TABS = [
   ['overview', 'crm.customer360.tabOverview'], ['organization', 'crm.customer360.tabOrganization'], ['contacts', 'crm.customer360.tabContacts'],
   ['accounts', 'crm.customer360.tabAccountsProjects'], ['orders', 'crm.customer360.tabOrdersTransactions'], ['products', 'crm.customer360.tabProducts'],
-  ['service', 'crm.customer360.tabService'], ['campaigns', 'crm.customer360.tabCampaigns'], ['analytics', 'crm.customer360.tabAnalytics'],
+  ['service', 'crm.customer360.tabService'], ['privileges', 'crm.customer360.tabPrivileges'], ['campaigns', 'crm.customer360.tabCampaigns'],
+  ['analytics', 'crm.customer360.tabAnalytics'],
   ['consent', 'crm.customer360.tabConsent'], ['related', 'crm.customer360.tabRelated'], ['notes', 'crm.customer360.tabNotes']
 ];
 
@@ -554,6 +557,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices })
   if (tabKey === 'orders') return <OrdersTab {...props} />;
   if (tabKey === 'products') return <ProductsTab {...props} devices={devices} />;
   if (tabKey === 'service') return <ServiceTab {...props} />;
+  if (tabKey === 'privileges') return <PrivilegesTab {...props} />;
   if (tabKey === 'campaigns') return <CampaignsTab {...props} />;
   if (tabKey === 'analytics') return <AnalyticsTab {...props} model={model} />;
   if (tabKey === 'consent') return <ConsentTab {...props} />;

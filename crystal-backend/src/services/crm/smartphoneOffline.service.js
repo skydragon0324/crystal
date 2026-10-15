@@ -256,4 +256,23 @@ async function servicesOfParty(partyPk) {
   }
 }
 
-module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, MAX_RUN };
+/**
+ * The privileges of the customer's devices in SMARTPHONE_OFFLINE - asked, like
+ * the devices and the service history, by every linked SMARTPHONE_OFFLINE
+ * Account ID at once. The Privileges tab shows them; the CRM keeps none.
+ */
+async function privilegesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.privileges(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, privilegesOfParty, MAX_RUN };

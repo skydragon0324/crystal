@@ -367,6 +367,7 @@ const en = {
     tabProducts: 'Products',
     tabRelated: 'Related parties',
     tabService: 'Service',
+    tabPrivileges: 'Privileges',
     tagAdded: 'Tag added',
     tagRemoved: 'Tag removed',
     totalN: 'Total: {n}',
@@ -537,6 +538,12 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: 'Privileges',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their privileges.',
+    noRecords: 'No privileges'
+  },
   /* SmartphoneServices.jsx */
   smartphoneServices: {
     title: 'Smartphone service history',
@@ -1288,6 +1295,7 @@ const zh = {
     tabProducts: '产品',
     tabRelated: '关联方',
     tabService: '服务',
+    tabPrivileges: '权益',
     tagAdded: '标签已添加',
     tagRemoved: '标签已移除',
     totalN: '共 {n}',
@@ -1458,6 +1466,12 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: '权益',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其权益。',
+    noRecords: '暂无权益'
+  },
   /* SmartphoneServices.jsx */
   smartphoneServices: {
     title: '手机维修服务记录',
@@ -2209,6 +2223,7 @@ const ru = {
     tabProducts: 'Товары',
     tabRelated: 'Связанные стороны',
     tabService: 'Сервис',
+    tabPrivileges: 'Привилегии',
     tagAdded: 'Метка добавлена',
     tagRemoved: 'Метка удалена',
     totalN: 'Всего: {n}',
@@ -2379,6 +2394,12 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: 'Привилегии',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть его привилегии.',
+    noRecords: 'Нет привилегий'
+  },
   /* SmartphoneServices.jsx */
   smartphoneServices: {
     title: 'История обслуживания смартфонов',
@@ -2791,6 +2812,11 @@ const ru = {
 const words = {
   en: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: 'Phone Number',
+      deviceColor: 'Device Color',
+      serviceSummary: 'Service Summary'
+    },
     smartphoneServices: {
       customerInfo: 'Customer Info',
       deviceType: 'Device Type',
@@ -3615,6 +3641,11 @@ const words = {
   },
   zh: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: '电话号码',
+      deviceColor: '设备颜色',
+      serviceSummary: '服务摘要'
+    },
     smartphoneServices: {
       customerInfo: '客户信息',
       deviceType: '设备型号',
@@ -4439,6 +4470,11 @@ const words = {
   },
   ru: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: 'Номер телефона',
+      deviceColor: 'Цвет устройства',
+      serviceSummary: 'Краткое описание'
+    },
     smartphoneServices: {
       customerInfo: 'Данные клиента',
       deviceType: 'Устройство',

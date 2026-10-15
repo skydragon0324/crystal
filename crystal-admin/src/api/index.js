@@ -444,6 +444,8 @@ export const crm = {
     smartphoneDevices: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/devices'),
     /* The service history of those devices in SMARTPHONE_OFFLINE, by the same Account IDs. */
     smartphoneServices: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/services'),
+    /* The privileges of the customer's devices in SMARTPHONE_OFFLINE (the Privileges tab). */
+    smartphonePrivileges: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/privileges'),
     appstorePurchases: (id, params) => client.get(CRM + '/parties/' + id + '/appstore-purchases', { params }),
     appstoreLicence: (id, purchaseId, accountId) => client.get(CRM + '/parties/' + id + '/appstore-purchases/' + encodeURIComponent(purchaseId) + '/licence', { params: { project_account_id: accountId } }),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),

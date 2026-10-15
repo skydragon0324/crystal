@@ -10,11 +10,12 @@ const config = require('../../config');
  * SMARTPHONE_OFFLINE accounts, and an account's Account ID is the user's
  * MASTER ID - the key the server is asked by.
  *
- * Three questions are asked of it:
+ * Four questions are asked of it:
  *
  *   USERS    which user has this phone number?            linking by phone
  *   DEVICES  which devices are registered to these ids?    the Products tab
  *   SERVICES what service have these ids' devices had?    the Service tab
+ *   PRIVILEGES the privileges of these ids' devices         the Privileges tab
  *
  * With REMOTE_MOCK on, mock.js answers both in the server's wire format.
  */
@@ -31,6 +32,8 @@ const USERS_PATH = '/getUserByPhone';
 const DEVICES_PATH = '/phone_devices';
 /* Given as "/xxxx" like the devices path; named apart so the mock can route both. */
 const SERVICES_PATH = '/phone_services';
+/* Given as "/xxxx" too; named apart so the mock can route it. */
+const PRIVILEGES_PATH = '/phone_privileges';
 
 /** 'live', 'mock', or 'off' (no URL and no mock): for the screens and /health. */
 function mode() {
@@ -137,12 +140,45 @@ async function services(masterIds) {
   };
 }
 
+/**
+ * THE PRIVILEGES OF SOME USERS' DEVICES, by their master ids - one call, the
+ * ids as one comma-separated string:
+ *
+ *   master_ids=s2342523, sd652342, ej234234
+ *   -> { items: [{ master_id, modal, imei, phone_number, color, title }] }
+ *
+ * `modal` is the server's spelling of the device model and is `model` from
+ * here on; `title` is the privilege's own one-line summary, passed through.
+ */
+async function privileges(masterIds) {
+  const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
+  if (!ids.length) return { items: [] };
+
+  const data = await remote.post(PHONE, PRIVILEGES_PATH, { master_ids: ids.join(', ') });
+  const rows = Array.isArray(data && data.items) ? data.items : [];
+
+  return {
+    items: rows.map(function (row) {
+      return {
+        master_id: row.master_id == null ? null : String(row.master_id),
+        model: row.modal || row.model || null,
+        imei: row.imei || row.IMEI || null,
+        phone_number: row.phone_number || null,
+        color: row.color || null,
+        title: row.title || null
+      };
+    })
+  };
+}
+
 module.exports = {
   USERS_PATH: USERS_PATH,
   DEVICES_PATH: DEVICES_PATH,
   SERVICES_PATH: SERVICES_PATH,
+  PRIVILEGES_PATH: PRIVILEGES_PATH,
   mode: mode,
   findByPhone: findByPhone,
   devices: devices,
-  services: services
+  services: services,
+  privileges: privileges
 };
