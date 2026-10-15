@@ -152,11 +152,11 @@ export function InfoList({ items }) {
 
 const TIMELINE_ICON = {
   TRANSACTION: Md.MdShoppingCart, REFUND: Md.MdUndo, CASE: Md.MdBuild, REGISTRATION: Md.MdDevices,
-  VISIT: Md.MdPlace, POINTS: Md.MdStars, TIER: Md.MdTrendingUp, ENTRY: Md.MdConfirmationNumber
+  VISIT: Md.MdPlace, POINTS: Md.MdStars, TIER: Md.MdTrendingUp, ENTRY: Md.MdConfirmationNumber, PURCHASE: Md.MdApps
 };
 const TIMELINE_COLOUR = {
   TRANSACTION: 'blue.500', REFUND: 'red.400', CASE: 'orange.400', REGISTRATION: 'teal.500',
-  VISIT: 'purple.400', POINTS: 'yellow.500', TIER: 'green.500', ENTRY: 'pink.400'
+  VISIT: 'purple.400', POINTS: 'yellow.500', TIER: 'green.500', ENTRY: 'pink.400', PURCHASE: 'cyan.500'
 };
 
 /** What happened to a customer, newest first, across every kind of record. */

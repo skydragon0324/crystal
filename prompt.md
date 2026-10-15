@@ -437,3 +437,86 @@ and let's show only eshop and smartphone_offline, and appstore
 also, on crystal-web page, we already implemented appstore purchase list on this page - account/appstore/purchases 
 please check how it works, don't check code right now for appstore orders list
 ------------------------------------------------------
+Now, let's move on to the "Service" tab.
+We need to integrate with the "SMARTPHONE_OFFLINE" system to retrieve and display the service history of registered users.
+Since this involves integration with the "SMARTPHONE_OFFLINE" system, let's create a temporary table to display the data.
+The API format is as follows:
+url: "/xxxx"
+param: {
+master_ids: "s2342523, sd652342, ej234234"
+}
+The response data format is:
+{
+items: [
+{
+master_id: s2342523
+customer_name: "adfewerwer"
+phone_number:
+address:
+imei_1:
+imei_2
+modal_name:
+agent_name:
+created_at:
+updated_at:
+reason_name
+point:
+reason_type_name:
+}
+]
+}
+Here, the `master_id`s correspond to the IDs linked to "SMARTPHONE_OFFLINE" in the "Accounts" tab.
+The display should be implemented as follows:
+The table must include a filtering function that allows users to select individual `account_id`s, similar to the implementation used for e-commerce order lists or product lists.
+Please configure the fields as follows:
+Map `master_id` to a single field named "Account ID".
+Combine `customer_name`, `phone_number`, and `address` into a single field named "Customer Info".
+Combine `modal_name`, `imei_1`, and `imei_2` into a single field named "Device Type".
+Combine `agent_name`, `created_at`, and `updated_at` into a single field named "Agency".
+Combine `reason_name` and `point` into a single field named "Service Type".
+Map `reason_type_name` to a single field named "Service Reason". Since this data can be retrieved and displayed from the `smartphone_offline` system via the API, there is no need to create or update a database.
+Also, as this is a temporary measure, please implement it by creating a new table in the 'Service' tab for display—similar to how the e-shop order list or product list was implemented earlier.
+Please ensure the implementation follows the project's coding style.
+------------------------------------------------------
+We need to create a new "Privileges" tab to display service records.
+We need to integrate with the `smartphone_offline` system to fetch and display the Privileges of registered users.
+Since this involves integration with the `smartphone_offline` system, let's use a temporary table for the display.
+The API format is as follows:
+url: "/xxxx"
+param: {
+master_ids: "s2342523, sd652342, ej234234"
+}
+The response data format is:
+{
+items: [
+{
+master_id: s2342523
+modal:
+imei:
+phone_number:
+color:
+title
+}
+]
+}
+Here, the `master_ids` correspond to the IDs linked to `SMARTPHONE_OFFLINE` in the "Accounts" tab.
+The display requirements are as follows:
+The table must include a filtering function—similar to the implementation for the e-shop order list or product list—allowing users to select specific `account_id`s.
+Please map the fields as follows:
+Map `master_id` to the "Account ID" field.
+Map `modal` to the "Device Type" field.
+Map `phone_number` to the "Phone Number" field.
+Map `imei` to the "IMEI" field.
+Map `color` to the "Device Color" field.
+Map `title` to the "Service Summary" field.
+Since the data is fetched directly from the `smartphone_offline` system via the API, there is no need to create or update a database—just like the implementation for the e-shop order list or product list mentioned earlier.
+Please implement this while adhering to the project's coding style.
+------------------------------------------------------
+on accounts tab, for smartphone_offline project, once the project account is linked by manually or api call, we should show the 'link by phone" button on the row
+on the header the values for total_amount, total_spend, total_orders, total product, open cases, should refelect the data from API call
+
+also, on the service tab, and notes and files tab, those pages' values also reflect the result of apis
+for example, for recent activity list of notes and files tab, it shows DB data right now
+it should also reflect based api_result data
+same as for service summary of service tab
+------------------------------------------------------

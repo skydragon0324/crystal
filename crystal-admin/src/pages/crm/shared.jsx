@@ -27,7 +27,7 @@ export const WORDS = {
   ACTIVE: 'Active', INACTIVE: 'Inactive', MERGED: 'Merged', DELETED: 'Deleted',
   DRAFT: 'Draft', APPROVED: 'Approved', TARGETS_FROZEN: 'Targets frozen', OPEN: 'Open',
   CLOSED: 'Closed', FULFILLED: 'Fulfilled', CANCELLED: 'Cancelled',
-  PENDING: 'Pending', RESERVED: 'Reserved', PAID: 'Paid', EXPIRED: 'Expired', FAILED: 'Failed',
+  PENDING: 'Pending', RESERVED: 'Reserved', PAID: 'Paid', EXPIRED: 'Expired', USED: 'Used', FAILED: 'Failed',
   ELIGIBLE: 'Eligible', NOTIFIED: 'Notified', EXHAUSTED: 'Used up', REVOKED: 'Revoked',
   REQUESTED: 'Requested', ACCEPTED: 'Accepted', REJECTED: 'Rejected', COMPLETED: 'Completed',
   READY: 'Ready', DISPATCHED: 'Dispatched', DELIVERED: 'Delivered', PICKED_UP: 'Picked up', CREDITED: 'Credited',

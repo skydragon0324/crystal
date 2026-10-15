@@ -538,6 +538,22 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: 'E-shop order {number}',
+    appstorePurchase: 'Appstore · {name}',
+    deviceRegistered: 'Device registered · {device}',
+    serviceVisit: 'Service · {reason}',
+    open: 'Open',
+    done: 'Done',
+    serviceVisits: 'Service visits',
+    pointsEarned: 'Points earned',
+    lastVisit: 'Last visit',
+    agencies: 'Agencies',
+    topReason: 'Most common reason',
+    recentVisits: 'Recent service visits',
+    ordersSplit: 'E-shop {eshop} · Appstore {appstore}'
+  },
   /* SmartphonePrivileges.jsx */
   smartphonePrivileges: {
     title: 'Privileges',
@@ -1466,6 +1482,22 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: '电商订单 {number}',
+    appstorePurchase: '应用商店 · {name}',
+    deviceRegistered: '设备登记 · {device}',
+    serviceVisit: '维修服务 · {reason}',
+    open: '处理中',
+    done: '已完成',
+    serviceVisits: '服务次数',
+    pointsEarned: '获得积分',
+    lastVisit: '最近一次',
+    agencies: '服务网点',
+    topReason: '最常见原因',
+    recentVisits: '最近服务',
+    ordersSplit: '电商 {eshop} · 应用商店 {appstore}'
+  },
   /* SmartphonePrivileges.jsx */
   smartphonePrivileges: {
     title: '权益',
@@ -2394,6 +2426,22 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: 'Заказ интернет-магазина {number}',
+    appstorePurchase: 'Appstore · {name}',
+    deviceRegistered: 'Устройство зарегистрировано · {device}',
+    serviceVisit: 'Обслуживание · {reason}',
+    open: 'Открыто',
+    done: 'Завершено',
+    serviceVisits: 'Обращения в сервис',
+    pointsEarned: 'Начислено баллов',
+    lastVisit: 'Последнее обращение',
+    agencies: 'Сервисные центры',
+    topReason: 'Частая причина',
+    recentVisits: 'Последние обращения',
+    ordersSplit: 'Магазин {eshop} · Appstore {appstore}'
+  },
   /* SmartphonePrivileges.jsx */
   smartphonePrivileges: {
     title: 'Привилегии',

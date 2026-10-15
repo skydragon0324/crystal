@@ -75,11 +75,27 @@ async function findByPhone(phone) {
  * one call, as the server takes them: one comma-separated string.
  *
  *   master_ids=s2342523, sd652342, ej234234
- *   -> { items: [{ master_id, device, color, IMEI, created_at }] }
+ *   -> { items: [{ master_id, device, color, rgb, IMEI, created_at }] }
  *
  * `IMEI` arrives upper-case; it is `imei` from here on. `created_at` is the
- * server's own text ("2025.10.20") and is passed through as it is.
+ * server's own text ("2025.10.20") and is passed through as it is. `rgb` is
+ * the colour itself, as "#1a2b3c" (see rgbOf); null when it cannot be read.
  */
+/**
+ * A device colour as "#rrggbb". The server sends it as "#1a2b3c"; the same
+ * without its "#" or in the three-digit short form ("#abc") is read too.
+ * Anything else is null, so a page never paints with a value it cannot trust.
+ */
+function rgbOf(value) {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim().toLowerCase();
+  let match = /^#?([0-9a-f]{6})$/.exec(text);
+  if (match) return '#' + match[1];
+  match = /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(text);
+  if (match) return '#' + match[1] + match[1] + match[2] + match[2] + match[3] + match[3];
+  return null;
+}
+
 async function devices(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
@@ -93,6 +109,7 @@ async function devices(masterIds) {
         master_id: row.master_id == null ? null : String(row.master_id),
         device: row.device || null,
         color: row.color || null,
+        rgb: rgbOf(row.rgb),
         imei: row.IMEI || row.imei || null,
         created_at: row.created_at || null
       };
@@ -145,10 +162,11 @@ async function services(masterIds) {
  * ids as one comma-separated string:
  *
  *   master_ids=s2342523, sd652342, ej234234
- *   -> { items: [{ master_id, modal, imei, phone_number, color, title }] }
+ *   -> { items: [{ master_id, modal, imei, phone_number, color, title, status }] }
  *
  * `modal` is the server's spelling of the device model and is `model` from
- * here on; `title` is the privilege's own one-line summary, passed through.
+ * here on; `title` is the privilege's own one-line summary and `status` its
+ * state as the system names it (ACTIVE, USED, EXPIRED, ...), both passed through.
  */
 async function privileges(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
@@ -165,7 +183,8 @@ async function privileges(masterIds) {
         imei: row.imei || row.IMEI || null,
         phone_number: row.phone_number || null,
         color: row.color || null,
-        title: row.title || null
+        title: row.title || null,
+        status: row.status == null || row.status === '' ? null : String(row.status)
       };
     })
   };

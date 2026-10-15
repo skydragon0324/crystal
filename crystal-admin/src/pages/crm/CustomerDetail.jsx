@@ -15,14 +15,14 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
-import { date, formatPhone, money, number } from '../../utils/format';
+import { date, formatPhone, number } from '../../utils/format';
 import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress, customersPagePath, contactValue } from './shared';
 import CrmSearch from './CrmSearch';
 import { PeekProvider } from './peek';
 import {
   AccountsCard, MembershipSummaryCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
   MarketingCard, NotesCard, OrganizationInfoCard, ProductsCard, RelatedPartiesCard,
-  RelationshipOwnershipCard, ServiceSummaryCard, ValueMetricsCard, companySize
+  RelationshipOwnershipCard, ValueMetricsCard, companySize
 } from './c360Cards';
 import {
   AccountsTab, AnalyticsTab, CampaignsTab, ConsentTab, ContactsTab, NotesFilesTab, OrdersTab, OrganizationTab, ProductsTab,
@@ -30,7 +30,8 @@ import {
 } from './c360Tabs';
 import { HeaderStat, Pill, TagChip } from './ui360';
 import { scoreNote } from './RewardPoints';
-import { RecentEshopOrdersCard, useEshopOrderTotal } from './EshopOrders';
+import { RecentEshopOrdersCard } from './EshopOrders';
+import { ServiceSummaryCard, activityItems, spendLines, useProjectSummary } from './ProjectSummary';
 import { useSmartphoneDevices } from './SmartphoneDevices';
 import PrivilegesTab from './SmartphonePrivileges';
 
@@ -101,8 +102,8 @@ export default function CustomerDetail() {
   const [version, setVersion] = useState(0);
   /* The SMARTPHONE_OFFLINE devices: one fetch, shared by the header's product count and the Products tab, which picks the account. */
   const devices = useSmartphoneDevices(id, version);
-  /* The header's order count: the customer's e-shop orders across all their e-shop accounts. */
-  const eshopOrders = useEshopOrderTotal(id, version);
+  /* What the projects' own systems say about the customer: the header figures, the Service summary, Recent activity. */
+  const summary = useProjectSummary(id, version);
   const [aboutOpen, setAboutOpen] = useState(false);
   const modal = useDisclosure();
 
@@ -179,7 +180,7 @@ export default function CustomerDetail() {
 
   const forms = formsFor({ translate, record, party, isPerson, meta, dialog, run, sites, history, view: facts });
   const current = dialog ? forms[dialog.kind] : null;
-  const act = { editable: editable, canWrite: canWrite, open: open, run: run, ask: ask, refresh: load, version: version, timeline: timelineOf(record, translate) };
+  const act = { editable: editable, canWrite: canWrite, open: open, run: run, ask: ask, refresh: load, version: version, timeline: activityItems(translate, summary) };
   /* The merge that made this customer a merged one, if it can still be separated. */
   const ownMerge = merged ? (record.merges || []).filter((row) => String(row.merged_party_pk) === String(party.party_pk) && !row.unmerged_at && row.can_unmerge)[0] : null;
   const unusedTags = (meta.tags || []).filter((tag) => !(facts.tags || []).some((own) => own.tag_id === tag.tag_id));
@@ -288,7 +289,8 @@ export default function CustomerDetail() {
   const gradeNote = [header.assigned_grade_reason, header.computed_grade_code ? translate('crm.customer360.gradeComputedWas', { grade: header.computed_grade_code }) : null].filter(Boolean).join(' · ');
   const figures = (
     <Box>
-      <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3}>
+      {/* Two rows of three: in the half of the header they share, six across left each too narrow to read (the grade lost its name). */}
+      <SimpleGrid columns={{ base: 2, md: 3 }} spacingX={3} spacingY={4}>
         <HeaderStat icon={Md.MdStars} iconColor="yellow.500" label={translate('crm.customer360.customerGrade')}
           action={editable ? (
             <Tooltip label={translate('crm.customer360.setGrade')} hasArrow>
@@ -306,15 +308,19 @@ export default function CustomerDetail() {
               </Tooltip>
             )
             : header.grade_since ? translate('crm.customer360.sinceDate', { date: date(header.grade_since) }) : translate('crm.common.notGradedYet')} />
-        <HeaderStat icon={Md.MdAccountBalanceWallet} label={translate('crm.customer360.totalSpend')} value={money(header.lifetime_spend)} sub={translate('crm.customer360.lifetime')} />
+        {/* Per currency, never added across them; points and coins on the line below. */}
+        <HeaderStat icon={Md.MdAccountBalanceWallet} label={translate('crm.customer360.totalSpend')}
+          value={summary ? spendLines(translate, summary).value : '…'} sub={summary ? spendLines(translate, summary).sub : null} />
         <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.customer360.totalOrders')}
-          value={eshopOrders.loading ? '…' : number(eshopOrders.total)}
-          sub={translate(eshopOrders.failed ? 'crm.eshopOrders.unreachableShort' : 'crm.eshopOrders.headerSub')} />
+          value={summary ? number((summary.orders || {}).total || 0) : '…'}
+          sub={summary && summary.orders ? translate('crm.projectSummary.ordersSplit', { eshop: number(summary.orders.eshop), appstore: number(summary.orders.appstore) }) : null} />
         <HeaderStat icon={Md.MdDevicesOther} iconColor="red.400" label={translate(isPerson ? 'crm.customer360.totalProducts' : 'crm.customer360.ownedProducts')}
           value={devices.loading ? '…' : number(devices.shown.length)}
           sub={devices.account ? devices.account.external_account_id : translate('crm.customer360.registered')} />
-        <HeaderStat icon={Md.MdHeadsetMic} label={translate('crm.customer360.openCases')} value={number(header.open_cases)}
-          sub={translate('crm.customer360.totalN', { n: number(header.total_cases) })} />
+        {/* Open: a SMARTPHONE_OFFLINE service record the system has not updated since it was opened. */}
+        <HeaderStat icon={Md.MdHeadsetMic} label={translate('crm.customer360.openCases')}
+          value={summary ? number((summary.services || {}).open || 0) : '…'}
+          sub={summary ? translate('crm.customer360.totalN', { n: number((summary.services || {}).total || 0) }) : null} />
         {/* Worked out from each business system's points and weight, never stored; the rows are on the Accounts tab. */}
         <HeaderStat icon={Md.MdStars} iconColor="orange.400" label={translate('crm.points.companyWide')} value={amount(points.company_points || 0, 2)}
           sub={scoreNote(translate, points)} />
@@ -441,7 +447,7 @@ export default function CustomerDetail() {
         <TabPanels>
           {tabs.map((tab) => (
             <TabPanel key={tab[0]} px={0} pt={0}>
-              <TabBody tabKey={tab[0]} isPerson={isPerson} record={record} view={facts} act={act} goTab={goTab} model={model} devices={devices} />
+              <TabBody tabKey={tab[0]} isPerson={isPerson} record={record} view={facts} act={act} goTab={goTab} model={model} devices={devices} summary={summary} />
             </TabPanel>
           ))}
         </TabPanels>
@@ -499,7 +505,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
 }
 
 /** One tab's content. The overview is laid out here; the other tabs live in c360Tabs. */
-function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices }) {
+function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, summary }) {
   const translate = useT();
   const props = { record: record, view: view, act: act };
   if (tabKey === 'overview') {
@@ -515,7 +521,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices })
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
           <ContactPointsCard view={view} record={record} onManage={() => goTab('consent')} />
           <ProductsCard view={view} onViewAll={() => goTab('products')} />
-          <ServiceSummaryCard view={view} onViewAll={() => goTab('service')} />
+          <ServiceSummaryCard summary={summary} onViewAll={() => goTab('service')} />
         </Grid>
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1.3fr 1fr 1fr' }} gridGap={4}>
           <InteractionsCard view={view} onViewAll={() => goTab('service')}
@@ -545,7 +551,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices })
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1.25fr 1fr' }} gridGap={4}>
           <KeyContactsCard view={view} onViewAll={() => goTab('contacts')} onLink={act.editable ? () => act.open('person') : null} />
           <ProductsCard view={view} onViewAll={() => goTab('products')} title={translate('crm.customer360.productsAndAssets')} />
-          <ServiceSummaryCard view={view} onViewAll={() => goTab('service')} withRecentCases />
+          <ServiceSummaryCard summary={summary} onViewAll={() => goTab('service')} withRecent />
         </Grid>
         <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
       </Stack>
@@ -556,7 +562,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices })
   if (tabKey === 'accounts') return <AccountsTab {...props} />;
   if (tabKey === 'orders') return <OrdersTab {...props} />;
   if (tabKey === 'products') return <ProductsTab {...props} devices={devices} />;
-  if (tabKey === 'service') return <ServiceTab {...props} />;
+  if (tabKey === 'service') return <ServiceTab {...props} summary={summary} />;
   if (tabKey === 'privileges') return <PrivilegesTab {...props} />;
   if (tabKey === 'campaigns') return <CampaignsTab {...props} />;
   if (tabKey === 'analytics') return <AnalyticsTab {...props} model={model} />;
@@ -566,36 +572,6 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices })
 }
 
 /** Everything that happened to the customer, newest first, across projects. */
-function timelineOf(record, translate) {
-  const items = [];
-  (record.transactions || []).forEach((transaction) => items.push({
-    kind: transaction.transaction_type_code === 'REFUND' ? 'REFUND' : 'TRANSACTION', id: transaction.transaction_id, at: transaction.transaction_at,
-    title: word(translate, transaction.transaction_type_code) + '  ·  ' + transaction.project_code,
-    detail: money(transaction.net_amount, transaction.currency_code) + (transaction.points_used ? '  ·  ' + translate('crm.customer360.pointsUsed', { n: amount(transaction.points_used, 0) }) : ''),
-    open: ['TRANSACTION', transaction.transaction_id]
-  }));
-  (record.cases || []).forEach((serviceCase) => items.push({
-    kind: 'CASE', id: serviceCase.case_id, at: serviceCase.received_at, title: translate(serviceCase.case_type_name || '-') + '  ·  ' + (serviceCase.external_case_id || ''),
-    detail: [translate(serviceCase.status_name || '-'), serviceCase.service_center_name].filter(Boolean).join('  ·  '), open: ['CASE', serviceCase.case_id]
-  }));
-  (record.holdings || []).forEach((holding) => items.push({
-    kind: 'REGISTRATION', id: holding.product_registration_id, at: holding.valid_from,
-    title: (holding.product_name || '-') + '  ·  ' + word(translate, holding.relationship_code), detail: holding.external_product_instance_id,
-    open: ['PRODUCT', holding.product_instance_id]
-  }));
-  (record.activities || []).forEach((activity) => items.push({
-    kind: 'VISIT', id: activity.service_center_activity_id, at: activity.occurred_at, title: translate(activity.activity_name || '-'), detail: activity.service_center_name
-  }));
-  (record.tier_history || []).forEach((tierChange) => items.push({
-    kind: 'TIER', id: tierChange.membership_tier_history_id, at: tierChange.changed_at,
-    title: tierChange.project_code + '  ·  ' + translate(tierChange.new_tier_name || '-'), detail: tierChange.change_reason
-  }));
-  (record.reservations || []).forEach((reservation) => items.push({
-    kind: 'ENTRY', id: reservation.reservation_id, at: reservation.reserved_at, title: reservation.event_name, detail: reservation.reservation_code + '  ·  ' + word(translate, reservation.status)
-  }));
-  return items.filter((item) => item.at).sort((first, second) => new Date(second.at) - new Date(first.at)).slice(0, 30);
-}
-
 const GENDER = { M: 'Male', F: 'Female', OTHER: 'Other' };
 const BANDS = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5001+'];
 const INTERACTION_CHANNELS = ['PHONE', 'EMAIL', 'CHAT', 'SMS', 'IN_PERSON', 'APP', 'WEB', 'LETTER'];

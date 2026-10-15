@@ -1286,6 +1286,8 @@ function phoneUserByPhone(params) {
 
 const PHONE_MODELS = ['Crystal C9', 'Crystal C9 Pro', 'Crystal C7', 'Crystal C7 Plus', 'Crystal C5', 'Crystal C5 Lite', 'Crystal C3', 'Crystal Fold 2'];
 const PHONE_COLORS = ['Black', 'White', 'Blue', 'Gold', 'Green', 'Silver', 'Purple', 'Red'];
+/* Each colour as the server sends it beside the name: "#rrggbb". */
+const PHONE_RGB = { Black: '#1c1c1e', White: '#f5f5f7', Blue: '#2f6fd6', Gold: '#d4af37', Green: '#2e8b57', Silver: '#c0c0c0', Purple: '#7b4bb3', Red: '#c62828' };
 
 /**
  * The devices registered to some master ids, sent as ONE comma-separated
@@ -1304,6 +1306,7 @@ function phoneDevices(params) {
         master_id: id,
         device: choose(id, slot + ':model', PHONE_MODELS),
         color: choose(id, slot + ':color', PHONE_COLORS),
+        rgb: PHONE_RGB[choose(id, slot + ':color', PHONE_COLORS)],
         IMEI: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
         created_at: stamp(pick(id, slot + ':at', 20, 900), 10).slice(0, 10).replace(/-/g, '.')
       });
@@ -1324,7 +1327,8 @@ const PHONE_SERVICE_REASONS = [
 
 /**
  * The service history of some master ids' devices: one to three visits per
- * id, the same ones every time. Each visit names the customer as the service
+ * id, the same ones every time; the first visit of about half the ids is
+ * still open (no updated_at). Each visit names the customer as the service
  * point wrote them down, the device (its model and both IMEIs), the agent
  * and when the job was opened and last updated, what was done and what it
  * earned in points, and why the customer came - the server's field names,
@@ -1349,7 +1353,8 @@ function phoneServices(params) {
         modal_name: choose(id, slot + ':model', PHONE_MODELS),
         agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
         created_at: stamp(opened, 9),
-        updated_at: stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16),
+        /* The newest visit of some ids is still open: the system has not updated it, and sends no updated_at. */
+        updated_at: i === 0 && pick(id, 'open', 0, 1) === 0 ? null : stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16),
         reason_name: reason.reason_name,
         point: reason.point,
         reason_type_name: reason.reason_type_name
@@ -1368,8 +1373,8 @@ const PHONE_PRIVILEGE_TITLES = [
 /**
  * The privileges of some master ids' devices: two to five per id, the same
  * ones every time - the device (model, IMEI, colour), the number it is
- * registered under, and the privilege's one-line title. The server's field
- * names, `modal` included.
+ * registered under, the privilege's one-line title and its status (mostly
+ * ACTIVE, some USED or EXPIRED). The server's field names, `modal` included.
  */
 function phonePrivileges(params) {
   const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
@@ -1384,7 +1389,8 @@ function phonePrivileges(params) {
         imei: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
         phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
         color: choose(id, slot + ':color', PHONE_COLORS),
-        title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES)
+        title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES),
+        status: choose(id, slot + ':status', ['ACTIVE', 'ACTIVE', 'USED', 'EXPIRED'])
       });
     }
   });

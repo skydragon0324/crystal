@@ -294,20 +294,3 @@ export function RecentEshopOrdersCard({ partyPk, onViewAll }) {
   );
 }
 
-/**
- * HOW MANY E-SHOP ORDERS THE CUSTOMER HAS, across all their e-shop accounts -
- * the header's order count. One row is asked for; the total is what is used.
- */
-export function useEshopOrderTotal(partyPk, version) {
-  const [state, setState] = useState({ loading: true, total: 0 });
-  useEffect(() => {
-    if (!partyPk) return undefined;
-    let live = true;
-    setState({ loading: true, total: 0 });
-    crm.parties.eshopOrders(partyPk, { project_account_id: 'ALL', page: 1, limit: 1 })
-      .then(({ data }) => { if (live) setState({ loading: false, total: Number((data && data.total) || 0) }); })
-      .catch(() => { if (live) setState({ loading: false, total: 0, failed: true }); });
-    return () => { live = false; };
-  }, [partyPk, version]);
-  return state;
-}

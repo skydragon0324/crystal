@@ -191,6 +191,9 @@ router.get('/smartphone-offline', read(PAGES.CUSTOMERS), async (req, res) => res
 /* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs (master ids). */
 router.get('/parties/:id/smartphone-offline/devices', read(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.devicesOfParty(req.params.id)));
+/* What the projects' own systems say about the customer, in one answer: the header figures, the Service summary, Recent activity. */
+router.get('/parties/:id/project-summary', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await require('../services/crm/projectSummary.service').summary(req.params.id)));
 /* The service history of the customer's devices in SMARTPHONE_OFFLINE, by the same Account IDs. */
 router.get('/parties/:id/smartphone-offline/services', read(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.servicesOfParty(req.params.id)));

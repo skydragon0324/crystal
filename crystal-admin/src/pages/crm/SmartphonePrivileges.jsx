@@ -7,7 +7,7 @@ import { useT } from '../../i18n';
 import { formatPhone } from '../../utils/format';
 import AccountPicker from './AccountPicker';
 import { MiniTable } from './c360Cards';
-import { Card360 } from './ui360';
+import { Card360, Pill } from './ui360';
 
 /**
  * THE PRIVILEGES TAB - the privileges of the customer's devices in
@@ -61,7 +61,9 @@ export default function PrivilegesTab({ record, act }) {
                 { key: 'phone_number', label: 'Phone Number', render: (row) => formatPhone(row.phone_number) || '-' },
                 { key: 'imei', label: 'IMEI', render: (row) => <Text as="span" fontFamily="mono" fontSize="sm">{row.imei || '-'}</Text> },
                 { key: 'color', label: 'Device Color', render: (row) => row.color || '-' },
-                { key: 'title', label: 'Service Summary', render: (row) => <Text as="span" fontSize="sm">{row.title || '-'}</Text> }
+                { key: 'title', label: 'Service Summary', render: (row) => <Text as="span" fontSize="sm">{row.title || '-'}</Text> },
+                /* The system's own state of the privilege; a code the console knows gets its word and colour, any other is shown as sent. */
+                { key: 'status', label: 'Status', filter: true, render: (row) => (row.status ? <Pill code={row.status} /> : '-') }
               ]}
             />
           ) : null}

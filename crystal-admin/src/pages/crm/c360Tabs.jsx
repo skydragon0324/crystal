@@ -16,7 +16,8 @@ import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
 import { Status, amount, contactValue, rowsOf, useCrmMeta, word, partyIdLabel, useOpenCustomer } from './shared';
 import { Amount, Dot, InfoList, Panel, ProjectTags, ScoreBreakdown, Timeline } from './ui';
-import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, ServiceSummaryCard, useRowSearch } from './c360Cards';
+import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, useRowSearch } from './c360Cards';
+import { ServiceSummaryCard } from './ProjectSummary';
 import { Card360, Empty360, Initials, Pill, RfmHexagon } from './ui360';
 import { usePeek } from './peek';
 import { RewardPointsCard, SHOW_CRM_LEDGER } from './RewardPoints';
@@ -358,7 +359,7 @@ function useInteractions(partyId, version) {
   return { rows: rows, total: total, page: pageNo, setPage: setPageNo };
 }
 
-export function ServiceTab({ record, view, act }) {
+export function ServiceTab({ record, act, summary }) {
   const translate = useT();
   const interactions = useInteractions(record.party && record.party.party_pk, act.version);
   const peek = usePeek();
@@ -378,7 +379,7 @@ export function ServiceTab({ record, view, act }) {
       {/* The service history of the customer's devices in SMARTPHONE_OFFLINE, asked of that system by their linked Account IDs. */}
       <SmartphoneServicesCard partyPk={record.party && record.party.party_pk} version={act.version} />
       <Grid templateColumns={{ base: '1fr', xl: '2fr 3fr' }} gridGap={4}>
-        <ServiceSummaryCard view={view} />
+        <ServiceSummaryCard summary={summary === undefined ? null : summary} />
         <Card360 icon={Md.MdForum} title={translate('crm.customer360Tabs.interactions')} padded={false}
           action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' })}>{translate('crm.customer360.logInteraction')}</Button> : null}>
           <Box px={2}>

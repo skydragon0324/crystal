@@ -44,6 +44,24 @@ export function useSmartphoneDevices(partyPk, version) {
   return { state: state, loading: state === null, accounts: accounts, selected: account ? selected : 'ALL', setSelected: setSelected, account: account, shown: shown };
 }
 
+/*
+ * THE DEVICE'S COLOUR, painted: its name on a chip filled with the colour the
+ * system sends (rgb, "#rrggbb"). The text is dark or light by the colour's
+ * brightness so it stays readable; a thin border keeps white and silver
+ * visible on a white page. With no rgb, the name alone.
+ */
+function ColorChip({ name, rgb }) {
+  if (!rgb) return name || '-';
+  const [r, g, b] = [1, 3, 5].map((at) => parseInt(rgb.slice(at, at + 2), 16));
+  const light = (0.299 * r + 0.587 * g + 0.114 * b) > 160;
+  return (
+    <Box as="span" display="inline-block" px={2} py={0.5} borderRadius="md" fontSize="xs" fontWeight="600" whiteSpace="nowrap"
+      bg={rgb} color={light ? 'gray.800' : 'white'} borderWidth="1px" borderColor="blackAlpha.200" title={rgb}>
+      {name || rgb}
+    </Box>
+  );
+}
+
 export default function SmartphoneDevicesCard({ devices }) {
   const translate = useT();
   const state = devices.state;
@@ -67,7 +85,7 @@ export default function SmartphoneDevicesCard({ devices }) {
               columns={[
                 { key: 'master_id', label: 'Account ID' },
                 { key: 'device', label: 'Device', render: (row) => <Text as="span" fontWeight="600">{row.device || '-'}</Text> },
-                { key: 'color', label: 'Color', render: (row) => row.color || '-' },
+                { key: 'color', label: 'Color', render: (row) => <ColorChip name={row.color} rgb={row.rgb} /> },
                 { key: 'imei', label: 'IMEI', render: (row) => <Text as="span" fontFamily="mono" fontSize="sm">{row.imei || '-'}</Text> },
                 { key: 'created_at', label: 'Registered', render: (row) => row.created_at || '-' }
               ]}

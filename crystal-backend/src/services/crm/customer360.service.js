@@ -177,22 +177,22 @@ async function accountsByProject(partyId) {
   const rows = [];
   projects.forEach(function (project) {
     const shown = accounts.filter(function (account) { return account.project_id === project.project_id; });
-    // The phone-keyed project (SMARTPHONE_OFFLINE) offers "link by phone" on its first line.
+    // The phone-keyed project (SMARTPHONE_OFFLINE) offers "link by phone" only while no account of it is linked:
+    // once one is - by hand, by API or by phone - its line shows that account instead.
     const byPhone = project.project_code === config.smartphoneOffline.projectCode;
     if (!shown.length) {
       rows.push({ project_id: project.project_id, project_code: project.project_code, project_name: project.project_name,
         account_status: 'NOT_LINKED', last_activity_at: lastOf[project.project_id] || null, links_by_phone: byPhone });
       return;
     }
-    shown.forEach(function (account, index) {
+    shown.forEach(function (account) {
       rows.push({
         project_id: project.project_id, project_code: project.project_code, project_name: project.project_name,
         project_account_id: account.project_account_id, external_account_pk: account.external_account_pk,
         external_account_id: account.external_account_id,
         account_status: account.is_primary ? 'PRIMARY' : 'LINKED',
         first_used_at: account.source_created_at || account.linked_at,
-        last_activity_at: lastOf[project.project_id] || null,
-        links_by_phone: byPhone && index === 0
+        last_activity_at: lastOf[project.project_id] || null
       });
     });
   });

@@ -46,7 +46,7 @@ const TONES = {
   blue: ['LINKED', 'CLICKED', 'SENT', 'QUEUED', 'DELIVERING', 'APPROVED', 'RESERVED', 'OUTBOUND'],
   orange: ['FOLLOW_UP', 'PENDING', 'IN_PROGRESS', 'WAITING', 'DRAFT', 'NOT_SENT', 'AT_RISK', 'REFUNDED', 'NO_ANSWER'],
   red: ['CANCELLED', 'FAILED', 'INACTIVE', 'DENIED', 'WITHDRAWN', 'URGENT', 'LAPSED', 'TERMINATED', 'EXPIRED', 'REFUND'],
-  gray: ['UNLINKED', 'NOT_LINKED', 'NOT_OPENED', 'SKIPPED', 'ENDED', 'NO']
+  gray: ['UNLINKED', 'NOT_LINKED', 'NOT_OPENED', 'SKIPPED', 'ENDED', 'NO', 'USED']
 };
 
 export function toneOf(code) {
@@ -147,20 +147,20 @@ export function RfmHexagon({ score }) {
   );
 }
 
-/** One of the five figures across the top of the record. */
+/** One of the figures across the top of the record. A label or sub-line too long for its column is cut, and given whole on hover. */
 export function HeaderStat({ icon, iconColor, label, value, sub, action }) {
   const surface = useSurface();
   return (
     <Box minW={0} px={{ base: 0, md: 3 }}>
       <HStack spacing={1.5} mb={1}>
         <Icon as={icon} color={iconColor || 'brand.500'} boxSize="1rem" />
-        <Text fontSize="xs" color={surface.muted} noOfLines={1}>{label}</Text>
+        <Text fontSize="xs" color={surface.muted} noOfLines={1} title={typeof label === 'string' ? label : undefined}>{label}</Text>
         {action || null}
       </HStack>
       <Text as="div" fontSize="xl" fontWeight="800" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value === null || value === undefined || value === '' ? '-' : value}
       </Text>
-      {sub ? <Text as="div" fontSize="xs" color={surface.muted} noOfLines={1}>{sub}</Text> : null}
+      {sub ? <Text as="div" fontSize="xs" color={surface.muted} noOfLines={1} title={typeof sub === 'string' ? sub : undefined}>{sub}</Text> : null}
     </Box>
   );
 }

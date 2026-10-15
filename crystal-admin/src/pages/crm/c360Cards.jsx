@@ -248,49 +248,6 @@ export function ProductsCard({ view, onViewAll, title }) {
 }
 
 /** Interactions, open and resolved cases, response and resolution times, satisfaction. */
-export function ServiceSummaryCard({ view, onViewAll, withRecentCases }) {
-  const translate = useT();
-  const peek = usePeek();
-  const service = view.service || {};
-  const monthly = service.monthly || [];
-  return (
-    <Card360 icon={Md.MdHeadsetMic} title={translate('crm.customer360Cards.serviceSummary')} onViewAll={onViewAll}>
-      <SimpleGrid columns={3} spacing={2}>
-        <Tile label={translate('crm.customer360Cards.totalInteractions')} value={number(service.total_interactions)}
-          chart={<MiniBars values={monthly.map((month) => month.opened)} color="brand.300" />} />
-        <Tile label={translate('crm.customer360.openCases')} value={number(service.open_cases)} tone={service.open_cases ? 'red' : null}
-          chart={<MiniBars values={monthly.map((month) => Math.max(0, month.opened - month.resolved))} color="red.300" />} />
-        <Tile label={translate('crm.customer360Cards.resolvedCases')} value={number(service.resolved_cases)} tone="green"
-          chart={<MiniBars values={monthly.map((month) => month.resolved)} color="green.300" />} />
-        <Tile label={translate('crm.customer360Cards.avgResponseTime')}
-          value={service.avg_response_hours === null || service.avg_response_hours === undefined ? null : translate('crm.customer360Cards.hours', { n: number(service.avg_response_hours, 1) })} />
-        <Tile label={translate('crm.customer360Cards.avgResolutionTime')}
-          value={service.avg_resolution_days === null || service.avg_resolution_days === undefined ? null : translate('crm.customer360Cards.days', { n: number(service.avg_resolution_days, 1) })} />
-        <Tile label={translate('crm.customer360Cards.csat')} tone="green"
-          value={service.csat === null || service.csat === undefined ? null : number(service.csat, 1) + ' / 5.0'} />
-      </SimpleGrid>
-      {withRecentCases ? (
-        <Box mt={3}>
-          <Text fontSize="sm" fontWeight="700" mb={1}>{translate('crm.customer360Cards.recentCases')}</Text>
-          <MiniTable
-            rows={service.recent_cases || []}
-            rowKey={(row) => row.case_id}
-            onRowClick={(row) => peek('CASE', row.case_id)}
-            empty="crm.customer360.noCases"
-            columns={[
-              { key: 'external_case_id', label: 'Case', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_case_id || '#' + row.case_id}</Text> },
-              { key: 'received_at', label: 'Date', render: (row) => date(row.received_at) },
-              { key: 'reception_channel_code', label: 'Channel', render: (row) => (row.reception_channel_code ? word(translate, row.reception_channel_code) : '-') },
-              { key: 'title', label: 'Subject', maxW: '10rem', render: (row) => <Text as="span" noOfLines={1}>{row.title || translate(row.case_type_name || '-')}</Text> },
-              { key: 'status_name', label: 'Status', render: (row) => <Pill tone={row.is_terminal ? 'green' : 'orange'}>{translate(row.status_name || '-')}</Pill> }
-            ]}
-          />
-        </Box>
-      ) : null}
-    </Card360>
-  );
-}
-
 /* ================================================================ the individual layout */
 
 export function ValueMetricsCard({ view, onViewAll }) {
