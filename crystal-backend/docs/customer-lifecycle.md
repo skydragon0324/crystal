@@ -10,6 +10,11 @@ feature. The design decisions live beside the code, in the comments
 implements are in `CUSTOMER_LIFECYCLE_KPI_REQUIREMENTS.md` at the repository
 root, and section numbers below refer to it.
 
+**For how it works** — every write it makes, what happens when a customer
+signs in, what happens when nobody does, and where each number on the screen
+comes from — see
+[customer-lifecycle-dataflow.md](customer-lifecycle-dataflow.md).
+
 - [What the numbers mean](#what-the-numbers-mean)
 - [What it is made of](#what-it-is-made-of)
 - [Configuration](#configuration)
@@ -98,6 +103,11 @@ LIFECYCLE_RECONCILE_BATCH=50000
 
 # Older than this and the admin health view calls the data stale.
 LIFECYCLE_FRESHNESS_WARN_MINUTES=180
+
+# Whether a storefront sign-in is written to the platform's own login log,
+# which is the only thing these metrics read. Off means the statuses measure
+# the vendor's own apps alone - see the data-flow document.
+LIFECYCLE_RECORD_WEB_LOGINS=true
 
 # How far ahead of now a login may be stamped before it is an exception
 # rather than a fact. Clocks differ; hours of difference are a broken clock.

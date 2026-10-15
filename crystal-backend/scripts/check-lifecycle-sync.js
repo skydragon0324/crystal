@@ -33,6 +33,11 @@ const timeline = require('../src/services/lifecycle/timeline.service');
 const snapshots = require('../src/services/lifecycle/snapshots.service');
 const rules = require('../src/services/lifecycle/rules');
 
+/* The sign-in writer the storefront uses, and the source of the funnel check. */
+const members = require('../src/repositories/legacy/members.repository');
+const fs = require('fs');
+const path = require('path');
+
 const MARKER = 'checksync-';
 
 let failures = 0;
@@ -390,6 +395,90 @@ async function main() {
     const expected = new Date(silent.effective_last_activity_at).getTime()
       + rules.RULES_V1.churnedHours * 3600 * 1000;
     same('the due instant is 90 days after their last activity', expected, due);
+
+    /* ---------------------------------------------------------------- */
+    heading('A sign-in with no SIM card number still becomes an event');
+
+    /*
+     * THE HINGE THE WHOLE FEATURE HANGS ON.
+     *
+     * These metrics read `ora_pid.user_login_log` and nothing else, so a
+     * sign-in that does not land there is a sign-in they cannot see. Until
+     * this was fixed, only the two paths carrying a `cid` wrote to it: a
+     * member signing in by certificate or by one-time code every day would
+     * have decayed to DORMANT and then CHURNED while doing it.
+     *
+     * So the write is checked from both ends - the row a cid-less sign-in
+     * writes, and the fact that one function does the writing.
+     */
+    const webPk = await makeCustomer(conn, 'web', daysAgo(200));
+    await sync.syncProfiles({});
+
+    /* What a desktop sign-in writes: no cid, no handset, now. */
+    await members.recordLogin(webPk, null);
+
+    const written = await conn(legacy.pid('user_login_log'))
+      .where('user_pk', webPk)
+      .first();
+
+    same('a sign-in with no cid is recorded', true, !!written);
+    same('with the card number left null rather than invented', null, written.cid);
+
+    await sync.importLogins({});
+    await timeline.rebuild(webPk);
+
+    const web = await db('lifecycle_customer_current').where('user_pk', webPk).first();
+    same('and it reaches the journal, so the customer is ACTIVE', 'ACTIVE', web.status);
+    same('measured from the instant of that sign-in',
+      new Date(written.action_at).getTime(),
+      new Date(web.last_login_at).getTime());
+
+    /* ---------------------------------------------------------------- */
+    heading('Every sign-in path records, and only sign-ins do');
+
+    /*
+     * READ OFF THE SOURCE, deliberately. The behavioural check above proves
+     * the write works; this proves no PATH can forget it, which is the
+     * regression that actually happened - three sign-in methods were added
+     * over time and none of them recorded anything.
+     *
+     * The guard is the funnel: `afterLogin` is the only caller of
+     * recordSignIn, and every sign-in function calls `afterLogin`. A fifth
+     * method added later cannot miss the log without failing this.
+     */
+    const auth = fs.readFileSync(
+      path.join(__dirname, '..', 'src', 'services', 'memberAuth.service.js'), 'utf8'
+    );
+
+    const callsTo = function (name) {
+      return (auth.match(new RegExp('(?:await\\s+)?' + name + '\\(', 'g')) || []).length;
+    };
+
+    /* One definition, one call - the call being the one inside afterLogin. */
+    same('recordSignIn is called from exactly one place', 2, callsTo('recordSignIn'));
+    same('and that place is afterLogin',
+      true,
+      /async function afterLogin\([^)]*\)\s*\{[\s\S]{0,900}?await recordSignIn\(/.test(auth));
+
+    ['loginWithPassword', 'loginWithX509', 'loginWithOtp', 'loginWithMik'].forEach(function (fn) {
+      const body = auth.split('async function ' + fn + '(')[1] || '';
+      /* Up to the next top-level function, which is where this one ends. */
+      const own = body.split('\nasync function ')[0].split('\nfunction ')[0];
+      same(fn + ' records the sign-in', true, /await afterLogin\(/.test(own));
+    });
+
+    /*
+     * AND THE REFRESH DOES NOT. A refreshed token is not a sign-in; counting
+     * it would make a member who left a tab open look active for ever.
+     */
+    const refreshBody = (auth.split('async function refresh(')[1] || '')
+      .split('\nasync function ')[0].split('\nfunction ')[0];
+    same('a token refresh is not recorded as a sign-in',
+      false, /afterLogin\(/.test(refreshBody));
+
+    /* Nothing else may write to the log behind the funnel's back. */
+    same('members.recordLogin has exactly one caller in the service',
+      1, callsTo('members\\.recordLogin'));
   } finally {
     const removed = await cleanUp(conn);
     console.log('');

@@ -391,6 +391,22 @@ const config = {
     freshnessWarnMinutes: int('LIFECYCLE_FRESHNESS_WARN_MINUTES', 180),
 
     /*
+     * WHETHER A STOREFRONT SIGN-IN IS WRITTEN TO THE PLATFORM'S LOGIN LOG.
+     *
+     * The lifecycle reads `ora_pid.user_login_log` and nothing else, because
+     * that is the platform's record of who signed in - so a sign-in that does
+     * not land there is a sign-in these metrics cannot see, and a member using
+     * this site every day would drift to DORMANT and then CHURNED while doing
+     * it.
+     *
+     * ON by default, because the alternative is a report that is quietly
+     * wrong about everybody who uses the new storefront. Turn it off only if
+     * the platform's owner does not want our sign-ins in their log - and
+     * expect the statuses to measure the vendor's own apps alone if you do.
+     */
+    recordWebLogins: bool('LIFECYCLE_RECORD_WEB_LOGINS', true),
+
+    /*
      * How far ahead of now a login may be stamped before it is treated as a
      * data-quality exception rather than a fact. Clocks differ; hours of
      * difference are a broken clock.

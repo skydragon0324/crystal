@@ -492,8 +492,9 @@ function StockTab({ trend, window, group, loading, palette, surface, t }) {
           button; `exportOnly` because there is nothing to import into a
           report.
         */}
-        <Flex align="center" justify="space-between" mb="0.75rem" wrap="wrap" gap="0.5rem" data-gap="8" data-gap-wrap>
-          <Text fontSize="sm" fontWeight="700">{t('Measured at end of')}</Text>
+        {/* No heading: the Panel above already says what these numbers are,
+            and the column headers say it again in each column. */}
+        <Flex align="center" justify="flex-end" mb="0.75rem">
           <ExcelActions
             resource={lifecycle.stockSheet}
             params={{
@@ -512,7 +513,7 @@ function StockTab({ trend, window, group, loading, palette, surface, t }) {
           columns={columns}
           rows={rows}
           loading={loading}
-          rowKey="snapshotDate"
+          rowKey={function (row) { return row.snapshotDate; }}
           hidePagination
           emptyText={t('Nothing in this range')}
         />
@@ -1264,7 +1265,7 @@ function Impact({ data, palette, surface, t }) {
         <Text fontSize="xs" color={surface.muted} px="1rem" pt="0.75rem">
           {t('lifecycle.theseAreStockCountsNever')}
         </Text>
-        <DataTable columns={columns} rows={boundaries} rowKey="key" hidePagination />
+        <DataTable columns={columns} rows={boundaries} rowKey={function (row) { return row.key; }} hidePagination />
       </Panel>
 
       <Panel title={t('Transition flows in each window')}>
@@ -1630,7 +1631,7 @@ function HealthTab({ may, toast, surface, t }) {
         <DataTable
           columns={durationColumns}
           rows={data.jobDurations || []}
-          rowKey="job"
+          rowKey={function (row) { return row.job; }}
           hidePagination
           emptyText={t('No jobs have run yet')}
         />
@@ -1641,7 +1642,7 @@ function HealthTab({ may, toast, surface, t }) {
         <DataTable
           columns={runColumns}
           rows={data.recentRuns}
-          rowKey="id"
+          rowKey={function (row) { return row.id; }}
           hidePagination
           emptyText={t('No jobs have run yet')}
         />
@@ -1659,7 +1660,7 @@ function HealthTab({ may, toast, surface, t }) {
         <DataTable
           columns={exceptionColumns}
           rows={exceptions}
-          rowKey="id"
+          rowKey={function (row) { return row.id; }}
           hidePagination
           emptyText={t('No exceptions')}
         />
