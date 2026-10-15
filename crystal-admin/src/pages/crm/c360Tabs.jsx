@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
   Box, Button, Flex, Grid, HStack, Icon, IconButton, Input, Menu, MenuButton, MenuItem, MenuList, Stack, Text, Textarea,
-  Tooltip as HintTooltip, useColorMode, useToast
+  Tab, TabList, TabPanel, TabPanels, Tabs, Tooltip as HintTooltip, useColorMode, useToast
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -14,13 +14,14 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { Status, amount, contactValue, rowsOf, word, partyIdLabel, useOpenCustomer } from './shared';
+import { Status, amount, contactValue, rowsOf, useCrmMeta, word, partyIdLabel, useOpenCustomer } from './shared';
 import { Amount, Dot, InfoList, Panel, ProjectTags, ScoreBreakdown, Timeline } from './ui';
 import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, ServiceSummaryCard, useRowSearch } from './c360Cards';
 import { Card360, Empty360, Initials, Pill, RfmHexagon } from './ui360';
 import { usePeek } from './peek';
 import { RewardPointsCard, SHOW_CRM_LEDGER } from './RewardPoints';
 import TierDialog from './MembershipTier';
+import EshopOrdersSection from './EshopOrders';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -236,38 +237,42 @@ export function AccountsTab({ record, view, act }) {
 
 /* ================================================================ orders */
 
-const ORDER_COLUMNS = [
-  { key: 'external_transaction_id', label: 'Order number', render: (row) => <Text as="span" color="brand.500" fontWeight="600">{row.external_transaction_id}</Text> },
-  { key: 'transaction_at', label: 'When', render: (row) => dateTime(row.transaction_at) },
-  { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
-  { key: 'transaction_type_code', label: 'Type', filter: true },
-  { key: 'transaction_status', label: 'Status', filter: true, render: (row) => <Pill code={row.transaction_status} /> },
-  { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => <Amount value={row.net_amount} currency={row.currency_code} sign /> },
-  { key: 'reporting_net_amount', label: 'Reporting amount', isNumeric: true, render: (row) => <Amount value={row.reporting_net_amount} sign /> },
-  { key: 'points_used', label: 'Points used', isNumeric: true, render: (row) => amount(row.points_used, 0) }
-];
-
-/* An order opens over the record, not on the Transactions screen: the manager stays with the customer. */
+/*
+ * The customer's orders are not kept in the CRM: each project's own system is
+ * asked for them, one sub-tab per project that sells: the e-shop (the project
+ * with the E-shop role), SMARTPHONE_OFFLINE and the Appstore, in that order,
+ * the e-shop open. A project whose order API is not connected yet says so in
+ * its tab, which is where its orders will appear.
+ */
+const ORDER_PROJECTS = ['ESHOP', 'SMARTPHONE_OFFLINE', 'APPSTORE'];
 export function OrdersTab({ record }) {
   const translate = useT();
-  const peek = usePeek();
-  const columns = ORDER_COLUMNS.map((column) => (column.key === 'transaction_type_code'
-    ? Object.assign({}, column, { render: (row) => word(translate, row.transaction_type_code) }) : column));
-  const found = useRowSearch(record.transactions || [], columns, true);
+  const meta = useCrmMeta();
+  const place = (project) => (project.identity_role === 'ESHOP' ? 0 : ORDER_PROJECTS.indexOf(project.project_code));
+  const projects = (meta.projects || []).filter((project) => project.status !== 'INACTIVE' && place(project) !== -1)
+    .slice().sort((a, b) => place(a) - place(b));
+  if (!projects.length) return <EshopOrdersSection partyPk={record.party.party_pk} />;
   return (
-    <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Tabs.ordersAndTransactions')} padded={false}>
-      <Box px={2} pt={found.bar ? 2 : 0}>
-        {found.bar}
-        <DataTable
-          hidePagination
-          rows={found.shown}
-          rowKey={(row) => row.transaction_id}
-          columns={columns}
-          onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
-          emptyText={translate(found.searchable ? 'crm.customer360.noMatches' : 'crm.customer360.noPurchases')}
-        />
-      </Box>
-    </Card360>
+    <Tabs isLazy variant="soft-rounded" colorScheme="brand" size="sm">
+      <TabList flexWrap="wrap" gap={2} mb={3}>
+        {projects.map((project) => (
+          <Tab key={project.project_id}>
+            {translate(project.project_name)}
+          </Tab>
+        ))}
+      </TabList>
+      <TabPanels>
+        {projects.map((project) => (
+          <TabPanel key={project.project_id} px={0} py={0}>
+            {project.identity_role === 'ESHOP' ? <EshopOrdersSection partyPk={record.party.party_pk} /> : (
+              <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Tabs.projectOrders', { project: translate(project.project_name) })}>
+                <Empty360>{translate('crm.customer360Tabs.ordersNotConnected', { project: translate(project.project_name) })}</Empty360>
+              </Card360>
+            )}
+          </TabPanel>
+        ))}
+      </TabPanels>
+    </Tabs>
   );
 }
 

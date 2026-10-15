@@ -436,6 +436,9 @@ export const crm = {
     updateAccount: (id, accountId, payload) => client.put(CRM + '/parties/' + id + '/accounts/' + accountId, payload),
     /* A tier given by hand to one of this customer's accounts (see memberships.add). */
     addTier: (id, payload) => client.post(CRM + '/parties/' + id + '/memberships', payload),
+    /* The customer's e-shop orders, read live from the e-shop: { project_account_id } one account, 'ALL' every one; and one order's lines. */
+    eshopOrders: (id, params) => client.get(CRM + '/parties/' + id + '/eshop-orders', { params }),
+    eshopOrder: (id, orderId, accountId) => client.get(CRM + '/parties/' + id + '/eshop-orders/' + encodeURIComponent(orderId), { params: { project_account_id: accountId } }),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     /* Look this customer's phone numbers up in the SMARTPHONE_OFFLINE system and link what it finds. */
     autoLinkSmartphoneOffline: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/link'),

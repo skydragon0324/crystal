@@ -16,7 +16,8 @@ import { word } from './shared';
  */
 
 /** A titled block of the record: icon, title, an action, and a "View all" that opens the matching tab. */
-export function Card360({ icon, title, action, onViewAll, children, padded }) {
+/* `beside` sits right after the title (a picker that belongs to it); `action` on the far right. */
+export function Card360({ icon, title, beside, action, onViewAll, children, padded }) {
   const translate = useT();
   const surface = useSurface();
   return (
@@ -25,6 +26,7 @@ export function Card360({ icon, title, action, onViewAll, children, padded }) {
         <HStack spacing={2} minW={0}>
           {icon ? <Icon as={icon} boxSize="1.15rem" color={surface.text} /> : null}
           <Text fontSize="md" fontWeight="700" noOfLines={1}>{title}</Text>
+          {beside ? <Box ml={4} minW={0}>{beside}</Box> : null}
         </HStack>
         <HStack spacing={2} flexShrink={0}>
           {action}

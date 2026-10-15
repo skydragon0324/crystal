@@ -429,6 +429,8 @@ const en = {
     peopleHere: 'People at this organization',
     pin: 'Pin to top',
     pointBalances: 'Points kept by the CRM',
+    projectOrders: '{project} orders',
+    ordersNotConnected: "The orders of {project} are not connected yet. They will be read from its own system, like the e-shop's.",
     preferred: 'Preferred',
     recentActivity: 'Recent activity',
     recentPoints: 'Recent point movements',
@@ -535,6 +537,39 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: 'E-shop orders',
+    primary: 'primary',
+    allAccounts: 'All {n} accounts',
+    items: '{n} items',
+    viewLines: 'Order lines',
+    points: 'Points',
+    byTheCustomer: 'Cancelled by the customer',
+    byTheShop: 'Cancelled by the shop',
+    noEshopProject: 'No project has the E-shop role yet (Settings > Projects), so there is no e-shop to ask.',
+    noAccounts: 'This customer has no linked e-shop account.',
+    noPk: 'Not asked - no Account PK to ask the e-shop by: {accounts}. Add the PK on the Accounts tab.',
+    unreachable: 'The e-shop could not be reached for {accounts}.',
+    capped: 'Showing the latest orders of each account only: {accounts}. Choose one account to page through all of its orders.',
+    noOrders: 'No orders in the e-shop',
+    unreachableShort: 'The e-shop could not be reached.',
+    order: 'Order',
+    deliverTo: 'Deliver to',
+    payType: 'Paid by {type}',
+    lines: 'Items',
+    noLines: 'The e-shop sent no lines for this order.',
+    statusPENDING: 'Pending',
+    statusACCEPTED: 'Accepted',
+    statusDELIVERING: 'Delivering',
+    statusDELIVERED: 'Delivered',
+    statusFINISHED: 'Finished',
+    statusCANCEL_PENDING: 'Cancelling',
+    statusCANCELLED: 'Cancelled',
+    statusREFUND_PENDING: 'Refund requested',
+    statusREFUND_ACCEPTED: 'Refund accepted',
+    statusREFUNDED: 'Refunded'
+  },
   memberships: {
     addTier: 'Add tier',
     tierSaved: 'Tier saved',
@@ -1260,6 +1295,8 @@ const zh = {
     peopleHere: '该组织的联系人',
     pin: '置顶',
     pointBalances: 'CRM 自有积分',
+    projectOrders: '{project} 订单',
+    ordersNotConnected: '{project} 的订单尚未接入。接入后将像电商订单一样从其系统读取。',
     preferred: '首选',
     recentActivity: '最近动态',
     recentPoints: '最近积分变动',
@@ -1366,6 +1403,39 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: '电商订单',
+    primary: '主账号',
+    allAccounts: '全部 {n} 个账号',
+    items: '{n} 件',
+    viewLines: '订单明细',
+    points: '积分',
+    byTheCustomer: '客户取消',
+    byTheShop: '商城取消',
+    noEshopProject: '尚无项目设置为电商角色（设置 > 项目），无法查询电商。',
+    noAccounts: '该客户没有已关联的电商账号。',
+    noPk: '未查询——以下账号没有可用于查询电商的账号 PK：{accounts}。请在“账号”页补充 PK。',
+    unreachable: '无法连接电商查询：{accounts}。',
+    capped: '仅显示每个账号最新的订单：{accounts}。选择单个账号可分页查看其全部订单。',
+    noOrders: '电商中暂无订单',
+    unreachableShort: '无法连接电商。',
+    order: '订单',
+    deliverTo: '收货信息',
+    payType: '支付方式：{type}',
+    lines: '商品',
+    noLines: '电商未返回该订单的明细。',
+    statusPENDING: '待处理',
+    statusACCEPTED: '已接单',
+    statusDELIVERING: '配送中',
+    statusDELIVERED: '已送达',
+    statusFINISHED: '已完成',
+    statusCANCEL_PENDING: '取消中',
+    statusCANCELLED: '已取消',
+    statusREFUND_PENDING: '申请退款',
+    statusREFUND_ACCEPTED: '退款已受理',
+    statusREFUNDED: '已退款'
+  },
   memberships: {
     addTier: '添加等级',
     tierSaved: '等级已保存',
@@ -2091,6 +2161,8 @@ const ru = {
     peopleHere: 'Сотрудники организации',
     pin: 'Закрепить',
     pointBalances: 'Баллы, которые ведёт CRM',
+    projectOrders: 'Заказы: {project}',
+    ordersNotConnected: 'Заказы проекта {project} ещё не подключены. Они будут читаться из его собственной системы, как заказы интернет-магазина.',
     preferred: 'Предпочтительный',
     recentActivity: 'Недавние события',
     recentPoints: 'Последние движения баллов',
@@ -2197,6 +2269,39 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: 'Заказы интернет-магазина',
+    primary: 'основной',
+    allAccounts: 'Все аккаунты ({n})',
+    items: 'товаров: {n}',
+    viewLines: 'Состав заказа',
+    points: 'Баллы',
+    byTheCustomer: 'Отменён клиентом',
+    byTheShop: 'Отменён магазином',
+    noEshopProject: 'Ни одному проекту не назначена роль интернет-магазина (Настройки > Проекты), запрашивать некого.',
+    noAccounts: 'У клиента нет привязанного аккаунта интернет-магазина.',
+    noPk: 'Не запрошено — нет PK аккаунта для запроса: {accounts}. Добавьте PK на вкладке «Аккаунты».',
+    unreachable: 'Интернет-магазин недоступен для: {accounts}.',
+    capped: 'Показаны только последние заказы каждого аккаунта: {accounts}. Выберите один аккаунт, чтобы листать все его заказы.',
+    noOrders: 'В интернет-магазине нет заказов',
+    unreachableShort: 'Интернет-магазин недоступен.',
+    order: 'Заказ',
+    deliverTo: 'Доставка',
+    payType: 'Оплата: {type}',
+    lines: 'Товары',
+    noLines: 'Магазин не прислал состав этого заказа.',
+    statusPENDING: 'Ожидает',
+    statusACCEPTED: 'Принят',
+    statusDELIVERING: 'Доставляется',
+    statusDELIVERED: 'Доставлен',
+    statusFINISHED: 'Завершён',
+    statusCANCEL_PENDING: 'Отменяется',
+    statusCANCELLED: 'Отменён',
+    statusREFUND_PENDING: 'Запрошен возврат',
+    statusREFUND_ACCEPTED: 'Возврат принят',
+    statusREFUNDED: 'Возвращён'
+  },
   memberships: {
     addTier: 'Добавить уровень',
     tierSaved: 'Уровень сохранён',
@@ -2521,6 +2626,10 @@ const ru = {
 const words = {
   en: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    eshopOrders: {
+      ordered: 'Ordered',
+      totalPrice: 'Total price'
+    },
     tiers: {
       tierKinds: 'Tier kinds',
       level: 'Level',
@@ -3330,6 +3439,10 @@ const words = {
   },
   zh: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    eshopOrders: {
+      ordered: '下单时间',
+      totalPrice: '总价'
+    },
     tiers: {
       tierKinds: '等级类型',
       level: '等级',
@@ -4139,6 +4252,10 @@ const words = {
   },
   ru: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    eshopOrders: {
+      ordered: 'Оформлен',
+      totalPrice: 'Итого'
+    },
     tiers: {
       tierKinds: 'Виды уровней',
       level: 'Уровень',

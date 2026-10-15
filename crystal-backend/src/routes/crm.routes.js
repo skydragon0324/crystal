@@ -299,6 +299,14 @@ router.post('/reward-points/import', write(PAGES.POINTS), sheetUpload.single('fi
   return response.ok(res, rewardPoints.translated(await rewardPoints.importSheet(req.file.buffer, req.actor), req.locale), 'excel.imported');
 });
 router.get('/parties/:id/reward-points', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await rewardPoints.ofParty(req.params.id)));
+/* The customer's e-shop orders, read live from the e-shop by each linked account's PK; ?project_account_id= one account, or ALL. */
+const eshopOrders = require('../services/crm/eshopOrders.service');
+router.get('/parties/:id/eshop-orders', read(PAGES.CUSTOMERS), async (req, res) => {
+  const paging = readPaging(Object.assign({ limit: 20 }, req.query), [], 'at');
+  return response.page(res, await eshopOrders.list(req.params.id, req.query, paging), paging);
+});
+router.get('/parties/:id/eshop-orders/:orderId', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await eshopOrders.detail(req.params.id, req.query.project_account_id, req.params.orderId)));
 router.post('/parties/:id/reward-points', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await rewardPoints.create(req.params.id, req.body, req.actor), 'common.created'));
 router.put('/parties/:id/reward-points/:rewardPointsId', write(PAGES.CUSTOMERS), async (req, res) =>

@@ -21,7 +21,7 @@ import CrmSearch from './CrmSearch';
 import { PeekProvider } from './peek';
 import {
   AccountsCard, MembershipSummaryCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
-  MarketingCard, NotesCard, OrganizationInfoCard, ProductsCard, RecentOrdersCard, RelatedPartiesCard,
+  MarketingCard, NotesCard, OrganizationInfoCard, ProductsCard, RelatedPartiesCard,
   RelationshipOwnershipCard, ServiceSummaryCard, ValueMetricsCard, companySize
 } from './c360Cards';
 import {
@@ -30,6 +30,7 @@ import {
 } from './c360Tabs';
 import { HeaderStat, Pill, TagChip } from './ui360';
 import { scoreNote } from './RewardPoints';
+import { RecentEshopOrdersCard } from './EshopOrders';
 
 const PAGE = '/admin/crm/customers';
 const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP'];
@@ -498,7 +499,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', '2xl': '1fr 1fr 1fr 1fr' }} gridGap={4}>
           <AccountsCard view={view} onViewAll={() => goTab('accounts')} />
           <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />
-          <RecentOrdersCard view={view} onViewAll={() => goTab('orders')} />
+          <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
           <ValueMetricsCard view={view} onViewAll={() => goTab('analytics')} />
         </Grid>
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
@@ -536,7 +537,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
           <ProductsCard view={view} onViewAll={() => goTab('products')} title={translate('crm.customer360.productsAndAssets')} />
           <ServiceSummaryCard view={view} onViewAll={() => goTab('service')} withRecentCases />
         </Grid>
-        <RecentOrdersCard view={view} onViewAll={() => goTab('orders')} />
+        <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
       </Stack>
     );
   }

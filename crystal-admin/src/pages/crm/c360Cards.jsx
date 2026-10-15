@@ -219,29 +219,6 @@ export function MembershipSummaryCard({ record, onViewAll }) {
   );
 }
 
-export function RecentOrdersCard({ view, onViewAll }) {
-  const translate = useT();
-  const peek = usePeek();
-  return (
-    <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Cards.recentOrders')} onViewAll={onViewAll}>
-      <MiniTable
-        rows={view.recent_orders || []}
-        rowKey={(row) => row.transaction_id}
-        onRowClick={(row) => peek('TRANSACTION', row.transaction_id)}
-        empty="crm.customer360.noPurchases"
-        columns={[
-          { key: 'external_transaction_id', label: 'Order number', maxW: '10rem',
-            render: (row) => <Text as="span" color="brand.500" fontWeight="600" noOfLines={1}>{row.external_transaction_id}</Text> },
-          { key: 'transaction_at', label: 'Date', render: (row) => date(row.transaction_at) },
-          { key: 'project_code', label: 'Project', render: (row) => <ProjectTags codes={[row.project_code]} /> },
-          { key: 'transaction_status', label: 'Status', render: (row) => <Pill code={row.refunded ? 'REFUNDED' : row.transaction_status} /> },
-          { key: 'net_amount', label: 'Amount', isNumeric: true, render: (row) => money(row.net_amount, row.currency_code) }
-        ]}
-      />
-    </Card360>
-  );
-}
-
 export function ProductsCard({ view, onViewAll, title }) {
   const translate = useT();
   const peek = usePeek();

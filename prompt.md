@@ -381,3 +381,59 @@ on crm_project_account table, let's chanage external_account_id as external_acco
 Regarding the `crm_membership` table: instead of adding the `project_account_id` from `crm_project_account` (which would necessitate an extra JOIN operation), please add the `external_account_id` instead.
 By adding the `external_account_id` to `crm_membership`, you can avoid the need for additional joins or the inclusion of `party_pk` or `project_id` in that table.
 ------------------------------------------------------------------------------------
+I would like to add a "Membership Summary" section to the "Overview" tab of the customer details page.
+A single customer can hold multiple accounts within a system, with each account assigned a different type of membership tier.
+For instance, a user named "A" could hold distinct tiers—such as "Level 1" and "Grade 2"—within the online store.
+Additional tier types may be introduced as the system evolves.
+This information needs to be displayed in the "Membership Summary" section, with further details provided in the "Membership" section of the "Account" tab.
+--------------------------------------------------------------------------------------
+if you remove project_account_id from crm_membership, we need to have party_pk, how can you find that row is connected with which customer?
+so, when you remove project_account_id, we need to keep party_pk and project_id
+but, if you want to keep project_account_id, we don't need to keep those party_pk, project_id, external_account_id
+since project_account_id is determinded with those data 
+-------------------------------
+transactions tab, let's not use our DB, I will fill out this page with api to a projects
+we already have the api which can get orders list with eshop_pk
+we can use this api as well
+
+so, on transactions tab, let's make a new section for eshop transactions
+and this section will call the api and get data and show the order list for that customer's eshop_pks,
+right now, that api can get order list for one eshop_pk, 
+so, on this eshop transaction section, if that customer has more than 2 eshop accounts, let's set one as default and show the order list with that eshop_pk
+and if user select another one, we can get data with that another eshop_pk 
+if all is selected, we can call the api twice or more and show the orders list with related eshop_pk or eshop_id
+------------------------------------------------------
+looks good, 
+but we need to change something
+first, if I select all, it shows account_id field, 
+and if I select one of them, it doesn't show that account_id field
+ 
+second, for goods fields, it shows the first good's name of the goods in that transaction, instead of showing the first good's name, let's show the count of goods
+
+third, for currrency, instead of showing Foreign currency or Native currency, let's use our currency system
+we already have currency table, 
+I chanaged the name as NATIVE and FOREIGN of currencies name
+so, let's use currency's code with colors
+
+fourth, on orderslist, the price means total_price, not unit price, 
+you are showing qty * price, - this is not correct
+price is total price, so change name `paid with`  field with Total price
+
+------------------------------------------------------
+on overview tab, why do you still show mock data, please show the list on orders tab
+for e-shop orders, we have the selecting eshop_pk part is right-top corner of the table, let's move it to next table title with some spaces
+also we need to show all first and then show eshop pks one by one
+of course, one of them is selected by default
+
+on orders tab, we need to add more tables for other projects
+so, we need to make each table could be collapse and can see other projects orders list
+or we might have projects sub tabs under orders tab
+so, if I click eshop project, it shows eshop-orders
+and if I click eproduct project, it shows eshop-orders
+------------------------------------------------------
+let's show only the name, without code
+and let's show only eshop and smartphone_offline, and appstore
+
+also, on crystal-web page, we already implemented appstore purchase list on this page - account/appstore/purchases 
+please check how it works, don't check code right now for appstore orders list
+------------------------------------------------------
