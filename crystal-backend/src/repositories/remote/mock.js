@@ -1312,6 +1312,53 @@ function phoneDevices(params) {
   return { items: items };
 }
 
+const PHONE_AGENTS = ['Central Service Agent', 'North Repair Point', 'East Phone Centre', 'West Service Agent', 'South Phone Repair'];
+const PHONE_SERVICE_REASONS = [
+  { reason_name: 'Screen replacement', reason_type_name: 'Broken screen', point: 300 },
+  { reason_name: 'Battery replacement', reason_type_name: 'Battery drains fast', point: 150 },
+  { reason_name: 'Software reinstall', reason_type_name: 'Does not start', point: 50 },
+  { reason_name: 'Charging port repair', reason_type_name: 'Does not charge', point: 120 },
+  { reason_name: 'Camera module', reason_type_name: 'Camera out of focus', point: 200 },
+  { reason_name: 'Inspection', reason_type_name: 'Warranty check', point: 0 }
+];
+
+/**
+ * The service history of some master ids' devices: one to three visits per
+ * id, the same ones every time. Each visit names the customer as the service
+ * point wrote them down, the device (its model and both IMEIs), the agent
+ * and when the job was opened and last updated, what was done and what it
+ * earned in points, and why the customer came - the server's field names,
+ * `modal_name` included.
+ */
+function phoneServices(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'services', 1, 3);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'service:' + i;
+      const reason = choose(id, slot + ':reason', PHONE_SERVICE_REASONS);
+      const opened = pick(id, slot + ':at', 15, 700);
+      items.push({
+        master_id: id,
+        customer_name: choose(id, 'name', ['Customer A', 'Customer B', 'Customer C', 'Customer D', 'Customer E']),
+        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
+        address: choose(id, slot + ':address', ['No. 12, Main Street', 'No. 48, Station Road', 'Block 3, River District', 'No. 7, Market Lane']),
+        imei_1: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei1b', 100000, 999999)),
+        imei_2: '35' + String(pick(id, slot + ':imei2', 1000000, 9999999)) + String(pick(id, slot + ':imei2b', 100000, 999999)),
+        modal_name: choose(id, slot + ':model', PHONE_MODELS),
+        agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
+        created_at: stamp(opened, 9),
+        updated_at: stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16),
+        reason_name: reason.reason_name,
+        point: reason.point,
+        reason_type_name: reason.reason_type_name
+      });
+    }
+  });
+  return { items: items };
+}
+
 /* ------------------------------------------------------------------ */
 /*  the switchboard                                                    */
 /* ------------------------------------------------------------------ */
@@ -1343,7 +1390,8 @@ const ROUTES = {
 
   /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
   '/getUserByPhone': phoneUserByPhone,
-  '/phone_devices': phoneDevices
+  '/phone_devices': phoneDevices,
+  '/phone_services': phoneServices
 };
 
 /**

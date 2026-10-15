@@ -24,6 +24,7 @@ import TierDialog from './MembershipTier';
 import EshopOrdersSection from './EshopOrders';
 import AppstorePurchasesSection from './AppstorePurchases';
 import SmartphoneDevicesCard from './SmartphoneDevices';
+import SmartphoneServicesCard from './SmartphoneServices';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -374,6 +375,8 @@ export function ServiceTab({ record, view, act }) {
   const cases = useRowSearch(record.cases || [], caseColumns, true);
   return (
     <Stack spacing={4}>
+      {/* The service history of the customer's devices in SMARTPHONE_OFFLINE, asked of that system by their linked Account IDs. */}
+      <SmartphoneServicesCard partyPk={record.party && record.party.party_pk} version={act.version} />
       <Grid templateColumns={{ base: '1fr', xl: '2fr 3fr' }} gridGap={4}>
         <ServiceSummaryCard view={view} />
         <Card360 icon={Md.MdForum} title={translate('crm.customer360Tabs.interactions')} padded={false}

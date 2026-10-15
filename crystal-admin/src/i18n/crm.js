@@ -537,6 +537,15 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: 'Smartphone service history',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their service history.',
+    noServices: 'No service history',
+    opened: 'Opened {date}',
+    updated: 'Updated {date}',
+    points: '{n} points'
+  },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
     title: 'Smartphones',
@@ -1449,6 +1458,15 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: '手机维修服务记录',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其服务记录。',
+    noServices: '暂无服务记录',
+    opened: '受理 {date}',
+    updated: '更新 {date}',
+    points: '{n} 积分'
+  },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
     title: '智能手机',
@@ -2361,6 +2379,15 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: 'История обслуживания смартфонов',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть историю обслуживания.',
+    noServices: 'Нет истории обслуживания',
+    opened: 'Открыто {date}',
+    updated: 'Обновлено {date}',
+    points: '{n} баллов'
+  },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
     title: 'Смартфоны',
@@ -2764,6 +2791,13 @@ const ru = {
 const words = {
   en: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneServices: {
+      customerInfo: 'Customer Info',
+      deviceType: 'Device Type',
+      agency: 'Agency',
+      serviceType: 'Service Type',
+      serviceReason: 'Service Reason'
+    },
     smartphoneDevices: {
       color: 'Color',
       imei: 'IMEI'
@@ -3581,6 +3615,13 @@ const words = {
   },
   zh: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneServices: {
+      customerInfo: '客户信息',
+      deviceType: '设备型号',
+      agency: '服务网点',
+      serviceType: '服务类型',
+      serviceReason: '服务原因'
+    },
     smartphoneDevices: {
       color: '颜色',
       imei: 'IMEI'
@@ -4398,6 +4439,13 @@ const words = {
   },
   ru: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneServices: {
+      customerInfo: 'Данные клиента',
+      deviceType: 'Устройство',
+      agency: 'Сервисный центр',
+      serviceType: 'Вид обслуживания',
+      serviceReason: 'Причина обращения'
+    },
     smartphoneDevices: {
       color: 'Цвет',
       imei: 'IMEI'

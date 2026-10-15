@@ -237,4 +237,23 @@ async function devicesOfParty(partyPk) {
   }
 }
 
-module.exports = { linkParty, startRun, getRun, status, devicesOfParty, MAX_RUN };
+/**
+ * The service history of the customer's devices in SMARTPHONE_OFFLINE - asked,
+ * like the devices, by every linked SMARTPHONE_OFFLINE Account ID at once.
+ * The Service tab shows it; the CRM keeps none of it.
+ */
+async function servicesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.services(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, MAX_RUN };

@@ -10,10 +10,11 @@ const config = require('../../config');
  * SMARTPHONE_OFFLINE accounts, and an account's Account ID is the user's
  * MASTER ID - the key the server is asked by.
  *
- * Two questions are asked of it:
+ * Three questions are asked of it:
  *
- *   USERS   which user has this phone number?          linking by phone
- *   DEVICES which devices are registered to these ids?  the Products tab
+ *   USERS    which user has this phone number?            linking by phone
+ *   DEVICES  which devices are registered to these ids?    the Products tab
+ *   SERVICES what service have these ids' devices had?    the Service tab
  *
  * With REMOTE_MOCK on, mock.js answers both in the server's wire format.
  */
@@ -28,6 +29,8 @@ const PHONE = 'phone';
  */
 const USERS_PATH = '/getUserByPhone';
 const DEVICES_PATH = '/phone_devices';
+/* Given as "/xxxx" like the devices path; named apart so the mock can route both. */
+const SERVICES_PATH = '/phone_services';
 
 /** 'live', 'mock', or 'off' (no URL and no mock): for the screens and /health. */
 function mode() {
@@ -94,10 +97,52 @@ async function devices(masterIds) {
   };
 }
 
+/**
+ * THE SERVICE HISTORY OF SOME USERS' DEVICES, by their master ids - one call,
+ * the ids as one comma-separated string, like the devices:
+ *
+ *   master_ids=s2342523, sd652342, ej234234
+ *   -> { items: [{ master_id, customer_name, phone_number, address, imei_1,
+ *        imei_2, modal_name, agent_name, created_at, updated_at, reason_name,
+ *        point, reason_type_name }] }
+ *
+ * `modal_name` is the server's spelling of the device model and is
+ * `model_name` from here on. Times are the server's own text, passed through.
+ */
+async function services(masterIds) {
+  const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
+  if (!ids.length) return { items: [] };
+
+  const data = await remote.post(PHONE, SERVICES_PATH, { master_ids: ids.join(', ') });
+  const rows = Array.isArray(data && data.items) ? data.items : [];
+
+  return {
+    items: rows.map(function (row) {
+      return {
+        master_id: row.master_id == null ? null : String(row.master_id),
+        customer_name: row.customer_name || null,
+        phone_number: row.phone_number || null,
+        address: row.address || null,
+        model_name: row.modal_name || row.model_name || null,
+        imei_1: row.imei_1 || null,
+        imei_2: row.imei_2 || null,
+        agent_name: row.agent_name || null,
+        created_at: row.created_at || null,
+        updated_at: row.updated_at || null,
+        reason_name: row.reason_name || null,
+        point: row.point == null || row.point === '' ? null : Number(row.point),
+        reason_type_name: row.reason_type_name || null
+      };
+    })
+  };
+}
+
 module.exports = {
   USERS_PATH: USERS_PATH,
   DEVICES_PATH: DEVICES_PATH,
+  SERVICES_PATH: SERVICES_PATH,
   mode: mode,
   findByPhone: findByPhone,
-  devices: devices
+  devices: devices,
+  services: services
 };
