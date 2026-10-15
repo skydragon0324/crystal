@@ -155,10 +155,10 @@ export function HeaderStat({ icon, iconColor, label, value, sub, action }) {
         <Text fontSize="xs" color={surface.muted} noOfLines={1}>{label}</Text>
         {action || null}
       </HStack>
-      <Text fontSize="xl" fontWeight="800" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Text as="div" fontSize="xl" fontWeight="800" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value === null || value === undefined || value === '' ? '-' : value}
       </Text>
-      {sub ? <Text fontSize="xs" color={surface.muted} noOfLines={1}>{sub}</Text> : null}
+      {sub ? <Text as="div" fontSize="xs" color={surface.muted} noOfLines={1}>{sub}</Text> : null}
     </Box>
   );
 }

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import {
   Box, Button, Collapse, Flex, Grid, HStack, Icon, Input, InputGroup, InputLeftElement, Link, Select, SimpleGrid, Stack, Table, Tbody, Td,
   Text, Th, Thead, Tr, Wrap, WrapItem
@@ -9,7 +8,7 @@ import * as Md from 'react-icons/md';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, money, number } from '../../utils/format';
-import { homeAddress, word } from './shared';
+import { homeAddress, word, useOpenCustomer } from './shared';
 import { ProjectTags } from './ui';
 import { usePeek } from './peek';
 import { Card360, Empty360, Facts360, Initials, MiniBars, Pill, RfmHexagon, Sparkline, Tile, TrendBadge } from './ui360';
@@ -22,8 +21,6 @@ import { Card360, Empty360, Facts360, Initials, MiniBars, Pill, RfmHexagon, Spar
  * /crm/parties/:id/360 - and never fetch on their own, so the overview opens
  * with one request whatever the number of cards.
  */
-
-const CUSTOMERS = '/admin/crm/customers';
 
 /** A compact table for a card: no paging, no settings, a row may open something. */
 /*
@@ -159,7 +156,7 @@ export function AccountsCard({ view, onViewAll, title, icon, action }) {
         columns={[
           { key: 'project_name', label: 'Project or service',
             render: (row) => <HStack spacing={2}><ProjectTags codes={[row.project_code]} /><Text as="span" fontSize="sm" noOfLines={1}>{translate(row.project_name || '')}</Text></HStack> },
-          { key: 'external_account_id', label: 'Account ID', render: (row) => row.external_login || row.external_account_id || '-' },
+          { key: 'external_login', label: 'Account ID', render: (row) => row.external_login || '-' },
           { key: 'account_status', label: 'Status', render: (row) => <Pill code={row.account_status} /> },
           { key: 'last_activity_at', label: 'Last activity', render: (row) => date(row.last_activity_at) }
         ]}
@@ -424,13 +421,13 @@ export function MarketingCard({ view, onViewAll }) {
 
 export function RelatedPartiesCard({ view, onViewAll }) {
   const translate = useT();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   return (
     <Card360 icon={Md.MdPeopleOutline} title={translate('crm.customer360Cards.relatedParties')} onViewAll={onViewAll}>
       <MiniTable
         rows={(view.relationships || []).filter((row) => row.status === 'ACTIVE').slice(0, 5)}
         rowKey={(row) => String(row.party_relationship_id) + row.side}
-        onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
+        onRowClick={(row) => openCustomer(row.other_party_pk)}
         empty="crm.customer360.noRelatedParties"
         columns={[
           { key: 'other_name', label: 'Name',
@@ -481,7 +478,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
   const hierarchy = view.hierarchy || {};
   const root = (hierarchy.nodes || []).filter((node) => node.depth === 0)[0];
   const groupName = root && String(root.party_pk) !== String(view.party_pk) ? root : null;
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const [more, setMore] = useState(false);
   return (
     <Card360 icon={Md.MdBusiness} title={translate('crm.customer360Cards.organizationInformation')}
@@ -498,7 +495,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
         { label: 'Main phone', value: reach.phone ? reach.phone.contact_value : null },
         { label: 'Representative', value: representative ? representative.display_name : null },
         { label: 'Corporate group', value: groupName
-          ? <Link color="brand.500" onClick={() => history.push(CUSTOMERS + '/' + groupName.party_pk)}>{groupName.display_name}</Link> : null },
+          ? <Link color="brand.500" onClick={() => openCustomer(groupName.party_pk)}>{groupName.display_name}</Link> : null },
         { label: 'Business description', value: profile.description ? (
           <Box>
             <Collapse startingHeight="2.6rem" in={more}><Text fontSize="sm">{profile.description}</Text></Collapse>
@@ -569,7 +566,7 @@ export function RelationshipOwnershipCard({ view, onEdit }) {
 export function KeyContactsCard({ view, onViewAll, onLink }) {
   const translate = useT();
   const surface = useSurface();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const contacts = view.key_contacts || [];
   return (
     <Card360 icon={Md.MdPersonOutline} title={translate('crm.customer360Cards.keyContacts')} onViewAll={onViewAll}
@@ -580,7 +577,7 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
             <Grid key={contact.org_person_relationship_id} templateColumns="auto minmax(0, 1fr) minmax(0, 1.2fr)" gridGap={3} alignItems="flex-start" fontSize="sm">
               <Initials name={contact.display_name} />
               <Box minW={0}>
-                <Link fontWeight="700" textDecoration="underline" onClick={() => history.push(CUSTOMERS + '/' + contact.person_party_pk)}>{contact.display_name}</Link>
+                <Link fontWeight="700" textDecoration="underline" onClick={() => openCustomer(contact.person_party_pk)}>{contact.display_name}</Link>
                 <Text fontSize="xs" color={surface.muted} noOfLines={1}>{contact.job_title_name || contact.department_name || ''}</Text>
                 <Wrap spacing={1} mt={1}>
                   {contact.is_primary ? <WrapItem><Pill code="PRIMARY" /></WrapItem> : null}
@@ -602,7 +599,7 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
 export function HierarchyCard({ view, onViewAll }) {
   const translate = useT();
   const surface = useSurface();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const hierarchy = view.hierarchy || {};
   const nodes = hierarchy.nodes || [];
   const affiliates = hierarchy.affiliates || [];
@@ -614,7 +611,7 @@ export function HierarchyCard({ view, onViewAll }) {
       <Flex align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" mb={1.5}
         borderColor={String(node.party_pk) === String(view.party_pk) ? 'brand.300' : surface.border}
         bg={String(node.party_pk) === String(view.party_pk) ? 'brand.50' : undefined}
-        cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + node.party_pk)}>
+        cursor="pointer" onClick={() => openCustomer(node.party_pk)}>
         <Icon as={Md.MdBusiness} color="brand.500" mr={2} />
         <Text fontSize="sm" fontWeight="600" flex="1" noOfLines={1}>{node.display_name}</Text>
         <Pill tone={String(node.party_pk) === String(view.party_pk) ? 'green' : 'gray'}>
@@ -632,7 +629,7 @@ export function HierarchyCard({ view, onViewAll }) {
           {branch(root, 'crm.customer360Cards.groupCompany')}
           {affiliates.map((affiliate) => (
             <Flex key={'affiliate:' + affiliate.party_pk} align="center" px={2} py={1.5} borderRadius="md" borderWidth="1px" borderColor={surface.border} mb={1.5}
-              ml={5} cursor="pointer" onClick={() => history.push(CUSTOMERS + '/' + affiliate.party_pk)}>
+              ml={5} cursor="pointer" onClick={() => openCustomer(affiliate.party_pk)}>
               <Icon as={Md.MdBusiness} color="gray.500" mr={2} />
               <Text fontSize="sm" flex="1" noOfLines={1}>{affiliate.display_name}</Text>
               <Pill tone="gray">{translate('crm.customer360Cards.affiliate')}</Pill>

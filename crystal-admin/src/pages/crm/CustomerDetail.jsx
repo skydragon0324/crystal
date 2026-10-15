@@ -16,7 +16,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, money, number } from '../../utils/format';
-import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress } from './shared';
+import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress, customersPagePath } from './shared';
 import CrmSearch from './CrmSearch';
 import { PeekProvider } from './peek';
 import {
@@ -170,7 +170,9 @@ export default function CustomerDetail() {
 
   const forms = formsFor({ translate, record, party, isPerson, meta, dialog, run, sites, history, view: facts });
   const current = dialog ? forms[dialog.kind] : null;
-  const act = { editable: editable, open: open, run: run, ask: ask, refresh: load, version: version, timeline: timelineOf(record, translate) };
+  const act = { editable: editable, canWrite: canWrite, open: open, run: run, ask: ask, refresh: load, version: version, timeline: timelineOf(record, translate) };
+  /* The merge that made this customer a merged one, if it can still be separated. */
+  const ownMerge = merged ? (record.merges || []).filter((row) => String(row.merged_party_pk) === String(party.party_pk) && !row.unmerged_at && row.can_unmerge)[0] : null;
   const unusedTags = (meta.tags || []).filter((tag) => !(facts.tags || []).some((own) => own.tag_id === tag.tag_id));
 
   const statusPill = (
@@ -316,7 +318,7 @@ export default function CustomerDetail() {
       {/* ---------------------------------------------------------- breadcrumb, search, title, actions */}
       <Flex align="center" justify="space-between" wrap="wrap" mb={3}>
         <Breadcrumb fontSize="sm" color={surface.muted} separator={<Icon as={Md.MdChevronRight} />} mb={{ base: 2, md: 0 }}>
-          <BreadcrumbItem><BreadcrumbLink onClick={() => history.push(PAGE)}>{translate('crm.customer360.customers')}</BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbItem><BreadcrumbLink onClick={() => history.push(customersPagePath())}>{translate('crm.customer360.customers')}</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbItem isCurrentPage={isPerson}><BreadcrumbLink onClick={() => goTab('overview')}>{translate('crm.customer360.customer360')}</BreadcrumbLink></BreadcrumbItem>
           {isPerson ? null : <BreadcrumbItem isCurrentPage><Text as="span">{party.display_name}</Text></BreadcrumbItem>}
         </Breadcrumb>
@@ -325,7 +327,7 @@ export default function CustomerDetail() {
 
       <Flex align="center" justify="space-between" wrap="wrap" mb={4}>
         <HStack spacing={3} mb={{ base: 2, md: 0 }}>
-          <IconButton size="sm" variant="outline" icon={<Icon as={Md.MdArrowBack} />} aria-label={translate('crm.customer360.allCustomers')} onClick={() => history.push(PAGE)} />
+          <IconButton size="sm" variant="outline" icon={<Icon as={Md.MdArrowBack} />} aria-label={translate('crm.customer360.allCustomers')} onClick={() => history.push(customersPagePath())} />
           <Text fontSize="2xl" fontWeight="800">{translate('crm.customer360.customer360')}</Text>
         </HStack>
         {editable ? (
@@ -410,6 +412,9 @@ export default function CustomerDetail() {
           <Box mt={3} p={3} borderRadius="md" bg={mergedBg} fontSize="sm">
             {translate('crm.customer360.mergedInto', { number: partyIdLabel(party.merged_into_party_pk) })}{' '}
             <Button size="xs" variant="link" onClick={() => history.push(PAGE + '/' + party.merged_into_party_pk)}>{translate('crm.customer360.openIt')}</Button>
+            {canWrite && ownMerge ? (
+              <Button size="xs" variant="link" colorScheme="red" ml={3} onClick={() => open('unmerge', { merge_id: ownMerge.merge_id })}>{translate('crm.customer360.separate')}</Button>
+            ) : null}
           </Box>
         ) : null}
       </Box>
@@ -646,10 +651,24 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       title: translate('crm.customer360.customerLinkAccount'),
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
-        { name: 'external_account_id', label: 'Account PK in that project', required: true },
-        { name: 'external_login', label: 'Account ID' }
+        { name: 'external_login', label: 'Account ID', required: true },
+        { name: 'external_account_id', label: 'Account PK in that project' }
       ],
       submit: (values) => run(() => crm.parties.linkAccount(party.party_pk, values), 'Created')
+    },
+    /* The project stays: an account in another project is a new link, not an edit. */
+    editAccount: {
+      title: translate('crm.customer360.editAccount'),
+      fields: [
+        { name: 'external_login', label: 'Account ID', required: true },
+        { name: 'external_account_id', label: 'Account PK in that project' },
+        { name: 'external_account_type', label: 'Type' },
+        { name: 'is_primary', label: 'Primary in this project', type: 'checkbox' }
+      ],
+      submit: (values) => run(() => crm.parties.updateAccount(party.party_pk, dialog.initial.project_account_id, {
+        external_login: values.external_login, external_account_id: values.external_account_id,
+        external_account_type: values.external_account_type, is_primary: !!values.is_primary
+      }))
     },
     consent: {
       title: translate('crm.customer360.changeConsent'),
@@ -673,6 +692,15 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
           help: 'The duplicate keeps its number and points here; its products, cases and accounts move to this customer.' }
       ],
       submit: (values) => run(() => crm.parties.merge(party.party_pk, values.merged_party_pk, values.merge_reason), 'crm.common.merged')
+    },
+    /* Opened from the merges card or the merged customer's banner, with the merge to separate. */
+    unmerge: {
+      title: translate('crm.customer360.separateTitle'),
+      fields: [
+        { name: 'unmerge_reason', label: 'Reason', type: 'textarea', required: true, colSpan: 'full',
+          help: translate('crm.customer360.separateHelp') }
+      ],
+      submit: (values) => run(() => crm.parties.unmerge(party.party_pk, dialog.initial.merge_id, values.unmerge_reason), 'crm.common.unmerged')
     },
     orgType: {
       title: translate('crm.customer360.addOrganizationType'),

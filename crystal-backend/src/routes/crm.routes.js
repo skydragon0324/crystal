@@ -143,6 +143,7 @@ router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.part
 // Not under /registrations: that path belongs to product registrations below.
 const intake = require('../services/crm/registrationIntake.service');
 const response = require('../utils/response');
+const smartphoneOffline = require('../services/crm/smartphoneOffline.service');
 // Each candidate's reason is stored as an address or evidence and sent in the reader's language.
 router.get('/identity-intakes', read(PAGES.CUSTOMERS), async (req, res) => {
  const result = await intake.list(req.query);
@@ -171,9 +172,23 @@ router.post('/parties/:id/contacts', write(PAGES.CUSTOMERS), crmController.parti
 router.put('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.updateContact);
 router.delete('/parties/:id/contacts/:contactId', write(PAGES.CUSTOMERS), crmController.parties.deleteContact);
 router.post('/parties/:id/accounts', write(PAGES.CUSTOMERS), crmController.parties.linkAccount);
+router.put('/parties/:id/accounts/:accountId', write(PAGES.CUSTOMERS), crmController.parties.updateAccount);
 router.post('/parties/:id/accounts/:accountId/unlink', write(PAGES.CUSTOMERS), crmController.parties.unlinkAccount);
+
+/*
+ * The SMARTPHONE_OFFLINE system: customers linked to its users by
+ * phone number - one customer from the Accounts tab, a range of customer
+ * numbers from the Customers page (a background run the page polls).
+ */
+router.get('/smartphone-offline', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await smartphoneOffline.status()));
+router.post('/parties/:id/smartphone-offline/link', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.linkParty(req.params.id, req.actor)));
+router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.startRun(req.body || {}, req.actor)));
+router.get('/smartphone-offline/runs/:runId', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, smartphoneOffline.getRun(req.params.runId)));
 router.put('/parties/:id/consents', write(PAGES.CUSTOMERS), crmController.parties.setConsent);
 router.post('/parties/:id/merge', write(PAGES.CUSTOMERS), crmController.parties.merge);
+router.post('/parties/:id/merges/:mergeId/unmerge', write(PAGES.CUSTOMERS), crmController.parties.unmerge);
 router.post('/parties/:id/org-types', write(PAGES.CUSTOMERS), crmController.organizations.assignType);
 router.post('/parties/:id/org-types/:assignmentId/end', write(PAGES.CUSTOMERS), crmController.organizations.endType);
 router.put('/parties/:id/industries', write(PAGES.CUSTOMERS), crmController.organizations.setIndustry);

@@ -19,6 +19,9 @@ const { ok, HttpError } = require('../utils/response');
  *   50-69, or conflicts   staged for an administrator               QUEUED
  *   account already known its customer                              EXISTING
  *
+ * An account is known by its Account ID (external_login), the id the customer
+ * signs in with; its PK in the project (external_account_id) is optional.
+ *
  * QUEUED callers learn the result from the resolution feed once an
  * administrator decides, and acknowledge it after saving party_pk.
  */
@@ -29,14 +32,15 @@ const PERSON_FIELDS = ['full_name', 'gender_code', 'birth_date', 'mobile', 'emai
 
 function accountId(value) {
   const text = String(value == null ? '' : value).trim();
-  if (!text || text.length > 250) throw new HttpError(400, 'crm.integration.externalAccountIdIsRequired', null, { max: 250 });
+  if (!text || text.length > 250) throw new HttpError(400, 'crm.integration.externalLoginIsRequired', null, { max: 250 });
   return text;
 }
 
 router.post('/registrations', async function (req, res) {
   const body = req.body || {};
-  const externalAccountId = accountId(body.external_account_id);
-  if (body.external_login != null && String(body.external_login).length > 100) throw new HttpError(400, 'crm.integration.externalLoginIsTooLong', null, { max: 100 });
+  const externalLogin = accountId(body.external_login);
+  const externalAccountId = body.external_account_id == null || String(body.external_account_id).trim() === '' ? undefined : String(body.external_account_id).trim();
+  if (externalAccountId && externalAccountId.length > 250) throw new HttpError(400, 'crm.integration.externalAccountIdIsTooLong', null, { max: 250 });
   const party = {};
   PERSON_FIELDS.forEach(function (field) { if (body.party && body.party[field] !== undefined && body.party[field] !== '') party[field] = body.party[field]; });
   if (!party.full_name) throw new HttpError(400, 'crm.integration.fullNameIsRequired');
@@ -45,8 +49,8 @@ router.post('/registrations', async function (req, res) {
 
   const result = await transaction(trx => identity.resolveAccount(trx, {
     project_id: req.integration.project_id,
+    external_login: externalLogin,
     external_account_id: externalAccountId,
-    external_login: body.external_login == null ? undefined : String(body.external_login),
     external_account_type: body.external_account_type == null ? undefined : String(body.external_account_type).slice(0, 50),
     party: Object.assign({ party_type: 'PERSON' }, party),
     contacts: [
@@ -62,13 +66,13 @@ router.post('/registrations', async function (req, res) {
 });
 
 /** Which customer an account of this project belongs to, or where its registration stands. */
-router.get('/accounts/:externalAccountId', async function (req, res) {
-  const externalAccountId = accountId(req.params.externalAccountId);
+router.get('/accounts/:externalLogin', async function (req, res) {
+  const externalLogin = accountId(req.params.externalLogin);
   const linked = await db('crm_project_account')
-    .where({ project_id: req.integration.project_id, external_account_id: externalAccountId }).whereNull('unlinked_at').first('party_pk');
+    .where({ project_id: req.integration.project_id, external_login: externalLogin }).whereNull('unlinked_at').first('party_pk');
   if (linked) return ok(res, { status: 'LINKED', party_pk: String(linked.party_pk) });
   const staged = await db('crm_registration_intake')
-    .where({ source_project_id: req.integration.project_id, source_record_id: externalAccountId }).orderBy('intake_id', 'desc').first('intake_id', 'status', 'party_pk');
+    .where({ source_project_id: req.integration.project_id, source_record_id: externalLogin }).orderBy('intake_id', 'desc').first('intake_id', 'status', 'party_pk');
   if (!staged) throw new HttpError(404, 'common.notFound');
   return ok(res, { status: staged.status, intake_id: String(staged.intake_id), party_pk: staged.party_pk == null ? null : String(staged.party_pk) });
 });

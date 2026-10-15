@@ -15,7 +15,7 @@ const conventions = [
   ['Who did it', '`*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives.'],
   ['History', '`valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it.'],
   ['Source ids', '`source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates.'],
-  ['Account ids', 'In a project account, `external_account_id` is the project\'s internal key (shown as "Account PK" in the console) and `external_login` is the id the customer signs in with (shown as "Account ID").'],
+  ['Account ids', 'In a project account, `external_login` is the id the customer signs in with (shown as "Account ID") and is the account\'s key: required, one active link per project + Account ID. `external_account_id` is the project\'s internal key (shown as "Account PK" in the console) and is optional.'],
   ['Money and points', 'Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). Points are `numeric(14,3)`.']
 ];
 
@@ -165,7 +165,7 @@ const tables = {
       source_system_code: 'Which technical system feeds this project (VENDOR_ORACLE, ESHOP_API, ...). Informational only.',
       legal_entity_code: 'Legal entity that operates the project, for reporting.',
       status: 'INACTIVE projects stay in history but are not offered for new data.',
-      identity_role: 'ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_pk is the same person). At most one project per role; set in Settings > Projects.'
+      identity_role: 'ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_id is the same person). At most one project per role; set in Settings > Projects.'
     }
   },
   crm_project_api_key: {
@@ -393,8 +393,8 @@ const tables = {
       project_account_id: 'Account link key.',
       party_pk: 'Customer the account belongs to.',
       project_id: 'Project that issued the account.',
-      external_account_id: 'The account\'s internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Only one active link per project + key.',
-      external_login: 'The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console.',
+      external_account_id: 'The account\'s internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional.',
+      external_login: 'The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account\'s key: required, and only one active link per project + Account ID.',
       external_account_type: 'Kind of account in the project (MEMBER, PID, ESHOP_CUSTOMER, ...).',
       crystal_user_id: 'For Crystal accounts, the Crystal user row (→ users).',
       account_status: 'Status reported by the project.',
@@ -411,7 +411,7 @@ const tables = {
     fields: {
       intake_id: 'Intake key; departments receive it for QUEUED registrations.',
       source_project_id: 'Project the registration came from.',
-      source_record_id: 'The record\'s id in the source (account id, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user PK). Unique with project and category, so retries reuse the intake.',
+      source_record_id: 'The record\'s id in the source (the account\'s Account ID `external_login`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake.',
       category: 'PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment.',
       status: 'PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment).',
       payload: 'What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet\'s e-shop and user identifiers, staged for review once the person is resolved).',
@@ -427,7 +427,7 @@ const tables = {
     fields: {
       resolution_id: 'Result key; the department acknowledges by this id.',
       intake_id: 'The intake that was resolved (one result per intake).',
-      source_record_id: 'The department\'s own record id, so it can update the right record.',
+      source_record_id: 'The department\'s own record id (the Account ID, `external_login`, it registered), so it can update the right record.',
       party_pk: 'Customer key to store. Updated if the customer is later merged.',
       outcome: 'CREATED, MERGED or ASSIGNED.',
       acknowledged_at: 'When the department confirmed it saved the key; acknowledged results leave the feed.'

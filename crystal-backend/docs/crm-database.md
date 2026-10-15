@@ -16,7 +16,7 @@ Every CRM table and view, field by field. Business rules and screens are explain
 | **Who did it** | `*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives. |
 | **History** | `valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it. |
 | **Source ids** | `source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates. |
-| **Account ids** | In a project account, `external_account_id` is the project's internal key (shown as "Account PK" in the console) and `external_login` is the id the customer signs in with (shown as "Account ID"). |
+| **Account ids** | In a project account, `external_login` is the id the customer signs in with (shown as "Account ID") and is the account's key: required, one active link per project + Account ID. `external_account_id` is the project's internal key (shown as "Account PK" in the console) and is optional. |
 | **Money and points** | Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). Points are `numeric(14,3)`. |
 
 In the field tables, **Req.** means NOT NULL, **(PK)** marks the primary key, and **Links to / allowed values**
@@ -74,7 +74,7 @@ Registry of Dream projects. Each project is one operational source system and th
 | `status` | varchar(20) | yes | `'ACTIVE'` | `ACTIVE`, `INACTIVE` | INACTIVE projects stay in history but are not offered for new data. |
 | `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
 | `updated_at` | timestamptz | yes | `now()` |  | When the row was last changed. |
-| `identity_role` | varchar(30) |  |  | `ESHOP`, `USER_MANAGEMENT` | ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_pk is the same person). At most one project per role; set in Settings > Projects. |
+| `identity_role` | varchar(30) |  |  | `ESHOP`, `USER_MANAGEMENT` | ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_id is the same person). At most one project per role; set in Settings > Projects. |
 
 ### crm_project_api_key
 
@@ -107,7 +107,7 @@ Levels calculated by a project. Rank is meaningful only inside the project.
 | **Used by** | Settings > Project tiers; Memberships; vendor import (e-shop card levels). |
 | **Primary key** | `project_tier_id` |
 | **Unique** | (project_id, tier_code, tier_kind)<br>(project_tier_id, project_id)<br>(project_id, tier_kind, tier_code) |
-| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: marketing.service, memberships.service, parties.service |
+| **Code** | `src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, marketing.service, memberships.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -473,7 +473,7 @@ Contracts with a customer (mostly organizations): reseller, service level, purch
 |---|---|
 | **Used by** | Customer 360 > Agreements. |
 | **Primary key** | `agreement_id` |
-| **Rules** | `CHECK (((end_date IS NULL) OR (end_date >= start_date)))`<br>`CHECK ((annual_value >= (0)))` |
+| **Rules** | `CHECK ((annual_value >= (0)))`<br>`CHECK (((end_date IS NULL) OR (end_date >= start_date)))` |
 | **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: accountTeam.service, customer360.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
@@ -697,7 +697,7 @@ Links a party to the account id a project issues. Main cross-project identity ma
 |---|---|
 | **Used by** | Customer 360 > Accounts; department API; Crystal and vendor imports; account assignment review (Customers > Account assignments). |
 | **Primary key** | `project_account_id` |
-| **Unique** | (project_id, external_account_id, (partial: (unlinked_at IS NULL))) |
+| **Unique** | (project_id, external_login, (partial: (unlinked_at IS NULL))) |
 | **Rules** | `CHECK (((link_confidence >= (0)) AND (link_confidence <= (1))))`<br>`CHECK (((unlinked_at IS NULL) OR (unlinked_at >= linked_at)))` |
 | **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service |
 
@@ -706,8 +706,8 @@ Links a party to the account id a project issues. Main cross-project identity ma
 | `project_account_id` (PK) | bigint | yes | `identity` |  | Account link key. |
 | `party_pk` | bigint | yes |  | → `crm_party.party_pk` | Customer the account belongs to. |
 | `project_id` | int | yes |  | → `crm_project.project_id` | Project that issued the account. |
-| `external_account_id` | varchar(250) | yes |  |  | The account's internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Only one active link per project + key. |
-| `external_login` | varchar(100) |  |  |  | The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. |
+| `external_account_id` | varchar(250) |  |  |  | The account's internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional. |
+| `external_login` | varchar(250) | yes |  |  | The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account's key: required, and only one active link per project + Account ID. |
 | `external_account_type` | varchar(50) |  |  |  | Kind of account in the project (MEMBER, PID, ESHOP_CUSTOMER, ...). |
 | `crystal_user_id` | int |  |  | → `users.id (set null on delete)` | For Crystal accounts, the Crystal user row (→ users). |
 | `account_status` | varchar(30) |  |  |  | Status reported by the project. |
@@ -736,7 +736,7 @@ Every incoming registration (console, Excel row, department API, imports) and ev
 |---|---|:---:|---|---|---|
 | `intake_id` (PK) | bigint | yes | `identity` |  | Intake key; departments receive it for QUEUED registrations. |
 | `source_project_id` | bigint |  |  | → `crm_project.project_id` | Project the registration came from. |
-| `source_record_id` | text |  |  |  | The record's id in the source (account id, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user PK). Unique with project and category, so retries reuse the intake. |
+| `source_record_id` | text |  |  |  | The record's id in the source (the account's Account ID `external_login`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake. |
 | `category` | text | yes | `'PERSON'` | `PERSON`, `ESHOP` | PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment. |
 | `status` | text | yes | `'PENDING'` | `PENDING`, `MERGED`, `CREATED`, `ASSIGNED`, `REJECTED` | PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment). |
 | `payload` | jsonb | yes |  |  | What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet's e-shop and user identifiers, staged for review once the person is resolved). |
@@ -762,7 +762,7 @@ Results departments collect: for each resolved intake, the customer key to store
 | `resolution_id` (PK) | bigint | yes | `identity` |  | Result key; the department acknowledges by this id. |
 | `intake_id` | bigint | yes |  | → `crm_registration_intake.intake_id` | The intake that was resolved (one result per intake). |
 | `source_project_id` | bigint |  |  | → `crm_project.project_id` | Project the data came from (→ crm_project). |
-| `source_record_id` | text |  |  |  | The department's own record id, so it can update the right record. |
+| `source_record_id` | text |  |  |  | The department's own record id (the Account ID, `external_login`, it registered), so it can update the right record. |
 | `party_pk` | bigint | yes |  | → `crm_party.party_pk` | Customer key to store. Updated if the customer is later merged. |
 | `outcome` | text | yes |  |  | CREATED, MERGED or ASSIGNED. |
 | `acknowledged_at` | timestamptz |  |  |  | When the department confirmed it saved the key; acknowledged results leave the feed. |
@@ -1167,7 +1167,7 @@ Request and outcome of a product-specific action: ownership transfer, assigning 
 | **Primary key** | `product_transfer_id` |
 | **Unique** | (product_instance_id, transfer_kind, (partial: ((status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'ACCEPTED'::character varying])::text[])))) |
 | **Rules** | `CHECK (((from_party_pk IS NULL) OR (to_party_pk IS NULL) OR (from_party_pk <> to_party_pk)))`<br>`CHECK ((((status) <> 'COMPLETED') OR (completed_at IS NOT NULL)))`<br>`CHECK ((((transfer_kind) IN ('END_ASSIGNMENT', 'LEASE_END', 'RETURN_TO_OWNER', 'LICENCE_REBIND')) OR (to_party_pk IS NOT NULL)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, parties.service, products.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: parties.service, products.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1479,7 +1479,7 @@ History of tier changes.
 |---|---|
 | **Used by** | Customer 360 > tier changes. |
 | **Primary key** | `membership_tier_history_id` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: memberships.service, parties.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysis.service, memberships.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1523,7 +1523,7 @@ Balance of one party in one currency: the cached total of crm_point_event, like 
 | **Primary key** | `point_account_id` |
 | **Unique** | (party_pk, point_type_id) |
 | **Rules** | `CHECK ((balance = (lifetime_earned - lifetime_spent)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, events.service, ledger, marketing.service, parties.service, points.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysisRun.service, events.service, ledger, marketing.service, parties.service, points.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1547,7 +1547,7 @@ Append-only point ledger for every currency. Generalises crm_membership_point_ev
 | **Primary key** | `point_event_id` |
 | **Unique** | (project_id, source_table_code, external_event_id, (partial: (external_event_id IS NOT NULL))) |
 | **Rules** | `CHECK ((points_delta <> (0)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, events.service, ledger, parties.service, points.service, products.service, transactions.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysisRun.service, events.service, ledger, parties.service, points.service, products.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1632,7 +1632,7 @@ View: point accounts whose cached balance differs from the sum of their ledger. 
 | About | |
 |---|---|
 | **Used by** | Health checks. |
-| **Code** | `src/services/crm/`: analysis.service, points.service |
+| **Code** | `src/services/crm/`: points.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1900,7 +1900,7 @@ A service centre, sales agency, collection point, partner shop, office or event 
 | **Primary key** | `service_center_id` |
 | **Unique** | (service_center_code)<br>(crystal_agency_id)<br>(source_table_code, source_service_center_key, (partial: (source_service_center_key IS NOT NULL))) |
 | **Rules** | `CHECK (((closed_on IS NULL) OR (opened_on IS NULL) OR (closed_on >= opened_on)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, cases.service, customer360.service, events.service, parties.service, points.service, products.service, sites.service, transactions.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: cases.service, customer360.service, events.service, parties.service, points.service, products.service, sites.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -1980,7 +1980,7 @@ One activity or service actually performed at a site: a repair taken in, a devic
 | **Primary key** | `service_center_activity_id` |
 | **Unique** | (project_id, activity_type_id, external_activity_id, (partial: (external_activity_id IS NOT NULL))) |
 | **Rules** | `CHECK ((quantity >= (0)))`<br>`CHECK (((amount IS NULL) OR (currency_code IS NOT NULL)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, analysisRun.service, cases.service, events.service, marketing.service, parties.service, products.service, sites.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysisRun.service, cases.service, events.service, marketing.service, parties.service, products.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2042,7 +2042,7 @@ A planned on-site event: promotion day, launch, roadshow, training, inspection, 
 | **Used by** | Site activity > Events (on-site events). |
 | **Primary key** | `service_center_event_id` |
 | **Rules** | `CHECK ((capacity >= 0))`<br>`CHECK ((attendee_count >= 0))`<br>`CHECK ((planned_end_at >= planned_start_at))`<br>`CHECK (((actual_end_at IS NULL) OR (actual_start_at IS NULL) OR (actual_end_at >= actual_start_at)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysis.service, sites.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/services/crm/`: sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2116,7 +2116,7 @@ One activity event: a new-phone reservation, a lottery, a year-end prize service
 | **Primary key** | `event_id` |
 | **Unique** | (event_code)<br>(legacy_table_code, legacy_key, (partial: (legacy_key IS NOT NULL))) |
 | **Rules** | `CHECK ((ranking_top_n > 0))`<br>`CHECK ((cost_points > (0)))`<br>`CHECK ((number_start >= 0))`<br>`CHECK (((ends_at IS NULL) OR (starts_at IS NULL) OR (ends_at >= starts_at)))`<br>`CHECK (((number_end IS NULL) OR (number_start IS NULL) OR (number_end >= number_start)))`<br>`CHECK (((approved_by_manager_id IS NULL) OR (approved_by_manager_id IS DISTINCT FROM created_by_manager_id)))`<br>`CHECK ((((status) IN ('DRAFT', 'CANCELLED')) OR (approved_by_manager_id IS NOT NULL)))`<br>`CHECK ((((eligibility_basis) <> 'SEGMENT') OR (eligibility_segment_id IS NOT NULL)))`<br>`CHECK ((((eligibility_basis) <> 'POINT_RANKING') OR ((ranking_point_type_id IS NOT NULL) AND (ranking_cutoff_at IS NOT NULL))))`<br>`CHECK (((cost_point_type_id IS NULL) = (cost_points IS NULL)))` |
-| **Code** | `src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, events.service, marketing.service, sites.service |
+| **Code** | `src/controllers/`: crm.controller<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: events.service, marketing.service, sites.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2266,7 +2266,7 @@ A numbered entry taken by a target: a phone reservation or a lottery number. Hol
 | **Primary key** | `reservation_id` |
 | **Unique** | (reservation_code)<br>(event_id, reservation_no)<br>(event_id, holder_id_card_hash, (partial: ((holder_id_card_hash IS NOT NULL) AND ((status)::text <> ALL ((ARRAY['CANCELLED'::character varying, 'EXPIRED'::character varying, 'FAILED'::character varying])::text[]))))) |
 | **Rules** | `CHECK ((((status) <> 'CANCELLED') OR (cancelled_at IS NOT NULL)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, events.service, parties.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: events.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2359,7 +2359,7 @@ One reward given to one party and how it reaches them: delivery, pickup at a sit
 | **Primary key** | `award_id` |
 | **Unique** | (reservation_id, (partial: (reservation_id IS NOT NULL))) |
 | **Rules** | `CHECK ((((fulfilment_method) <> 'PICKUP') OR (pickup_service_center_id IS NOT NULL)))`<br>`CHECK ((((fulfilment_method) <> 'DELIVERY') OR ((status) IN ('PENDING', 'CANCELLED')) OR (delivery_address IS NOT NULL)))` |
-| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, events.service, parties.service |
+| **Code** | `src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: events.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2413,7 +2413,7 @@ Stable identity of a dynamic group.
 | **Used by** | Segments screen; events (eligibility); campaigns (audiences). |
 | **Primary key** | `segment_id` |
 | **Unique** | (COALESCE(project_id, 0) |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: analysis.service, customer360.service, events.service, marketing.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/services/crm/`: customer360.service, events.service, marketing.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -2619,7 +2619,7 @@ One delivery attempt for one frozen member, with the consent decision used.
 | **Primary key** | `recipient_id` |
 | **Unique** | (action_id, audience_member_id)<br>(recipient_id, campaign_id, party_pk) |
 | **Rules** | `CHECK ((((recipient_status) = 'SKIPPED') = (skip_reason_code IS NOT NULL)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: customer360.service, marketing.service, parties.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/services/crm/`: analysis.service, customer360.service, marketing.service, parties.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|

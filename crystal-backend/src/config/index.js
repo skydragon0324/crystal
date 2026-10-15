@@ -173,6 +173,21 @@ const config = {
     webServerUrl: str('WEB_SERVER_URL', '')
   },
 
+  /*
+   * THE SMARTPHONE_OFFLINE SYSTEM. One user there is one mobile
+   * number; the CRM looks its users up by phone and links them to customers
+   * (services/crm/smartphoneOffline.service.js). With no base URL and
+   * REMOTE_MOCK on, lookups are answered in-process; see
+   * repositories/remote/smartphoneOffline.js.
+   */
+  smartphoneOffline: {
+    baseUrl: str('SMARTPHONE_OFFLINE_BASE_URL', ''),
+    apiKey: str('SMARTPHONE_OFFLINE_API_KEY', ''),
+    /* The CRM project that stands for it, by its code in Settings > Projects. */
+    projectCode: str('SMARTPHONE_OFFLINE_PROJECT_CODE', 'SMARTPHONE_OFFLINE'),
+    timeout: int('SMARTPHONE_OFFLINE_TIMEOUT_MS', 10000)
+  },
+
   auth: {
     jwtSecret: str('JWT_SECRET', 'crystal-user-secret'),
     jwtExpiresIn: str('JWT_EXPIRES_IN', '2h'),

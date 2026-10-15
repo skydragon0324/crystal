@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const { HttpError } = require('../../utils/response');
 const locations = require('./locations');
 const { COUNTED_STATUSES } = require('./transactions.service');
+const config = require('../../config');
 
 /**
  * CUSTOMER 360 - the figures and cards at the top of the customer record.
@@ -176,19 +177,22 @@ async function accountsByProject(partyId) {
     const mine = accounts.filter(function (account) { return account.project_id === project.project_id; });
     const live = mine.filter(function (account) { return !account.unlinked_at; });
     const shown = live.length ? live : mine.slice(0, 1);
+    // The phone-keyed project (SMARTPHONE_OFFLINE) offers "link by phone" on its first line.
+    const byPhone = project.project_code === config.smartphoneOffline.projectCode;
     if (!shown.length) {
       rows.push({ project_id: project.project_id, project_code: project.project_code, project_name: project.project_name,
-        account_status: 'NOT_LINKED', last_activity_at: lastOf[project.project_id] || null });
+        account_status: 'NOT_LINKED', last_activity_at: lastOf[project.project_id] || null, links_by_phone: byPhone });
       return;
     }
-    shown.forEach(function (account) {
+    shown.forEach(function (account, index) {
       rows.push({
         project_id: project.project_id, project_code: project.project_code, project_name: project.project_name,
         project_account_id: account.project_account_id, external_account_id: account.external_account_id,
         external_login: account.external_login,
         account_status: account.unlinked_at ? 'UNLINKED' : (account.is_primary ? 'PRIMARY' : 'LINKED'),
         first_used_at: account.source_created_at || account.linked_at,
-        last_activity_at: lastOf[project.project_id] || null
+        last_activity_at: lastOf[project.project_id] || null,
+        links_by_phone: byPhone && index === 0
       });
     });
   });

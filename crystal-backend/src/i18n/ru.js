@@ -256,6 +256,10 @@ module.exports = {
       contactValueIsRequired: 'укажите контактные данные',
       itCannotEndBeforeItStarts: 'окончание не может быть раньше начала',
       merged: 'клиенты объединены',
+      unmerged: 'клиенты разделены',
+      alreadyUnmerged: 'эти клиенты уже разделены',
+      mergeCannotBeUndone: 'это объединение нельзя отменить: оно сделано до того, как объединения стали записываться для отмены, или уже не действует',
+      unmergeTheLaterMergeFirst: 'оставшийся клиент с тех пор объединён с другим; сначала отмените то объединение',
       notAConsentStatus: 'недопустимый статус согласия',
       nothingToMerge: 'нечего объединять',
       onlyForOrganizations: 'это возможно только для организации',
@@ -469,7 +473,8 @@ module.exports = {
       name: 'то же имя',
       occupation: 'та же должность',
       phone: 'тот же телефон',
-      same_user_pk: 'тот же User PK'
+      same_user_pk: 'тот же User PK',
+      same_user_id: 'тот же User ID'
     },
     registrations: {
       chooseAPerson: 'выберите человека',
@@ -479,10 +484,19 @@ module.exports = {
       resolveTheMatchingPendingFirst: 'сначала разберите совпадающую ожидающую регистрацию',
       unverifiedProjectAssignment: 'непроверенная привязка из проекта'
     },
+    smartphoneOffline: {
+      noProject: 'нет проекта с кодом {code}; добавьте его в Настройки > Проекты',
+      notConfigured: 'система SMARTPHONE_OFFLINE не настроена (SMARTPHONE_OFFLINE_BASE_URL)',
+      chooseARange: 'укажите первый и последний номер клиента',
+      rangeIsBackwards: 'первый номер клиента не может быть больше последнего',
+      noCustomersInRange: 'в этом диапазоне нет клиентов с номером телефона',
+      rangeTooLarge: 'в диапазоне {count} клиентов; за один раз можно связать не более {max}',
+      runInProgress: 'связывание уже выполняется'
+    },
     integration: {
       aValidApiKeyIsRequired: 'нужен действующий API-ключ отдела',
-      externalAccountIdIsRequired: 'нужен external_account_id (не более {max} символов)',
-      externalLoginIsTooLong: 'external_login длиннее {max} символов',
+      externalLoginIsRequired: 'нужен external_login — ID аккаунта (не более {max} символов)',
+      externalAccountIdIsTooLong: 'external_account_id длиннее {max} символов',
       fullNameIsRequired: 'нужно указать party.full_name',
       thisProjectIsInactive: 'этот проект не активен'
     }

@@ -35,7 +35,7 @@ and repository behind it) and `src/services/crm/*`. When the code changes, this 
 | 21 | [Segments](#21-segments) | `GET /segments`, `POST /segments`, `POST /segments/preview`, `GET /segments/:id`, `PUT /segments/:id`, `GET /segments/:id/members`, `POST /segments/:id/versions`, `POST /segments/:id/evaluate` |
 | 22 | [Campaigns](#22-campaigns) | `GET /campaigns`, `POST /campaigns`, `GET /campaigns/:id`, `PUT /campaigns/:id`, `POST /campaigns/:id/status`, `POST /campaigns/:id/audiences`, `POST /campaigns/:id/actions`, `PUT /campaigns/:id/actions/:actionId`, `POST /campaigns/:id/actions/:actionId/prepare`, `POST /campaigns/:id/actions/:actionId/status`, `GET /campaigns/:id/actions/:actionId/recipients`, `POST /campaigns/:id/costs`, `DELETE /campaigns/:id/costs/:costId` |
 | 23 | [Master-table endpoints (catalogue, point rules, settings lists)](#23-master-table-endpoints-catalogue-point-rules-settings-lists) | Nine CRUD endpoints each for `/catalog`, `/point-rules` and 32 `/settings/<list>` paths; `POST /settings/locations/refresh`, `GET /settings/status-map`, `PUT /settings/status-map`, `DELETE /settings/status-map/:projectId/:code`, `GET /settings/api-keys`, `POST /settings/api-keys`, `POST /settings/api-keys/:id/revoke` |
-| 24 | [Integration API (department systems)](#24-integration-api-department-systems) | `POST /registrations`, `GET /accounts/:externalAccountId`, `GET /identity-resolutions`, `POST /identity-resolutions/:id/acknowledge` |
+| 24 | [Integration API (department systems)](#24-integration-api-department-systems) | `POST /registrations`, `GET /accounts/:externalLogin`, `GET /identity-resolutions`, `POST /identity-resolutions/:id/acknowledge` |
 
 Paths in the Endpoints column are relative to `/api/admin/crm`, except in "Integration API", where they are relative to `/api/integration/crm`.
 
@@ -1366,7 +1366,7 @@ A customer is a **party**: one `crm_party` row, plus a `crm_person` row (party_t
 | `birth_date` | 25 | Same `YYYY-MM-DD` |
 | `location` | 15 | Same `home_location_pk` (the street text `address_line` is not used) |
 | `occupation` | 5 | Same `job_title_id` (or `occupation`) |
-| `same_user_pk` | the gap to 70 | Excel import only: the same user-management `user_pk` lifts the score to exactly 70 |
+| `same_user_id` | the gap to 70 | Excel import only: the same user-management User ID (`user_id`) lifts the score to exactly 70 (labelled "same user ID") |
 
 The maximum is 110. A score of **70 or more** is decision `MERGE` (the same person). **50 to 69** is `REVIEW` (an administrator decides). **Below 50** is `NEW`, and that match is dropped. Only ACTIVE or INACTIVE persons are candidates. Organizations are never scored.
 
@@ -1380,7 +1380,7 @@ A scored match (a "candidate") has this shape wherever it is returned:
 | gender_code, birth_date, address_line | string\|null | Person fields (customer candidates only) |
 | home_location_pk | string\|null | |
 | job_title_id | integer\|null | |
-| user_pks | array of string | The customer's user-management account ids: linked accounts, plus ids an earlier import listed for them |
+| user_ids | array of string | The customer's user-management Account IDs (`external_login`): linked accounts, plus ids an earlier import listed for them |
 | mobile | string\|null | The first active MOBILE/PHONE value, **masked**: first 3 and last 4 characters kept (`"+86*******8000"`) |
 | score | integer | Sum of the points |
 | evidence | array | `[{ "field": "phone", "points": 40 }, ...]` |
@@ -1600,7 +1600,7 @@ For `QUEUED`: `{ intake_id, party_pk: null, outcome: "QUEUED", candidates: [cand
       {
         "party_pk": "1042", "display_name": "Li Wei", "full_name": "Li Wei", "gender_code": "M",
         "birth_date": "1988-05-17", "address_line": "18 Tianhe Road", "home_location_pk": "4401",
-        "job_title_id": 2, "user_pks": ["500245"], "mobile": "+86*******8000",
+        "job_title_id": 2, "user_ids": ["liwei88"], "mobile": "+86*******8000",
         "score": 65, "evidence": [{ "field": "phone", "points": 40 }, { "field": "name", "points": 25 }],
         "rule_code": "WEIGHTED_PERSON", "reason": "phone +40, name +25", "decision": "REVIEW"
       }
@@ -1636,10 +1636,10 @@ Customers already on file who look like the person being typed into the "new cus
 | phone | string | no | | Digits compared |
 | home_location_pk | integer | no | | Equal location id |
 | job_title_id | integer | no | | Equal job title (`occupation` is accepted instead) |
-| user_pk | string | no | | Only used for finding candidates. Without the Excel rule it adds no points. |
+| user_id | string | no | | A user-management User ID. Only used for finding candidates. Without the Excel rule it adds no points. |
 | exclude_party_pk | string | no | | Leave this party out (for an edit form) |
 
-Candidates are fetched by exact (normalised) name, birthday, phone digits or user_pk, and then scored. If none of name, birthday, phone or user_pk is given, the result is an empty array.
+Candidates are fetched by exact (normalised) name, birthday, phone digits or user_id, and then scored. If none of name, birthday, phone or user_id is given (or the user_id belongs to nobody), the result is an empty array.
 
 **Request body:** None.
 
@@ -1653,7 +1653,7 @@ Candidates are fetched by exact (normalised) name, birthday, phone digits or use
     {
       "party_pk": "1042", "display_name": "Li Wei", "full_name": "Li Wei", "gender_code": "M",
       "birth_date": "1988-05-17", "address_line": "18 Tianhe Road", "home_location_pk": "4401",
-      "job_title_id": 2, "user_pks": [], "mobile": "+86*******8000",
+      "job_title_id": 2, "user_ids": [], "mobile": "+86*******8000",
       "score": 90, "evidence": [{ "field": "phone", "points": 40 }, { "field": "name", "points": 25 }, { "field": "birth_date", "points": 25 }],
       "rule_code": "WEIGHTED_PERSON", "reason": "phone +40, name +25, birth_date +25", "decision": "MERGE"
     }
@@ -1992,7 +1992,7 @@ Deletes a contact point that was entered by mistake. A contact that has ever bee
 
 ### POST /api/admin/crm/parties/:id/accounts
 
-Links the customer to an account id issued by a project, by hand (`link_method` `MANUAL`).
+Links the customer to an account issued by a project (keyed by its Account ID, `external_login`), by hand (`link_method` `MANUAL`).
 
 **Permission:** WRITE on `/admin/crm/customers`.
 
@@ -2009,8 +2009,8 @@ Links the customer to an account id issued by a project, by hand (`link_method` 
 | field | type | required | rules |
 |---|---|---|---|
 | project_id | integer | yes | Must exist (foreign key) |
-| external_account_id | string | yes | Trimmed. Max 250 characters (database). |
-| external_login | string | no | Max 100 characters (database) |
+| external_login | string | yes | The Account ID, the account's key. Trimmed. Max 250 characters (database). |
+| external_account_id | string | no | The Account PK. Trimmed; empty is stored as null. Max 250 characters (database). |
 | external_account_type | string | no | Max 50 characters (database) |
 | account_status | string | no | Max 30 characters (database) |
 | is_primary | boolean | no | Stored as given. Other accounts are not changed. |
@@ -2021,8 +2021,8 @@ Links the customer to an account id issued by a project, by hand (`link_method` 
 |---|---|---|
 | project_account_id, party_pk | string | |
 | project_id | integer | |
-| external_account_id | string | |
-| external_login, external_account_type, account_status | string\|null | |
+| external_login | string | |
+| external_account_id, external_account_type, account_status | string\|null | |
 | crystal_user_id | integer\|null | |
 | is_primary | boolean | |
 | link_method | string | `MANUAL` |
@@ -2037,9 +2037,9 @@ Links the customer to an account id issued by a project, by hand (`link_method` 
 
 | status | message key | when |
 |---|---|---|
-| 400 | crm.customers.projectAndAccountAreRequired | `project_id` or `external_account_id` is missing |
+| 400 | crm.customers.projectAndAccountAreRequired | `project_id` or `external_login` is missing (or blank) |
 | 404 | common.notFound | No such party |
-| 409 | crm.customers.thatAccountIsAlreadyLinked | That project and account id are already linked (to any party) |
+| 409 | crm.customers.thatAccountIsAlreadyLinked | That project and Account ID (`external_login`) are already linked (to any party) |
 | 409 | common.referencedRecordIsMissing | Unknown `project_id` |
 
 ### POST /api/admin/crm/parties/:id/accounts/:accountId/unlink
@@ -2207,10 +2207,10 @@ The columns of the Customers sheet, which are also the headers the import accept
 
 | Template header | Required | Accepted header aliases | Content |
 |---|---|---|---|
-| E-shop PK | yes | `eshop pk`, `eshop user pk` | The e-shop user_pk: a whole number of 1 to 18 digits, not starting with 0 |
-| E-shop ID | yes | `eshop id`, `eshop login`, `eshop user id` | E-shop login, at most 100 characters |
-| User PK | yes | `user_pk`, `platform pk`, `platform user pk` | User-management user_pk: same rule as E-shop PK |
-| User ID | yes | `user_id`, `platform id`, `platform user id`, `platform login` | User-management login, at most 100 characters |
+| E-shop PK | no | `eshop pk`, `eshop user pk` | The e-shop user_pk (the Account PK). When given: a whole number of 1 to 18 digits, not starting with 0 |
+| E-shop ID | yes | `eshop id`, `eshop login`, `eshop user id` | E-shop login (the Account ID, the account's key), at most 250 characters |
+| User PK | no | `user_pk`, `platform pk`, `platform user pk` | User-management user_pk (the Account PK): same rule as E-shop PK |
+| User ID | yes | `user_id`, `platform id`, `platform user id`, `platform login` | User-management login (the Account ID, the account's key), at most 250 characters. The same User ID on two rows is the same person (Excel rule). |
 | Full name | yes | `name` | Inner spaces collapsed. At most 250 characters. |
 | Gender | yes | | `M`, `MALE`, `男` or `F`, `FEMALE`, `女` (any case) |
 | Birthday | yes | `birth date`, `date of birth` | An Excel date, or text `YYYY-M-D` with `-`, `/` or `.`. A real day from 1900 to today. A year alone is refused. |
@@ -2264,10 +2264,10 @@ sentences below show the meaning; the keys are `crm.customerImport.isRequired` `
 `crm.problems.notARealDate`, `crm.problems.isBefore1900`, `crm.problems.isInTheFuture` (each `{label}`) and
 `crm.problems.notAPhoneNumber`, `crm.problems.tooManyDigits`, `crm.problems.containsLetters` (each `{label, value}`).
 
-- `E-shop PK is required` / `E-shop PK "x" must be a whole number`
-- `E-shop ID is required` / `E-shop ID is longer than 100 characters`
-- `User PK is required` / `User PK "x" must be a whole number`
-- `User ID is required` / `User ID is longer than 100 characters`
+- `E-shop PK "x" must be a whole number` (only when the cell is filled)
+- `E-shop ID is required` / `E-shop ID is longer than 250 characters`
+- `User PK "x" must be a whole number` (only when the cell is filled)
+- `User ID is required` / `User ID is longer than 250 characters`
 - `Full name is required` / `Full name is longer than 250 characters`
 - `Mobile is required` / `Mobile "x" is not a phone number` (fewer than 7 digits) / `... has too many digits` (more than 15) / `... contains letters`
 - `Gender must be M or F` / `Gender is required`
@@ -2276,9 +2276,9 @@ sentences below show the meaning; the keys are `crm.customerImport.isRequired` `
 - `Job title ID "x" must be a number from its list` / `Job title ID N is not on the job list` (inactive job titles count as not on the list)
 - `Address is required` / `Address is longer than 255 characters`
 - `Origin project "x" is not an active project code or ID` / `Origin project is required: fill the Origin project column or choose a project on the import screen`
-- `E-shop PK N is also on row R for a different person or E-shop ID`, and the same with `User PK`. This is added when an otherwise valid row repeats the PK of an earlier valid row, and either its ID differs or the two rows score below 70. A shared User PK by itself scores 70, so for User PK this effectively means the User ID differs.
+- `E-shop ID x is also on row R for a different person or E-shop PK`, and the same with `User ID`. This is added when an otherwise valid row repeats the ID of an earlier valid row, and either its PK differs (an empty PK counts as a value) or the two rows score below 70. A shared User ID by itself scores 70, so for User ID this effectively means the User PK differs.
 
-`values` (on every row of both replies) holds the cleaned values of the fields that passed: `eshop_pk`, `eshop_id`, `user_pk`, `user_id` (strings), `full_name`, `mobile`, `address_line` (always present, possibly `""`), `gender_code`, `birth_date`, `birth_year`, `home_location_pk` (string), `location_label`, `job_title_id`, `job_name`, `origin_project_id`, `origin_project_code`.
+`values` (on every row of both replies) holds the cleaned values of the fields that passed: `eshop_pk`, `eshop_id`, `user_pk`, `user_id` (strings; a PK left empty is absent), `full_name`, `mobile`, `address_line` (always present, possibly `""`), `gender_code`, `birth_date`, `birth_year`, `home_location_pk` (string), `location_label`, `job_title_id`, `job_name`, `origin_project_id`, `origin_project_code`.
 
 `cells` is every column of the row as text, keyed by `eshop_pk`, `eshop_id`, `user_pk`, `user_id`, `full_name`, `gender`, `birth_date`, `mobile`, `location_id`, `address`, `job_title_id`, `origin_project`.
 
@@ -2293,12 +2293,12 @@ sentences below show the meaning; the keys are `crm.customerImport.isRequired` `
 | rows[].values | object | See above |
 | rows[].errors | array of string | ERROR rows only |
 | rows[].cells | object | ERROR rows only |
-| rows[].similar | array | Non-error rows: candidates scoring 50 or more, highest first. These are customers on file and pending person registrations (shape above, scored with the Excel user_pk rule), plus earlier rows of the same file as `{ row_number, pending, score, evidence, rule_code, reason, decision }`. An earlier row that matched a customer on file appears as that customer (`party_pk`, `display_name`). |
+| rows[].similar | array | Non-error rows: candidates scoring 50 or more, highest first. These are customers on file and pending person registrations (shape above, scored with the Excel User ID rule), plus earlier rows of the same file as `{ row_number, pending, score, evidence, rule_code, reason, decision }`. An earlier row that matched a customer on file appears as that customer (`party_pk`, `display_name`). |
 | rows[].duplicate_of_row | integer | Present when the best match is an earlier row of the file |
 
 How the status is chosen. Each row is compared with what is on file and with the earlier rows as the import would leave them:
 
-- `DUPLICATE`: exactly one match scores 70 or more, and it is a customer on file or an earlier NEW/DUPLICATE row. The row would be merged into it (its phone and user_pk are added).
+- `DUPLICATE`: exactly one match scores 70 or more, and it is a customer on file or an earlier NEW/DUPLICATE row. The row would be merged into it (its phone and User ID are added).
 - `REVIEW`: there is some match, but it is not that single strong match. That covers several strong matches, a strong match with a pending registration or with a row going to review, or only 50 to 69 matches. The row would become a pending registration.
 - `NEW`: no match. The row would create a customer.
 
@@ -2312,8 +2312,8 @@ How the status is chosen. Each row is compared with what is on file and with the
       { "row_number": 2, "status": "NEW", "similar": [],
         "values": { "eshop_pk": "100245", "eshop_id": "liwei88", "user_pk": "500245", "user_id": "liwei88", "full_name": "Li Wei", "mobile": "+86 138 0013 8000", "gender_code": "M", "birth_date": "1988-05-17", "birth_year": 1988, "home_location_pk": "4401", "location_label": "Guangdong / Guangzhou / Tianhe", "address_line": "18 Tianhe Road", "origin_project_id": 3, "origin_project_code": "ESHOP" } },
       { "row_number": 3, "status": "DUPLICATE", "duplicate_of_row": 2,
-        "similar": [{ "row_number": 2, "pending": false, "score": 90, "evidence": [{ "field": "name", "points": 25 }, { "field": "birth_date", "points": 25 }, { "field": "location", "points": 15 }, { "field": "same_user_pk", "points": 25 }], "rule_code": "WEIGHTED_PERSON", "reason": "name +25, birth_date +25, location +15, same_user_pk +25", "decision": "MERGE" }],
-        "values": { "eshop_pk": "100246", "user_pk": "500245", "full_name": "Li Wei", "mobile": "13900139001" } },
+        "similar": [{ "row_number": 2, "pending": false, "score": 90, "evidence": [{ "field": "name", "points": 25 }, { "field": "birth_date", "points": 25 }, { "field": "location", "points": 15 }, { "field": "same_user_id", "points": 25 }], "rule_code": "WEIGHTED_PERSON", "reason": "name +25, birth_date +25, location +15, same_user_id +25", "decision": "MERGE" }],
+        "values": { "eshop_pk": "100246", "user_pk": "500245", "user_id": "liwei88", "full_name": "Li Wei", "mobile": "13900139001" } },
       { "row_number": 4, "status": "ERROR",
         "errors": ["Gender must be M or F", "Location ID 99999 is not on the location list"],
         "cells": { "eshop_pk": "100391", "eshop_id": "wangfang", "user_pk": "500391", "user_id": "wang.fang", "full_name": "Wang Fang", "gender": "X", "birth_date": "1995-11-03", "mobile": "13900139000", "location_id": "99999", "address": "7 Zhongshan Avenue", "job_title_id": "", "origin_project": "" },
@@ -2363,7 +2363,7 @@ How the status is chosen. Each row is compared with what is on file and with the
 | 400 | crm.common.chooseAFile | No file in the `file` field ("choose a file") |
 | 400 | crm.common.thisIsNotAnExcelFile | The file name does not end in `.xlsx`, or the content cannot be read as a workbook |
 | 400 | crm.customerImport.theFileHasNoSheet | The workbook has no worksheet |
-| 400 | crm.customerImport.requiredColumnsAreMissing | Required headers were not found. `detail` is the array of missing template headers, e.g. `["E-shop PK", "User ID"]`. |
+| 400 | crm.customerImport.requiredColumnsAreMissing | Required headers were not found. `detail` is the array of missing template headers, e.g. `["E-shop ID", "User ID"]`. |
 | 400 | crm.customerImport.theFileHasNoRows | No non-blank rows below the header |
 | 400 | crm.customerImport.tooManyRows | More than 2000 rows ("a sheet can hold at most 2000 people") |
 | 400 | crm.customerImport.chooseAnActiveOriginProject | `origin_project_id` is given but is not the ID of an ACTIVE project |
@@ -2845,7 +2845,7 @@ Every way a person reaches the CRM (the console's "new customer" form, the Excel
 | Same date of birth | 25 |
 | Same `home_location_pk` | 15 |
 | Same `job_title_id` | 5 |
-| Excel import only: same user-management `user_pk` (tops the score up to 70) | to 70 |
+| Excel import only: same user-management User ID `user_id` (`same_user_id`; tops the score up to 70) | to 70 |
 
 A total of 70 or more is a match (`MERGE_FROM`), 50-69 needs review (`REVIEW_FROM`), below 50 is ignored. The registration is then:
 
@@ -2865,7 +2865,7 @@ Intake statuses (CHECK on `crm_registration_intake.status`):
 | `ASSIGNED` | Category `ESHOP` only: the department account was linked to a customer. |
 | `REJECTED` | Category `ESHOP` only: the proposed assignment was refused. |
 
-Categories: `PERSON` (a person registration) and `ESHOP` (an "assignment review": a department account identifier proposed for one specific customer, staged either from an Excel import's unverified identifiers or by a legacy e-shop link). The pair (`source_project_id`, `source_record_id`, `category`) is unique, so the same account submitted twice returns the first intake.
+Categories: `PERSON` (a person registration) and `ESHOP` (an "assignment review": a department account identifier proposed for one specific customer, staged either from an Excel import's unverified identifiers or by a legacy e-shop link). The pair (`source_project_id`, `source_record_id`, `category`) is unique, so the same account submitted twice returns the first intake. For a registration carrying an account, and for every `ESHOP` review, `source_record_id` is the account's Account ID (`external_login`).
 
 Whenever an intake is resolved to a customer (MERGED, CREATED or ASSIGNED, automatic or by hand), a row is added to `crm_identity_resolution` for the source project; that is the feed the Integration API exposes (see below).
 
@@ -2899,11 +2899,11 @@ Ordering is fixed: `created_at` descending. There is no `sort`/`dir`.
 |---|---|---|
 | `rows[].intake_id` | string | |
 | `rows[].source_project_id` | string or null | Project the registration came from. |
-| `rows[].source_record_id` | string or null | The department's account id; a random 32-hex string for console/import registrations with no record id. |
+| `rows[].source_record_id` | string or null | The account's Account ID (`external_login`) for a department registration or an `ESHOP` review; `excel:<file hash>:<row>` for an Excel row; a random 32-hex string for console/import registrations with no record id. |
 | `rows[].category` | string | `PERSON` or `ESHOP`. |
 | `rows[].status` | string | `PENDING` or `MERGED` (see filter). |
 | `rows[].payload` | object | `{ party, account, unverified_accounts }` exactly as submitted: `party` holds the person fields and `contacts`; `account` is the department account (or null); `unverified_accounts` the identifiers an import listed. |
-| `rows[].candidates` | array | Matches found at submission time. A customer candidate carries `party_pk`, `display_name`, `full_name`, `gender_code`, `birth_date`, `address_line`, `home_location_pk`, `job_title_id`, `user_pks`, `mobile` (masked, e.g. `138****8000`), `score`, `evidence` (`[{field, points}]`), `rule_code` (`WEIGHTED_PERSON`), `reason` (e.g. `"phone +40, name +25"`), `decision` (`MERGE`/`REVIEW`/`NEW`). A pending-registration candidate carries `intake_id`, `display_name`, `score`, `evidence`, `rule_code`, `reason`, `decision`. An ESHOP review's candidate is `{ party_pk, display_name, reason }`. |
+| `rows[].candidates` | array | Matches found at submission time. A customer candidate carries `party_pk`, `display_name`, `full_name`, `gender_code`, `birth_date`, `address_line`, `home_location_pk`, `job_title_id`, `user_ids`, `mobile` (masked, e.g. `138****8000`), `score`, `evidence` (`[{field, points}]`), `rule_code` (`WEIGHTED_PERSON`), `reason` (e.g. `"phone +40, name +25"`), `decision` (`MERGE`/`REVIEW`/`NEW`). A pending-registration candidate carries `intake_id`, `display_name`, `score`, `evidence`, `rule_code`, `reason`, `decision`. An ESHOP review's candidate is `{ party_pk, display_name, reason }`. |
 | `rows[].party_pk` | string or null | Customer it resolved to; null while PENDING. |
 | `rows[].reviewed_by_manager_id` | integer or null | Null for automatic resolutions. |
 | `rows[].reviewed_at` | string or null | |
@@ -2921,7 +2921,7 @@ Ordering is fixed: `created_at` descending. There is no `sort`/`dir`.
       {
         "intake_id": "412",
         "source_project_id": "3",
-        "source_record_id": "U-88213",
+        "source_record_id": "wangli",
         "category": "PERSON",
         "status": "PENDING",
         "payload": {
@@ -3006,7 +3006,7 @@ Everything a reviewer compares for one staged registration: the incoming person 
 | `job_title_name` | string or null | |
 | `origin_project_name` | string or null | Incoming: the payload's `origin_project_id`, else the intake's source project. |
 
-`identifiers[]` item: `{ project_id, project_name, account_pk, account_id, kind }` where `account_pk` = `external_account_id`, `account_id` = `external_login` (or null), and `kind` is `INCOMING` (the payload's account), `CANDIDATE` (an unverified identifier) or `LINKED`.
+`identifiers[]` item: `{ project_id, project_name, account_pk, account_id, kind }` where `account_id` = `external_login` (always present, the account's key) and `account_pk` = `external_account_id` (or null), and `kind` is `INCOMING` (the payload's account), `CANDIDATE` (an unverified identifier) or `LINKED`.
 
 ```json
 {
@@ -3019,7 +3019,7 @@ Everything a reviewer compares for one staged registration: the incoming person 
     "created_at": "2026-10-10T08:15:02.114Z",
     "party_pk": null,
     "source_project_name": "App Store",
-    "source_record_id": "U-88213",
+    "source_record_id": "wangli",
     "incoming": {
       "person": { "full_name": "Wang Li", "gender_code": null, "birth_date": "1990-05-03", "birth_year": 1990,
                   "phones": ["13800138000"], "emails": [], "location_id": null, "location_name": null,
@@ -3069,7 +3069,7 @@ An administrator resolves a PENDING intake: merge it into a customer, register i
 | `action` | string | yes | `MERGE`, `ASSIGN`, `NEW` or `REJECT`. `NEW` is accepted only for a `PERSON` intake; `REJECT` only for an `ESHOP` intake. `MERGE` and `ASSIGN` are interchangeable and work for both categories. Anything else is 400. |
 | `party_pk` | string or integer | for MERGE/ASSIGN, unless `candidate_intake_id` is given | Must match `^[1-9][0-9]*$`; must be an ACTIVE or INACTIVE party of type PERSON. |
 | `candidate_intake_id` | string or integer | no | MERGE/ASSIGN into whatever customer another intake (typically a pending-registration candidate) has since resolved to. Overrides `party_pk`. That intake must exist and have a `party_pk`. |
-| `use_incoming` | array of strings | no | PERSON + MERGE only. The details the customer takes from the registration instead of keeping their own: any of `full_name` (also the display name), `birth_date` (with the year), `gender_code`, `address` (street address and home location), `job_title`, `phone` (the registration's mobile becomes the primary mobile; the old one stays on file). Values always come from the stored registration; a field it left empty is not taken. Unknown names are ignored. Omitted: the customer keeps their details and blanks are filled, as below. |
+| `use_incoming` | array of strings | no | PERSON + MERGE only. The details the customer takes from the registration instead of keeping their own: any of `full_name` (also the display name), `birth_date` (with the year), `gender_code`, `address` (street address and home location), `job_title`. Phones are never a choice: the customer always keeps every phone number, theirs and the registration's (the registration's are added, below); a `phone` entry is ignored like any unknown name. Values always come from the stored registration; a field it left empty is not taken. Unknown names are ignored. Omitted: the customer keeps their details and blanks are filled, as below. |
 | `relationship` | object | no | PERSON + NEW only. `{ related_party_pk, relationship_type_code, note? }`: the new customer is related to an existing one in the same transaction, read as "the related customer is the new customer's <type>" (e.g. SPOUSE, PARENT). Same rules as POST `/parties/:id/relationships`; a refusal rolls the whole decision back. |
 
 What each decision does (all in one transaction, under the registration lock):
@@ -3146,7 +3146,7 @@ The department identifiers an Excel import listed for this customer but which we
 
 **Request body:** None.
 
-Collected from every PERSON intake resolved to this customer whose payload has `unverified_accounts`, oldest intake first; the same project + identifier is listed once (first recorded). Its review is the ESHOP intake with the same project and `source_record_id`, if any.
+Collected from every PERSON intake resolved to this customer whose payload has `unverified_accounts`, oldest intake first; the same project + Account ID (`external_login`) is listed once (first recorded). Its review is the ESHOP intake with the same project and `source_record_id` (= the identifier's `external_login`), if any.
 
 **Response** `200`: `data` is an array (no paging).
 
@@ -3154,8 +3154,8 @@ Collected from every PERSON intake resolved to this customer whose payload has `
 |---|---|---|
 | `project_id` | integer or string | As stored in the import payload. |
 | `project_name` | string or null | |
-| `external_account_id` | string | As stored in the payload. |
-| `external_login` | string or null | |
+| `external_account_id` | string or null | The Account PK, as stored in the payload. |
+| `external_login` | string | The Account ID; the identifier's key. |
 | `recorded_at` | string | `created_at` of the intake that listed it. |
 | `registration_intake_id` | string | That intake. |
 | `review_intake_id` | string or null | The ESHOP assignment review, if one has been staged. |
@@ -3198,7 +3198,7 @@ Links or rejects one of those identifiers from the customer record. It goes thro
 |---|---|---|---|
 | `action` | string | yes | `LINK` or `REJECT` (exact, upper case). |
 | `project_id` | integer or string | yes | Compared as text with the listed identifier's project. |
-| `external_account_id` | string | yes | Compared as text with the listed identifier. |
+| `external_login` | string | yes | The Account ID, compared as text with the listed identifier's `external_login`. |
 
 `LINK` runs the intake decision `{ action: "ASSIGN", party_pk: <id> }`; `REJECT` runs `{ action: "REJECT" }` (see the decide endpoint above for effects). If the review has not been staged and the identifier turns out to be already linked to this customer, nothing is staged and the call fails with 409.
 
@@ -9813,8 +9813,8 @@ Registers one of the caller's accounts. The CRM either links it to the customer 
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `external_account_id` | string | yes | The account's id in the department system. Converted to text and trimmed; 1..250 characters. |
-| `external_login` | string | no | At most 100 characters (checked before conversion). Stored as text. |
+| `external_login` | string | yes | The Account ID: the id the customer signs in with, and the account's key. Converted to text and trimmed; 1..250 characters. |
+| `external_account_id` | string | no | The Account PK: the account's internal key in the department system. Converted to text and trimmed; empty is treated as absent; at most 250 characters. |
 | `external_account_type` | string | no | Converted to text and silently cut to 50 characters. |
 | `party` | object | yes | The person. Only the keys below are read; keys sent as `""` are dropped. Values are not trimmed before storage. |
 | `party.full_name` | string | yes | Must be present (400 otherwise); at most 250 characters (after trim); all-blank fails with `crm.problems.nameIsRequired`. |
@@ -9832,12 +9832,12 @@ Validation is `personRules.check(..., 'create', 'PERSON')`, the same checks as t
 
 | `outcome` | When | Effect |
 |---|---|---|
-| `EXISTING` | This project already has an active (`unlinked_at` null) account with this `external_account_id`. | `external_login` / `external_account_type` on the account are updated if sent. The customer's blank person fields are filled from `party` (never overwritten) and a mobile/email it does not have is added. No intake, no resolution row. `intake_id` is null. |
+| `EXISTING` | This project already has an active (`unlinked_at` null) account with this `external_login`. | `external_account_id` / `external_account_type` on the account are updated if sent. The customer's blank person fields are filled from `party` (never overwritten) and a mobile/email it does not have is added. No intake, no resolution row. `intake_id` is null. |
 | `MERGED` | No such account; exactly one existing customer scores 70+ against the person. | Evidence added to that customer as above, account linked (`link_method` `MATCHED`, primary if the customer has no other active account in this project), intake stored with status MERGED, resolution row written. |
 | `CREATED` | No candidate scoring 50+ (customer or pending registration). | New customer (`display_name` = `full_name`, `origin_project_id` = caller's project, mobile/email as primary contacts with `source_project_id` = caller's project), account linked as above, intake CREATED, resolution row written. |
 | `QUEUED` | Any other result: a 50-69 match, two or more 70+ matches, or a pending registration scoring 50+. | Intake stored as PENDING with its candidates; nothing is linked. `party_pk` is null. The result arrives later through the resolution feed. |
 
-If the same `external_account_id` was submitted before and is not (or no longer) linked, the earlier intake is returned as is and the new body is ignored: `QUEUED` with the same `intake_id` while it is still PENDING, otherwise the stored status (`MERGED` or `CREATED`) with its `party_pk`. In that last case (an account unlinked since) the account is not linked again.
+If the same `external_login` was submitted before and is not (or no longer) linked, the earlier intake is returned as is and the new body is ignored: `QUEUED` with the same `intake_id` while it is still PENDING, otherwise the stored status (`MERGED` or `CREATED`) with its `party_pk`. In that last case (an account unlinked since) the account is not linked again.
 
 **Response** `200`
 
@@ -9859,13 +9859,13 @@ If the same `external_account_id` was submitted before and is not (or no longer)
 
 | Status | Message | When |
 |---|---|---|
-| 400 | `crm.integration.externalAccountIdIsRequired` (params `{max: 250}`) | Missing, blank, or longer than 250 characters. |
-| 400 | `crm.integration.externalLoginIsTooLong` (params `{max: 100}`) | |
+| 400 | `crm.integration.externalLoginIsRequired` (params `{max: 250}`) | `external_login` missing, blank, or longer than 250 characters. |
+| 400 | `crm.integration.externalAccountIdIsTooLong` (params `{max: 250}`) | `external_account_id` longer than 250 characters. |
 | 400 | `crm.integration.fullNameIsRequired` | `party` or `party.full_name` missing or `""`. |
 | 400 | `crm.common.checkTheDetails` ("some details are not valid") | `personRules.check` found problems; `detail` = `[{ field, message }]` with each message translated from its key, e.g. `crm.problems.notAPhoneNumber` on `mobile`, `crm.problems.isInTheFuture` on `birth_date`, `crm.problems.genderMustBeMOrF` on `gender_code`, `crm.problems.jobTitleIsSwitchedOff` / `crm.problems.jobTitleIsNotOnTheList` on `job_title_id`, `crm.problems.locationIsNotOnTheList` on `home_location_pk`. |
 | 401 / 403 | see Authentication | |
 
-### GET /api/integration/crm/accounts/:externalAccountId
+### GET /api/integration/crm/accounts/:externalLogin
 
 Which customer one of the caller's accounts belongs to, or where its registration stands.
 
@@ -9875,13 +9875,13 @@ Which customer one of the caller's accounts belongs to, or where its registratio
 
 | Name | Type | Notes |
 |---|---|---|
-| `externalAccountId` | string | URL-encoded account id; trimmed; 1..250 characters. |
+| `externalLogin` | string | The account's `external_login` (Account ID), URL-encoded; trimmed; 1..250 characters. |
 
 **Query parameters:** None.
 
 **Request body:** None.
 
-Looks first for an active account link in the caller's project; if none, the most recent intake (highest `intake_id`, any category) from the caller's project with this `source_record_id`.
+Looks first for an active account link with this `external_login` in the caller's project; if none, the most recent intake (highest `intake_id`, any category) from the caller's project with this `source_record_id`.
 
 **Response** `200`
 
@@ -9902,7 +9902,7 @@ Looks first for an active account link in the caller's project; if none, the mos
 
 | Status | Message | When |
 |---|---|---|
-| 400 | `crm.integration.externalAccountIdIsRequired` (params `{max: 250}`) | Blank or longer than 250 characters. |
+| 400 | `crm.integration.externalLoginIsRequired` (params `{max: 250}`) | Blank or longer than 250 characters. |
 | 404 | `common.notFound` | Neither a link nor an intake exists for this account. |
 
 ### GET /api/integration/crm/identity-resolutions
@@ -9926,7 +9926,7 @@ A row is written to `crm_identity_resolution` each time an intake whose `source_
 | `resolution_id` | string | Pass to acknowledge. |
 | `intake_id` | string | The registration (equals the `intake_id` returned by POST /registrations). |
 | `source_project_id` | string | The caller's project. |
-| `source_record_id` | string or null | The caller's `external_account_id`. |
+| `source_record_id` | string or null | The caller's `external_login` (the Account ID it registered). |
 | `party_pk` | string | The customer to save against the account. |
 | `outcome` | string | `MERGED`, `CREATED` or `ASSIGNED`. |
 | `acknowledged_at` | null | Always null here. |
@@ -9937,7 +9937,7 @@ A row is written to `crm_identity_resolution` each time an intake whose `source_
   "success": true,
   "message": "ok",
   "data": [
-    { "resolution_id": "57", "intake_id": "412", "source_project_id": "3", "source_record_id": "U-88213",
+    { "resolution_id": "57", "intake_id": "412", "source_project_id": "3", "source_record_id": "wangli",
       "party_pk": "1031", "outcome": "MERGED", "acknowledged_at": null, "created_at": "2026-10-11T02:40:09.880Z" }
   ]
 }

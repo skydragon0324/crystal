@@ -324,13 +324,15 @@ async function deleteContact(partyId, contactId, actor) {
 async function linkAccount(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
-  if (!body.project_id || !body.external_account_id) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
+  // The Account ID is the key every project links by; the PK is optional.
+  const login = String(body.external_login == null ? '' : body.external_login).trim();
+  if (!body.project_id || !login) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
 
   const [row] = await db('crm_project_account').insert({
     party_pk: partyId,
     project_id: body.project_id,
-    external_account_id: String(body.external_account_id).trim(),
-    external_login: body.external_login || null,
+    external_account_id: String(body.external_account_id == null ? '' : body.external_account_id).trim() || null,
+    external_login: login,
     external_account_type: body.external_account_type || null,
     account_status: body.account_status || null,
     is_primary: !!body.is_primary,
@@ -339,6 +341,44 @@ async function linkAccount(partyId, body, actor) {
 
   audit.created(actor, 'crm_project_account', row.project_account_id, row, PAGE);
   return row;
+}
+
+/**
+ * A linked account corrected by hand: its Account ID, PK and type, and whether
+ * it is the customer's primary account in that project. Making one primary
+ * makes the customer's other accounts there not primary.
+ */
+async function updateAccount(partyId, accountId, body, actor) {
+  const before = await db('crm_project_account').where({ party_pk: partyId, project_account_id: accountId }).first();
+  if (!before) throw new HttpError(404, 'common.notFound');
+  if (before.unlinked_at) throw new HttpError(409, 'crm.customers.alreadyUnlinked');
+
+  const patch = {};
+  if (body.external_login !== undefined) {
+    patch.external_login = String(body.external_login == null ? '' : body.external_login).trim();
+    if (!patch.external_login) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
+  }
+  if (body.external_account_id !== undefined) patch.external_account_id = String(body.external_account_id == null ? '' : body.external_account_id).trim() || null;
+  if (body.external_account_type !== undefined) patch.external_account_type = String(body.external_account_type == null ? '' : body.external_account_type).trim().slice(0, 50) || null;
+  if (body.is_primary !== undefined) patch.is_primary = !!body.is_primary;
+  if (!Object.keys(patch).length) return before;
+
+  const after = await transaction(async function (trx) {
+    if (patch.is_primary) {
+      await trx('crm_project_account').where({ party_pk: partyId, project_id: before.project_id }).whereNull('unlinked_at')
+        .whereNot('project_account_id', accountId).update({ is_primary: false });
+    }
+    try {
+      const [row] = await trx('crm_project_account').where('project_account_id', accountId).update(patch).returning('*');
+      return row;
+    } catch (error) {
+      if (error.code === '23505') throw new HttpError(409, 'crm.customers.thatAccountIsAlreadyLinked');
+      throw error;
+    }
+  });
+
+  audit.updated(actor, 'crm_project_account', accountId, before, after, PAGE);
+  return after;
 }
 
 async function unlinkAccount(partyId, accountId, actor) {
@@ -465,66 +505,105 @@ async function merge(survivorId, mergedId, reason, method, actor) {
     const survivorPartyId = survivorId;
     const mergedPartyId = mergedId;
 
-    count('crm_project_account', await trx('crm_project_account').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId, is_primary: false }));
+    /*
+     * THE UNDO LOG. Every row the merge changes is listed with its key and the
+     * values the change overwrote, so unmerge() can put exactly those rows back.
+     * `guard` is what the row must still hold for the undo to touch it: a row
+     * that has since been moved again, or ended, is left as it is.
+     */
+    const undo = [];
+    const change = async function (table, key, rows, patch, guardColumn, guardValue) {
+      if (!rows.length) return 0;
+      const columns = Object.keys(patch);
+      undo.push({
+        table: table, key: key, guard: [guardColumn, guardValue],
+        rows: rows.map(function (row) {
+          const was = {};
+          columns.forEach(function (column) { was[column] = row[column] === undefined ? null : row[column]; });
+          return { id: row[key], was: was };
+        })
+      });
+      await trx(table).whereIn(key, rows.map(function (row) { return row[key]; })).update(patch);
+      return rows.length;
+    };
+    /* Rows of `table` whose `column` is the merged party, optionally narrowed by `where`. */
+    const owned = function (table, column, where) {
+      const query = trx(table + ' as moved_row').where('moved_row.' + column, mergedPartyId).select('moved_row.*');
+      return where ? where(query) : query;
+    };
+    /* ...that the survivor has no row of its own for: `same` lists the columns that would collide. */
+    const notHeldBySurvivor = function (table, same) {
+      return function (query) {
+        return query.whereNotExists(function () {
+          const inner = this.select(trx.raw(1)).from(table + ' as survivor_row').where('survivor_row.party_pk', survivorPartyId);
+          same.forEach(function (column) { inner.whereRaw('survivor_row.' + column + ' = moved_row.' + column); });
+        });
+      };
+    };
 
-    count('crm_contact_point', await trx.raw(
-      `UPDATE crm_contact_point moved_row SET party_pk = ?, is_primary = false
-        WHERE moved_row.party_pk = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_contact_point survivor_row
-           WHERE survivor_row.party_pk = ? AND survivor_row.contact_type = moved_row.contact_type AND survivor_row.normalized_value = moved_row.normalized_value)`,
-      [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
+    count('crm_project_account', await change('crm_project_account', 'project_account_id',
+      await owned('crm_project_account', 'party_pk'), { party_pk: survivorPartyId, is_primary: false }, 'party_pk', survivorPartyId));
 
-    count('crm_party_communication_consent', await trx.raw(
-      `UPDATE crm_party_communication_consent moved_row SET party_pk = ?, contact_point_id = NULL
-        WHERE moved_row.party_pk = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_party_communication_consent survivor_row
-           WHERE survivor_row.party_pk = ? AND survivor_row.project_communication_option_id = moved_row.project_communication_option_id)`,
-      [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
+    count('crm_contact_point', await change('crm_contact_point', 'contact_point_id',
+      await owned('crm_contact_point', 'party_pk', notHeldBySurvivor('crm_contact_point', ['contact_type', 'normalized_value'])),
+      { party_pk: survivorPartyId, is_primary: false }, 'party_pk', survivorPartyId));
+
+    count('crm_party_communication_consent', await change('crm_party_communication_consent', 'party_communication_consent_id',
+      await owned('crm_party_communication_consent', 'party_pk', notHeldBySurvivor('crm_party_communication_consent', ['project_communication_option_id'])),
+      { party_pk: survivorPartyId, contact_point_id: null }, 'party_pk', survivorPartyId));
 
     /* A device both parties hold the same way today: the merged party's copy ends. */
-    await trx.raw(
-      `UPDATE crm_product_registration moved_row
-          SET valid_to = now(), registration_status = 'ENDED', end_reason_code = 'MERGE'
-        WHERE moved_row.party_pk = ? AND moved_row.valid_to IS NULL AND EXISTS (
-          SELECT 1 FROM crm_product_registration survivor_row
-           WHERE survivor_row.party_pk = ? AND survivor_row.valid_to IS NULL
-             AND survivor_row.product_instance_id = moved_row.product_instance_id
-             AND survivor_row.relationship_type_id = moved_row.relationship_type_id)`,
-      [mergedPartyId, survivorPartyId]);
-    count('crm_product_registration', await trx('crm_product_registration').where('party_pk', mergedPartyId)
-      .update({
+    await change('crm_product_registration', 'product_registration_id',
+      await owned('crm_product_registration', 'party_pk', function (query) {
+        return query.whereNull('moved_row.valid_to').whereExists(function () {
+          this.select(trx.raw(1)).from('crm_product_registration as survivor_row')
+            .where('survivor_row.party_pk', survivorPartyId).whereNull('survivor_row.valid_to')
+            .whereRaw('survivor_row.product_instance_id = moved_row.product_instance_id AND survivor_row.relationship_type_id = moved_row.relationship_type_id');
+        });
+      }),
+      { valid_to: trx.fn.now(), registration_status: 'ENDED', end_reason_code: 'MERGE' }, 'end_reason_code', 'MERGE');
+    const registrations = await owned('crm_product_registration', 'party_pk');
+    for (let index = 0; index < registrations.length; index += 1) {
+      const registration = registrations[index];
+      // eslint-disable-next-line no-await-in-loop
+      await change('crm_product_registration', 'product_registration_id', [registration], {
         party_pk: survivorPartyId,
-        previous_owner_party_pk: trx.raw('CASE WHEN previous_owner_party_pk = ? THEN NULL ELSE previous_owner_party_pk END', [survivorPartyId])
-      }));
-    await trx('crm_product_registration').where('previous_owner_party_pk', mergedPartyId).whereNot('party_pk', survivorPartyId)
-      .update({ previous_owner_party_pk: survivorPartyId });
+        previous_owner_party_pk: String(registration.previous_owner_party_pk) === String(survivorPartyId) ? null : registration.previous_owner_party_pk
+      }, 'party_pk', survivorPartyId);
+    }
+    count('crm_product_registration', registrations.length);
+    await change('crm_product_registration', 'product_registration_id',
+      await owned('crm_product_registration', 'previous_owner_party_pk', function (query) { return query.whereNot('moved_row.party_pk', survivorPartyId); }),
+      { previous_owner_party_pk: survivorPartyId }, 'previous_owner_party_pk', survivorPartyId);
 
-    count('crm_product_transfer', await trx('crm_product_transfer').where('from_party_pk', mergedPartyId)
-      .where(function () { this.whereNull('to_party_pk').orWhereNot('to_party_pk', survivorPartyId); })
-      .update({ from_party_pk: survivorPartyId }));
-    count('crm_product_transfer', await trx('crm_product_transfer').where('to_party_pk', mergedPartyId)
-      .where(function () { this.whereNull('from_party_pk').orWhereNot('from_party_pk', survivorPartyId); })
-      .update({ to_party_pk: survivorPartyId }));
-    await trx('crm_product_transfer').where('requested_by_party_pk', mergedPartyId).update({ requested_by_party_pk: survivorPartyId });
+    count('crm_product_transfer', await change('crm_product_transfer', 'product_transfer_id',
+      await owned('crm_product_transfer', 'from_party_pk', function (query) {
+        return query.where(function () { this.whereNull('moved_row.to_party_pk').orWhereNot('moved_row.to_party_pk', survivorPartyId); });
+      }), { from_party_pk: survivorPartyId }, 'from_party_pk', survivorPartyId));
+    count('crm_product_transfer', await change('crm_product_transfer', 'product_transfer_id',
+      await owned('crm_product_transfer', 'to_party_pk', function (query) {
+        return query.where(function () { this.whereNull('moved_row.from_party_pk').orWhereNot('moved_row.from_party_pk', survivorPartyId); });
+      }), { to_party_pk: survivorPartyId }, 'to_party_pk', survivorPartyId));
+    await change('crm_product_transfer', 'product_transfer_id', await owned('crm_product_transfer', 'requested_by_party_pk'),
+      { requested_by_party_pk: survivorPartyId }, 'requested_by_party_pk', survivorPartyId);
 
-    count('crm_service_case', await trx('crm_service_case').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
-    count('crm_service_center_activity', await trx('crm_service_center_activity').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
-    await trx('crm_service_center_activity').where('performed_by_party_pk', mergedPartyId).update({ performed_by_party_pk: survivorPartyId });
+    count('crm_service_case', await change('crm_service_case', 'case_id', await owned('crm_service_case', 'party_pk'),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
+    count('crm_service_center_activity', await change('crm_service_center_activity', 'service_center_activity_id',
+      await owned('crm_service_center_activity', 'party_pk'), { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
+    await change('crm_service_center_activity', 'service_center_activity_id', await owned('crm_service_center_activity', 'performed_by_party_pk'),
+      { performed_by_party_pk: survivorPartyId }, 'performed_by_party_pk', survivorPartyId);
 
-    count('crm_transaction_party', await trx.raw(
-      `UPDATE crm_transaction_party moved_row SET party_pk = ?
-        WHERE moved_row.party_pk = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_transaction_party survivor_row
-           WHERE survivor_row.party_pk = ? AND survivor_row.transaction_id = moved_row.transaction_id AND survivor_row.party_role_code = moved_row.party_role_code)`,
-      [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
+    count('crm_transaction_party', await change('crm_transaction_party', 'transaction_party_id',
+      await owned('crm_transaction_party', 'party_pk', notHeldBySurvivor('crm_transaction_party', ['transaction_id', 'party_role_code'])),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
 
-    count('crm_membership', await trx.raw(
-      `UPDATE crm_membership moved_row SET party_pk = ?
-        WHERE moved_row.party_pk = ? AND NOT EXISTS (
-          SELECT 1 FROM crm_membership survivor_row WHERE survivor_row.party_pk = ? AND survivor_row.project_id = moved_row.project_id)`,
-      [survivorPartyId, mergedPartyId, survivorPartyId]).then(function (queryResult) { return queryResult.rowCount; }));
+    count('crm_membership', await change('crm_membership', 'membership_id',
+      await owned('crm_membership', 'party_pk', notHeldBySurvivor('crm_membership', ['project_id'])),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
 
     /* Points: re-point where the survivor has no account in that currency, carry over where it does. */
+    const carried = [];
     const accounts = await trx('crm_point_account').where('party_pk', mergedPartyId);
     for (let index = 0; index < accounts.length; index += 1) {
       const account = accounts[index];
@@ -533,7 +612,7 @@ async function merge(survivorId, mergedId, reason, method, actor) {
 
       if (!clash) {
         // eslint-disable-next-line no-await-in-loop
-        await trx('crm_point_account').where('point_account_id', account.point_account_id).update({ party_pk: survivorPartyId });
+        await change('crm_point_account', 'point_account_id', [account], { party_pk: survivorPartyId }, 'party_pk', survivorPartyId);
         count('crm_point_account', 1);
       } else if (Number(account.balance) !== 0) {
         const carry = {
@@ -553,6 +632,7 @@ async function merge(survivorId, mergedId, reason, method, actor) {
           party_pk: survivorPartyId, points_delta: Number(account.balance),
           description: 'Carried over from a merged party'
         }));
+        carried.push({ point_type_id: account.point_type_id, points: Number(account.balance) });
         count('crm_point_event', 2);
       }
     }
@@ -562,61 +642,61 @@ async function merge(survivorId, mergedId, reason, method, actor) {
      * party), so the pair has to move together: the reservations let go of
      * their target, the target moves, the reservations follow and take it back.
      */
-    const targets = await trx('crm_activity_target as moved_row').where('moved_row.party_pk', mergedPartyId)
-      .whereNotExists(function () {
-        this.select(trx.raw(1)).from('crm_activity_target as survivor_row')
-          .whereRaw('survivor_row.party_pk = ? AND survivor_row.event_id = moved_row.event_id AND survivor_row.entry_type = moved_row.entry_type', [survivorPartyId]);
-      }).select('moved_row.activity_target_id');
+    const targets = await owned('crm_activity_target', 'party_pk', notHeldBySurvivor('crm_activity_target', ['event_id', 'entry_type']));
     const targetIds = targets.map(function (target) { return target.activity_target_id; });
-
+    let held = [];
     if (targetIds.length) {
-      const held = await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds)
-        .select('reservation_id', 'activity_target_id');
-      await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds).update({ activity_target_id: null });
-      count('crm_activity_target', await trx('crm_activity_target').whereIn('activity_target_id', targetIds).update({ party_pk: survivorPartyId }));
-      for (let index = 0; index < held.length; index += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        await trx('crm_activity_reservation').where('reservation_id', held[index].reservation_id)
-          .update({ party_pk: survivorPartyId, activity_target_id: held[index].activity_target_id });
-      }
+      held = await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds).select('reservation_id', 'activity_target_id');
+      await moveTargets(trx, targetIds, held, survivorPartyId);
+      count('crm_activity_target', targetIds.length);
     }
-    count('crm_activity_reservation', await trx('crm_activity_reservation').where('party_pk', mergedPartyId).whereNull('activity_target_id').update({ party_pk: survivorPartyId }));
-    count('crm_activity_award', await trx('crm_activity_award').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId }));
+    count('crm_activity_reservation', await change('crm_activity_reservation', 'reservation_id',
+      await owned('crm_activity_reservation', 'party_pk', function (query) { return query.whereNull('moved_row.activity_target_id'); }),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
+    count('crm_activity_award', await change('crm_activity_award', 'award_id', await owned('crm_activity_award', 'party_pk'),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
 
     /* Relationships an organization or a person has. */
+    const filled = {};
     if (survivor.party_type === 'PERSON') {
-      count('crm_organization_person_relationship', await trx('crm_organization_person_relationship')
-        .where('person_party_pk', mergedPartyId).update({ person_party_pk: survivorPartyId }));
+      count('crm_organization_person_relationship', await change('crm_organization_person_relationship', 'org_person_relationship_id',
+        await owned('crm_organization_person_relationship', 'person_party_pk'), { person_party_pk: survivorPartyId }, 'person_party_pk', survivorPartyId));
 
       /* Fill what the survivor does not know from what the merged party did. */
       const mergedPerson = await trx('crm_person').where('party_pk', mergedPartyId).first();
       const survivorPerson = await trx('crm_person').where('party_pk', survivorPartyId).first();
       if (mergedPerson && survivorPerson) {
-        const fill = {};
         PERSON_COLUMNS.forEach(function (column) {
-          if ((survivorPerson[column] === null || survivorPerson[column] === undefined) && mergedPerson[column] !== null && mergedPerson[column] !== undefined) fill[column] = mergedPerson[column];
+          if ((survivorPerson[column] === null || survivorPerson[column] === undefined) && mergedPerson[column] !== null && mergedPerson[column] !== undefined) filled[column] = mergedPerson[column];
         });
-        if (Object.keys(fill).length) await trx('crm_person').where('party_pk', survivorPartyId).update(fill);
+        if (Object.keys(filled).length) await trx('crm_person').where('party_pk', survivorPartyId).update(filled);
       }
     } else {
-      count('crm_organization_person_relationship', await trx('crm_organization_person_relationship')
-        .where('organization_party_pk', mergedPartyId).update({ organization_party_pk: survivorPartyId }));
-      await trx('crm_service_center').where('operator_party_pk', mergedPartyId).update({ operator_party_pk: survivorPartyId });
+      count('crm_organization_person_relationship', await change('crm_organization_person_relationship', 'org_person_relationship_id',
+        await owned('crm_organization_person_relationship', 'organization_party_pk'), { organization_party_pk: survivorPartyId }, 'organization_party_pk', survivorPartyId));
+      await change('crm_service_center', 'service_center_id', await owned('crm_service_center', 'operator_party_pk'),
+        { operator_party_pk: survivorPartyId }, 'operator_party_pk', survivorPartyId);
     }
 
     /* Derived rows are rebuilt rather than moved. */
-    await trx('crm_segment_membership').where('party_pk', mergedPartyId).whereNull('unmatched_at').update({ unmatched_at: trx.fn.now() });
+    const segments = await trx('crm_segment_membership').where('party_pk', mergedPartyId).whereNull('unmatched_at').pluck('segment_membership_id');
+    if (segments.length) await trx('crm_segment_membership').whereIn('segment_membership_id', segments).update({ unmatched_at: trx.fn.now() });
     await trx('crm_party_product_class_stat').where('party_pk', mergedPartyId).del();
 
-    await trx('crm_identity_match_candidate')
+    const accepted = await trx('crm_identity_match_candidate')
       .where('match_status', 'PENDING')
       .where(function () {
         this.where({ incoming_party_pk: mergedPartyId, candidate_party_pk: survivorPartyId })
           .orWhere({ incoming_party_pk: survivorPartyId, candidate_party_pk: mergedPartyId });
       })
-      .update({ match_status: 'ACCEPTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
+      .pluck('match_candidate_id');
+    if (accepted.length) {
+      await trx('crm_identity_match_candidate').whereIn('match_candidate_id', accepted)
+        .update({ match_status: 'ACCEPTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
+    }
 
-    await trx('crm_registration_intake').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId });
+    await change('crm_registration_intake', 'intake_id', await owned('crm_registration_intake', 'party_pk'),
+      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId);
     /* E-shop identifiers still waiting for review were proposed for the merged customer: propose them for the survivor. */
     const proposals = (await trx('crm_registration_intake').where({ category: 'ESHOP', status: 'PENDING' }).select('intake_id', 'candidates'))
       .filter(function (row) { return (row.candidates || []).some(function (candidate) { return String(candidate.party_pk) === String(mergedPartyId); }); });
@@ -633,7 +713,8 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       // eslint-disable-next-line no-await-in-loop
       await trx('crm_registration_intake').where('intake_id', proposals[index].intake_id).update({ candidates: JSON.stringify(candidates) });
     }
-    await trx('crm_identity_resolution').where('party_pk', mergedPartyId).update({ party_pk: survivorPartyId, acknowledged_at: null });
+    await change('crm_identity_resolution', 'resolution_id', await owned('crm_identity_resolution', 'party_pk'),
+      { party_pk: survivorPartyId, acknowledged_at: null }, 'party_pk', survivorPartyId);
     await trx('crm_party').where('party_pk', mergedPartyId).update({
       party_status: 'MERGED', merged_into_party_pk: survivorPartyId
     });
@@ -648,7 +729,20 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       merge_reason: reason ? String(reason).slice(0, 250) : null,
       merge_method: method || 'MANUAL',
       moved_rows: JSON.stringify(moved),
-      merged_by_manager_id: actor.manager_id
+      merged_by_manager_id: actor.manager_id,
+      // What unmerge() needs to separate the two again.
+      merge_metadata: JSON.stringify({
+        undo: undo,
+        targets: targetIds,
+        reservations: held,
+        carried: carried,
+        filled: filled,
+        segments: segments,
+        accepted_matches: accepted,
+        proposals: proposals.map(function (row) { return { intake_id: row.intake_id, candidates: row.candidates || [] }; }),
+        merged_status: merged.party_status,
+        survivor_first_seen_at: survivor.first_seen_at
+      })
     }).returning('*');
 
     return history;
@@ -658,6 +752,167 @@ async function merge(survivorId, mergedId, reason, method, actor) {
   await require('./analysis.service').recalculateClassStats({ partyIds: [survivorId] });
 
   audit.updated(actor, 'crm_party', mergedId, null, { merged_into_party_pk: survivorId, moved_rows: result.moved_rows }, PAGE);
+  return result;
+}
+
+/* Event entries move with the reservations that name them: let go, move the entries, take them back. */
+async function moveTargets(trx, targetIds, held, toPartyId) {
+  await trx('crm_activity_reservation').whereIn('activity_target_id', targetIds).update({ activity_target_id: null });
+  await trx('crm_activity_target').whereIn('activity_target_id', targetIds).update({ party_pk: toPartyId });
+  for (let index = 0; index < held.length; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await trx('crm_activity_reservation').where('reservation_id', held[index].reservation_id)
+      .update({ party_pk: toPartyId, activity_target_id: held[index].activity_target_id });
+  }
+}
+
+/* A value as stored in the undo log (JSON) and as read back, compared as text. */
+function sameValue(left, right) {
+  const text = function (value) { return value instanceof Date ? value.toISOString() : value == null ? '' : String(value); };
+  return text(left) === text(right);
+}
+
+/**
+ * SEPARATING TWO CUSTOMERS THAT WERE MERGED BY MISTAKE.
+ *
+ * Only a merge of two customers is undone here - the duplicate check, a
+ * reviewed match, the "merge a duplicate" button. A pending registration
+ * merged into a customer was never a customer of its own and has nothing to
+ * separate.
+ *
+ * The merge wrote down every row it moved and what it overwrote; unmerge
+ * puts exactly those rows back on the merged customer and leaves everything
+ * else where it is:
+ *
+ *   - what the survivor gained after the merge (new orders, cases, contacts)
+ *     stays with the survivor - it may belong to either person, and only a
+ *     manager can tell; it can be moved by hand afterwards;
+ *   - a moved row that has changed hands again since (another merge, a
+ *     transfer) is left alone;
+ *   - details the merge filled in on the survivor are cleared again, unless
+ *     someone has changed them since;
+ *   - a points balance carried across is carried back; a points account that
+ *     moved whole goes back whole, with whatever it holds now.
+ *
+ * The merged customer gets its old status back and becomes searchable again.
+ * Merges are undone newest first: a survivor that was itself merged into a
+ * third customer has to be separated from that one before.
+ */
+async function unmerge(mergeId, partyId, reason, actor) {
+  if (!/^[1-9][0-9]*$/.test(String(mergeId || ''))) throw new HttpError(404, 'common.notFound');
+
+  const result = await transaction(async function (trx) {
+    await require('./registrationIntake.service').lock(trx);
+    const history = await trx('crm_party_merge_history').where('merge_id', mergeId).forUpdate().first();
+    if (!history) throw new HttpError(404, 'common.notFound');
+    const survivorId = String(history.surviving_party_pk);
+    const mergedId = String(history.merged_party_pk);
+    if (partyId && String(partyId) !== survivorId && String(partyId) !== mergedId) throw new HttpError(404, 'common.notFound');
+    if (history.unmerged_at) throw new HttpError(409, 'crm.customers.alreadyUnmerged');
+    const log = history.merge_metadata || {};
+    if (!Array.isArray(log.undo)) throw new HttpError(409, 'crm.customers.mergeCannotBeUndone');
+
+    const lockOrder = survivorId < mergedId ? [survivorId, mergedId] : [mergedId, survivorId];
+    const first = await repo.lockParty(lockOrder[0], trx);
+    const second = await repo.lockParty(lockOrder[1], trx);
+    const survivor = first && first.party_pk === survivorId ? first : second;
+    const merged = first && first.party_pk === mergedId ? first : second;
+    if (!survivor || !merged) throw new HttpError(404, 'common.notFound');
+    if (merged.party_status !== 'MERGED' || String(merged.merged_into_party_pk) !== survivorId) throw new HttpError(409, 'crm.customers.mergeCannotBeUndone');
+    if (survivor.party_status === 'MERGED') throw new HttpError(409, 'crm.customers.unmergeTheLaterMergeFirst');
+
+    const restored = {};
+    const count = function (name, rowCount) { if (rowCount) restored[name] = (restored[name] || 0) + Number(rowCount); };
+
+    /* Newest change first, so a row changed twice ends where it started. */
+    const changes = log.undo.slice().reverse();
+    for (let index = 0; index < changes.length; index += 1) {
+      const step = changes[index];
+      for (let row = 0; row < step.rows.length; row += 1) {
+        const entry = step.rows[row];
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          count(step.table, await trx.transaction(function (inner) {
+            return inner(step.table).where(step.key, entry.id).where(step.guard[0], step.guard[1]).update(entry.was);
+          }));
+        } catch (error) {
+          // The merged customer has since gained a row this one would collide with: this one stays.
+          if (error.code !== '23505') throw error;
+        }
+      }
+    }
+
+    if ((log.targets || []).length) {
+      const targets = await trx('crm_activity_target').whereIn('activity_target_id', log.targets).where('party_pk', survivorId).pluck('activity_target_id');
+      const held = (log.reservations || []).filter(function (reservation) { return targets.some(function (id) { return String(id) === String(reservation.activity_target_id); }); });
+      if (targets.length) {
+        await moveTargets(trx, targets, held, mergedId);
+        count('crm_activity_target', targets.length);
+      }
+    }
+
+    const carried = log.carried || [];
+    for (let index = 0; index < carried.length; index += 1) {
+      const carry = {
+        point_type_id: carried[index].point_type_id, event_code: 'MERGE_CARRY_OVER',
+        performed_by_manager_id: actor.manager_id, allow_negative: true, allow_inactive: true
+      };
+      // eslint-disable-next-line no-await-in-loop
+      await ledger.post(trx, Object.assign({}, carry, { party_pk: survivorId, points_delta: -carried[index].points, description: 'Returned to a separated party' }));
+      // eslint-disable-next-line no-await-in-loop
+      await ledger.post(trx, Object.assign({}, carry, { party_pk: mergedId, points_delta: carried[index].points, description: 'Returned on separation from a merge' }));
+      count('crm_point_event', 2);
+    }
+
+    const filled = log.filled || {};
+    if (Object.keys(filled).length) {
+      const person = await trx('crm_person').where('party_pk', survivorId).first();
+      const clear = {};
+      Object.keys(filled).forEach(function (column) { if (person && sameValue(person[column], filled[column])) clear[column] = null; });
+      if (Object.keys(clear).length) await trx('crm_person').where('party_pk', survivorId).update(clear);
+    }
+
+    if ((log.segments || []).length) {
+      await trx.raw(
+        `UPDATE crm_segment_membership kept SET unmatched_at = NULL
+          WHERE kept.segment_membership_id = ANY(?) AND kept.party_pk = ? AND NOT EXISTS (
+            SELECT 1 FROM crm_segment_membership other
+             WHERE other.segment_id = kept.segment_id AND other.party_pk = kept.party_pk AND other.unmatched_at IS NULL)`,
+        [log.segments, mergedId]);
+    }
+
+    /* The pair was judged one person; separating them says they are two. */
+    if ((log.accepted_matches || []).length) {
+      await trx('crm_identity_match_candidate').whereIn('match_candidate_id', log.accepted_matches).where('match_status', 'ACCEPTED')
+        .update({ match_status: 'REJECTED', reviewed_at: trx.fn.now(), reviewed_by_manager_id: actor.manager_id });
+    }
+
+    const proposals = log.proposals || [];
+    for (let index = 0; index < proposals.length; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await trx('crm_registration_intake').where({ intake_id: proposals[index].intake_id, status: 'PENDING' })
+        .update({ candidates: JSON.stringify(proposals[index].candidates) });
+    }
+
+    await trx('crm_party').where('party_pk', mergedId).update({
+      party_status: log.merged_status && log.merged_status !== 'MERGED' ? log.merged_status : 'ACTIVE',
+      merged_into_party_pk: null, updated_at: trx.fn.now()
+    });
+    if (log.survivor_first_seen_at !== undefined && sameValue(survivor.first_seen_at, merged.first_seen_at)) {
+      await trx('crm_party').where('party_pk', survivorId).update({ first_seen_at: log.survivor_first_seen_at });
+    }
+
+    const [after] = await trx('crm_party_merge_history').where('merge_id', mergeId).update({
+      unmerged_at: trx.fn.now(),
+      unmerged_by_manager_id: actor.manager_id,
+      unmerge_reason: reason ? String(reason).slice(0, 250) : null,
+      restored_rows: JSON.stringify(restored)
+    }).returning(['merge_id', 'surviving_party_pk', 'merged_party_pk', 'unmerged_at', 'unmerge_reason', 'restored_rows']);
+    return after;
+  });
+
+  await require('./analysis.service').recalculateClassStats({ partyIds: [String(result.surviving_party_pk), String(result.merged_party_pk)] });
+  audit.updated(actor, 'crm_party', result.merged_party_pk, { merged_into_party_pk: result.surviving_party_pk }, { merged_into_party_pk: null, restored_rows: result.restored_rows }, PAGE);
   return result;
 }
 
@@ -787,9 +1042,11 @@ module.exports = {
   updateContact: updateContact,
   deleteContact: deleteContact,
   linkAccount: linkAccount,
+  updateAccount: updateAccount,
   unlinkAccount: unlinkAccount,
   setConsent: setConsent,
   merge: merge,
+  unmerge: unmerge,
   scanDuplicates: scanDuplicates,
   pendingCandidates: repo.pendingCandidates,
   decideCandidate: decideCandidate

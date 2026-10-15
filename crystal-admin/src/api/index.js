@@ -326,6 +326,13 @@ export const crm = {
   meta: () => client.get(CRM + '/meta'),
   overview: (params) => client.get(CRM + '/overview', { params }),
 
+  /* Linking customers to the SMARTPHONE_OFFLINE system by phone, over a range of customer numbers. */
+  smartphoneOffline: {
+    status: () => client.get(CRM + '/smartphone-offline'),
+    startRun: (fromPk, toPk) => client.post(CRM + '/smartphone-offline/runs', { from_party_pk: fromPk, to_party_pk: toPk }),
+    run: (runId) => client.get(CRM + '/smartphone-offline/runs/' + runId)
+  },
+
   analysis: {
     summary: (date) => client.get(CRM + '/analysis/summary', { params: { reference_date: date } }),
     snapshots: (params) => client.get(CRM + '/analysis/snapshots', { params }),
@@ -423,9 +430,15 @@ export const crm = {
     updateContact: (id, contactId, payload) => client.put(CRM + '/parties/' + id + '/contacts/' + contactId, payload),
     deleteContact: (id, contactId) => client.delete(CRM + '/parties/' + id + '/contacts/' + contactId),
     linkAccount: (id, payload) => client.post(CRM + '/parties/' + id + '/accounts', payload),
+    /* Account ID, PK, type, and is_primary (making one primary unsets the others in that project). */
+    updateAccount: (id, accountId, payload) => client.put(CRM + '/parties/' + id + '/accounts/' + accountId, payload),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
+    /* Look this customer's phone numbers up in the SMARTPHONE_OFFLINE system and link what it finds. */
+    autoLinkSmartphoneOffline: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/link'),
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
     merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_pk: mergedId, merge_reason: reason }),
+    /* Separate a merge again; id is either customer of it. */
+    unmerge: (id, mergeId, reason) => client.post(CRM + '/parties/' + id + '/merges/' + mergeId + '/unmerge', { unmerge_reason: reason }),
     registrations: (params) => client.get(CRM + '/identity-intakes', { params }),
     /* One staged registration with everything to compare: basic information and project identifiers, its own and each candidate's. */
     registration: (id) => client.get(CRM + '/identity-intakes/' + id),
@@ -434,7 +447,7 @@ export const crm = {
     /* Rows of a customer import that failed the file check, kept until dismissed. */
     importErrors: (params) => client.get(CRM + '/import-errors', { params }),
     dismissImportError: (id) => client.post(CRM + '/import-errors/' + id + '/dismiss'),
-    /* action: LINK or REJECT, for one { project_id, external_account_id } listed there. */
+    /* action: LINK or REJECT, for one { project_id, external_login } listed there. */
     decideUnverified: (id, payload) => client.post(CRM + '/parties/' + id + '/unverified-accounts/decide', payload),
     duplicates: (params) => client.get(CRM + '/duplicates', { params }),
     scanDuplicates: () => client.post(CRM + '/duplicates/scan'),

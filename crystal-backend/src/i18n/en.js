@@ -290,12 +290,16 @@ module.exports = {
       contactValueIsRequired: 'the contact value is required',
       itCannotEndBeforeItStarts: 'it cannot end before it starts',
       merged: 'customers merged',
+      unmerged: 'customers separated',
+      alreadyUnmerged: 'these customers were already separated',
+      mergeCannotBeUndone: 'this merge cannot be undone: it was made before merges were recorded for undoing, or it no longer stands',
+      unmergeTheLaterMergeFirst: 'the surviving customer was merged into another one since; separate that merge first',
       notAConsentStatus: 'not a consent status',
       nothingToMerge: 'there is nothing to merge',
       onlyForOrganizations: 'only an organization can have that',
       onlyForPeople: 'only a person can be added there',
       onlyPartiesOfOneType: 'a person can only be merged with a person, and an organization with an organization',
-      projectAndAccountAreRequired: 'a project and an account id are required',
+      projectAndAccountAreRequired: 'a project and an account ID are required',
       thatAccountIsAlreadyLinked: 'that account is already linked to a customer',
       thatRelationshipHasEnded: 'that relationship has already ended',
       thatRelationshipIsNotForThem: '"{relationship}" does not apply to these two customers',
@@ -503,7 +507,8 @@ module.exports = {
       name: 'same name',
       occupation: 'same job title',
       phone: 'same phone number',
-      same_user_pk: 'same user PK'
+      same_user_pk: 'same user PK',
+      same_user_id: 'same user ID'
     },
     registrations: {
       chooseAPerson: 'choose a person',
@@ -513,10 +518,19 @@ module.exports = {
       resolveTheMatchingPendingFirst: 'resolve the matching pending registration first',
       unverifiedProjectAssignment: 'unverified project assignment'
     },
+    smartphoneOffline: {
+      noProject: 'there is no project with the code {code}; add it in Settings > Projects',
+      notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (SMARTPHONE_OFFLINE_BASE_URL)',
+      chooseARange: 'enter the first and the last customer number',
+      rangeIsBackwards: 'the first customer number must not be larger than the last',
+      noCustomersInRange: 'no customer with a phone number in that range',
+      rangeTooLarge: '{count} customers in that range; link at most {max} at a time',
+      runInProgress: 'a linking run is already in progress'
+    },
     integration: {
       aValidApiKeyIsRequired: 'a valid department API key is required',
-      externalAccountIdIsRequired: 'external_account_id is required (at most {max} characters)',
-      externalLoginIsTooLong: 'external_login is longer than {max} characters',
+      externalLoginIsRequired: 'external_login (the account ID) is required (at most {max} characters)',
+      externalAccountIdIsTooLong: 'external_account_id is longer than {max} characters',
       fullNameIsRequired: 'party.full_name is required',
       thisProjectIsInactive: 'this project is inactive'
     }

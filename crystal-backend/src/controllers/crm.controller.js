@@ -199,6 +199,9 @@ module.exports = {
     linkAccount: async function (req, res) {
       return ok(res, await parties.linkAccount(req.params.id, req.body, req.actor), 'common.created');
     },
+    updateAccount: async function (req, res) {
+      return ok(res, await parties.updateAccount(req.params.id, req.params.accountId, req.body || {}, req.actor), 'common.updated');
+    },
     unlinkAccount: async function (req, res) {
       return ok(res, await parties.unlinkAccount(req.params.id, req.params.accountId, req.actor), 'common.updated');
     },
@@ -207,6 +210,9 @@ module.exports = {
     },
     merge: async function (req, res) {
       return ok(res, await parties.merge(req.params.id, req.body.merged_party_pk, req.body.merge_reason, 'MANUAL', req.actor), 'crm.customers.merged');
+    },
+    unmerge: async function (req, res) {
+      return ok(res, await parties.unmerge(req.params.mergeId, req.params.id, (req.body || {}).unmerge_reason, req.actor), 'crm.customers.unmerged');
     },
     duplicates: async function (req, res) {
       const paging = readPaging(req.query, [], 'id');

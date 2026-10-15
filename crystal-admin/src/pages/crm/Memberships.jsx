@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import { Box, Flex, Progress, SimpleGrid, Stack, Text, useToast } from '@chakra-ui/react';
 
 import Card from '../../components/Card';
@@ -12,7 +11,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, number } from '../../utils/format';
-import { Status, amount, choices, filtersFor, optionsFrom, rowsOf, useCrmMeta, partyIdLabel } from './shared';
+import { Status, amount, choices, filtersFor, optionsFrom, rowsOf, useCrmMeta, partyIdLabel, useOpenCustomer } from './shared';
 import { Panel, ProjectTags } from './ui';
 
 export const PAGE = '/admin/crm/memberships';
@@ -32,7 +31,7 @@ export const PAGE = '/admin/crm/memberships';
 export default function Memberships() {
   const translate = useT();
   const toast = useToast();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const meta = useCrmMeta();
   const surface = useSurface();
   const { canWrite } = usePermission(PAGE);
@@ -135,7 +134,7 @@ export default function Memberships() {
             rowKey={(row) => row.membership_id || row.id}
             renderExpanded={(row) => <TierHistory membershipId={row.membership_id} />}
             actions={[
-              { key: 'open', label: translate('crm.memberships.openCustomer'), onClick: (row) => history.push('/admin/crm/customers/' + row.party_pk) }
+              { key: 'open', label: translate('crm.memberships.openCustomer'), onClick: (row) => openCustomer(row.party_pk) }
             ].concat(canWrite ? [{ key: 'tier', label: translate('crm.memberships.changeTier'), onClick: (row) => setChanging(row) }] : [])}
             actionsIconOnly={false}
             storageKey={PAGE}

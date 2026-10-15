@@ -12,7 +12,8 @@ import { useT } from '../i18n';
  * Filters are declared as data rather than written as JSX at every call site,
  * so a screen adds a filter by adding an object - and every list in the
  * console ends up with the same spacing, the same "all" option and the same
- * behaviour when a filter is cleared.
+ * behaviour when a filter is cleared. A filter with `multi: true` picks
+ * several values: its value and onChange are arrays.
  */
 export default function Toolbar({ search, onSearch, filters, actions, children, placeholder, beside }) {
   const t = useT();
@@ -66,7 +67,8 @@ export default function Toolbar({ search, onSearch, filters, actions, children, 
             <Box minW={filter.width || '9.375rem'}>
               <SelectField
                 size="sm"
-                value={filter.value === null || filter.value === undefined ? null : filter.value}
+                isMulti={!!filter.multi}
+                value={filter.value === null || filter.value === undefined ? (filter.multi ? [] : null) : filter.value}
                 options={filter.options || []}
                 placeholder={filter.placeholder || filter.label}
                 // An empty value means "no filter", not a filter whose value

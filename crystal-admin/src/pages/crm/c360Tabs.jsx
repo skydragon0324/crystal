@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
   Box, Button, Flex, Grid, HStack, Icon, IconButton, Input, Menu, MenuButton, MenuItem, MenuList, Stack, Text, Textarea,
-  useColorMode, useToast
+  Tooltip as HintTooltip, useColorMode, useToast
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -14,7 +14,7 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { Status, amount, rowsOf, word, partyIdLabel } from './shared';
+import { Status, amount, rowsOf, word, partyIdLabel, useOpenCustomer } from './shared';
 import { Amount, Dot, InfoList, Panel, ProjectTags, ScoreBreakdown, Timeline } from './ui';
 import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, ServiceSummaryCard, useRowSearch } from './c360Cards';
 import { Card360, Empty360, Initials, Pill, RfmHexagon } from './ui360';
@@ -27,8 +27,6 @@ import { usePeek } from './peek';
  * (`act`: open a dialog, run a change, ask before one). Notes, files and
  * interactions are read here, page by page, because they grow without end.
  */
-
-const CUSTOMERS = '/admin/crm/customers';
 
 /* ================================================================ accounts */
 
@@ -58,8 +56,8 @@ function UnverifiedAccountsCard({ partyId, act }) {
   const decide = (row, action) => act.ask(
     action === 'LINK' ? 'crm.customer360Tabs.linkIdentifier' : 'crm.customer360Tabs.rejectIdentifier',
     action === 'LINK' ? 'crm.customer360Tabs.linkIdentifierExplained' : 'crm.customer360Tabs.rejectIdentifierExplained',
-    translate(row.project_name || '') + '  ' + (row.external_login || row.external_account_id),
-    () => crm.parties.decideUnverified(partyId, { project_id: row.project_id, external_account_id: row.external_account_id, action: action }),
+    translate(row.project_name || '') + '  ' + row.external_login,
+    () => crm.parties.decideUnverified(partyId, { project_id: row.project_id, external_login: row.external_login, action: action }),
     action === 'LINK' ? 'info' : 'danger');
   if (!rows.length) return null;
   return (
@@ -67,7 +65,7 @@ function UnverifiedAccountsCard({ partyId, act }) {
       <Text fontSize="xs" mb={2}>{translate('crm.customer360Tabs.unverifiedExplained')}</Text>
       <MiniTable
         rows={rows}
-        rowKey={(row) => row.registration_intake_id + ':' + row.project_id + ':' + row.external_account_id}
+        rowKey={(row) => row.registration_intake_id + ':' + row.project_id + ':' + row.external_login}
         columns={[
           { key: 'project_name', label: 'Project or service', render: (row) => translate(row.project_name || '') },
           { key: 'external_account_id', label: 'Account PK' },
@@ -96,11 +94,31 @@ function UnverifiedAccountsCard({ partyId, act }) {
 
 export function AccountsTab({ record, view, act }) {
   const translate = useT();
+  const toast = useToast();
+  const [linking, setLinking] = useState(false);
   const accounts = record.accounts || [];
+  /* Ask the SMARTPHONE_OFFLINE system about this customer's phone numbers; numbers already linked are not asked again. */
+  const autoLink = async () => {
+    setLinking(true);
+    try {
+      const { data } = await crm.parties.autoLinkSmartphoneOffline(record.party.party_pk);
+      toast({
+        title: translate('crm.customer360Tabs.autoLinkSmartphoneOffline'), status: data.conflict_count || data.failed_count ? 'warning' : 'success', duration: 8000, isClosable: true,
+        description: translate('crm.customer360Tabs.autoLinkResult', { linked: data.linked, existing: data.existing, skipped: data.skipped, not_found: data.not_found, conflicts: data.conflict_count, failed: data.failed_count })
+      });
+      act.refresh();
+    } catch (error) {
+      toast({ title: error.message, status: 'error', duration: 8000, isClosable: true });
+    } finally {
+      setLinking(false);
+    }
+  };
   return (
     <Stack spacing={4}>
       <Card360 icon={Md.MdPersonOutline} title={translate('crm.customer360Tabs.accountsInEachProject')}
-        action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdLink} />} onClick={() => act.open('account')}>{translate('crm.customer360.linkAccount')}</Button> : null}>
+        action={act.editable ? (
+          <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdLink} />} onClick={() => act.open('account')}>{translate('crm.customer360.linkAccount')}</Button>
+        ) : null}>
         <MiniTable
           rows={view.accounts || []}
           rowKey={(row) => row.project_code + ':' + (row.project_account_id || 'none')}
@@ -112,12 +130,30 @@ export function AccountsTab({ record, view, act }) {
             { key: 'first_used_at', label: 'First use', render: (row) => date(row.first_used_at) },
             { key: 'last_activity_at', label: 'Last activity', render: (row) => date(row.last_activity_at) },
             { key: 'unlink', label: 'Actions', render: (row) => {
+              if (!act.editable) return null;
               const account = accounts.filter((candidate) => candidate.project_account_id === row.project_account_id)[0];
-              if (!act.editable || !account || account.unlinked_at) return null;
+              /* The SMARTPHONE_OFFLINE line: look this customer's phones up there, whether or not an account is linked yet. */
+              const byPhone = row.links_by_phone ? (
+                <HintTooltip label={translate('crm.customer360Tabs.linkByPhoneExplained')} hasArrow>
+                  <Button size="xs" variant="outline" colorScheme="brand" leftIcon={<Icon as={Md.MdPhoneIphone} />} isLoading={linking} onClick={autoLink}>
+                    {translate('crm.customer360Tabs.linkByPhone')}
+                  </Button>
+                </HintTooltip>
+              ) : null;
+              if (!account || account.unlinked_at) return byPhone;
               return (
-                <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer360Tabs.unlink')}
-                  onClick={() => act.ask('crm.customer360Tabs.unlinkAccount', 'crm.customer360Tabs.unlinkExplained', account.project_code + '  ' + account.external_account_id,
-                    () => crm.parties.unlinkAccount(record.party.party_pk, account.project_account_id))} />
+                <HStack spacing={0}>
+                  {byPhone}
+                  {account.is_primary ? null : (
+                    <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdStarBorder} />} aria-label={translate('crm.customer360Tabs.makePrimary')} title={translate('crm.customer360Tabs.makePrimary')}
+                      onClick={() => act.run(() => crm.parties.updateAccount(record.party.party_pk, account.project_account_id, { is_primary: true }))} />
+                  )}
+                  <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdEdit} />} aria-label={translate('crm.customer360.editAccount')} title={translate('crm.customer360.editAccount')}
+                    onClick={() => act.open('editAccount', account)} />
+                  <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer360Tabs.unlink')} title={translate('crm.customer360Tabs.unlink')}
+                    onClick={() => act.ask('crm.customer360Tabs.unlinkAccount', 'crm.customer360Tabs.unlinkExplained', account.project_code + '  ' + account.external_login,
+                      () => crm.parties.unlinkAccount(record.party.party_pk, account.project_account_id))} />
+                </HStack>
               );
             } }
           ]}
@@ -634,7 +670,7 @@ export function ConsentTab({ record, view, act }) {
 
 export function RelatedTab({ record, view, act }) {
   const translate = useT();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const party = record.party || {};
   const isPerson = party.party_type === 'PERSON';
   const links = record.organization_links || {};
@@ -645,7 +681,7 @@ export function RelatedTab({ record, view, act }) {
         <MiniTable
           rows={(view.relationships || []).filter((row) => row.side !== 'EMPLOYMENT')}
           rowKey={(row) => String(row.party_relationship_id) + row.side}
-          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.other_party_pk)}
+          onRowClick={(row) => openCustomer(row.other_party_pk)}
           empty="crm.customer360.noRelatedParties"
           columns={[
             { key: 'other_name', label: 'Name', render: (row) => <HStack spacing={2}><Initials name={row.other_name} color={row.other_party_type === 'ORGANIZATION' ? 'teal' : 'brand'} /><Text as="span">{row.other_name}</Text></HStack> },
@@ -669,7 +705,7 @@ export function RelatedTab({ record, view, act }) {
           <MiniTable
             rows={links.employers || []}
             rowKey={(row) => row.org_person_relationship_id}
-            onRowClick={(row) => history.push(CUSTOMERS + '/' + row.organization_party_pk)}
+            onRowClick={(row) => openCustomer(row.organization_party_pk)}
             empty="crm.customer360Tabs.actsForNobody"
             columns={[
               { key: 'organization_name', label: 'Organization' },
@@ -688,7 +724,16 @@ export function RelatedTab({ record, view, act }) {
             { key: 'merged_party_pk', label: 'Merged customer', render: (row) => partyIdLabel(row.merged_party_pk) },
             { key: 'surviving_party_pk', label: 'Into', render: (row) => partyIdLabel(row.surviving_party_pk) },
             { key: 'merge_reason', label: 'Reason', maxW: '14rem' },
-            { key: 'merged_at', label: 'When', render: (row) => date(row.merged_at) }
+            { key: 'merged_at', label: 'When', render: (row) => date(row.merged_at) },
+            { key: 'unmerged_at', label: translate('crm.customer360Tabs.mergeStatus'), render: (row) => {
+              if (row.unmerged_at) return <Text as="span" title={row.unmerge_reason || ''}>{translate('crm.customer360Tabs.separatedOn', { date: date(row.unmerged_at) })}</Text>;
+              if (!act.canWrite || !row.can_unmerge) return translate('crm.customer360Tabs.stillMerged');
+              return (
+                <Button size="xs" variant="outline" colorScheme="red" leftIcon={<Icon as={Md.MdCallSplit} />} onClick={() => act.open('unmerge', { merge_id: row.merge_id })}>
+                  {translate('crm.customer360.separate')}
+                </Button>
+              );
+            } }
           ]}
         />
       </Card360>
@@ -1018,7 +1063,7 @@ export function OrganizationTab({ record, view, act }) {
 
 export function ContactsTab({ record, view, act }) {
   const translate = useT();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const links = record.organization_links || {};
   const party = record.party || {};
   return (
@@ -1051,7 +1096,7 @@ export function ContactsTab({ record, view, act }) {
             { key: 'relationship_status', label: 'Status', render: (row) => <Pill code={row.relationship_status} /> },
             { key: 'valid_from', label: 'From', render: (row) => date(row.valid_from) }
           ]}
-          onRowClick={(row) => history.push(CUSTOMERS + '/' + row.person_party_pk)}
+          onRowClick={(row) => openCustomer(row.person_party_pk)}
           actions={act.editable ? [{
             key: 'end', label: translate('crm.customer360Tabs.endRelationship'), hidden: (row) => row.relationship_status !== 'ACTIVE',
             onClick: (row) => act.run(() => crm.organizations.endPerson(party.party_pk, row.org_person_relationship_id))

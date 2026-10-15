@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
 import {
   Box, Button, Flex, Grid, HStack, Progress, Spinner, Stack, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useColorMode, useToast
 } from '@chakra-ui/react';
@@ -17,7 +16,7 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { choices, filtersFor, optionsFrom, rowsOf, translateOptions, useCrmMeta, partyIdLabel } from './shared';
+import { choices, filtersFor, optionsFrom, rowsOf, translateOptions, useCrmMeta, partyIdLabel, useOpenCustomer } from './shared';
 import { MiniTable } from './c360Cards';
 import { Amount, Dot, GradeBadge, InfoList, Kpi, KpiStrip, Panel, ProjectTags, ScoreMeter } from './ui';
 
@@ -246,7 +245,7 @@ function ProjectSnapshots({ partyPk, refDate }) {
  */
 function SnapshotsTab({ refDate }) {
   const translate = useT();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const meta = useCrmMeta();
 
   const list = useList((params) => crm.analysis.snapshots(params),
@@ -298,7 +297,7 @@ function SnapshotsTab({ refDate }) {
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.analysis_snapshot_id || row.id}
           renderExpanded={(row) => <ProjectSnapshots partyPk={row.party_pk} refDate={row.reference_date || refDate} />}
-          onRowDoubleClick={(row) => history.push('/admin/crm/customers/' + row.party_pk)}
+          onRowDoubleClick={(row) => openCustomer(row.party_pk)}
           rowHint={translate('crm.analysis.openCustomerHint')}
           storageKey={PAGE + '/snapshots'}
         />

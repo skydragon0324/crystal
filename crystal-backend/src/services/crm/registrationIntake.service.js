@@ -63,7 +63,7 @@ async function addEvidence(trx, partyPk, data) {
 }
 async function attachAccount(trx, partyPk, account, reviewed) {
  if (!account) return;
- const key = { project_id: account.project_id, external_account_id: String(account.external_account_id) };
+ const key = { project_id: account.project_id, external_login: String(account.external_login) };
  const existing = await trx('crm_project_account').where(key).whereNull('unlinked_at').first();
  if (existing) {
   if (String(existing.party_pk) !== String(partyPk)) throw new HttpError(409, 'crm.customers.thatAccountIsAlreadyLinked');
@@ -71,7 +71,7 @@ async function attachAccount(trx, partyPk, account, reviewed) {
  }
  const primary = await trx('crm_project_account').where({ party_pk: partyPk, project_id: account.project_id }).whereNull('unlinked_at').first();
  const values = {};
- ['external_login','external_account_type','account_status','crystal_user_id','source_created_at','source_updated_at'].forEach(k => { if (account[k] != null) values[k] = account[k]; });
+ ['external_account_id','external_account_type','account_status','crystal_user_id','source_created_at','source_updated_at'].forEach(k => { if (account[k] != null) values[k] = account[k]; });
  await trx('crm_project_account').insert(Object.assign(values, key, { party_pk: partyPk, is_primary: !primary, link_method: reviewed ? 'REVIEWED' : 'MATCHED' }));
 }
 // Identifiers a spreadsheet claims for a person are not trusted enough for
@@ -79,9 +79,9 @@ async function attachAccount(trx, partyPk, account, reviewed) {
 // candidates for that party, which an administrator verifies or rejects.
 async function stageUnverifiedAccounts(trx, party, accounts) {
  for (const account of (accounts || [])) {
-  const linked = await trx('crm_project_account').where({ project_id: account.project_id, external_account_id: String(account.external_account_id), party_pk: party.party_pk }).whereNull('unlinked_at').first();
+  const linked = await trx('crm_project_account').where({ project_id: account.project_id, external_login: String(account.external_login), party_pk: party.party_pk }).whereNull('unlinked_at').first();
   if (linked) continue;
-  await submit(trx, { display_name: party.display_name }, { project_id: account.project_id, source_record_id: account.external_account_id, category: 'ESHOP', account,
+  await submit(trx, { display_name: party.display_name }, { project_id: account.project_id, source_record_id: account.external_login, category: 'ESHOP', account,
    candidates: [{ party_pk: String(party.party_pk), display_name: party.display_name, reason: 'crm.registrations.listedInAnImportedSheet' }] });
  }
 }
@@ -222,7 +222,7 @@ async function unverifiedAccountsFor(partyPks) {
  intakes.forEach(row => {
   const own = listedBy.get(String(row.party_pk));
   row.payload.unverified_accounts.forEach(account => {
-   const key = account.project_id + ':' + account.external_account_id;
+   const key = account.project_id + ':' + account.external_login;
    if (own.seen.has(key)) return;
    own.seen.add(key);
    own.listed.push({ account, intake_id: row.intake_id, recorded_at: row.created_at });
@@ -231,16 +231,16 @@ async function unverifiedAccountsFor(partyPks) {
  const everyone = [].concat(...pks.map(pk => listedBy.get(pk).listed));
  if (!everyone.length) return out;
  const [reviews, projects] = await Promise.all([
-  db('crm_registration_intake').where('category', 'ESHOP').whereIn('source_record_id', Array.from(new Set(everyone.map(item => String(item.account.external_account_id)))))
+  db('crm_registration_intake').where('category', 'ESHOP').whereIn('source_record_id', Array.from(new Set(everyone.map(item => String(item.account.external_login)))))
    .select('intake_id', 'source_project_id', 'source_record_id', 'status', 'party_pk'),
   db('crm_project').whereIn('project_id', Array.from(new Set(everyone.map(item => item.account.project_id)))).select('project_id', 'project_name')
  ]);
  pks.forEach(partyPk => out.set(partyPk, listedBy.get(partyPk).listed.map(item => {
-  const review = reviews.find(row => String(row.source_project_id) === String(item.account.project_id) && row.source_record_id === String(item.account.external_account_id));
+  const review = reviews.find(row => String(row.source_project_id) === String(item.account.project_id) && row.source_record_id === String(item.account.external_login));
   const project = projects.find(row => String(row.project_id) === String(item.account.project_id));
   return {
    project_id: item.account.project_id, project_name: project ? project.project_name : null,
-   external_account_id: item.account.external_account_id, external_login: item.account.external_login || null,
+   external_account_id: item.account.external_account_id || null, external_login: item.account.external_login,
    recorded_at: item.recorded_at, registration_intake_id: item.intake_id, review_intake_id: review ? review.intake_id : null,
    // PENDING, REJECTED, ASSIGNED (to this customer) or ASSIGNED_ELSEWHERE.
    review_status: !review ? null : review.status === 'ASSIGNED' && String(review.party_pk) !== String(partyPk) ? 'ASSIGNED_ELSEWHERE' : review.status
@@ -282,7 +282,7 @@ async function detail(id) {
  const jobName = jid => { const j = jobs.find(row => String(row.job_title_id) === String(jid)); return j ? j.job_name : null; };
  const placeName = lid => { const l = places.find(row => String(row.location_pk) === String(lid)); return l ? l.full_name : null; };
  const identifier = (account, kind) => ({ project_id: account.project_id, project_name: projectName(account.project_id),
-  account_pk: account.external_account_id, account_id: account.external_login || null, kind });
+  account_pk: account.external_account_id || null, account_id: account.external_login, kind });
  // One person's basic information, the same shape for the incoming row and every candidate.
  const basic = (person, phones, emails, originProjectId) => ({
   full_name: person.full_name || person.display_name || null, gender_code: person.gender_code || null,
@@ -315,7 +315,7 @@ async function detail(id) {
    const linked = accounts.filter(row => String(row.party_pk) === pk);
    // An Excel identifier that has since been verified is listed once, as linked.
    const listed = (unverifiedByParty.get(pk) || []).filter(row => !linked.some(account =>
-    String(account.project_id) === String(row.project_id) && String(account.external_account_id) === String(row.external_account_id)));
+    String(account.project_id) === String(row.project_id) && String(account.external_login) === String(row.external_login)));
    return Object.assign(base, {
     party_status: person.party_status || null,
     person: basic(person, own.filter(c => ['MOBILE', 'PHONE'].includes(c.contact_type)).map(c => c.contact_value),
@@ -365,11 +365,13 @@ async function detail(id) {
  *   gender_code the gender
  *   address     the street address and the home location, together
  *   job_title   the job title
- *   phone       the registration's mobile becomes the main mobile; the old one stays on file
+ *
+ * Phones are not a choice: the customer keeps every number, theirs and the
+ * registration's (addEvidence).
  */
 const TAKEABLE = {
  full_name: ['full_name'], birth_date: ['birth_date', 'birth_year'], gender_code: ['gender_code'],
- address: ['address_line', 'home_location_pk'], job_title: ['job_title_id'], phone: []
+ address: ['address_line', 'home_location_pk'], job_title: ['job_title_id']
 };
 async function takeFromRegistration(trx, partyPk, incoming, fields, actor) {
  const wanted = (Array.isArray(fields) ? fields : []).filter(field => Object.prototype.hasOwnProperty.call(TAKEABLE, field));
@@ -386,18 +388,10 @@ async function takeFromRegistration(trx, partyPk, incoming, fields, actor) {
   if (patch.full_name) await trx('crm_party').where('party_pk', partyPk).update({ display_name: patch.full_name, updated_at: trx.fn.now() });
   audit.updated(actor, 'crm_person', partyPk, before, Object.assign({}, before, patch), PAGE);
  }
- if (wanted.indexOf('phone') !== -1 && incoming.mobile) {
-  const normalised = require('./contact').normalise('MOBILE', incoming.mobile);
-  const mobile = normalised && await trx('crm_contact_point').where({ party_pk: partyPk, contact_type: 'MOBILE', normalized_value: normalised }).first();
-  if (mobile && !mobile.is_primary) {
-   await trx('crm_contact_point').where({ party_pk: partyPk, contact_type: 'MOBILE', is_primary: true }).update({ is_primary: false });
-   await trx('crm_contact_point').where('contact_point_id', mobile.contact_point_id).update({ is_primary: true, status: 'ACTIVE', valid_to: null });
-  }
- }
 }
 async function decideUnverified(partyPk, body, actor) {
  if (body.action !== 'LINK' && body.action !== 'REJECT') throw new HttpError(400, 'crm.registrations.chooseLinkOrReject');
- const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_account_id) === String(body.external_account_id));
+ const item = (await unverifiedAccounts(partyPk)).find(row => String(row.project_id) === String(body.project_id) && String(row.external_login) === String(body.external_login));
  if (!item) throw new HttpError(404, 'common.notFound');
  if (item.review_status && item.review_status !== 'PENDING') throw new HttpError(409, 'crm.common.alreadyDecided');
  let reviewId = item.review_intake_id;
@@ -405,7 +399,7 @@ async function decideUnverified(partyPk, body, actor) {
   const party = await db('crm_party').where('party_pk', partyPk).first();
   const account = { project_id: item.project_id, external_account_id: item.external_account_id, external_login: item.external_login };
   await transaction(trx => stageUnverifiedAccounts(trx, party, [account]));
-  const staged = await db('crm_registration_intake').where({ category: 'ESHOP', source_project_id: item.project_id, source_record_id: String(item.external_account_id) }).first('intake_id');
+  const staged = await db('crm_registration_intake').where({ category: 'ESHOP', source_project_id: item.project_id, source_record_id: String(item.external_login) }).first('intake_id');
   // Already linked to this customer: staging had nothing to do.
   if (!staged) throw new HttpError(409, 'crm.common.alreadyDecided');
   reviewId = staged.intake_id;

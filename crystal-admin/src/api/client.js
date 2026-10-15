@@ -24,6 +24,9 @@ const LOCALE_KEY = 'crystal.admin.locale';
 /** Fired when the session really is over, so the app can explain itself. */
 export const SESSION_EXPIRED_EVENT = 'crystal:session-expired';
 
+/** Fired when a refusal names the fields it refused ([{ field, message }]), so an open form can mark them. */
+export const FIELD_PROBLEMS_EVENT = 'crystal:field-problems';
+
 export const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5100/api';
 
 /** The console's half of the API. The customer website lives at the root. */
@@ -284,6 +287,9 @@ client.interceptors.response.use(
     // Structured extras - per-row import problems and the like - ride along
     // so a caller can present them properly instead of just the summary line.
     error.detail = (payload && payload.detail) || null;
+    if (Array.isArray(error.detail) && error.detail.some((item) => item && item.field)) {
+      window.dispatchEvent(new CustomEvent(FIELD_PROBLEMS_EVENT, { detail: error.detail }));
+    }
     return Promise.reject(error);
   }
 );

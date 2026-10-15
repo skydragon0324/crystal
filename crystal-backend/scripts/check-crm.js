@@ -171,7 +171,7 @@ async function main() {
     const listedUser = listed.filter(function (row) { return row.external_account_id === userPkOf(eshopPk); })[0];
     if (listed.length !== 2 || !listedEshop || !listedUser || listedEshop.review_status !== 'PENDING' || listedUser.review_status !== 'PENDING') return 'listed ' + JSON.stringify(listed);
     const queue = data(await admin.get('/crm/identity-intakes', { params: { category: 'ESHOP', limit: 100 } }));
-    const assignment = queue.rows.filter(function (row) { return row.source_record_id === eshopPk; })[0];
+    const assignment = queue.rows.filter(function (row) { return row.source_record_id === RUN.toLowerCase() + '-one'; })[0];
     if (!assignment || String(assignment.candidates[0].party_pk) !== String(sheetPartyPk)) return 'not in the e-shop queue';
     await admin.post('/crm/identity-intakes/' + assignment.intake_id + '/decide', { action: 'ASSIGN', party_pk: sheetPartyPk });
     const after = data(await admin.get('/crm/parties/' + sheetPartyPk));

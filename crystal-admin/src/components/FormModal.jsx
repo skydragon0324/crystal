@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton,
-  FormControl, FormLabel, FormHelperText, Checkbox, Input, Textarea, Switch, Button,
+  FormControl, FormLabel, FormHelperText, FormErrorMessage, Checkbox, Input, Textarea, Switch, Button,
   SimpleGrid, GridItem, Text, Box, Flex, useColorModeValue, useToast
 } from '@chakra-ui/react';
 import SelectField from './SelectField';
@@ -13,6 +13,7 @@ import FileListField from './FileListField';
 import RichTextEditor from './RichTextEditor';
 import { useI18n } from '../i18n';
 import { media } from '../api';
+import { FIELD_PROBLEMS_EVENT } from '../api/client';
 
 /**
  * fields: [{ name, label, type, options, required, placeholder, help, colSpan, isReadOnly, min, max, step, rows, folder }]
@@ -129,18 +130,53 @@ export default function FormModal({
    * for not having typed yet.
    */
   const [touched, setTouched] = useState(false);
-  useEffect(() => { if (isOpen) setTouched(false); }, [isOpen]);
+  /* What the server refused on the last save, by field name: shown until that field is changed. */
+  const [refused, setRefused] = useState({});
+  const bodyRef = useRef(null);
+  useEffect(() => { if (isOpen) { setTouched(false); setRefused({}); } }, [isOpen]);
 
   const list = fields || [];
 
   const isBlank = (field) => {
     if (field.type === 'checkbox' || field.type === 'switch') return false;
-    if (field.type === 'files') return !(current[field.name] || []).length;
     const value = current[field.name];
-    return value === '' || value === null || value === undefined;
+    if (Array.isArray(value)) return !value.length;
+    if (field.type === 'files') return !value;
+    return value === null || value === undefined || String(value).trim() === '';
   };
 
-  const missing = list.filter((f) => f.required && f.type !== 'section' && isBlank(f));
+  /*
+   * WHAT IS WRONG WITH EACH FIELD, in words the person can act on.
+   *
+   * Save used to stop silently on a missing required field, which reads as
+   * "the button is broken". Now each field says what it needs, under itself,
+   * in red - and only after the first Save, for the reason `touched` gives.
+   */
+  const problemOf = (f) => {
+    if (f.type === 'section' || f.compute) return null;
+    if (f.required && isBlank(f)) return t('common.validation.required');
+    const value = current[f.name];
+    if (f.type === 'number' && !isBlank(f)) {
+      const number = Number(value);
+      if (Number.isNaN(number)) return t('common.validation.notANumber');
+      if (f.min !== undefined && f.min !== null && number < Number(f.min)) return t('common.validation.atLeast', { min: f.min });
+      if (f.max !== undefined && f.max !== null && number > Number(f.max)) return t('common.validation.atMost', { max: f.max });
+    }
+    return refused[f.name] || null;
+  };
+
+  const invalid = list.filter((f) => problemOf(f) && !refused[f.name]);
+
+  /* The first field in trouble, brought into view: in a long form it may be far above the button. */
+  const showFirstProblem = () => {
+    setTimeout(() => {
+      const box = bodyRef.current && bodyRef.current.querySelector('[data-invalid-field]');
+      if (!box) return;
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = box.querySelector('input, textarea, button');
+      if (input) input.focus({ preventScroll: true });
+    }, 0);
+  };
 
   /**
    * What actually gets sent.
@@ -188,10 +224,26 @@ export default function FormModal({
 
   const submit = async () => {
     setTouched(true);
-    if (missing.length) return;
+    setRefused({});
+    if (invalid.length) { showFirstProblem(); return; }
 
     const payload = payloadOf();
     const uploaded = [];
+    /*
+     * The server may refuse fields by name ({ field, message } in the error's
+     * detail). Most screens catch their own errors and only toast them, so the
+     * API client announces those problems and the form that is saving picks
+     * up the ones that are its own fields.
+     */
+    const names = list.map((f) => f.name);
+    const onRefused = (event) => {
+      const mine = {};
+      (event.detail || []).forEach((item) => {
+        if (item && item.field && item.message && names.indexOf(item.field) >= 0 && !mine[item.field]) mine[item.field] = item.message;
+      });
+      if (Object.keys(mine).length) { setRefused(mine); showFirstProblem(); }
+    };
+    window.addEventListener(FIELD_PROBLEMS_EVENT, onRefused);
     setUploading(true);
     try {
       // Uploads are deliberately resolved at the Save boundary. Until this
@@ -234,6 +286,7 @@ export default function FormModal({
       await Promise.all(uploaded.map((path) => media.discard(path).catch(() => null)));
       toast({ title: err.message, status: 'error', duration: 6000, isClosable: true });
     } finally {
+      window.removeEventListener(FIELD_PROBLEMS_EVENT, onRefused);
       setUploading(false);
     }
   };
@@ -270,7 +323,11 @@ export default function FormModal({
    * is what lost the stored path every time a file field wrote a path and a
    * filename together, leaving an upload that appeared to do nothing.
    */
-  const set = (name, value) => update((prev) => Object.assign({}, prev, { [name]: value }));
+  const set = (name, value) => {
+    update((prev) => Object.assign({}, prev, { [name]: value }));
+    // Changing a field the server refused is the answer to it: the old message no longer applies.
+    if (refused[name]) setRefused((prev) => Object.assign({}, prev, { [name]: null }));
+  };
 
   /*
    * Option labels are translated here rather than by each screen.
@@ -289,6 +346,8 @@ export default function FormModal({
     // server works the same figure out again, so an edited one would only ever
     // be a number that disagrees with the two beside it.
     const value = f.compute ? f.compute(current) : current[f.name];
+    // The select, the date picker and the multi-select draw their own border, so they are told; plain inputs read it from FormControl.
+    const bad = touched && !!problemOf(f);
 
     switch (f.type) {
       // An escape hatch for the screens that need a whole editor inside the
@@ -305,6 +364,7 @@ export default function FormModal({
             value={value === undefined ? null : value}
             placeholder={f.placeholder ? t(f.placeholder) : undefined}
             isDisabled={f.isReadOnly}
+            isInvalid={bad}
             /*
              * Clearable unless the field says otherwise. A field whose list
              * already CONTAINS the "none of them" answer as a real option has
@@ -347,6 +407,7 @@ export default function FormModal({
             value={value || []}
             placeholder={f.placeholder ? t(f.placeholder) : undefined}
             isDisabled={f.isReadOnly}
+            isInvalid={bad}
             onChange={(v) => set(f.name, v)}
           />
         );
@@ -359,6 +420,7 @@ export default function FormModal({
             value={value ? String(value).slice(0, 10) : ''}
             placeholder={f.placeholder}
             isDisabled={f.isReadOnly}
+            isInvalid={bad}
             isClearable={!f.required}
             min={f.min}
             max={f.max}
@@ -515,7 +577,7 @@ export default function FormModal({
       <ModalContent>
         <ModalHeader color={textColor}>{title}</ModalHeader>
         <ModalCloseButton _focus={{ boxShadow: 'none' }} />
-        <ModalBody pb="0.625rem">
+        <ModalBody pb="0.625rem" ref={bodyRef}>
           <Flex direction="column" gap="1.375rem" data-gap="22" data-gap-column>
             {blocks.map((block, index) => (
               <Box key={block.title || 'block-' + index}>
@@ -543,9 +605,11 @@ export default function FormModal({
                 ) : null}
 
                 <SimpleGrid columns={grid} spacing="1.125rem">
-                  {block.fields.map((f) => (
-                    <GridItem key={f.name} colSpan={spanOf(f, grid)}>
-                      <FormControl isInvalid={touched && f.required && isBlank(f)}>
+                  {block.fields.map((f) => {
+                    const problem = touched ? problemOf(f) : null;
+                    return (
+                    <GridItem key={f.name} colSpan={spanOf(f, grid)} data-invalid-field={problem ? '' : undefined}>
+                      <FormControl isInvalid={!!problem}>
                         {/* A checkbox writes its own label beside the box, so
                             repeating it above would say it twice. */}
                         {f.type === 'checkbox' ? null : (
@@ -558,20 +622,28 @@ export default function FormModal({
                           </FormLabel>
                         )}
                         {renderField(f)}
-                        {f.help && f.type !== 'checkbox' ? (
+                        {/* What is wrong replaces the hint while it is wrong: one line under the field, not two. */}
+                        {problem ? (
+                          <FormErrorMessage fontSize="xs" ms="0.25rem" mt="0.375rem">{problem}</FormErrorMessage>
+                        ) : f.help && f.type !== 'checkbox' ? (
                           <FormHelperText fontSize="xs" color={helpColor} ms="0.25rem">
                             {t(f.help)}
                           </FormHelperText>
                         ) : null}
                       </FormControl>
                     </GridItem>
-                  ))}
+                    );
+                  })}
                 </SimpleGrid>
               </Box>
             ))}
           </Flex>
         </ModalBody>
         <ModalFooter pt="1.25rem">
+          {/* Said beside the button that was pressed, so a Save that did nothing visible still answers. */}
+          {touched && list.some((f) => problemOf(f)) ? (
+            <Text fontSize="sm" color="red.500" me="auto" pe="0.75rem">{t('common.validation.fixTheMarkedFields')}</Text>
+          ) : null}
           <Button variant="subtle" fontSize="sm" borderRadius="0.5rem" me="0.75rem" onClick={onClose}>
             {t('common.cancel')}
           </Button>

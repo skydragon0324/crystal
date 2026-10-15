@@ -104,15 +104,15 @@ function Identifiers({ rows, translate }) {
 /*
  * The details a merge can take from the new registration instead of keeping
  * the customer's own, and how each reads on both sides. The keys are the ones
- * the server accepts in `use_incoming`.
+ * the server accepts in `use_incoming`. Phones are not here: the customer
+ * keeps every number, theirs and the registration's.
  */
 const TAKEABLE = [
   { key: 'full_name', label: 'Name', value: (person) => person.full_name },
   { key: 'birth_date', label: 'Date of birth', value: (person) => (person.birth_date ? date(person.birth_date) : person.birth_year) },
   { key: 'gender_code', label: 'Gender', value: (person, translate) => (person.gender_code ? translate(GENDER[person.gender_code] || person.gender_code) : null) },
   { key: 'address', label: 'Address', value: (person) => [person.location_name, person.address_line].filter(Boolean).join(' / ') },
-  { key: 'job_title', label: 'Job title', value: (person, translate) => (person.job_title_name ? translate(person.job_title_name) : null) },
-  { key: 'phone', label: 'Phone', value: (person) => (person.phones || [])[0] }
+  { key: 'job_title', label: 'Job title', value: (person, translate) => (person.job_title_name ? translate(person.job_title_name) : null) }
 ];
 
 /**
