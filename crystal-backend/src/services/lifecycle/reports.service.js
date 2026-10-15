@@ -5,7 +5,6 @@ const config = require('../../config');
 const repo = require('../../repositories/lifecycle.repository');
 const rules = require('./rules');
 const snapshots = require('./snapshots.service');
-const jobs = require('./jobs.service');
 
 /**
  * WHAT THE DASHBOARD ASKS, ANSWERED FROM THE READ MODELS.
@@ -70,6 +69,37 @@ function endOfDay(day) {
 /** The instant a local day BEGINS. */
 function startOfDay(day) {
   return db.raw('((? ::date)::timestamp AT TIME ZONE ?)', [day, zone()]);
+}
+
+/* ------------------------------------------------------------------ */
+/*  freshness                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * THE TWO TIMESTAMPS A REPORT HAS TO SHOW, and nothing else.
+ *
+ * Requirement 11 asks every stock answer to carry freshness metadata, and
+ * requirement 8 asks the limitation to be visible: these counts are complete
+ * as of the last reconciliation, not as of this second.
+ *
+ * Read from the checkpoints rather than from jobs.health(), which is the
+ * operations aggregate - eight queries including a count over the whole
+ * journal. A chart redraw should not pay for the job-health tab.
+ */
+async function freshness() {
+  const login = await repo.checkpointOf('login');
+  const reconciled = await repo.checkpointOf('reconcile');
+
+  const lastSync = login && login.last_success_at ? new Date(login.last_success_at) : null;
+  const staleAfter = config.lifecycle.freshnessWarnMinutes * 60 * 1000;
+
+  return {
+    lastSynchronizedAt: lastSync,
+    lastReconciledAt: reconciled && reconciled.last_reconciled_at
+      ? new Date(reconciled.last_reconciled_at)
+      : null,
+    isStale: !lastSync || (Date.now() - lastSync.getTime()) > staleAfter
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -141,7 +171,7 @@ async function overview(options) {
     share[status] = counts.TOTAL ? Math.round((counts[status] / counts.TOTAL) * 1000) / 10 : null;
   });
 
-  const health = await jobs.health();
+  const fresh = await freshness();
 
   return {
     asOf: asOf,
@@ -160,9 +190,9 @@ async function overview(options) {
       basis: 'LOGIN_BASED'
     },
     freshness: {
-      lastSynchronizedAt: health.lastSynchronizedAt,
-      lastReconciledAt: health.lastReconciledAt,
-      isStale: health.isStale,
+      lastSynchronizedAt: fresh.lastSynchronizedAt,
+      lastReconciledAt: fresh.lastReconciledAt,
+      isStale: fresh.isStale,
       snapshotIsFinal: snapshot ? snapshot.is_final : null
     }
   };
@@ -284,7 +314,7 @@ async function trend(options) {
     };
   });
 
-  const health = await jobs.health();
+  const fresh = await freshness();
 
   return {
     reportTimezone: zone(),
@@ -294,7 +324,7 @@ async function trend(options) {
     from: from,
     to: to,
     buckets: buckets,
-    lastSynchronizedAt: health.lastSynchronizedAt,
+    lastSynchronizedAt: fresh.lastSynchronizedAt,
     note: 'Stock counts are the state at the end of each bucket and are never'
       + ' summed across buckets. registeredInBucket is a flow.'
   };
@@ -761,6 +791,7 @@ module.exports = {
   bucketsOf: bucketsOf,
   isoWeekday: isoWeekday,
   stockAt: stockAt,
+  freshness: freshness,
   overview: overview,
   trend: trend,
   transitionSummary: transitionSummary,

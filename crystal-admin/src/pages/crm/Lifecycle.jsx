@@ -149,17 +149,16 @@ export default function Lifecycle() {
         lifecycle.definitions()
       ]);
 
-      setOverview(cards.data.data);
-      setTrend(series.data.data);
-      setDefinitions(rules.data.data);
+      setOverview(cards.data);
+      setTrend(series.data);
+      setDefinitions(rules.data);
     } catch (err) {
       /*
        * THE MESSAGE THE SERVER GAVE, not a generic one. A refused range or a
        * misspelt status comes back with a reason, and replacing it with
        * "something went wrong" throws away the only thing that helps.
        */
-      setFailed((err.response && err.response.data && err.response.data.message)
-        || err.message);
+      setFailed(err.message);
     } finally {
       setLoading(false);
     }
@@ -558,7 +557,7 @@ function TransitionsTab({ window, group, palette, surface, t }) {
       groupBy: group.groupBy,
       intervalDays: group.intervalDays
     }).then(function (res) {
-      if (alive) setSummary(res.data.data);
+      if (alive) setSummary(res.data);
     }).finally(function () {
       if (alive) setLoadingSummary(false);
     });
@@ -577,8 +576,8 @@ function TransitionsTab({ window, group, palette, surface, t }) {
       page: page,
       pageSize: limit
     }).then(function (res) {
-      setRows(res.data.data.rows);
-      setTotal(res.data.data.total);
+      setRows(res.data.rows);
+      setTotal(res.data.total);
     }).finally(function () {
       setLoadingRows(false);
     });
@@ -783,10 +782,10 @@ function Timeline({ userPk, onClose, palette, surface, t }) {
     let alive = true;
 
     lifecycle.timeline(userPk, {}).then(function (res) {
-      if (alive) setData(res.data.data);
+      if (alive) setData(res.data);
     }).catch(function (err) {
       if (alive) {
-        setFailed((err.response && err.response.data && err.response.data.message) || err.message);
+        setFailed(err.message);
       }
     });
 
@@ -942,7 +941,7 @@ function ImpactTab({ may, definitions, palette, surface, toast, t }) {
 
   const loadEvents = useCallback(function () {
     return lifecycle.events().then(function (res) {
-      const rows = res.data.data.rows || [];
+      const rows = res.data.rows || [];
       setEvents(rows);
       return rows;
     });
@@ -984,9 +983,9 @@ function ImpactTab({ may, definitions, palette, surface, toast, t }) {
     }
 
     lifecycle.impact(choice, params).then(function (res) {
-      setData(res.data.data);
+      setData(res.data);
     }).catch(function (err) {
-      setFailed((err.response && err.response.data && err.response.data.message) || err.message);
+      setFailed(err.message);
       setData(null);
     }).finally(function () {
       setLoading(false);
@@ -1018,7 +1017,7 @@ function ImpactTab({ may, definitions, palette, surface, toast, t }) {
     } catch (err) {
       toast({
         status: 'error',
-        title: (err.response && err.response.data && err.response.data.message) || err.message,
+        title: err.message,
         isClosable: true
       });
     } finally {
@@ -1044,7 +1043,7 @@ function ImpactTab({ may, definitions, palette, surface, toast, t }) {
     } catch (err) {
       toast({
         status: 'error',
-        title: (err.response && err.response.data && err.response.data.message) || err.message,
+        title: err.message,
         isClosable: true
       });
     }
@@ -1432,7 +1431,7 @@ function HealthTab({ may, toast, surface, t }) {
   const [running, setRunning] = useState(false);
 
   const load = useCallback(function () {
-    lifecycle.health().then(function (res) { setData(res.data.data); });
+    lifecycle.health().then(function (res) { setData(res.data); });
 
     /*
      * The exception rows, separately from the counts. A count tells an
@@ -1441,7 +1440,7 @@ function HealthTab({ may, toast, surface, t }) {
      * seen" is not a screen.
      */
     lifecycle.exceptions({ limit: 50 }).then(function (res) {
-      setExceptions(res.data.data.rows || []);
+      setExceptions(res.data.rows || []);
     }).catch(function () { /* the counts above are the headline */ });
   }, []);
 
@@ -1452,12 +1451,12 @@ function HealthTab({ may, toast, surface, t }) {
 
     try {
       const res = await lifecycle.reconcile();
-      toast({ status: 'success', title: res.data.message, isClosable: true });
+      toast({ status: 'success', title: res.message, isClosable: true });
       load();
     } catch (err) {
       toast({
         status: 'error',
-        title: (err.response && err.response.data && err.response.data.message) || err.message,
+        title: err.message,
         isClosable: true
       });
     } finally {

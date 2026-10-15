@@ -26,6 +26,7 @@ import { MemoryRouter } from 'react-router-dom';
 import theme from '../theme';
 import { I18nProvider } from '../i18n';
 import { ConfirmProvider } from '../components/ConfirmDialog';
+import client from '../api/client';
 
 const PAGE = '/admin/crm/lifecycle';
 
@@ -259,28 +260,101 @@ const EVENTS = {
   total: 1
 };
 
-const envelope = (data) => Promise.resolve({ data: { success: true, message: 'ok', data: data } });
+/**
+ * THE TRANSPORT IS STUBBED, NOT THE API MODULE - and that distinction is the
+ * whole value of this file.
+ *
+ * Replacing `../api` lets the test invent the shape the component expects,
+ * which is how the first version of this test passed while the screen was
+ * blank in a browser: every reader in the page went one level too deep
+ * (`res.data.data`), and a mock written to match the page agreed with it.
+ *
+ * So instead the real `api/index.js` and the real `api/client.js` run, and
+ * only axios's adapter is replaced - the one layer that would otherwise reach
+ * the network. The response interceptor therefore unwraps
+ * `{ success, message, data }` for real, and a caller that misreads the
+ * envelope fails here exactly as it does on screen.
+ */
+/** One customer's whole history, as the API sends it. */
+const TIMELINE = {
+  customer: {
+    userPk: 10082940,
+    userId: 'mock-005809',
+    userName: 'Mock Customer 5809',
+    birthday: '2003-01-03',
+    displayPhone: null,
+    jobCode: 4,
+    locationPk: '6',
+    registeredAt: '2023-06-01T10:00:00.000Z',
+    oracleAccountStatus: 1
+  },
+  current: {
+    status: 'DORMANT',
+    statusSince: '2026-10-14T15:48:01.684Z',
+    lastLoginAt: '2026-09-14T15:48:01.684Z',
+    effectiveLastActivityAt: '2026-09-14T15:48:01.684Z',
+    nextTransitionAt: '2026-12-13T15:48:01.684Z'
+  },
+  periods: [
+    {
+      status: 'ACTIVE',
+      previousStatus: 'NEW',
+      validFrom: '2023-07-01T10:00:00.000Z',
+      validTo: '2026-10-14T15:48:01.684Z',
+      reason: 'NEW_EXPIRED',
+      ruleVersion: 1
+    },
+    {
+      status: 'DORMANT',
+      previousStatus: 'ACTIVE',
+      validFrom: '2026-10-14T15:48:01.684Z',
+      validTo: null,
+      reason: 'INACTIVITY_30',
+      ruleVersion: 1
+    }
+  ],
+  recentLogins: [{ actionAt: '2026-09-14T15:48:01.684Z' }],
+  loginCount: 37,
+  reportTimezone: 'Asia/Shanghai'
+};
 
-jest.mock('../api', () => ({
-  __esModule: true,
-  lifecycle: {
-    overview: () => envelope(OVERVIEW),
-    trend: () => envelope(TREND),
-    definitions: () => envelope(DEFINITIONS),
-    transitionSummary: () => envelope(SUMMARY),
-    transitions: () => envelope(TRANSITIONS),
-    customers: () => envelope({ rows: [], total: 0, page: 1, limit: 25, summary: null }),
-    timeline: () => envelope(null),
-    health: () => envelope(HEALTH),
-    exceptions: () => envelope({ rows: [] }),
-    events: () => envelope(EVENTS),
-    impact: () => envelope(IMPACT),
-    reconcile: () => envelope({ job: 'lifecycle_reconcile' }),
-    stockSheet: { base: '/customer-lifecycle/trend' },
-    transitionSheet: { base: '/customer-lifecycle/transitions' },
-    customerSheet: { base: '/customer-lifecycle/customers' }
-  }
-}));
+const ROUTES = [
+  ['/customer-lifecycle/overview', () => OVERVIEW],
+  ['/customer-lifecycle/customers/10082940/timeline', () => TIMELINE],
+  ['/customer-lifecycle/trend/export', () => ''],
+  ['/customer-lifecycle/trend', () => TREND],
+  ['/customer-lifecycle/definitions', () => DEFINITIONS],
+  ['/customer-lifecycle/transitions/summary', () => SUMMARY],
+  ['/customer-lifecycle/transitions/export', () => ''],
+  ['/customer-lifecycle/transitions', () => TRANSITIONS],
+  ['/customer-lifecycle/customers/export', () => ''],
+  ['/customer-lifecycle/customers', () => ({ rows: [], total: 0, page: 1, limit: 25, summary: null })],
+  ['/customer-lifecycle/health', () => HEALTH],
+  ['/customer-lifecycle/exceptions', () => ({ rows: [] })],
+  ['/customer-lifecycle/events/', () => IMPACT],
+  ['/customer-lifecycle/events', () => EVENTS],
+  ['/customer-lifecycle/jobs/reconcile', () => ({ job: 'lifecycle_reconcile', skipped: false })]
+];
+
+/** The envelope the API really sends, for whichever route was asked for. */
+function answer(config) {
+  const url = String(config.url || '');
+
+  /* Longest-prefix wins, so /transitions/summary is not served by /transitions. */
+  const route = ROUTES.filter(function (pair) { return url.indexOf(pair[0]) === 0; })
+    .sort(function (a, b) { return b[0].length - a[0].length; })[0];
+
+  if (!route) throw new Error('the test has no answer for ' + url);
+
+  return {
+    data: { success: true, message: 'ok', data: route[1]() },
+    status: 200,
+    statusText: 'OK',
+    /* The client refuses anything that is not JSON - see assertApiResponse. */
+    headers: { 'content-type': 'application/json' },
+    config: config
+  };
+}
 
 /* WRITE level, so the event manager and the reconcile button are drawn too. */
 const STATE = {
@@ -330,6 +404,9 @@ describe('the lifecycle screen', () => {
   let Lifecycle;
 
   beforeAll(() => {
+    /* Only the network is stubbed; the interceptors are the real ones. */
+    client.defaults.adapter = function (config) { return Promise.resolve(answer(config)); };
+
     // eslint-disable-next-line global-require
     Lifecycle = require('../pages/crm/Lifecycle').default;
   });
@@ -409,6 +486,49 @@ describe('the lifecycle screen', () => {
     /* The row whose profile is mostly null still drew. */
     expect(text).toContain('mock-005810');
     expect(text).not.toMatch(/NaN|undefined/);
+  });
+
+  test('clicking a transition opens that customer timeline', async () => {
+    await open(1);
+
+    /*
+     * The row, found by the text in it rather than by position - a column
+     * added in front of it should not break this.
+     */
+    const row = Array.prototype.slice.call(host.querySelectorAll('tr'))
+      .filter((node) => (node.textContent || '').indexOf('mock-005809') !== -1)[0];
+    expect(row).toBeTruthy();
+
+    await act(async () => {
+      row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await settle();
+
+    const text = host.textContent;
+    /* The periods, the login count and the "if they do not come back" date. */
+    expect(text).toContain('INACTIVITY_30');
+    expect(text).toMatch(/37/);
+    expect(text).not.toMatch(/NaN|undefined/);
+  });
+
+  test('an operator with write permission can ask for a reconciliation', async () => {
+    await open(3);
+
+    const button = Array.prototype.slice.call(host.querySelectorAll('button'))
+      .filter((node) => /Reconcile now/.test((node.textContent || '').trim()))[0];
+    expect(button).toBeTruthy();
+
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await settle();
+
+    /*
+     * The server's own sentence is shown. It arrives as `res.message`, beside
+     * the payload rather than inside it - see api/client.js - and reading it
+     * from the wrong place is a toast with no words in it.
+     */
+    expect(document.body.textContent).toContain('ok');
   });
 
   test('the event impact tab opens, and compares when asked', async () => {
