@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert, AlertIcon, Box, Button, Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerHeader, DrawerOverlay,
-  HStack, Icon, IconButton, Image, Input, Link, Select, Spinner, Stack, Text, Tooltip
+  HStack, Icon, IconButton, Image, Input, Link, Spinner, Stack, Text, Tooltip
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
@@ -12,6 +12,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { dateTime } from '../../utils/format';
+import AccountPicker from './AccountPicker';
 import { Card360, Pill } from './ui360';
 import { useCrmMeta } from './shared';
 
@@ -70,24 +71,15 @@ export default function AppstorePurchasesSection({ partyPk }) {
   const purseOf = usePurse();
   const [account, setAccount] = useState('');
   const [licenceFor, setLicenceFor] = useState(null);
-  const list = useList((params) => crm.parties.appstorePurchases(partyPk, params), { page: 1, limit: 20 });
+  const list = useList((params) => crm.parties.appstorePurchases(partyPk, params), { page: 1, limit: 20, project_account_id: 'ALL' });
   const summary = list.summary || {};
   const accounts = summary.accounts || [];
 
   /* Another account, or all of them: the list starts again from its first page. */
   useEffect(() => { if (account) list.setFilter({ project_account_id: account }); }, [account]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const accountLabel = (row) => row.external_account_id + (row.external_account_pk ? '  (PK ' + row.external_account_pk + ')' : '');
-  const picker = accounts.length > 1 ? (
-    <Select size="sm" w="18rem" maxW="100%" borderRadius="md" value={account || summary.selected || ''} onChange={(event) => setAccount(event.target.value)}>
-      <option value="ALL">{translate('crm.eshopOrders.allAccounts', { n: accounts.length })}</option>
-      {accounts.map((row) => (
-        <option key={row.project_account_id} value={row.project_account_id}>
-          {accountLabel(row) + (row.is_primary ? '  · ' + translate('crm.eshopOrders.primary') : '')}
-        </option>
-      ))}
-    </Select>
-  ) : accounts.length === 1 ? <Text fontSize="xs" color={surface.muted}>{accountLabel(accounts[0])}</Text> : null;
+  /* All accounts first and by default; then each one. */
+  const picker = <AccountPicker accounts={accounts} value={account || summary.selected} onChange={setAccount} withPk />;
 
   const columns = [
     { key: 'at', label: 'Bought', render: (row) => <Text fontSize="sm" whiteSpace="nowrap">{dateTime(row.at)}</Text> },

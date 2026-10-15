@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert, AlertIcon, Badge, Box, Button, Flex, HStack, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
-  Radio, Select, SimpleGrid, Spinner, Stack, Switch, Table, Tbody, Td, Text, Th, Thead, Tr, useToast
+  Radio, SimpleGrid, Spinner, Stack, Switch, Table, Tbody, Td, Text, Th, Thead, Tr, useToast
 } from '@chakra-ui/react';
 import DataTable from '../../components/DataTable';
+import SelectField from '../../components/SelectField';
 import Toolbar from '../../components/Toolbar';
 import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
@@ -267,12 +268,12 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
               <Box borderWidth="1px" borderRadius="md" p={3} minW={0}>
                 <Flex justify="space-between" align="center" gap={2} data-gap="8" wrap="wrap" data-gap-wrap mb={2}>
                   <Text fontWeight="bold">{translate('crm.registrationReview.candidates', { n: candidates.length })}</Text>
-                  <Select size="sm" maxW="20rem" placeholder={translate('crm.registrationReview.selectMatch')} value={target} onChange={e => pick(e.target.value)}>
-                    {candidates.map(candidate => <option key={candidateKey(candidate)} value={candidateKey(candidate)}>
-                      {(candidate.display_name || translate('crm.registrationReview.match')) + ' — ' + candidateLabel(candidate)
-                        + (candidate.score != null ? '  ' + translate('crm.registrationReview.points', { n: candidate.score }) : '')}
-                    </option>)}
-                  </Select>
+                  <Box w="20rem" maxW="100%">
+                    <SelectField size="sm" placeholder={translate('crm.registrationReview.selectMatch')} value={target || null} onChange={value => pick(value || '')}
+                      options={candidates.map(candidate => ({ value: candidateKey(candidate),
+                        label: (candidate.display_name || translate('crm.registrationReview.match')) + ' — ' + candidateLabel(candidate)
+                          + (candidate.score != null ? '  ' + translate('crm.registrationReview.points', { n: candidate.score }) : '') }))} />
+                  </Box>
                 </Flex>
                 {chosen ? (
                   <Box>
@@ -321,10 +322,10 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
               <Box borderWidth="1px" borderRadius="md" p={3} mb={3}>
                 <Text fontWeight="600" fontSize="sm">{translate('crm.registrationReview.notTheSamePerson')}</Text>
                 <Text fontSize="xs" color="gray.500" mb={2}>{translate('crm.registrationReview.relateHint')}</Text>
-                <Select size="sm" maxW="22rem" value={relationship} onChange={e => setRelationship(e.target.value)}>
-                  <option value="">{translate('crm.registrationReview.notRelated')}</option>
-                  {personTypes.map(type => <option key={type.relationship_type_code} value={type.relationship_type_code}>{translate(type.relationship_name)}</option>)}
-                </Select>
+                <Box w="22rem" maxW="100%">
+                  <SelectField size="sm" placeholder={translate('crm.registrationReview.notRelated')} value={relationship || null} onChange={value => setRelationship(value || '')}
+                    options={personTypes.map(type => ({ value: type.relationship_type_code, label: translate(type.relationship_name) }))} />
+                </Box>
               </Box>
             ) : null}
 

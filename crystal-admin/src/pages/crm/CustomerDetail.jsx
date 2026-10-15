@@ -30,7 +30,7 @@ import {
 } from './c360Tabs';
 import { HeaderStat, Pill, TagChip } from './ui360';
 import { scoreNote } from './RewardPoints';
-import { RecentEshopOrdersCard } from './EshopOrders';
+import { RecentEshopOrdersCard, useEshopOrderTotal } from './EshopOrders';
 import { useSmartphoneDevices } from './SmartphoneDevices';
 
 const PAGE = '/admin/crm/customers';
@@ -98,6 +98,8 @@ export default function CustomerDetail() {
   const [version, setVersion] = useState(0);
   /* The SMARTPHONE_OFFLINE devices: one fetch, shared by the header's product count and the Products tab, which picks the account. */
   const devices = useSmartphoneDevices(id, version);
+  /* The header's order count: the customer's e-shop orders across all their e-shop accounts. */
+  const eshopOrders = useEshopOrderTotal(id, version);
   const [aboutOpen, setAboutOpen] = useState(false);
   const modal = useDisclosure();
 
@@ -302,8 +304,9 @@ export default function CustomerDetail() {
             )
             : header.grade_since ? translate('crm.customer360.sinceDate', { date: date(header.grade_since) }) : translate('crm.common.notGradedYet')} />
         <HeaderStat icon={Md.MdAccountBalanceWallet} label={translate('crm.customer360.totalSpend')} value={money(header.lifetime_spend)} sub={translate('crm.customer360.lifetime')} />
-        <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.customer360.totalOrders')} value={number(header.orders_total)}
-          sub={isPerson ? translate('crm.customer360.last12Months', { n: number(header.orders_12m) }) : translate('crm.customer360.last24Months', { n: number(header.orders_24m) })} />
+        <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.customer360.totalOrders')}
+          value={eshopOrders.loading ? '…' : number(eshopOrders.total)}
+          sub={translate(eshopOrders.failed ? 'crm.eshopOrders.unreachableShort' : 'crm.eshopOrders.headerSub')} />
         <HeaderStat icon={Md.MdDevicesOther} iconColor="red.400" label={translate(isPerson ? 'crm.customer360.totalProducts' : 'crm.customer360.ownedProducts')}
           value={devices.loading ? '…' : number(devices.shown.length)}
           sub={devices.account ? devices.account.external_account_id : translate('crm.customer360.registered')} />

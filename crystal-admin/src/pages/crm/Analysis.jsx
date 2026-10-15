@@ -85,7 +85,7 @@ export default function Analysis() {
           <HStack spacing={2}>
             <Box w="11rem">
               <SelectField
-                size="sm" isClearable={false} isSearchable={false}
+                size="sm" isClearable={false}
                 value={refDate || summaryData.reference_date || null}
                 options={(summaryData.dates || []).map((referenceDate) => ({ value: referenceDate, label: referenceDate }))}
                 placeholder={translate('crm.analysis.referenceDate')}

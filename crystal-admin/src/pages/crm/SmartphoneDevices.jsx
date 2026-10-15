@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, AlertIcon, Box, HStack, Select, Spinner, Text } from '@chakra-ui/react';
+import { Alert, AlertIcon, Box, HStack, Spinner, Text } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { MiniTable } from './c360Cards';
+import AccountPicker from './AccountPicker';
 import { Card360 } from './ui360';
 
 /**
@@ -49,14 +50,7 @@ export default function SmartphoneDevicesCard({ devices }) {
   const project = state && state.project;
   const title = project ? translate(project.project_name) : translate('crm.smartphoneDevices.title');
 
-  const picker = devices.accounts.length > 1 ? (
-    <Select size="sm" w="16rem" maxW="100%" borderRadius="md" value={devices.selected} onChange={(event) => devices.setSelected(event.target.value)}>
-      <option value="ALL">{translate('crm.eshopOrders.allAccounts', { n: devices.accounts.length })}</option>
-      {devices.accounts.map((row) => (
-        <option key={row.project_account_id} value={row.project_account_id}>{row.external_account_id}</option>
-      ))}
-    </Select>
-  ) : devices.accounts.length === 1 ? <Text fontSize="xs" color="gray.500">{devices.accounts[0].external_account_id}</Text> : null;
+  const picker = <AccountPicker accounts={devices.accounts} value={devices.selected} onChange={devices.setSelected} />;
 
   return (
     <Card360 icon={Md.MdSmartphone} title={title} beside={picker}>

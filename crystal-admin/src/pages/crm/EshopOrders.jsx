@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert, AlertIcon, Box, Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerHeader, DrawerOverlay,
-  Flex, HStack, Icon, IconButton, Image, Link, Select, Spinner, Stack, Text, Tooltip
+  Flex, HStack, Icon, IconButton, Image, Link, Spinner, Stack, Text, Tooltip
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
@@ -11,6 +11,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, number } from '../../utils/format';
+import AccountPicker from './AccountPicker';
 import { Card360, Pill } from './ui360';
 import { MiniTable } from './c360Cards';
 import { useCrmMeta } from './shared';
@@ -83,25 +84,15 @@ export default function EshopOrdersSection({ partyPk }) {
   const surface = useSurface();
   const [account, setAccount] = useState('');
   const [open, setOpen] = useState(null);
-  const list = useList((params) => crm.parties.eshopOrders(partyPk, params), { page: 1, limit: 20 });
+  const list = useList((params) => crm.parties.eshopOrders(partyPk, params), { page: 1, limit: 20, project_account_id: 'ALL' });
   const summary = list.summary || {};
   const accounts = summary.accounts || [];
 
   /* Another account, or all of them: the list starts again from its first page. */
   useEffect(() => { if (account) list.setFilter({ project_account_id: account }); }, [account]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const accountLabel = (row) => row.external_account_id + (row.external_account_pk ? '  (PK ' + row.external_account_pk + ')' : '');
-  const picker = accounts.length > 1 ? (
-    <Select size="sm" w="18rem" maxW="100%" borderRadius="md" value={account || summary.selected || ''} onChange={(event) => setAccount(event.target.value)}>
-      {/* All first, then each account; the primary one is chosen until another is. */}
-      <option value="ALL">{translate('crm.eshopOrders.allAccounts', { n: accounts.length })}</option>
-      {accounts.map((row) => (
-        <option key={row.project_account_id} value={row.project_account_id}>
-          {accountLabel(row) + (row.is_primary ? '  · ' + translate('crm.eshopOrders.primary') : '')}
-        </option>
-      ))}
-    </Select>
-  ) : accounts.length === 1 ? <Text fontSize="xs" color={surface.muted}>{accountLabel(accounts[0])}</Text> : null;
+  /* All accounts first and by default; then each one. */
+  const picker = <AccountPicker accounts={accounts} value={account || summary.selected} onChange={setAccount} withPk />;
 
   const columns = [
     { key: 'at', label: 'Ordered', render: (row) => (
@@ -301,4 +292,22 @@ export function RecentEshopOrdersCard({ partyPk, onViewAll }) {
       )}
     </Card360>
   );
+}
+
+/**
+ * HOW MANY E-SHOP ORDERS THE CUSTOMER HAS, across all their e-shop accounts -
+ * the header's order count. One row is asked for; the total is what is used.
+ */
+export function useEshopOrderTotal(partyPk, version) {
+  const [state, setState] = useState({ loading: true, total: 0 });
+  useEffect(() => {
+    if (!partyPk) return undefined;
+    let live = true;
+    setState({ loading: true, total: 0 });
+    crm.parties.eshopOrders(partyPk, { project_account_id: 'ALL', page: 1, limit: 1 })
+      .then(({ data }) => { if (live) setState({ loading: false, total: Number((data && data.total) || 0) }); })
+      .catch(() => { if (live) setState({ loading: false, total: 0, failed: true }); });
+    return () => { live = false; };
+  }, [partyPk, version]);
+  return state;
 }

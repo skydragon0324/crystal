@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Box, Button, Collapse, Flex, Grid, HStack, Icon, Input, InputGroup, InputLeftElement, Link, Select, SimpleGrid, Stack, Table, Tbody, Td,
+  Box, Button, Collapse, Flex, Grid, HStack, Icon, Input, InputGroup, InputLeftElement, Link, SimpleGrid, Stack, Table, Tbody, Td,
   Text, Th, Thead, Tooltip, Tr, Wrap, WrapItem
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
+import SelectField from '../../components/SelectField';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date, formatPhone, money, number } from '../../utils/format';
@@ -72,12 +73,12 @@ export function useRowSearch(rows, columns, always) {
       {filterColumns.map((column) => {
         const values = Array.from(new Set(list.map((row) => filterValue(column, row)).filter(Boolean))).sort();
         return (
-          <Select key={column.key} size="sm" maxW="12rem" borderRadius="md" value={chosen[column.key] || ''}
-            aria-label={translate('crm.customer360Cards.filterBy', { column: translate(column.label) })}
-            onChange={(event) => setChosen(Object.assign({}, chosen, { [column.key]: event.target.value }))}>
-            <option value="">{translate(column.label)}: {translate('crm.customer360Cards.allValues')}</option>
-            {values.map((value) => <option key={value} value={value}>{word(translate, value)}</option>)}
-          </Select>
+          <Box key={column.key} w="12rem" maxW="100%" aria-label={translate('crm.customer360Cards.filterBy', { column: translate(column.label) })}>
+            <SelectField size="sm" value={chosen[column.key] || null}
+              placeholder={translate(column.label) + ': ' + translate('crm.customer360Cards.allValues')}
+              options={values.map((value) => ({ value: value, label: word(translate, value) }))}
+              onChange={(value) => setChosen(Object.assign({}, chosen, { [column.key]: value || '' }))} />
+          </Box>
         );
       })}
       <Text fontSize="xs" color={surface.muted} ml="auto">{translate('crm.customer360Cards.shownOf', { shown: shown.length, total: list.length })}</Text>
