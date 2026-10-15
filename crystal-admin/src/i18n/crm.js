@@ -16,7 +16,7 @@
  *   a column label, a code turned into a word, a name that arrives as data.
  *   They become `vocabulary.crm`, grouped the same way: one group per screen,
  *   `common` for words several screens use, `codes` for the words
- *   pages/crm/shared.jsx WORDS turns codes into, and `data` for names that
+ *   pages/crm/shared/shared.jsx WORDS turns codes into, and `data` for names that
  *   arrive from the API or the basic data and appear in no file.
  *
  * ADDING A STRING: put it in the section of the screen that shows it, in all
@@ -3333,7 +3333,7 @@ const words = {
       waysToHoldAProduct: 'Ways to hold a product',
       whatEachProjectMaySend: 'What each project may send'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: 'Accepted',
       accountManager: 'Account manager',
@@ -4162,7 +4162,7 @@ const words = {
       waysToHoldAProduct: '产品持有关系',
       whatEachProjectMaySend: '各项目可发送的内容'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: '已接受',
       accountManager: '客户经理',
@@ -4991,7 +4991,7 @@ const words = {
       waysToHoldAProduct: 'Способы владения товаром',
       whatEachProjectMaySend: 'Что может отправлять проект'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: 'Принято',
       accountManager: 'Менеджер клиента',

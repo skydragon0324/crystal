@@ -112,25 +112,25 @@ const Permissions = deferred(() => import(/* webpackChunkName: "admin-management
 const Audit = deferred(() => import(/* webpackChunkName: "admin-management" */ './pages/management/Audit'));
 
 /* The CRM - one chunk, fetched the first time any CRM screen is opened. */
-const CrmOverview = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Overview'));
-const CrmCustomers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Customers'));
-const CrmCustomerDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/CustomerDetail'));
-const CrmTransactions = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Transactions'));
-const CrmMemberships = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Memberships'));
-const CrmAnalysis = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Analysis'));
-const CrmProducts = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Products'));
-const CrmTransfers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Transfers'));
-const CrmServiceCases = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/ServiceCases'));
-const CrmPoints = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Points'));
-const CrmEvents = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Events'));
-const CrmEventDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/EventDetail'));
-const CrmSites = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Sites'));
-const CrmSiteActivity = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/SiteActivity'));
-const CrmSegments = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Segments'));
-const CrmCampaigns = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Campaigns'));
-const CrmCampaignDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/CampaignDetail'));
-const CrmSettings = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Settings'));
-const Terminology = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/Terminology'));
+const CrmOverview = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/overview/Overview'));
+const CrmCustomers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/customers/Customers'));
+const CrmCustomerDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/customers/detail/CustomerDetail'));
+const CrmTransactions = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/transactions/Transactions'));
+const CrmMemberships = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/memberships/Memberships'));
+const CrmAnalysis = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/analysis/Analysis'));
+const CrmProducts = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/products/Products'));
+const CrmTransfers = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/transactions/Transfers'));
+const CrmServiceCases = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/service/ServiceCases'));
+const CrmPoints = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/points/Points'));
+const CrmEvents = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/events/Events'));
+const CrmEventDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/events/EventDetail'));
+const CrmSites = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/service/Sites'));
+const CrmSiteActivity = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/service/SiteActivity'));
+const CrmSegments = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/marketing/Segments'));
+const CrmCampaigns = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/marketing/Campaigns'));
+const CrmCampaignDetail = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/marketing/CampaignDetail'));
+const CrmSettings = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/settings/Settings'));
+const Terminology = deferred(() => import(/* webpackChunkName: "admin-crm" */ './pages/crm/settings/Terminology'));
 
 /**
  * Every screen, addressed by the SAME url the permission grid uses.
