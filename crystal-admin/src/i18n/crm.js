@@ -147,8 +147,8 @@ const en = {
     soFailed: 'Stopped: {error}',
     soConflicts: 'Already linked to another customer',
     soFailures: 'Could not be looked up',
-    soMock: 'Development mode: lookups are simulated (no SMARTPHONE_OFFLINE_BASE_URL).',
-    soOff: 'The SMARTPHONE_OFFLINE system is not configured (SMARTPHONE_OFFLINE_BASE_URL).',
+    soMock: 'Development mode: lookups are simulated (no PHONE_SERVER_URL).',
+    soOff: 'The SMARTPHONE_OFFLINE system is not configured (PHONE_SERVER_URL).',
     soNoProject: 'There is no project with the code {code}. Add it in Settings > Projects first.',
     soFigureLinked: 'Linked',
     soFigureExisting: 'Already linked',
@@ -537,6 +537,14 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: 'Smartphones',
+    noProject: 'There is no SMARTPHONE_OFFLINE project (Settings > Projects).',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their devices.',
+    unreachable: 'The SMARTPHONE_OFFLINE system could not be reached.',
+    noDevices: 'No devices registered'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: 'Appstore purchases',
@@ -1050,8 +1058,8 @@ const zh = {
     soFailed: '已中止：{error}',
     soConflicts: '已关联到其他客户',
     soFailures: '无法查询',
-    soMock: '开发模式：查询为模拟结果（未设置 SMARTPHONE_OFFLINE_BASE_URL）。',
-    soOff: '未配置 SMARTPHONE_OFFLINE 系统（SMARTPHONE_OFFLINE_BASE_URL）。',
+    soMock: '开发模式：查询为模拟结果（未设置 PHONE_SERVER_URL）。',
+    soOff: '未配置 SMARTPHONE_OFFLINE 系统（PHONE_SERVER_URL）。',
     soNoProject: '没有代码为 {code} 的项目。请先在 设置 > 项目 中添加。',
     soFigureLinked: '新关联',
     soFigureExisting: '已关联',
@@ -1440,6 +1448,14 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: '智能手机',
+    noProject: '没有 SMARTPHONE_OFFLINE 项目（设置 > 项目）。',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其设备。',
+    unreachable: '无法连接 SMARTPHONE_OFFLINE 系统。',
+    noDevices: '暂无已登记设备'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: '应用商店购买',
@@ -1953,8 +1969,8 @@ const ru = {
     soFailed: 'Остановлено: {error}',
     soConflicts: 'Уже привязаны к другому клиенту',
     soFailures: 'Не удалось проверить',
-    soMock: 'Режим разработки: поиск имитируется (SMARTPHONE_OFFLINE_BASE_URL не задан).',
-    soOff: 'Система SMARTPHONE_OFFLINE не настроена (SMARTPHONE_OFFLINE_BASE_URL).',
+    soMock: 'Режим разработки: поиск имитируется (PHONE_SERVER_URL не задан).',
+    soOff: 'Система SMARTPHONE_OFFLINE не настроена (PHONE_SERVER_URL).',
     soNoProject: 'Нет проекта с кодом {code}. Сначала добавьте его в Настройки > Проекты.',
     soFigureLinked: 'Привязано',
     soFigureExisting: 'Уже привязано',
@@ -2343,6 +2359,14 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: 'Смартфоны',
+    noProject: 'Нет проекта SMARTPHONE_OFFLINE (Настройки > Проекты).',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть устройства.',
+    unreachable: 'Система SMARTPHONE_OFFLINE недоступна.',
+    noDevices: 'Нет зарегистрированных устройств'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: 'Покупки в Appstore',
@@ -2737,6 +2761,10 @@ const ru = {
 const words = {
   en: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneDevices: {
+      color: 'Color',
+      imei: 'IMEI'
+    },
     eshopOrders: {
       ordered: 'Ordered',
       totalPrice: 'Total price'
@@ -3550,6 +3578,10 @@ const words = {
   },
   zh: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneDevices: {
+      color: '颜色',
+      imei: 'IMEI'
+    },
     eshopOrders: {
       ordered: '下单时间',
       totalPrice: '总价'
@@ -4363,6 +4395,10 @@ const words = {
   },
   ru: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphoneDevices: {
+      color: 'Цвет',
+      imei: 'IMEI'
+    },
     eshopOrders: {
       ordered: 'Оформлен',
       totalPrice: 'Итого'

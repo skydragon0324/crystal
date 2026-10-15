@@ -23,6 +23,7 @@ import { RewardPointsCard, SHOW_CRM_LEDGER } from './RewardPoints';
 import TierDialog from './MembershipTier';
 import EshopOrdersSection from './EshopOrders';
 import AppstorePurchasesSection from './AppstorePurchases';
+import SmartphoneDevicesCard from './SmartphoneDevices';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -281,7 +282,7 @@ export function OrdersTab({ record }) {
 /* ================================================================ products */
 
 /* A product opens over the record, like an order or a case. */
-export function ProductsTab({ record }) {
+export function ProductsTab({ record, devices }) {
   const translate = useT();
   const peek = usePeek();
   const columns = [
@@ -296,6 +297,8 @@ export function ProductsTab({ record }) {
   const found = useRowSearch(record.holdings || [], columns, true);
   return (
     <Stack spacing={4}>
+      {/* Devices registered in SMARTPHONE_OFFLINE, asked of that system by the customer's linked Account IDs. */}
+      {devices ? <SmartphoneDevicesCard devices={devices} /> : null}
       <Card360 icon={Md.MdDevicesOther} title={translate('crm.customer360Tabs.holdings')} padded={false}>
         <Box px={2} pt={found.bar ? 2 : 0}>
           {found.bar}

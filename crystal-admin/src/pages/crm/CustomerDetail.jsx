@@ -31,6 +31,7 @@ import {
 import { HeaderStat, Pill, TagChip } from './ui360';
 import { scoreNote } from './RewardPoints';
 import { RecentEshopOrdersCard } from './EshopOrders';
+import { useSmartphoneDevices } from './SmartphoneDevices';
 
 const PAGE = '/admin/crm/customers';
 const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP'];
@@ -95,6 +96,8 @@ export default function CustomerDetail() {
   const [saving, setSaving] = useState(false);
   const [model, setModel] = useState(null);
   const [version, setVersion] = useState(0);
+  /* The SMARTPHONE_OFFLINE devices: one fetch, shared by the header's product count and the Products tab, which picks the account. */
+  const devices = useSmartphoneDevices(id, version);
   const [aboutOpen, setAboutOpen] = useState(false);
   const modal = useDisclosure();
 
@@ -302,7 +305,8 @@ export default function CustomerDetail() {
         <HeaderStat icon={Md.MdShoppingCart} label={translate('crm.customer360.totalOrders')} value={number(header.orders_total)}
           sub={isPerson ? translate('crm.customer360.last12Months', { n: number(header.orders_12m) }) : translate('crm.customer360.last24Months', { n: number(header.orders_24m) })} />
         <HeaderStat icon={Md.MdDevicesOther} iconColor="red.400" label={translate(isPerson ? 'crm.customer360.totalProducts' : 'crm.customer360.ownedProducts')}
-          value={number(header.products_registered)} sub={translate('crm.customer360.registered')} />
+          value={devices.loading ? '…' : number(devices.shown.length)}
+          sub={devices.account ? devices.account.external_account_id : translate('crm.customer360.registered')} />
         <HeaderStat icon={Md.MdHeadsetMic} label={translate('crm.customer360.openCases')} value={number(header.open_cases)}
           sub={translate('crm.customer360.totalN', { n: number(header.total_cases) })} />
         {/* Worked out from each business system's points and weight, never stored; the rows are on the Accounts tab. */}
@@ -431,7 +435,7 @@ export default function CustomerDetail() {
         <TabPanels>
           {tabs.map((tab) => (
             <TabPanel key={tab[0]} px={0} pt={0}>
-              <TabBody tabKey={tab[0]} isPerson={isPerson} record={record} view={facts} act={act} goTab={goTab} model={model} />
+              <TabBody tabKey={tab[0]} isPerson={isPerson} record={record} view={facts} act={act} goTab={goTab} model={model} devices={devices} />
             </TabPanel>
           ))}
         </TabPanels>
@@ -489,7 +493,7 @@ function TagsLine({ facts, unusedTags, editable, party, run }) {
 }
 
 /** One tab's content. The overview is laid out here; the other tabs live in c360Tabs. */
-function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
+function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices }) {
   const translate = useT();
   const props = { record: record, view: view, act: act };
   if (tabKey === 'overview') {
@@ -545,7 +549,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
   if (tabKey === 'contacts') return <ContactsTab {...props} />;
   if (tabKey === 'accounts') return <AccountsTab {...props} />;
   if (tabKey === 'orders') return <OrdersTab {...props} />;
-  if (tabKey === 'products') return <ProductsTab {...props} />;
+  if (tabKey === 'products') return <ProductsTab {...props} devices={devices} />;
   if (tabKey === 'service') return <ServiceTab {...props} />;
   if (tabKey === 'campaigns') return <CampaignsTab {...props} />;
   if (tabKey === 'analytics') return <AnalyticsTab {...props} model={model} />;

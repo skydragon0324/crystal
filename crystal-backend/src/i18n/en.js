@@ -543,7 +543,7 @@ module.exports = {
     },
     smartphoneOffline: {
       noProject: 'there is no project with the code {code}; add it in Settings > Projects',
-      notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (SMARTPHONE_OFFLINE_BASE_URL)',
+      notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (PHONE_SERVER_URL)',
       chooseARange: 'enter the first and the last customer number',
       rangeIsBackwards: 'the first customer number must not be larger than the last',
       noCustomersInRange: 'no customer with a phone number in that range',

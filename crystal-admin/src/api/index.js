@@ -440,6 +440,8 @@ export const crm = {
     eshopOrders: (id, params) => client.get(CRM + '/parties/' + id + '/eshop-orders', { params }),
     eshopOrder: (id, orderId, accountId) => client.get(CRM + '/parties/' + id + '/eshop-orders/' + encodeURIComponent(orderId), { params: { project_account_id: accountId } }),
     /* The customer's Appstore purchases, read live from the Appstore (same params, plus from, to, q); and one purchase's licence (audited). */
+    /* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs. */
+    smartphoneDevices: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/devices'),
     appstorePurchases: (id, params) => client.get(CRM + '/parties/' + id + '/appstore-purchases', { params }),
     appstoreLicence: (id, purchaseId, accountId) => client.get(CRM + '/parties/' + id + '/appstore-purchases/' + encodeURIComponent(purchaseId) + '/licence', { params: { project_account_id: accountId } }),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),

@@ -4679,31 +4679,7 @@ INSERT INTO crm_service_center_activity_type (activity_code, activity_name, acti
  ('INSPECTION', 'Site inspection', 'OPERATIONS', NULL, false),
  ('CUSTOMER_VISIT', 'Customer visit / enquiry', 'SERVICE', NULL, false);
 
-INSERT INTO crm_product_class (class_code, class_name, product_domain, rank_no, legacy_column) VALUES
- ('SMARTPHONE', 'Smartphones', 'SMARTPHONE', NULL, NULL),
- ('EPRODUCT', 'Electronic products', 'EPRODUCT', NULL, NULL),
- ('SOFTWARE', 'Software and licences', 'SOFTWARE', NULL, NULL);
-INSERT INTO crm_product_class (class_code, class_name, parent_product_class_id, product_domain, rank_no, legacy_column)
-SELECT seed.code, seed.name, parent_class.product_class_id, seed.domain, seed.rank_no, seed.legacy
-FROM (VALUES
- ('PHONE_9', 'Phone class 9', 'SMARTPHONE', 'SMARTPHONE', 4, 'phone_9'),
- ('PHONE_7', 'Phone class 7', 'SMARTPHONE', 'SMARTPHONE', 3, 'phone_7'),
- ('PHONE_5', 'Phone class 5', 'SMARTPHONE', 'SMARTPHONE', 2, 'phone_5'),
- ('PHONE_3', 'Phone class 3', 'SMARTPHONE', 'SMARTPHONE', 1, 'phone_3'),
- ('TV_LARGE', 'TV 75-100in, smart', 'EPRODUCT', 'EPRODUCT', 3, 'tv_3'),
- ('TV_MEDIUM', 'TV 50-65in', 'EPRODUCT', 'EPRODUCT', 2, 'tv_2'),
- ('TV_SMALL', 'TV 19-43in', 'EPRODUCT', 'EPRODUCT', 1, 'tv_1'),
- ('STB', 'Set-top box', 'EPRODUCT', 'EPRODUCT', NULL, 'stb'),
- ('NOTECOM', 'Notebook, split, pad', 'EPRODUCT', 'EPRODUCT', NULL, 'notecom'),
- ('PC', 'PC, all-in-one, mini PC', 'EPRODUCT', 'EPRODUCT', NULL, 'pc'),
- ('CAMERA', 'Camera, recorder', 'EPRODUCT', 'EPRODUCT', NULL, 'camera'),
- ('CORDLESS_PHONE', 'Wireless line phone', 'EPRODUCT', 'EPRODUCT', NULL, 'phone'),
- ('OTHER_EPROD', 'Other eproducts', 'EPRODUCT', 'EPRODUCT', NULL, 'other'),
- ('APP', 'Appstore app', 'SOFTWARE', 'SOFTWARE', NULL, NULL),
- ('KARAOKE_LICENCE', 'Karaoke licence', 'SOFTWARE', 'LICENCE', NULL, NULL),
- ('MEDIA_LICENCE', 'Broadcast media licence', 'SOFTWARE', 'LICENCE', NULL, NULL)
-) AS seed(code, name, parent, domain, rank_no, legacy)
-JOIN crm_product_class parent_class ON parent_class.class_code = seed.parent;
+/* No product classes are seeded: they are added in Settings > Product classes. */
 
 INSERT INTO crm_product_relationship_type (relationship_code, relationship_name, is_exclusive, awards_registration_points) VALUES
  ('OWNER', 'Owner', true, true), ('USER', 'Assigned user', false, false),

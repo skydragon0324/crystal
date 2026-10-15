@@ -10,6 +10,7 @@ const config = require('./index');
  *   appstore       APPSTORE_SERVER_URL    purchases, comments, favourites, licences
  *   appstoreWallet APPSTORE_WALLET_URL    coins, transactions, charge, transfer
  *   web            WEB_SERVER_URL         eproduct registrations, keygen logs
+ *   phone          PHONE_SERVER_URL       SMARTPHONE_OFFLINE: users by phone, devices
  *
  * These are NOT tables. The vendor reaches all of them over HTTP, and Crystal
  * does the same thing through this file - same paths, same parameters, same
@@ -53,7 +54,13 @@ const SERVICES = {
    * licence error report) would arrive with every field missing, which that
    * service answers as a refusal rather than as an error.
    */
-  web: { url: function () { return config.remote.webServerUrl; }, form: true }
+  web: { url: function () { return config.remote.webServerUrl; }, form: true },
+  /*
+   * THE VENDOR'S PHONE SERVER, which is the SMARTPHONE_OFFLINE system: the
+   * PHONE_SERVER_URL of vendor_backend/api/phoneApi.js, form-encoded as the
+   * vendor sends it. See smartphoneOffline.api.js.
+   */
+  phone: { url: function () { return config.remote.phoneServerUrl; }, form: true }
 };
 
 const clients = {};

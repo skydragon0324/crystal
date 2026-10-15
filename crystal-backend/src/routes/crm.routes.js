@@ -188,6 +188,9 @@ router.post('/parties/:id/accounts/:accountId/unlink', write(PAGES.CUSTOMERS), c
  * numbers from the Customers page (a background run the page polls).
  */
 router.get('/smartphone-offline', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await smartphoneOffline.status()));
+/* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs (master ids). */
+router.get('/parties/:id/smartphone-offline/devices', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.devicesOfParty(req.params.id)));
 router.post('/parties/:id/smartphone-offline/link', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.linkParty(req.params.id, req.actor)));
 router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>

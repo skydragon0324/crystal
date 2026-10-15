@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const db = require('../../config/db');
 const config = require('../../config');
-const remote = require('../../repositories/remote/smartphoneOffline');
+const remote = require('../../repositories/remote/smartphoneOffline.api');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
@@ -217,4 +217,24 @@ async function status() {
   return { mode: remote.mode(), project: row || null, project_code: config.smartphoneOffline.projectCode, max_run: MAX_RUN, running: current ? publicRun(current) : null };
 }
 
-module.exports = { linkParty, startRun, getRun, status, MAX_RUN };
+/**
+ * The mobile devices registered to a customer in SMARTPHONE_OFFLINE: every
+ * linked SMARTPHONE_OFFLINE Account ID of theirs is a master id, and the
+ * system is asked for all of them at once. The Products tab shows these;
+ * the CRM keeps none of it.
+ */
+async function devicesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.devices(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+module.exports = { linkParty, startRun, getRun, status, devicesOfParty, MAX_RUN };

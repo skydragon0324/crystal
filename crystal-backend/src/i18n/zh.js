@@ -509,7 +509,7 @@ module.exports = {
     },
     smartphoneOffline: {
       noProject: '没有代码为 {code} 的项目；请在 设置 > 项目 中添加',
-      notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（SMARTPHONE_OFFLINE_BASE_URL）',
+      notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（PHONE_SERVER_URL）',
       chooseARange: '请输入起始和结束客户编号',
       rangeIsBackwards: '起始客户编号不能大于结束客户编号',
       noCustomersInRange: '该范围内没有带电话号码的客户',

@@ -1269,6 +1269,50 @@ function licenseErrorReport(params) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  the phone server (SMARTPHONE_OFFLINE)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Who has a phone number. A number ending in an even digit belongs to one
+ * user, an odd one to nobody - enough to exercise linking both ways. The
+ * user's master id is derived from the number, so the same number always
+ * finds the same user.
+ */
+function phoneUserByPhone(params) {
+  const digits = String(params.phone || '').replace(/\D/g, '');
+  if (!digits || Number(digits.slice(-1)) % 2) return { items: [] };
+  return { items: [{ user_id: 'so' + digits.slice(-11), user_pk: digits.slice(-8), phone: digits, province: null, city: null }] };
+}
+
+const PHONE_MODELS = ['Crystal C9', 'Crystal C9 Pro', 'Crystal C7', 'Crystal C7 Plus', 'Crystal C5', 'Crystal C5 Lite', 'Crystal C3', 'Crystal Fold 2'];
+const PHONE_COLORS = ['Black', 'White', 'Blue', 'Gold', 'Green', 'Silver', 'Purple', 'Red'];
+
+/**
+ * The devices registered to some master ids, sent as ONE comma-separated
+ * string, as the server takes them. Two to four per id, so every linked
+ * account shows some, the same ones every time; IMEI
+ * upper-case and the date as "YYYY.MM.DD", as the server sends.
+ */
+function phoneDevices(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'devices', 2, 4);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'device:' + i;
+      items.push({
+        master_id: id,
+        device: choose(id, slot + ':model', PHONE_MODELS),
+        color: choose(id, slot + ':color', PHONE_COLORS),
+        IMEI: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
+        created_at: stamp(pick(id, slot + ':at', 20, 900), 10).slice(0, 10).replace(/-/g, '.')
+      });
+    }
+  });
+  return { items: items };
+}
+
+/* ------------------------------------------------------------------ */
 /*  the switchboard                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -1295,7 +1339,11 @@ const ROUTES = {
   '/eproduct/api/client/keygen_manbang_log_new': manbangKeygenLog,
   '/eproduct/api/client/media_license_log_new': bmediaKeygenLog,
   '/eproduct/api/client/media_license_by_id': bmediaKeygenById,
-  '/eproduct/api/client/send_lic_error_request_new': licenseErrorReport
+  '/eproduct/api/client/send_lic_error_request_new': licenseErrorReport,
+
+  /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
+  '/getUserByPhone': phoneUserByPhone,
+  '/phone_devices': phoneDevices
 };
 
 /**

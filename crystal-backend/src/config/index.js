@@ -170,22 +170,21 @@ const config = {
     appstoreServerUrl: str('APPSTORE_SERVER_URL', ''),
     appstoreWalletUrl: str('APPSTORE_WALLET_URL', ''),
     /* The eproduct site: registrations, and the three keygen logs. */
-    webServerUrl: str('WEB_SERVER_URL', '')
+    webServerUrl: str('WEB_SERVER_URL', ''),
+    /* The vendor's phone server - SMARTPHONE_OFFLINE (repositories/remote/smartphoneOffline.api.js). */
+    phoneServerUrl: str('PHONE_SERVER_URL', '')
   },
 
   /*
-   * THE SMARTPHONE_OFFLINE SYSTEM. One user there is one mobile
-   * number; the CRM looks its users up by phone and links them to customers
-   * (services/crm/smartphoneOffline.service.js). With no base URL and
-   * REMOTE_MOCK on, lookups are answered in-process; see
-   * repositories/remote/smartphoneOffline.js.
+   * THE SMARTPHONE_OFFLINE SYSTEM - the vendor's phone server, reached like
+   * the other sub-projects through config/remote.js (remote.phoneServerUrl,
+   * PHONE_SERVER_URL) and answered by mock.js while REMOTE_MOCK is on. One
+   * user there is one mobile number; the CRM links them to customers
+   * (services/crm/smartphoneOffline.service.js).
    */
   smartphoneOffline: {
-    baseUrl: str('SMARTPHONE_OFFLINE_BASE_URL', ''),
-    apiKey: str('SMARTPHONE_OFFLINE_API_KEY', ''),
     /* The CRM project that stands for it, by its code in Settings > Projects. */
-    projectCode: str('SMARTPHONE_OFFLINE_PROJECT_CODE', 'SMARTPHONE_OFFLINE'),
-    timeout: int('SMARTPHONE_OFFLINE_TIMEOUT_MS', 10000)
+    projectCode: str('SMARTPHONE_OFFLINE_PROJECT_CODE', 'SMARTPHONE_OFFLINE')
   },
 
   auth: {
