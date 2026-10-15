@@ -50,7 +50,8 @@ export function spendLines(translate, summary) {
   const per = (bucket) => Object.keys(bucket || {}).map((unit) => amountText(bucket[unit]) + ' ' + unitWord(translate, unit));
   const currencies = per(spend.currencies);
   const other = per(spend.other);
-  return { value: currencies.length ? currencies.join('  ·  ') : '0', sub: other.length ? other.join('  ·  ') : translate('crm.customer360.lifetime') };
+  /* One line per currency: joined on one line, the second is cut off. */
+  return { value: currencies.length ? currencies : '0', sub: other.length ? other.join('  ·  ') : translate('crm.customer360.lifetime') };
 }
 
 /** The API events as Recent activity entries, newest first. */

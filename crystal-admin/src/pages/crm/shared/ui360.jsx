@@ -157,9 +157,17 @@ export function HeaderStat({ icon, iconColor, label, value, sub, action }) {
         <Text fontSize="xs" color={surface.muted} noOfLines={1} title={typeof label === 'string' ? label : undefined}>{label}</Text>
         {action || null}
       </HStack>
-      <Text as="div" fontSize="xl" fontWeight="800" noOfLines={1} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {value === null || value === undefined || value === '' ? '-' : value}
-      </Text>
+      {/* An array is several figures (e.g. one per currency): each on its own line, smaller when there are more than one. */}
+      {Array.isArray(value) && value.length ? value.map((line, index) => (
+        <Text key={index} as="div" fontSize={value.length > 1 ? 'lg' : 'xl'} fontWeight="800" lineHeight="short" noOfLines={1}
+          title={typeof line === 'string' ? line : undefined} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {line}
+        </Text>
+      )) : (
+        <Text as="div" fontSize="xl" fontWeight="800" noOfLines={1} title={typeof value === 'string' ? value : undefined} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {value === null || value === undefined || value === '' ? '-' : value}
+        </Text>
+      )}
       {sub ? <Text as="div" fontSize="xs" color={surface.muted} noOfLines={1} title={typeof sub === 'string' ? sub : undefined}>{sub}</Text> : null}
     </Box>
   );
