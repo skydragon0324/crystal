@@ -38,13 +38,13 @@ const MAX_ROWS = 2000;
  * home_location_pk.
  */
 const COLUMNS = [
-  { key: 'eshop_pk', header: 'E-shop PK', required: true, width: 14, note: 'The customer\'s user_pk in the e-shop (a number). Kept as an unverified identifier.',
+  { key: 'eshop_pk', header: 'E-shop PK', width: 14, note: 'Optional. The customer\'s user_pk in the e-shop (a number). Kept as an unverified identifier.',
     aliases: ['eshop pk', 'eshop user pk'] },
-  { key: 'eshop_id', header: 'E-shop ID', required: true, width: 18, note: 'The customer\'s login (user ID) in the e-shop. Kept as an unverified identifier.',
+  { key: 'eshop_id', header: 'E-shop ID', required: true, width: 18, note: 'The customer\'s login (user ID) in the e-shop - the key the account is linked by. Kept as an unverified identifier.',
     aliases: ['eshop id', 'eshop login', 'eshop user id'] },
-  { key: 'user_pk', header: 'User PK', required: true, width: 14, note: 'The customer\'s user_pk in the user management system (a number). Kept as an unverified identifier.',
+  { key: 'user_pk', header: 'User PK', width: 14, note: 'Optional. The customer\'s user_pk in the user management system (a number). Kept as an unverified identifier.',
     aliases: ['user_pk', 'platform pk', 'platform user pk'] },
-  { key: 'user_id', header: 'User ID', required: true, width: 18, note: 'The customer\'s user_id (login) in the user management system. Kept as an unverified identifier.',
+  { key: 'user_id', header: 'User ID', required: true, width: 18, note: 'The customer\'s user_id (login) in the user management system - the key the account is linked by. Kept as an unverified identifier.',
     aliases: ['user_id', 'platform id', 'platform user id', 'platform login'] },
   { key: 'full_name', header: 'Full name', required: true, width: 24, aliases: ['name'] },
   { key: 'gender', header: 'Gender', required: true, width: 10, note: 'M or F' },
@@ -57,16 +57,16 @@ const COLUMNS = [
     note: 'Optional. The project the customer came from: a code or ID from the Projects sheet. Empty rows use the project chosen on the import screen.',
     aliases: ['origin project id', 'origin project code', 'origin_project_id', 'project'] }
 ];
-const ESHOP_ID_MAX = 100;
+const ESHOP_ID_MAX = 250;
 
 /*
  * A sheet lists one row per phone number, so the same person can appear on
- * several rows with different phones. For an Excel import the same user_pk
+ * several rows with different phones. For an Excel import the same user_id
  * (the user-management account) is the same person: the rows are merged
  * automatically, every phone is kept on the one customer, and the account is
  * not staged twice.
  */
-const EXCEL_SCORING = { userPkMerges: true };
+const EXCEL_SCORING = { userIdMerges: true };
 
 function normaliseHeader(text) {
   return String(text === null || text === undefined ? '' : text).toLowerCase().replace(/[\s_*\-]+/g, '');
@@ -231,10 +231,10 @@ function checkRow(record, lookups) {
   const tooLong = function (column, max) { return problem('crm.customerImport.isLongerThan', { column: column, max: max }); };
   const notWhole = function (column, value) { return problem('crm.customerImport.mustBeAWholeNumber', { column: column, value: value }); };
 
+  // The PKs are optional: an account is linked by its ID.
   const eshopPk = cellText(raw.eshop_pk);
-  if (!eshopPk) errors.push(required('E-shop PK'));
-  else if (!/^[1-9][0-9]{0,17}$/.test(eshopPk)) errors.push(notWhole('E-shop PK', eshopPk));
-  else out.eshop_pk = eshopPk;
+  if (eshopPk && !/^[1-9][0-9]{0,17}$/.test(eshopPk)) errors.push(notWhole('E-shop PK', eshopPk));
+  else if (eshopPk) out.eshop_pk = eshopPk;
 
   const eshopId = cellText(raw.eshop_id);
   if (!eshopId) errors.push(required('E-shop ID'));
@@ -242,9 +242,8 @@ function checkRow(record, lookups) {
   else out.eshop_id = eshopId;
 
   const userPk = cellText(raw.user_pk);
-  if (!userPk) errors.push(required('User PK'));
-  else if (!/^[1-9][0-9]{0,17}$/.test(userPk)) errors.push(notWhole('User PK', userPk));
-  else out.user_pk = userPk;
+  if (userPk && !/^[1-9][0-9]{0,17}$/.test(userPk)) errors.push(notWhole('User PK', userPk));
+  else if (userPk) out.user_pk = userPk;
 
   const userId = cellText(raw.user_id);
   if (!userId) errors.push(required('User ID'));
@@ -304,22 +303,22 @@ function checkRow(record, lookups) {
 }
 
 /*
- * One e-shop account belongs to one person. Rows that repeat an E-shop PK must
- * describe the same person (a strong match) with the same E-shop ID; anything
+ * One e-shop account belongs to one person. Rows that repeat an E-shop ID must
+ * describe the same person (a strong match) with the same E-shop PK; anything
  * else is an error in the file rather than something to stage.
  */
 function addEshopConflicts(checkedRows, records) {
-  // The same rule for both identifiers a row carries: [pk field, id field, pk column, id column].
-  [['eshop_pk', 'eshop_id', 'E-shop PK', 'E-shop ID'], ['user_pk', 'user_id', 'User PK', 'User ID']].forEach(function (identifier) {
-    const firstByPk = {};
+  // The same rule for both identifiers a row carries: [id field, pk field, id column, pk column].
+  [['eshop_id', 'eshop_pk', 'E-shop ID', 'E-shop PK'], ['user_id', 'user_pk', 'User ID', 'User PK']].forEach(function (identifier) {
+    const firstById = {};
     checkedRows.forEach(function (checked, index) {
-      const pk = checked.values[identifier[0]];
-      if (!pk || checked.errors.length) return;
-      const first = firstByPk[pk];
-      if (first === undefined) { firstByPk[pk] = index; return; }
+      const id = checked.values[identifier[0]];
+      if (!id || checked.errors.length) return;
+      const first = firstById[id];
+      if (first === undefined) { firstById[id] = index; return; }
       const earlier = checkedRows[first].values;
-      if (earlier[identifier[1]] !== checked.values[identifier[1]] || duplicates.score(earlier, checked.values, EXCEL_SCORING).score < duplicates.MERGE_FROM) {
-        checked.errors.push(problem('crm.customerImport.alsoOnAnotherRow', { column: identifier[2], value: pk, row: records[first].row_number, idColumn: identifier[3] }));
+      if ((earlier[identifier[1]] || '') !== (checked.values[identifier[1]] || '') || duplicates.score(earlier, checked.values, EXCEL_SCORING).score < duplicates.MERGE_FROM) {
+        checked.errors.push(problem('crm.customerImport.alsoOnAnotherRow', { column: identifier[2], value: id, row: records[first].row_number, idColumn: identifier[3] }));
       }
     });
   });
@@ -357,7 +356,7 @@ async function preview(buffer, options) {
  /*
   * EARLIER ROWS AS THE IMPORT WILL HAVE LEFT THEM, so the check says what the
   * import will do. A NEW row is a customer; a DUPLICATE row is part of the
-  * customer it matched (its phones and user_pk are added to that one entry);
+  * customer it matched (its phones and user_id are added to that one entry);
   * a REVIEW row is a pending registration, which a later row can only join by
   * review. One index entry per resulting person, keyed by its first row.
   */
@@ -368,7 +367,7 @@ async function preview(buffer, options) {
   const target = entries.get(key);
   remember(key, Object.assign({}, target, {
    contacts: (target.contacts || []).concat([{ contact_type: 'MOBILE', contact_value: values.mobile }]),
-   user_pks: Array.from(new Set((target.user_pks || []).concat(duplicates.userPks(values))))
+   user_ids: Array.from(new Set((target.user_ids || []).concat(duplicates.userIds(values))))
   }));
  };
  const rows = [];

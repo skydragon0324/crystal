@@ -173,6 +173,13 @@ const en = {
   },
   common: {
     addSlides: 'Add slides',
+    validation: {
+      required: 'This field is required.',
+      notANumber: 'Enter a number.',
+      atLeast: 'Must be {min} or more.',
+      atMost: 'Must be {max} or less.',
+      fixTheMarkedFields: 'Please fix the fields marked in red.'
+    },
     errors: {
       anUnknownType: 'an unknown type',
       cannotReachTheServer: 'Cannot reach the server',
@@ -1468,6 +1475,13 @@ const zh = {
   },
   common: {
     addSlides: '添加横幅',
+    validation: {
+      required: '此项为必填项。',
+      notANumber: '请输入数字。',
+      atLeast: '不能小于 {min}。',
+      atMost: '不能大于 {max}。',
+      fixTheMarkedFields: '请修正标红的字段。'
+    },
     errors: {
       anUnknownType: '未知类型',
       cannotReachTheServer: '无法连接服务器',
@@ -2774,6 +2788,13 @@ const ru = {
   },
   common: {
     addSlides: 'Добавить слайды',
+    validation: {
+      required: 'Обязательное поле.',
+      notANumber: 'Введите число.',
+      atLeast: 'Не меньше {min}.',
+      atMost: 'Не больше {max}.',
+      fixTheMarkedFields: 'Исправьте поля, отмеченные красным.'
+    },
     errors: {
       anUnknownType: 'неизвестный тип',
       cannotReachTheServer: 'Не удаётся связаться с сервером',

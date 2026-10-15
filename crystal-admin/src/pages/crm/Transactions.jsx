@@ -12,7 +12,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { dateTime, money, number } from '../../utils/format';
-import { amount, choices, filtersFor, optionsFrom, useCrmMeta, word, partyIdLabel } from './shared';
+import { amount, choices, filtersFor, optionsFrom, useCrmMeta, word, partyIdLabel, useOpenCustomer } from './shared';
 import { Amount, InfoList, Kpi, Panel, ProjectTags } from './ui';
 
 export const PAGE = '/admin/crm/transactions';
@@ -111,7 +111,7 @@ export default function Transactions() {
 
 export function TransactionDrawer({ id, onClose }) {
   const translate = useT();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const [detail, setDetail] = useState(null);
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export function TransactionDrawer({ id, onClose }) {
               <InfoList items={(record.parties || []).map((participant) => ({
                 label: word(translate, participant.party_role_code),
                 value: (
-                  <Text as="span" color="brand.500" cursor="pointer" onClick={() => history.push('/admin/crm/customers/' + participant.party_pk)}>
+                  <Text as="span" color="brand.500" cursor="pointer" onClick={() => openCustomer(participant.party_pk)}>
                     {(participant.party_name || '-') + '  ' + partyIdLabel(participant.party_pk)}
                   </Text>
                 )

@@ -19,12 +19,12 @@ assert.equal(match.sameInFile(base, base).decision, 'MERGE');
 // Bands: 70+ merge, 50-69 review, below 50 new.
 assert.equal(match.score(base, { full_name: base.full_name, birth_date: base.birth_date }).decision, 'REVIEW', '50 is reviewed');
 assert.equal(match.score(base, { full_name: base.full_name, home_location_pk: 1, job_title_id: 3 }).decision, 'NEW', '45 is new');
-// The Excel rule: the same user_pk is the same person whatever the phone.
-const otherPhone = { full_name: base.full_name, birth_date: base.birth_date, home_location_pk: 1, mobile: '+44 9999 999999', user_pk: '5001' };
-assert.equal(match.score(Object.assign({ user_pk: '5001' }, base), otherPhone).decision, 'REVIEW', 'outside an Excel import a user_pk is not evidence');
-assert.equal(match.score(Object.assign({ user_pk: '5001' }, base), otherPhone, { userPkMerges: true }).decision, 'MERGE', 'in an Excel import the same user_pk is merged');
-assert.equal(match.score({ full_name: 'Someone', user_pks: ['5001'] }, { full_name: 'Other', user_pk: '5001' }, { userPkMerges: true }).score, 70, 'a customer already carrying the user_pk matches');
-assert.equal(match.score(Object.assign({ user_pk: '5002' }, base), otherPhone, { userPkMerges: true }).decision, 'REVIEW', 'another user_pk falls back to the scores');
+// The Excel rule: the same user_id is the same person whatever the phone.
+const otherPhone = { full_name: base.full_name, birth_date: base.birth_date, home_location_pk: 1, mobile: '+44 9999 999999', user_id: 'u5001' };
+assert.equal(match.score(Object.assign({ user_id: 'u5001' }, base), otherPhone).decision, 'REVIEW', 'outside an Excel import a user_id is not evidence');
+assert.equal(match.score(Object.assign({ user_id: 'u5001' }, base), otherPhone, { userIdMerges: true }).decision, 'MERGE', 'in an Excel import the same user_id is merged');
+assert.equal(match.score({ full_name: 'Someone', user_ids: ['u5001'] }, { full_name: 'Other', user_id: 'u5001' }, { userIdMerges: true }).score, 70, 'a customer already carrying the user_id matches');
+assert.equal(match.score(Object.assign({ user_id: 'u5002' }, base), otherPhone, { userIdMerges: true }).decision, 'REVIEW', 'another user_id falls back to the scores');
 assert.equal(match.sameInFile(base, { mobile: base.mobile }), null);
 // Indexed matching must retain every >40 match, including secondary phones,
 // and replace old keys when merge evidence changes.

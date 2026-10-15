@@ -275,6 +275,10 @@ module.exports = {
       contactValueIsRequired: '请填写联系方式',
       itCannotEndBeforeItStarts: '结束日期不能早于开始日期',
       merged: '客户已合并',
+      unmerged: '客户已拆分',
+      alreadyUnmerged: '这两个客户已经拆分过了',
+      mergeCannotBeUndone: '此合并无法撤销：它发生在系统开始记录可撤销合并之前，或已不再有效',
+      unmergeTheLaterMergeFirst: '保留的客户之后又被合并到另一个客户；请先拆分那次合并',
       notAConsentStatus: '无效的授权状态',
       nothingToMerge: '没有可合并的记录',
       onlyForOrganizations: '只有组织可以设置此项',
@@ -488,7 +492,8 @@ module.exports = {
       name: '姓名相同',
       occupation: '职位相同',
       phone: '电话相同',
-      same_user_pk: '用户 PK 相同'
+      same_user_pk: '用户 PK 相同',
+      same_user_id: '用户 ID 相同'
     },
     registrations: {
       chooseAPerson: '请选择个人客户',
@@ -498,10 +503,19 @@ module.exports = {
       resolveTheMatchingPendingFirst: '请先处理匹配的待审核登记',
       unverifiedProjectAssignment: '未核实的项目分配'
     },
+    smartphoneOffline: {
+      noProject: '没有代码为 {code} 的项目；请在 设置 > 项目 中添加',
+      notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（SMARTPHONE_OFFLINE_BASE_URL）',
+      chooseARange: '请输入起始和结束客户编号',
+      rangeIsBackwards: '起始客户编号不能大于结束客户编号',
+      noCustomersInRange: '该范围内没有带电话号码的客户',
+      rangeTooLarge: '该范围内有 {count} 个客户；每次最多关联 {max} 个',
+      runInProgress: '已有关联任务正在进行'
+    },
     integration: {
       aValidApiKeyIsRequired: '需要有效的部门 API 密钥',
-      externalAccountIdIsRequired: '必须提供 external_account_id（最多 {max} 个字符）',
-      externalLoginIsTooLong: 'external_login 超过 {max} 个字符',
+      externalLoginIsRequired: '必须提供 external_login（账号 ID，最多 {max} 个字符）',
+      externalAccountIdIsTooLong: 'external_account_id 超过 {max} 个字符',
       fullNameIsRequired: '必须提供 party.full_name',
       thisProjectIsInactive: '该项目已停用'
     }

@@ -7,6 +7,7 @@ import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
 
 import CustomerImport from './CustomerImport';
+import SmartphoneOfflineLink from './SmartphoneOfflineLink';
 import RegistrationReview from './RegistrationReview';
 import ImportErrors from './ImportErrors';
 
@@ -22,7 +23,7 @@ import { useT } from '../../i18n';
 import { date, dateTime, number } from '../../utils/format';
 import { birthdayText } from '../../utils/birthday';
 import { Dot, GradeBadge, PartyAvatar, ProjectTags, ScoreMeter } from './ui';
-import { Status, choices, optionsFrom, problemsOf, useCrmMeta, word, filtersFor, partyIdLabel } from './shared';
+import { Status, choices, optionsFrom, problemsOf, useCrmMeta, word, filtersFor, partyIdLabel, rememberCustomersPage, useOpenCustomer } from './shared';
 
 export const PAGE = '/admin/crm/customers';
 
@@ -43,12 +44,20 @@ export const PAGE = '/admin/crm/customers';
 export default function Customers() {
   const translate = useT();
   const location = useLocation();
+  const history = useHistory();
   const [revision, setRevision] = useState(0);
   const reviewed = () => setRevision(value => value + 1);
   /* ?tab= opens a tab by name; the order is the TabList's below. */
   const TAB_NAMES = ['customers', 'pending', 'assignments', 'resolved', 'duplicates', 'import-errors'];
   const query = new URLSearchParams(location.search);
-  const initialTab = Math.max(0, TAB_NAMES.indexOf(query.get('tab') || 'customers'));
+  /* The open tab lives in the address, so a customer's back icon (and the browser's) returns to it. */
+  const tabIndex = Math.max(0, TAB_NAMES.indexOf(query.get('tab') || 'customers'));
+  const goTab = (index) => {
+    const next = new URLSearchParams(location.search);
+    if (index) next.set('tab', TAB_NAMES[index]); else next.delete('tab');
+    history.replace({ pathname: location.pathname, search: next.toString() ? '?' + next.toString() : '' });
+  };
+  useEffect(() => { rememberCustomersPage(location.search); }, [location.search]);
   /* ?grade= ?activity= ?type= ?project= open the list already narrowed - the overview links here with them. */
   const idOf = (name) => (query.get(name) ? Number(query.get(name)) : undefined);
   const narrowedTo = {
@@ -60,7 +69,7 @@ export default function Customers() {
 
   return (
     <Card bodyProps={false}>
-      <Tabs defaultIndex={initialTab} isLazy variant="line" colorScheme="brand">
+      <Tabs index={tabIndex} onChange={goTab} isLazy variant="line" colorScheme="brand">
         <TabList px={4} pt={2}>
           <Tab fontSize="sm">{translate('crm.customers.allCustomers')}</Tab>
           <Tab fontSize="sm">{translate('crm.customers.pendingTab')}</Tab>
@@ -84,13 +93,19 @@ export default function Customers() {
 
 const NEW_CUSTOMER = { party_type: 'PERSON' };
 
+/* Project and grade filters pick several: sent as "1,2,3", read back as numbers for the select. */
+const idList = (value) => (value === undefined || value === null || value === '' ? [] : String(value).split(',').map(Number));
+const idParam = (values) => (Array.isArray(values) && values.length ? values.join(',') : undefined);
+
 function CustomerList({ narrowedTo }) {
   const translate = useT();
   const toast = useToast();
   const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const meta = useCrmMeta();
   const form = useDisclosure();
   const importer = useDisclosure();
+  const mobileLink = useDisclosure();
   const { canWrite } = usePermission(PAGE);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState(NEW_CUSTOMER);
@@ -152,14 +167,14 @@ function CustomerList({ narrowedTo }) {
             onChange: (value) => list.setFilter({ party_status: value || undefined })
           },
           {
-            key: 'project_id', label: 'Project', value: list.params.project_id, width: '11rem',
+            key: 'project_id', label: 'Project', multi: true, value: idList(list.params.project_id), width: '11rem',
             options: optionsFrom(meta.projects, 'project_id', 'project_name'),
-            onChange: (value) => list.setFilter({ project_id: value || undefined })
+            onChange: (values) => list.setFilter({ project_id: idParam(values) })
           },
           {
-            key: 'corporate_grade_id', label: 'Corporate grade', value: list.params.corporate_grade_id,
+            key: 'corporate_grade_id', label: 'Corporate grade', multi: true, value: idList(list.params.corporate_grade_id),
             options: optionsFrom(meta.corporate_grades, 'corporate_grade_id', (gradeRow) => gradeRow.grade_code + '  ' + gradeRow.grade_name),
-            onChange: (value) => list.setFilter({ corporate_grade_id: value || undefined })
+            onChange: (values) => list.setFilter({ corporate_grade_id: idParam(values) })
           },
           {
             key: 'activity_status', label: 'Activity', value: list.params.activity_status,
@@ -174,6 +189,9 @@ function CustomerList({ narrowedTo }) {
         ])}
         actions={canWrite ? (
           <HStack spacing={2}>
+            <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdPhoneIphone} />} onClick={mobileLink.onOpen}>
+              {translate('crm.customers.linkSmartphoneOffline')}
+            </Button>
             <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdFileUpload} />} onClick={importer.onOpen}>
               {translate('crm.customers.importFromExcel')}
             </Button>
@@ -224,7 +242,7 @@ function CustomerList({ narrowedTo }) {
           onPageChange={list.setPage}
           onLimitChange={(limit) => list.setFilter({ limit: limit })}
           rowKey={(row) => row.party_pk || row.id}
-          onRowClick={(row) => history.push(PAGE + '/' + (row.party_pk || row.id))}
+          onRowClick={(row) => openCustomer(row.party_pk || row.id)}
           storageKey={PAGE}
         />
       </Box>
@@ -261,6 +279,7 @@ function CustomerList({ narrowedTo }) {
       />
 
       <CustomerImport isOpen={importer.isOpen} onClose={importer.onClose} onImported={list.reload} />
+      <SmartphoneOfflineLink isOpen={mobileLink.isOpen} onClose={mobileLink.onClose} onLinked={list.reload} />
     </Box>
   );
 }
@@ -269,7 +288,7 @@ function Duplicates() {
   const translate = useT();
   const toast = useToast();
   const confirm = useConfirm();
-  const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const { canWrite } = usePermission(PAGE);
   const [busy, setBusy] = useState(false);
 
@@ -324,9 +343,9 @@ function Duplicates() {
           columns={[
             /* Each side of the pair opens its own record; the rest of the row opens nothing. */
             { key: 'incoming_party_pk', label: 'Newer customer',
-              render: (row) => <CustomerLink partyPk={row.incoming_party_pk} name={row.incoming_name} onOpen={(id) => history.push(PAGE + '/' + id)} /> },
+              render: (row) => <CustomerLink partyPk={row.incoming_party_pk} name={row.incoming_name} onOpen={openCustomer} /> },
             { key: 'candidate_party_pk', label: 'Older customer',
-              render: (row) => <CustomerLink partyPk={row.candidate_party_pk} name={row.candidate_name} onOpen={(id) => history.push(PAGE + '/' + id)} /> },
+              render: (row) => <CustomerLink partyPk={row.candidate_party_pk} name={row.candidate_name} onOpen={openCustomer} /> },
             { key: 'match_rule_code', label: 'Matched on',
               render: (row) => word(translate, String(row.match_rule_code || '').replace('SAME_', '')) },
             { key: 'match_score', label: 'Score', isNumeric: true, render: (row) => number(row.match_score, 2) },

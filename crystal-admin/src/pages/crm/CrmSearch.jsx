@@ -10,7 +10,7 @@ import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
 import { date } from '../../utils/format';
-import { partyIdLabel } from './shared';
+import { partyIdLabel, useOpenCustomer } from './shared';
 
 /**
  * ONE SEARCH FOR THE WHOLE CRM: customers, orders, products, cases and
@@ -21,6 +21,7 @@ import { partyIdLabel } from './shared';
 export default function CrmSearch() {
   const translate = useT();
   const history = useHistory();
+  const openCustomer = useOpenCustomer();
   const surface = useSurface();
   const field = useRef(null);
   const [text, setText] = useState('');
@@ -46,12 +47,15 @@ export default function CrmSearch() {
     return () => clearTimeout(timer);
   }, [text]);
 
-  const go = (path) => { setOpen(false); setText(''); history.push(path); };
-  const customerOr = (partyId, fallback) => (partyId ? '/admin/crm/customers/' + partyId : fallback);
+  /* A customer opens in a new tab, like everywhere else; the other results move this one. */
+  const go = (row) => {
+    setOpen(false); setText('');
+    if (row.partyPk) openCustomer(row.partyPk); else history.push(row.path);
+  };
 
   const groups = found ? [
     { key: 'customers', groupName: translate('crm.components.searchCustomers'), icon: Md.MdPersonOutline,
-      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_pk, title: row.display_name || partyIdLabel(row.party_pk), detail: partyIdLabel(row.party_pk), path: customerOr(row.party_pk) })) },
+      rows: (found.customers || []).map((row) => ({ id: 'p' + row.party_pk, title: row.display_name || partyIdLabel(row.party_pk), detail: partyIdLabel(row.party_pk), partyPk: row.party_pk })) },
     { key: 'orders', groupName: translate('crm.components.searchOrders'), icon: Md.MdReceipt,
       rows: (found.orders || []).map((row) => ({ id: 'o' + row.transaction_id, title: row.external_transaction_id,
         detail: [row.project_code, date(row.transaction_at), row.party_name].filter(Boolean).join('  ·  '),
@@ -85,7 +89,7 @@ export default function CrmSearch() {
               <Text fontSize="0.68rem" color={surface.muted} textTransform="uppercase" letterSpacing="0.05em" px={2} mb={1}>{group.groupName}</Text>
               <Stack spacing={0}>
                 {group.rows.map((row) => (
-                  <Flex key={row.id} align="center" px={2} py={1.5} borderRadius="md" cursor="pointer" _hover={{ bg: surface.hover }} onClick={() => go(row.path)}>
+                  <Flex key={row.id} align="center" px={2} py={1.5} borderRadius="md" cursor="pointer" _hover={{ bg: surface.hover }} onClick={() => go(row)}>
                     <Icon as={group.icon} color="brand.500" mr={2} flexShrink={0} />
                     <Box minW={0}>
                       <Text fontSize="sm" fontWeight="600" noOfLines={1}>{row.title}</Text>

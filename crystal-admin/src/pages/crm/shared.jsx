@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import {
   Box, Button, Flex, HStack, Input, InputGroup, InputLeftElement, SimpleGrid, Spinner, Stack, Text,
   useColorModeValue
@@ -343,6 +344,39 @@ export function homeAddress(addressLine, locationName) {
 
 export function partyIdLabel(partyId) {
   return partyId || '';
+}
+
+/*
+ * WHERE THE CUSTOMERS PAGE WAS LEFT - its tab and the filters in its address
+ * (?tab=pending, ?grade=3) - so "back" from a customer returns there rather
+ * than to the first tab. Kept for this browser tab only; storage that is
+ * blocked or empty just means the first tab.
+ */
+const CUSTOMERS_PAGE = '/admin/crm/customers';
+const CUSTOMERS_RETURN_KEY = 'crm.customers.lastSearch';
+
+export function rememberCustomersPage(search) {
+  try { window.sessionStorage.setItem(CUSTOMERS_RETURN_KEY, search || ''); } catch (error) { /* not kept: back opens the first tab */ }
+}
+
+/**
+ * A CUSTOMER OPENS IN A NEW BROWSER TAB, so the list, search or record it was
+ * picked from stays where it was. The address goes through the router, which
+ * adds the console's base path. The new tab starts with a copy of this tab's
+ * session storage, so its "back to customers" still finds the filters.
+ */
+export function useOpenCustomer() {
+  const history = useHistory();
+  return (partyPk) => {
+    if (!partyPk) return;
+    window.open(history.createHref({ pathname: CUSTOMERS_PAGE + '/' + partyPk }), '_blank');
+  };
+}
+
+export function customersPagePath() {
+  let search = '';
+  try { search = window.sessionStorage.getItem(CUSTOMERS_RETURN_KEY) || ''; } catch (error) { search = ''; }
+  return CUSTOMERS_PAGE + (search && search.charAt(0) === '?' ? search : '');
 }
 
 /** A number with a unit, blank-safe. */

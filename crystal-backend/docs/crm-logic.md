@@ -66,7 +66,7 @@ Rules that run through everything:
 
 ## 4. Projects
 
-Screen: **Settings > Projects**. Codes and names are the administrator's own. The Excel import and the User PK rule
+Screen: **Settings > Projects**. Codes and names are the administrator's own. The Excel import and the User ID rule
 find their projects by **identity role**, never by code. No code looks a project up by its code, and none is created on install:
 whatever needs a project and has none is refused with a message saying which one to set - a point type without an owner
 project, a campaign without a project, a customer without an origin project.
@@ -74,7 +74,7 @@ project, a campaign without a project, a customer without an origin project.
 | Change | Allowed when | Notes |
 |---|---|---|
 | Name, kind (`project_type_code`), source system, legal entity, status | Always | The kind is a free label (PLATFORM, COMMERCE, CRM, ...). |
-| Identity role (`identity_role`) | Always; one project per role | **E-shop**: the project of the Excel import's E-shop PK / ID columns. **User management**: the project of its User PK / User ID columns, whose user_pk merges rows. The import refuses to run until both roles are given. |
+| Identity role (`identity_role`) | Always; one project per role | **E-shop**: the project of the Excel import's E-shop PK / ID columns. **User management**: the project of its User PK / User ID columns, whose user_id merges rows. The import refuses to run until both roles are given. |
 | Code (`project_code`) | Only while no row in any other table references the project | The check reads the foreign keys from the database, so it covers every table. When blocked, the message names the tables that use the project. |
 | Delete | Only while no row references the project | Same check. A project in use can be set INACTIVE instead. |
 
@@ -110,8 +110,8 @@ named the same way everywhere in the console:
 
 | Console label | Field | What it is | Example (e-shop) |
 |---|---|---|---|
-| **Account PK** | `external_account_id` | The project's internal key for the account. Unique per project while linked. | `eshop_pk` |
-| **Account ID** | `external_login` | The id the customer signs in with. | `eshop_id` |
+| **Account ID** | `external_login` | The id the customer signs in with. **The account's key**: required, and unique per project while linked. | `eshop_id` |
+| **Account PK** | `external_account_id` | The project's internal key for the account. Optional. | `eshop_pk` |
 
 The database and the department API keep the field names above; only the console labels changed.
 
@@ -134,12 +134,12 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 | 50-69 | Uncertain: the person is **staged** in `crm_registration_intake` and **no customer is created** until an administrator decides. |
 | 70-110 | Same person: merged into that customer, **if exactly one** strong match exists and it is not itself a pending intake. Several strong matches, or a match to a pending intake, also go to review. |
 
-- **Excel imports only:** the same **User PK** (with the same User ID) is the same person whatever the phone, because
+- **Excel imports only:** the same **User ID** (user-management `user_id`) is the same person whatever the phone, because
   a sheet lists one row per phone number. Such rows are merged automatically (scored 70) and every phone is kept on
-  the one customer; the account is staged once. This also matches a customer who already carries that User PK - a
+  the one customer; the account is staged once. This also matches a customer who already carries that User ID - a
   linked user-management account, or a candidate ID from an earlier import. Without it, the score table decides.
-- *Source record* on the review tabs is the key the registration has in the system it came from: the account id for a
-  department API registration, the identifier for an account assignment, "Excel row N" for a spreadsheet row (stored
+- *Source record* on the review tabs is the key the registration has in the system it came from: the Account ID for a
+  department API registration, the identifier's Account ID for an account assignment, "Excel row N" for a spreadsheet row (stored
   as `excel:<file hash>:<row>`), and a dash for a console entry.
 - Every review tab (and Existing duplicate records, Import errors) has a search box: name, phone, birthday, an e-shop
   or user identifier, the registration or customer number, or the source.
@@ -161,7 +161,9 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 | Import errors | Rows of customer Excel imports that failed the file check (`crm_person_import_error`), with the cells as written and every reason. | Correct and import again, then *Dismiss*. |
 
 **Merging keeps every phone.** A reviewed merge (*Merge into selected*) adds the incoming person's phones and missing
-details to the customer. Merging two existing customers moves their accounts, contacts (every phone and email; a value
+details to the customer. The reviewer may choose to take the registration's name, birthday, gender, address or job
+title instead of the customer's; phones are never a choice - the customer always keeps every number, theirs and the
+registration's. Merging two existing customers moves their accounts, contacts (every phone and email; a value
 both had is kept once), products, cases and points to the survivor, re-proposes pending account assignments to the
 survivor, records the move in `crm_party_merge_history` (so a wrong merge can be split again), and repoints department
 results to the survivor.
@@ -191,10 +193,10 @@ Screen: **Customers > Import from Excel**. Code: `personImport.service.js`. Temp
 
 | Column | Required | Notes |
 |---|:---:|---|
-| E-shop PK | yes | Becomes the Account PK of the e-shop identifier (the project with the **E-shop** identity role). |
-| E-shop ID | yes | Becomes the Account ID. |
-| User PK | yes | The customer's user_pk in the user management system (the project with the **User management** identity role). Becomes the Account PK of that identifier. |
-| User ID | yes | The customer's user_id (login) there. Becomes the Account ID. |
+| E-shop ID | yes | Becomes the Account ID (the key) of the e-shop identifier (the project with the **E-shop** identity role). |
+| E-shop PK | no | Becomes its Account PK. |
+| User ID | yes | The customer's user_id (login) in the user management system (the project with the **User management** identity role). Becomes the Account ID (the key) of that identifier. |
+| User PK | no | The customer's user_pk there. Becomes its Account PK. |
 | Full name, Gender (M/F), Birthday (YYYY-MM-DD), Mobile | yes | Used by the duplicate check. |
 | Location ID, Address | yes | Location IDs come from the template's Locations sheet; the duplicate check compares the Location ID. The Address text is kept for search and display. |
 | Origin project | no | A project code or ID from the template's Projects sheet. Empty cells take the **origin project chosen on the import screen**; with neither, the row is an error. |
@@ -209,8 +211,8 @@ Screen: **Customers > Import from Excel**. Code: `personImport.service.js`. Temp
   `crm_person_import_error` and listed under **Customers > Import errors** until dismissed. Nothing is saved before
   the button is clicked.
 - Rows are checked against the file itself, existing customers and pending registrations, with the same scoring. Two
-  rows with the same E-shop PK (or the same User PK) must be the same person (70+) with the same E-shop ID (or User
-  ID), otherwise it is an error.
+  rows with the same E-shop ID (or the same User ID) must be the same person (70+) with the same E-shop PK (or User
+  PK), otherwise it is an error. IDs and PKs are at most 250 characters.
 - Re-importing the same file is safe: each row's intake is keyed by the file's hash and row number.
 - Both identifiers - e-shop and user management - become *Previously linked identifiers* (section 5.5) and wait under
   **Account assignments**; neither is linked directly.
@@ -225,14 +227,14 @@ project always comes from the key, never from the request.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /registrations` | Register a person with `{ external_account_id, external_login?, party: { full_name, gender_code, birth_date, mobile, email, address_line, home_location_pk, job_title_id } }`. Runs the duplicate check. |
-| `GET /accounts/:external_account_id` | Which customer an account belongs to, or the status of its registration. |
+| `POST /registrations` | Register a person with `{ external_login, external_account_id?, party: { full_name, gender_code, birth_date, mobile, email, address_line, home_location_pk, job_title_id } }`. Runs the duplicate check. |
+| `GET /accounts/:external_login` | Which customer an account (by its Account ID) belongs to, or the status of its registration. |
 | `GET /identity-resolutions` | The results feed: decided registrations and merges the department has not acknowledged yet. |
 | `POST /identity-resolutions/:id/acknowledge` | Mark a result as stored by the department. |
 
 | Registration result | Meaning |
 |---|---|
-| `EXISTING` | This account is already linked; its `party_pk` is returned. |
+| `EXISTING` | An account with this Account ID is already linked in the project; its `party_pk` is returned. |
 | `MERGED` | Matched one customer (70+); the account is linked to it. |
 | `CREATED` | No match of 50 or more; a new customer is created with the account. |
 | `QUEUED` | 50-69 or conflicting matches; an administrator decides, then the account is linked. |

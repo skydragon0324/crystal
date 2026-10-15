@@ -36,12 +36,19 @@ const LATEST = `LEFT JOIN LATERAL (
      WHERE analysis.party_pk = party.party_pk AND analysis.project_id IS NULL
      ORDER BY analysis.reference_date DESC LIMIT 1) snapshot ON true`;
 
+/** A filter that may name several rows: one id, "1,2,3", or an array of them. Anything not an id is dropped. */
+function idsOf(value) {
+  const list = Array.isArray(value) ? value : String(value == null ? '' : value).split(',');
+  return list.map(function (item) { return String(item).trim(); }).filter(function (item) { return /^[1-9][0-9]*$/.test(item); });
+}
+
 /** The filters the list and the lookup share. */
 function narrowed(filters) {
   const qb = db('crm_party as party').joinRaw(LATEST);
 
-  // A grade set by hand stands in for the computed one.
-  if (filters.corporate_grade_id) qb.whereRaw('COALESCE(party.assigned_grade_id, snapshot.corporate_grade_id) = ?', [filters.corporate_grade_id]);
+  // A grade set by hand stands in for the computed one. Several grades match any of them.
+  const grades = idsOf(filters.corporate_grade_id);
+  if (grades.length) qb.whereRaw('COALESCE(party.assigned_grade_id, snapshot.corporate_grade_id) = ANY(?::bigint[])', [grades]);
   if (filters.activity_status) qb.where('snapshot.activity_status', filters.activity_status);
 
   if (filters.party_status) qb.where('party.party_status', filters.party_status);
@@ -59,11 +66,13 @@ function narrowed(filters) {
     });
   }
 
-  if (filters.project_id) {
+  // Several projects: an account in any of them.
+  const projects = idsOf(filters.project_id);
+  if (projects.length) {
     qb.whereExists(function () {
       this.select(db.raw(1)).from('crm_project_account as account')
         .whereRaw('account.party_pk = party.party_pk')
-        .where('account.project_id', filters.project_id)
+        .whereIn('account.project_id', projects)
         .whereNull('account.unlinked_at');
     });
   }
@@ -377,7 +386,10 @@ async function detail(id) {
       .where('merge_history.surviving_party_pk', id).orWhere('merge_history.merged_party_pk', id)
       .orderBy('merge_history.merged_at', 'desc')
       .select('merge_history.merge_id', 'merge_history.surviving_party_pk', 'merge_history.merged_party_pk', 'merge_history.merge_reason',
-        'merge_history.merge_method', 'merge_history.merged_at', 'merge_history.moved_rows'),
+        'merge_history.merge_method', 'merge_history.merged_at', 'merge_history.moved_rows',
+        'merge_history.unmerged_at', 'merge_history.unmerge_reason',
+        /* Only a merge that wrote down what it moved can be undone. */
+        db.raw("(merge_history.merge_metadata -> 'undo' IS NOT NULL) AS can_unmerge")),
     db('crm_party_analysis_snapshot as snapshot').leftJoin('crm_corporate_grade as grade', 'grade.corporate_grade_id', 'snapshot.corporate_grade_id')
       .where('snapshot.party_pk', id).whereNull('snapshot.project_id').orderBy('snapshot.reference_date', 'desc')
       .first('snapshot.*', 'grade.grade_code', 'grade.grade_name')

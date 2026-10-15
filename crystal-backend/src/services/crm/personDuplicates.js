@@ -10,14 +10,14 @@ function phoneKey(value) { return contact.normalise('MOBILE', value).replace(/\D
 function dateKey(value) { return value instanceof Date ? value.toISOString().slice(0, 10) : String(value || '').slice(0, 10); }
 function phones(value) { return [value.mobile, value.phone].concat((value.contacts || []).filter(c => ['MOBILE','PHONE'].includes(c.contact_type)).map(c => c.contact_value)).map(phoneKey).filter(Boolean); }
 /*
- * The user-management user_pks a person carries: an Excel row has
- * one (user_pk); a customer loaded as a candidate has every one linked to it
- * or listed for it by an earlier import (user_pks).
+ * The user-management Account IDs (user_id) a person carries: an Excel row has
+ * one (user_id); a customer loaded as a candidate has every one linked to it
+ * or listed for it by an earlier import (user_ids).
  */
-function userPks(value) { return [value.user_pk].concat(value.user_pks || []).filter(Boolean).map(String); }
+function userIds(value) { return [value.user_id].concat(value.user_ids || []).filter(Boolean).map(String); }
 /*
- * options.userPkMerges: the Excel import's rule. A sheet lists one row per
- * phone number, so one person can be several rows; the same user_pk is the
+ * options.userIdMerges: the Excel import's rule. A sheet lists one row per
+ * phone number, so one person can be several rows; the same user_id is the
  * same person and is merged (score at least 70), whatever the phones.
  */
 function score(first, second, options) {
@@ -32,16 +32,16 @@ function score(first, second, options) {
  add('location', textKey(first.home_location_pk), textKey(second.home_location_pk));
  add('occupation', textKey(first.job_title_id || first.occupation), textKey(second.job_title_id || second.occupation));
  let points = evidence.reduce((total, item) => total + item.points, 0);
- if (options && options.userPkMerges && points < MERGE_FROM && userPks(first).some(pk => userPks(second).includes(pk))) {
-  evidence.push({ field: 'same_user_pk', points: MERGE_FROM - points });
+ if (options && options.userIdMerges && points < MERGE_FROM && userIds(first).some(id => userIds(second).includes(id))) {
+  evidence.push({ field: 'same_user_id', points: MERGE_FROM - points });
   points = MERGE_FROM;
  }
  return { score: points, evidence, rule_code: 'WEIGHTED_PERSON', reason: evidence.map(e => e.field + ' +' + e.points).join(', '), decision: points >= MERGE_FROM ? 'MERGE' : points >= REVIEW_FROM ? 'REVIEW' : 'NEW' };
 }
-// Every score of 50 or more shares a phone, name or birthday (or, in an Excel import, a user_pk). Keep raw evidence
+// Every score of 50 or more shares a phone, name or birthday (or, in an Excel import, a user_id). Keep raw evidence
 // in the index; masking is only for the response, never for future matching.
 function matchKeys(value) {
- return phones(value).map(p => 'p:' + p).concat(userPks(value).map(pk => 'u:' + pk), [
+ return phones(value).map(p => 'p:' + p).concat(userIds(value).map(id => 'u:' + id), [
   textKey(value.full_name || value.display_name) && 'n:' + textKey(value.full_name || value.display_name),
   dateKey(value.birth_date) && 'b:' + dateKey(value.birth_date)
  ]).filter(Boolean);
@@ -64,17 +64,17 @@ function createIndex() {
  };
 }
 /*
- * Every user-management user_pk known for a customer: accounts linked to
- * them, and the candidate IDs an Excel import listed for them. Rows of
- * (party_pk, pk). The user management system is the project given the
+ * Every user-management Account ID known for a customer: accounts linked to
+ * them, and the candidate accounts an Excel import listed for them. Rows of
+ * (party_pk, id). The user management system is the project given the
  * USER_MANAGEMENT role in Settings > Projects.
  */
-const USER_PKS_SQL = `
-  SELECT account.party_pk, account.external_account_id AS pk
+const USER_IDS_SQL = `
+  SELECT account.party_pk, account.external_login AS id
     FROM crm_project_account account JOIN crm_project project ON project.project_id = account.project_id
    WHERE project.identity_role = 'USER_MANAGEMENT' AND account.unlinked_at IS NULL
   UNION
-  SELECT registration.party_pk, listed->>'external_account_id' AS pk
+  SELECT registration.party_pk, listed->>'external_login' AS id
     FROM crm_registration_intake registration
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(registration.payload->'unverified_accounts', '[]'::jsonb)) listed
     JOIN crm_project project ON project.project_id::text = listed->>'project_id'
@@ -84,21 +84,21 @@ async function loadCandidates(candidates, options) {
  const names = Array.from(new Set(candidates.map(candidate => textKey(candidate.full_name || candidate.display_name)).filter(Boolean)));
  const birthdays = Array.from(new Set(candidates.map(candidate => dateKey(candidate.birth_date)).filter(Boolean)));
  const numbers = Array.from(new Set([].concat(...candidates.map(phones))));
- const userKeys = Array.from(new Set([].concat(...candidates.map(userPks))));
- // Every score of 50 or more must share a phone, name or birthday (or a user_pk,
+ const userKeys = Array.from(new Set([].concat(...candidates.map(userIds))));
+ // Every score of 50 or more must share a phone, name or birthday (or a user_id,
  // in an Excel import). Fetch complete evidence for those candidates, score
  // them, and only then apply the limit.
  if (!opts.partyPk && !names.length && !birthdays.length && !numbers.length && !userKeys.length) return [];
- const withUserPk = userKeys.length ? (await query.raw(`SELECT party_pk FROM (${USER_PKS_SQL}) pks WHERE pk = ANY(?)`, [userKeys])).rows.map(row => row.party_pk) : [];
- // A user_pk nobody has, and nothing else to match on: no candidates (an empty condition would match everyone).
- if (!opts.partyPk && !names.length && !birthdays.length && !numbers.length && !withUserPk.length) return [];
+ const withUserId = userKeys.length ? (await query.raw(`SELECT party_pk FROM (${USER_IDS_SQL}) ids WHERE id = ANY(?)`, [userKeys])).rows.map(row => row.party_pk) : [];
+ // A user_id nobody has, and nothing else to match on: no candidates (an empty condition would match everyone).
+ if (!opts.partyPk && !names.length && !birthdays.length && !numbers.length && !withUserId.length) return [];
  const rows = await query('crm_party as party').join('crm_person as person', 'person.party_pk', 'party.party_pk')
  .whereIn('party.party_status', ['ACTIVE','INACTIVE'])
  .where(function () {
   if (opts.partyPk) { this.where('party.party_pk', opts.partyPk); return; }
   if (names.length) this.orWhereIn(query.raw("lower(trim(regexp_replace(person.full_name, '\\s+', ' ', 'g')))"), names);
   if (birthdays.length) this.orWhereIn('person.birth_date', birthdays);
-  if (withUserPk.length) this.orWhereIn('party.party_pk', withUserPk);
+  if (withUserId.length) this.orWhereIn('party.party_pk', withUserId);
   if (numbers.length) this.orWhereExists(function () {
    this.select(query.raw('1')).from('crm_contact_point as cp').whereRaw('cp.party_pk=party.party_pk')
     .where('cp.status','ACTIVE').whereIn('cp.contact_type',['MOBILE','PHONE'])
@@ -107,7 +107,7 @@ async function loadCandidates(candidates, options) {
  })
  .select('party.party_pk','party.display_name','person.full_name','person.gender_code','person.birth_date','person.address_line','person.home_location_pk','person.job_title_id',
  query.raw(`COALESCE((SELECT json_agg(json_build_object('contact_type', c.contact_type, 'contact_value', c.contact_value)) FROM crm_contact_point c WHERE c.party_pk=party.party_pk AND c.status='ACTIVE' AND c.contact_type IN ('MOBILE','PHONE')), '[]') AS contacts`),
- query.raw(`COALESCE((SELECT array_agg(DISTINCT pks.pk) FROM (${USER_PKS_SQL}) pks WHERE pks.party_pk = party.party_pk), '{}') AS user_pks`));
+ query.raw(`COALESCE((SELECT array_agg(DISTINCT ids.id) FROM (${USER_IDS_SQL}) ids WHERE ids.party_pk = party.party_pk), '{}') AS user_ids`));
  return rows;
 }
 function rank(candidate, rows, options) {
@@ -134,4 +134,4 @@ function reasonOf(match, locale) {
  }).join(', ');
 }
 function sameInFile(a,b,options) { const match = score(a,b,options); return match.score >= REVIEW_FROM ? match : null; }
-module.exports = { WEIGHTS, MERGE_FROM, REVIEW_FROM, score, reasonOf, userPks, findSimilar, sameInFile, phoneKey, createIndex, loadCandidates, rank };
+module.exports = { WEIGHTS, MERGE_FROM, REVIEW_FROM, score, reasonOf, userIds, findSimilar, sameInFile, phoneKey, createIndex, loadCandidates, rank };
