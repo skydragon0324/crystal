@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Badge, Box, Button, Flex, HStack, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
+  Alert, AlertIcon, Badge, Box, Button, Flex, HStack, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
   Radio, Select, SimpleGrid, Spinner, Stack, Switch, Table, Tbody, Td, Text, Th, Thead, Tr, useToast
 } from '@chakra-ui/react';
 import DataTable from '../../components/DataTable';
@@ -9,7 +9,7 @@ import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { date, dateTime } from '../../utils/format';
+import { date, dateTime, formatPhone } from '../../utils/format';
 import { useCrmMeta } from './shared';
 import PartyPicker from './PartyPicker';
 
@@ -42,7 +42,7 @@ function factsOf(person, translate) {
     ['Name', person.full_name],
     ['Gender', person.gender_code ? translate(GENDER[person.gender_code] || person.gender_code) : null],
     ['Date of birth', person.birth_date ? date(person.birth_date) : person.birth_year],
-    ['Phone', (person.phones || []).join(', ')],
+    ['Phone', (person.phones || []).map(formatPhone).join(', ')],
     ['Email', (person.emails || []).join(', ')],
     ['Location', person.location_name ? person.location_name + (person.location_id ? ' (' + person.location_id + ')' : '') : person.location_id],
     ['Address', person.address_line],
@@ -195,6 +195,7 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
     : translate('crm.registrationReview.pendingRegistrationNumber', { id: candidate.intake_id }));
   const candidates = detail ? detail.candidates : (selected && selected.candidates) || [];
   const chosen = candidates.filter(candidate => candidateKey(candidate) === target)[0] || null;
+  const phoneOwner = candidates.filter(candidate => candidate.phone_owner && candidate.party_pk)[0] || null;
   /* Only an existing customer can be merged into field by field, or related to. */
   const chosenCustomer = chosen && chosen.party_pk && chosen.person ? chosen : null;
   const personTypes = (meta.party_relationship_types || []).filter((type) => type.applies_to === 'ANY' || type.applies_to === 'PERSON');
@@ -208,10 +209,13 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
       if (action === 'NEW' && chosenCustomer && relationship) {
         payload.relationship = { related_party_pk: chosenCustomer.party_pk, relationship_type_code: relationship };
       }
-      await crm.parties.decideRegistration(selected.intake_id, payload);
+      const { data } = await crm.parties.decideRegistration(selected.intake_id, payload);
       setSelected(null); list.reload();
       if (onDecided) onDecided();
-      toast({ title: translate('crm.registrationReview.decisionSaved'), status: 'success', duration: 3000 });
+      /* Created as new while its number is someone else's: the number stayed with them. */
+      const leftOut = (data && data.phones_left_out) || [];
+      toast({ title: translate('crm.registrationReview.decisionSaved'), status: leftOut.length ? 'warning' : 'success', duration: leftOut.length ? 9000 : 3000, isClosable: true,
+        description: leftOut.length ? translate('crm.registrationReview.phonesLeftOut', { phones: leftOut.map(formatPhone).join(', ') }) : undefined });
     } catch (error) { toast({ title: error.message, status: 'error', duration: 6000 }); }
     finally { setBusy(false); }
   };
@@ -243,6 +247,13 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
         <ModalBody flex="1" minH={0} overflowY="auto">
           {selected && !detail ? <HStack py={6} justify="center"><Spinner size="sm" /></HStack> : null}
           {selected && detail && <>
+            {/* One number, one customer: say who has it, and what the two ways out are. */}
+            {!eshop && phoneOwner ? (
+              <Alert status="warning" mb={3} borderRadius="md" fontSize="sm">
+                <AlertIcon />
+                {translate('crm.registrationReview.phoneTaken', { customer: (phoneOwner.display_name || '') + ' — ' + candidateLabel(phoneOwner) })}
+              </Alert>
+            ) : null}
             <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={3} mb={3}>
               <Box borderWidth="1px" borderColor="blue.200" borderRadius="md" p={3} minW={0}>
                 <Text fontWeight="bold">{translate('crm.registrationReview.newRegistration')}</Text>
@@ -266,7 +277,10 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
                 {chosen ? (
                   <Box>
                     <HStack justify="space-between" mb={2} wrap="wrap">
-                      <Text fontWeight="600">{(chosen.display_name || translate('crm.registrationReview.customer')) + ' — ' + candidateLabel(chosen)}</Text>
+                      <HStack spacing={2}>
+                        <Text fontWeight="600">{(chosen.display_name || translate('crm.registrationReview.customer')) + ' — ' + candidateLabel(chosen)}</Text>
+                        {chosen.phone_owner ? <Badge colorScheme="orange">{translate('crm.registrationReview.hasThisPhone')}</Badge> : null}
+                      </HStack>
                       <Text fontSize="xs" color="gray.500">{chosen.reason} {chosen.score != null ? translate('crm.registrationReview.points', { n: chosen.score }) : ''}</Text>
                     </HStack>
                     <PersonFacts person={chosen.person} compareTo={detail.incoming.person} translate={translate} />
@@ -278,7 +292,10 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
                       <Box key={candidateKey(candidate)} borderWidth="1px" borderRadius="md" p={2} cursor="pointer" _hover={{ borderColor: 'brand.400' }}
                         onClick={() => pick(candidateKey(candidate))}>
                         <HStack justify="space-between" wrap="wrap">
-                          <Text fontSize="sm" fontWeight="600">{(candidate.display_name || translate('crm.registrationReview.customer')) + ' — ' + candidateLabel(candidate)}</Text>
+                          <HStack spacing={2}>
+                            <Text fontSize="sm" fontWeight="600">{(candidate.display_name || translate('crm.registrationReview.customer')) + ' — ' + candidateLabel(candidate)}</Text>
+                            {candidate.phone_owner ? <Badge colorScheme="orange">{translate('crm.registrationReview.hasThisPhone')}</Badge> : null}
+                          </HStack>
                           <Text fontSize="xs" color="gray.500">{candidate.score != null ? translate('crm.registrationReview.points', { n: candidate.score }) : ''}</Text>
                         </HStack>
                         <Text fontSize="xs" color="gray.500">{candidate.reason}</Text>

@@ -242,7 +242,8 @@ async function run(options) {
     connection('crm_corporate_grade').where('is_active', true).orderBy('rank_no', 'desc'),
     connection('crm_metric_definition').where('is_active', true),
     connection('crm_currency').where('is_reporting', true).first('currency_code'),
-    connection('crm_point_account').select('party_pk').sum({ balance_total: 'balance' }).groupBy('party_pk'),
+    // Company-wide points: each business system's reward points times its project's weight, worked out by the view.
+    connection('v_crm_party_company_points').select('party_pk', 'company_points as balance_total'),
     connection('crm_project_account as account').whereNull('account.unlinked_at')
       .select('account.party_pk').countDistinct({ project_count: 'account.project_id' }).groupBy('account.party_pk'),
     connection('crm_service_case').where('received_at', '<', connection.raw('?::date + 1', [refDate]))

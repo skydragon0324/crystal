@@ -57,7 +57,7 @@ function phonesOf(partyPk) {
 async function attach(partyPk, projectId, phone, user, summary, actor) {
   try {
     await transaction(async function (trx) {
-      const active = await trx('crm_project_account').where({ project_id: projectId, external_login: user.user_id }).whereNull('unlinked_at').forUpdate().first();
+      const active = await trx('crm_project_account').where({ project_id: projectId, external_account_id: user.user_id }).whereNull('unlinked_at').forUpdate().first();
       if (active) {
         if (String(active.party_pk) !== String(partyPk)) {
           if (summary.conflicts.length < KEEP) summary.conflicts.push({ party_pk: String(partyPk), phone: phone, user_id: user.user_id, linked_party_pk: String(active.party_pk) });
@@ -66,16 +66,16 @@ async function attach(partyPk, projectId, phone, user, summary, actor) {
         }
         const fill = {};
         if (!active.matched_phone) fill.matched_phone = phone;
-        if (!active.external_account_id && user.user_pk) fill.external_account_id = user.user_pk;
+        if (!active.external_account_pk && user.user_pk) fill.external_account_pk = user.user_pk;
         if (Object.keys(fill).length) await trx('crm_project_account').where('project_account_id', active.project_account_id).update(fill);
         summary.existing += 1;
         return;
       }
-      const dropped = await trx('crm_project_account').where({ project_id: projectId, external_login: user.user_id, party_pk: partyPk }).whereNotNull('unlinked_at').first();
+      const dropped = await trx('crm_project_account').where({ project_id: projectId, external_account_id: user.user_id, party_pk: partyPk }).whereNotNull('unlinked_at').first();
       if (dropped) { summary.unlinked_before += 1; return; }
       const primary = await trx('crm_project_account').where({ party_pk: partyPk, project_id: projectId }).whereNull('unlinked_at').first();
       const [row] = await trx('crm_project_account').insert({
-        party_pk: partyPk, project_id: projectId, external_login: user.user_id, external_account_id: user.user_pk,
+        party_pk: partyPk, project_id: projectId, external_account_id: user.user_id, external_account_pk: user.user_pk,
         external_account_type: 'MOBILE_USER', matched_phone: phone, is_primary: !primary,
         link_method: 'EXACT', link_confidence: 1
       }).returning('*');

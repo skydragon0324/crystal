@@ -79,7 +79,7 @@ Decisions go to `POST /api/admin/crm/identity-intakes/:id/decide`:
 
 An identifier listed for a customer can also be linked or rejected from the
 customer record (`POST /api/admin/crm/parties/:id/unverified-accounts/decide`,
-body `{ project_id, external_login, action }`).
+body `{ project_id, external_account_id, action }`).
 
 ## Identity roles of projects
 
@@ -139,12 +139,12 @@ SHA-256 of a key is stored (`crm_project_api_key`).
     npm run crm:api-key -- list
     npm run crm:api-key -- revoke <api_key_id>
 
-- `POST /registrations`: `{ external_login, external_account_id?,
+- `POST /registrations`: `{ external_account_id, external_account_pk?,
   external_account_type?, party: { full_name, gender_code, birth_date, mobile,
   email, address_line, home_location_pk, job_title_id } }`. Runs the duplicate
-  check, then returns `{ outcome, party_pk, intake_id }`. `external_login` (the
+  check, then returns `{ outcome, party_pk, intake_id }`. `external_account_id` (the
   Account ID, 1..250 characters) is the account's key and is required;
-  `external_account_id` (the Account PK) is optional.
+  `external_account_pk` (the Account PK) is optional.
   - account with this Account ID already linked: `EXISTING` with its `party_pk`;
   - one match of 70+: `MERGED`, account added to that customer;
   - nothing of 50 or more: `CREATED`, new customer with the account;
@@ -153,10 +153,10 @@ SHA-256 of a key is stored (`crm_project_api_key`).
 
   Only legacy e-shop links taken from vendor data (a `known_party_pk` hint on
   the E-shop project) are queued as account assignments.
-- `GET /accounts/:external_login`: `{ status: "LINKED", party_pk }`, or the
+- `GET /accounts/:external_account_id`: `{ status: "LINKED", party_pk }`, or the
   registration's status and `intake_id`; 404 when unknown.
 - `GET /identity-resolutions`: up to 500 unacknowledged results for the caller's
-  project, each with source record (the `external_login` registered), `party_pk`, outcome and resolution ID.
+  project, each with source record (the `external_account_id` registered), `party_pk`, outcome and resolution ID.
 - `POST /identity-resolutions/:id/acknowledge`, after the department saves the key.
 
 Repeated submissions for one project and Account ID reuse the registration or the
@@ -180,7 +180,7 @@ migration in `src/db/migrations`:
 | 048 | `party_id` no longer generated. |
 | 049 | "Location activity" renamed to "service center activity". |
 | 050 | Project identity roles. |
-| 056 | A project account is keyed by its Account ID (`external_login`, now required, up to 250 characters); the Account PK (`external_account_id`) becomes optional. Registrations carrying an account are re-keyed to its Account ID. |
+| 056 | A project account is keyed by its Account ID (`external_account_id`, now required, up to 250 characters); the Account PK (`external_account_pk`) becomes optional. Registrations carrying an account are re-keyed to its Account ID. |
 
 Run `npm run migrate` from the backend before starting the updated API. None of
 the deltas can be rolled back automatically, so take a backup first.

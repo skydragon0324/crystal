@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   Box, Button, Collapse, Flex, Grid, HStack, Icon, Input, InputGroup, InputLeftElement, Link, Select, SimpleGrid, Stack, Table, Tbody, Td,
-  Text, Th, Thead, Tr, Wrap, WrapItem
+  Text, Th, Thead, Tooltip, Tr, Wrap, WrapItem
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
-import { date, money, number } from '../../utils/format';
-import { homeAddress, word, useOpenCustomer } from './shared';
+import { date, formatPhone, money, number } from '../../utils/format';
+import { contactValue, homeAddress, word, useOpenCustomer } from './shared';
 import { ProjectTags } from './ui';
 import { usePeek } from './peek';
 import { Card360, Empty360, Facts360, Initials, MiniBars, Pill, RfmHexagon, Sparkline, Tile, TrendBadge } from './ui360';
@@ -156,11 +156,65 @@ export function AccountsCard({ view, onViewAll, title, icon, action }) {
         columns={[
           { key: 'project_name', label: 'Project or service',
             render: (row) => <HStack spacing={2}><ProjectTags codes={[row.project_code]} /><Text as="span" fontSize="sm" noOfLines={1}>{translate(row.project_name || '')}</Text></HStack> },
-          { key: 'external_login', label: 'Account ID', render: (row) => row.external_login || '-' },
+          { key: 'external_account_id', label: 'Account ID', render: (row) => row.external_account_id || '-' },
           { key: 'account_status', label: 'Status', render: (row) => <Pill code={row.account_status} /> },
           { key: 'last_activity_at', label: 'Last activity', render: (row) => date(row.last_activity_at) }
         ]}
       />
+    </Card360>
+  );
+}
+
+/**
+ * MEMBERSHIP SUMMARY - each account's tiers at a glance.
+ *
+ * A customer may hold several accounts in a project, and each account a tier
+ * on each kind of ladder the project ranks on (a level, a grade, ... - kinds
+ * are added in Settings > Tier kinds). One block per account: the project and
+ * Account ID, then a chip per kind with the tier held. The detail, the tier
+ * history and the changes are under Membership on the Accounts tab.
+ */
+export function MembershipSummaryCard({ record, onViewAll }) {
+  const translate = useT();
+  const surface = useSurface();
+  const accounts = [];
+  const byAccount = {};
+  (record.memberships || []).forEach((row) => {
+    const key = row.project_account_id || (row.project_code + ':' + row.external_account_id);
+    if (!byAccount[key]) {
+      byAccount[key] = { key: key, project_code: row.project_code, project_name: row.project_name, external_account_id: row.external_account_id, tiers: [] };
+      accounts.push(byAccount[key]);
+    }
+    byAccount[key].tiers.push(row);
+  });
+  return (
+    <Card360 icon={Md.MdCardMembership} title={translate('crm.customer360Cards.membershipSummary')} onViewAll={onViewAll}>
+      {accounts.length ? (
+        <Stack spacing={3} divider={<Box borderTopWidth="1px" borderColor={surface.border} />}>
+          {accounts.slice(0, 6).map((account) => (
+            <Box key={account.key} minW={0}>
+              <HStack spacing={2} mb={1.5} minW={0}>
+                <ProjectTags codes={[account.project_code]} />
+                <Text as="span" fontSize="sm" fontWeight="600" noOfLines={1}>{translate(account.project_name || '')}</Text>
+                <Text as="span" fontSize="xs" color={surface.muted} noOfLines={1}>{account.external_account_id}</Text>
+              </HStack>
+              <Wrap spacing={1.5}>
+                {account.tiers.map((tier) => (
+                  <WrapItem key={tier.membership_id}>
+                    <Tooltip hasArrow label={tier.membership_status && tier.membership_status !== 'ACTIVE' ? word(translate, tier.membership_status) : null}>
+                      <HStack spacing={1} px={2} py={0.5} borderRadius="md" borderWidth="1px" borderColor={surface.border}
+                        opacity={tier.membership_status && tier.membership_status !== 'ACTIVE' ? 0.55 : 1}>
+                        <Text as="span" fontSize="xs" color={surface.muted}>{translate(tier.kind_name || tier.tier_kind || '')}</Text>
+                        <Text as="span" fontSize="sm" fontWeight="700">{translate(tier.tier_name || '-')}</Text>
+                      </HStack>
+                    </Tooltip>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            </Box>
+          ))}
+        </Stack>
+      ) : <Empty360>{translate('crm.customer360Cards.noTiersYet')}</Empty360>}
     </Card360>
   );
 }
@@ -342,7 +396,7 @@ export function ContactPointsCard({ view, record, onManage }) {
           <Flex key={line.caption + ':' + (contact ? contact.contact_point_id || contact.contact_value : 'none')} align="center">
             <Icon as={line.icon} color={surface.muted} mr={2} visibility={index ? 'hidden' : 'visible'} />
             <Text color={surface.muted} w="5.5rem" flexShrink={0}>{index ? '' : line.caption}</Text>
-            <Text flex="1" minW={0} noOfLines={1}>{contact ? contact.contact_value : '-'}</Text>
+            <Text flex="1" minW={0} noOfLines={1}>{contact ? contactValue(contact) : '-'}</Text>
             {contact && contact.is_primary ? <Pill code="PRIMARY" /> : null}
           </Flex>
         )))}
@@ -492,7 +546,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
         { label: 'Established', value: date(profile.founded_date) },
         { label: 'Website', value: profile.website_url ? <Link href={profile.website_url} isExternal color="brand.500">{profile.website_url}<Icon as={Md.MdOpenInNew} ml={1} /></Link> : null },
         { label: 'Location', value: [profile.headquarters_address, profile.location_full_name || profile.location_name].filter(Boolean).join(', ') },
-        { label: 'Main phone', value: reach.phone ? reach.phone.contact_value : null },
+        { label: 'Main phone', value: reach.phone ? formatPhone(reach.phone.contact_value) : null },
         { label: 'Representative', value: representative ? representative.display_name : null },
         { label: 'Corporate group', value: groupName
           ? <Link color="brand.500" onClick={() => openCustomer(groupName.party_pk)}>{groupName.display_name}</Link> : null },
@@ -586,7 +640,7 @@ export function KeyContactsCard({ view, onViewAll, onLink }) {
               </Box>
               <Stack spacing={0.5} minW={0}>
                 {contact.email ? <HStack spacing={1}><Icon as={Md.MdMailOutline} color="brand.400" /><Text fontSize="xs" noOfLines={1}>{contact.email}</Text></HStack> : null}
-                {contact.phone ? <HStack spacing={1}><Icon as={Md.MdPhone} color="brand.400" /><Text fontSize="xs" noOfLines={1}>{contact.phone}</Text></HStack> : null}
+                {contact.phone ? <HStack spacing={1}><Icon as={Md.MdPhone} color="brand.400" /><Text fontSize="xs" noOfLines={1}>{formatPhone(contact.phone)}</Text></HStack> : null}
               </Stack>
             </Grid>
           ))}

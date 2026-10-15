@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert, AlertIcon, Box, Button, Tab, TabList, TabPanel, TabPanels, Tabs, useDisclosure, useToast
+  Alert, AlertIcon, Box, Button, HStack, Icon, Tab, TabList, TabPanel, TabPanels, Tabs, Text, useDisclosure, useToast
 } from '@chakra-ui/react';
+import * as Md from 'react-icons/md';
 
 import Card from '../../components/Card';
 import CrudPage from '../../components/CrudPage';
@@ -13,7 +14,8 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { dateTime } from '../../utils/format';
-import { PartyPicker, Status, amount, choices, optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, word, filtersFor, partyIdLabel } from './shared';
+import { PartyPicker, Status, amount, choices, optionsFrom, rowsOf, useCatalogOptions, useCrmMeta, word, filtersFor, partyIdLabel, useOpenCustomer } from './shared';
+import { PartyRewardPoints, SHOW_CRM_LEDGER, scoreNote } from './RewardPoints';
 
 export const PAGE = '/admin/crm/points';
 
@@ -21,13 +23,23 @@ const TRIGGERS = ['PRODUCT_REGISTRATION', 'DAILY_LOGIN', 'DUTY', 'PURCHASE', 'LI
   'REPAIR', 'SURVEY', 'BLOG', 'MANUAL', 'EVENT_AWARD'];
 
 /**
- * REWARD POINTS - every currency, one ledger.
+ * REWARD POINTS.
  *
- * A balance is per customer AND per point type, never a sum across types:
+ * Each business system keeps its own reward points by its own rules. The CRM
+ * keeps only how many points each customer's linked accounts hold there
+ * (crm_reward_points), and from those and each project's point weight
+ * (Settings > Projects) works out a company-wide score - never stored. The
+ * list is one line per customer; opening a line shows the rows behind it.
+ *
+ * The CRM's own points ledger - its earning rules, event costs and awards -
+ * is not part of that score and is set aside for now (SHOW_CRM_LEDGER). Its
+ * tabs below are kept as they were for when it comes back:
+ *
+ * A ledger balance is per customer AND per point type, never a sum across types:
  * activity points, software points and Crystal points buy different things,
  * so adding them together would give a number nothing can be spent from.
  *
- * Nothing here edits a balance. A movement made in error is answered by an
+ * Nothing there edits a balance. A movement made in error is answered by an
  * adjustment that says why, and both stay on the ledger. If a balance ever
  * stops equalling the sum of its ledger, the warning at the top says so -
  * that should never happen, and seeing it is how it would be noticed.
@@ -37,9 +49,13 @@ export default function Points() {
   const [drift, setDrift] = useState([]);
 
   useEffect(() => {
+    if (!SHOW_CRM_LEDGER) return;
     crm.points.drift().then(({ data }) => setDrift(rowsOf(data))).catch(() => setDrift([]));
   }, []);
 
+  if (!SHOW_CRM_LEDGER) {
+    return <Card bodyProps={false}><CompanyPoints /></Card>;
+  }
   return (
     <Box>
       {drift.length ? (
@@ -51,17 +67,148 @@ export default function Points() {
       <Card bodyProps={false}>
         <Tabs isLazy variant="line" colorScheme="brand">
           <TabList px={4} pt={2}>
+            <Tab fontSize="sm">{translate('crm.points.rewardPoints')}</Tab>
             <Tab fontSize="sm">{translate('crm.points.balances')}</Tab>
             <Tab fontSize="sm">{translate('crm.points.ledger')}</Tab>
             <Tab fontSize="sm">{translate('crm.points.earningRules')}</Tab>
           </TabList>
           <TabPanels>
+            <TabPanel px={0}><CompanyPoints /></TabPanel>
             <TabPanel px={0}><Balances /></TabPanel>
             <TabPanel px={0}><Ledger /></TabPanel>
             <TabPanel px={0}><Rules /></TabPanel>
           </TabPanels>
         </Tabs>
       </Card>
+    </Box>
+  );
+}
+
+/**
+ * One line per customer with points anywhere: their company-wide score,
+ * worked out now. Opening a line shows each business system's account,
+ * points, weight and what they count for. Rows are entered on the customer;
+ * a sheet of Project code, Account ID, Points (and As of) loads many at once.
+ */
+function CompanyPoints() {
+  const translate = useT();
+  const toast = useToast();
+  const meta = useCrmMeta();
+  const openCustomer = useOpenCustomer();
+  const { canWrite } = usePermission(PAGE);
+  const picker = useRef(null);
+  const [importing, setImporting] = useState(false);
+  const [report, setReport] = useState(null);
+  const list = useList((params) => crm.rewardPoints.customers(params), { page: 1, limit: 20, sort: 'company_points', dir: 'desc' });
+
+  const downloadTemplate = async () => {
+    try {
+      const { data: blob } = await crm.rewardPoints.template();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'crm-reward-points-template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({ title: error.message, status: 'error', duration: 6000, isClosable: true });
+    }
+  };
+
+  const upload = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    try {
+      const { data } = await crm.rewardPoints.importSheet(file);
+      setReport(data);
+      list.reload();
+    } catch (error) {
+      toast({ title: error.message, description: Array.isArray(error.detail) ? error.detail.join(', ') : undefined, status: 'error', duration: 8000, isClosable: true });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const systemsOf = (row) => {
+    const counts = { counted_systems: Number(row.counted_systems), uncounted_systems: Number(row.uncounted_systems) };
+    return counts.uncounted_systems ? <Text as="span" color="orange.500">{scoreNote(translate, counts)}</Text> : scoreNote(translate, counts);
+  };
+
+  return (
+    <Box>
+      <Toolbar
+        search={list.params.q}
+        placeholder={translate('crm.points.searchCustomerOrAccount')}
+        onSearch={(searchText) => list.setFilter({ q: searchText })}
+        filters={filtersFor(translate, [
+          { key: 'project_id', label: 'Business system', value: list.params.project_id, width: '13rem',
+            options: optionsFrom(meta.projects, 'project_id', 'project_name'),
+            onChange: (value) => list.setFilter({ project_id: value || undefined }) }
+        ])}
+        actions={canWrite ? (
+          <HStack spacing={2}>
+            <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdFileDownload} />} onClick={downloadTemplate}>{translate('crm.points.template')}</Button>
+            <Button size="sm" variant="brand" leftIcon={<Icon as={Md.MdFileUpload} />} isLoading={importing} onClick={() => picker.current && picker.current.click()}>
+              {translate('crm.points.importPoints')}
+            </Button>
+            <input ref={picker} type="file" accept=".xlsx" style={{ display: 'none' }} onChange={upload} />
+          </HStack>
+        ) : null}
+      />
+      {report ? (
+        <Box px={5} pb={3}>
+          <Alert status={report.problems && report.problems.length ? 'warning' : 'success'} borderRadius="md" fontSize="sm" alignItems="flex-start">
+            <AlertIcon />
+            <Box flex="1">
+              <Text>{translate('crm.points.importResult', {
+                received: report.received, updated: report.updated, unchanged: report.unchanged,
+                stale: report.stale, unknown: report.unknown_accounts, invalid: report.invalid
+              })}</Text>
+              {report.problems && report.problems.length ? (
+                <Box mt={2} maxH="12rem" overflowY="auto">
+                  {report.problems.map((problem, index) => (
+                    <Text key={index} fontSize="xs">{translate('crm.points.rowN', { n: problem.row })}  {problem.external_account_id || ''}  —  {problem.message}</Text>
+                  ))}
+                </Box>
+              ) : null}
+            </Box>
+            <Button size="xs" variant="ghost" onClick={() => setReport(null)}>{translate('Close')}</Button>
+          </Alert>
+        </Box>
+      ) : null}
+      <Box px="0.5rem" pb="0.5rem">
+        <DataTable
+          columns={[
+            { key: 'display_name', label: 'Customer',
+              render: (row) => (
+                <Text as="span" color="brand.500" cursor="pointer" onClick={(event) => { event.stopPropagation(); openCustomer(row.party_pk); }}>
+                  {(row.display_name || '-') + '  ' + partyIdLabel(row.party_pk)}
+                </Text>
+              ) },
+            { key: 'company_points', label: 'Company-wide points', isNumeric: true,
+              render: (row) => <Text as="span" fontWeight="700">{amount(row.company_points, 2)}</Text> },
+            { key: 'counted_systems', label: 'Business systems', sortable: false, render: systemsOf }
+          ]}
+          rows={list.rows}
+          loading={list.loading}
+          page={list.params.page}
+          limit={list.params.limit}
+          total={list.total}
+          sort={list.params.sort}
+          dir={list.params.dir}
+          onSort={list.setSort}
+          onPageChange={list.setPage}
+          onLimitChange={(limit) => list.setFilter({ limit: limit })}
+          rowKey={(row) => row.party_pk}
+          renderExpanded={(row) => <PartyRewardPoints partyPk={row.party_pk} />}
+          emptyText={translate('crm.points.noPointsAnywhere')}
+          storageKey={PAGE + '/company-points'}
+        />
+      </Box>
     </Box>
   );
 }

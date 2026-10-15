@@ -76,7 +76,7 @@ async function all() {
     projects, currencies, classes, relationships, acquisitions, purposes, usages,
     pointTypes, pointEventTypes, caseTypes, statuses, priorities, issues, faults,
     rootCauses, resolutions, activityTypes, tiers, grades, channels, commPurposes,
-    orgTypes, contactRoles, departments, industries, metrics, areas, tags, partyRelationshipTypes, staff, jobTitles
+    orgTypes, contactRoles, departments, industries, metrics, areas, tags, partyRelationshipTypes, staff, jobTitles, tierKinds
   ] = await Promise.all([
     tableOf('crm_project').orderBy('project_id'),
     tableOf('crm_currency').orderBy('currency_code'),
@@ -110,7 +110,9 @@ async function all() {
     tableOf('crm_party_relationship_type').where('is_active', true).orderBy('sort_order'),
     /* Who can be put in a customer's account team: names only, never anything about the account itself. */
     db('managers').where({ is_deleted: false, status: 'ACTIVE' }).orderBy('name').select('id as manager_id', 'name'),
-    tableOf('crm_job_title').orderBy([{ column: 'sort_order' }, { column: 'job_name' }])
+    tableOf('crm_job_title').orderBy([{ column: 'sort_order' }, { column: 'job_name' }]),
+    /* the kinds of tier ladder a project can rank customers on */
+    tableOf('crm_tier_kind').orderBy([{ column: 'sort_no' }, { column: 'kind_code' }])
   ]);
 
   return {
@@ -144,7 +146,8 @@ async function all() {
     tags: tags,
     party_relationship_types: partyRelationshipTypes,
     staff: staff,
-    job_titles: jobTitles
+    job_titles: jobTitles,
+    tier_kinds: tierKinds
   };
 }
 

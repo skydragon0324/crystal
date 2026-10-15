@@ -545,7 +545,7 @@ async function run(options) {
           mobile: '+86 137 ' + String(20260000 + position * 7919).slice(-8), email: fullName.toLowerCase().replace(' ', '.') + '@mail.example'
         }));
         await admin.post('/crm/parties/' + party.party_pk + '/accounts', {
-          project_id: projectId('ESHOP'), external_account_id: 'demo-eshop-' + party.party_pk, external_login: fullName.split(' ')[0].toLowerCase()
+          project_id: projectId('ESHOP'), external_account_pk: 'demo-eshop-' + party.party_pk, external_account_id: fullName.split(' ')[0].toLowerCase()
         });
         await db.transaction(async function (trx) {
           for (let order = 0; order < 2 + (position % 3); order += 1) {
@@ -1132,7 +1132,7 @@ async function customer360Demo(context, attempt) {
     const owner = await db('crm_party').where('party_pk', party.party_pk).first('party_pk');
     await attempt('business account', function () {
       return admin.post('/crm/parties/' + party.party_pk + '/accounts', {
-        project_id: projectId('ESHOP'), external_account_id: 'B2B-' + owner.party_pk, external_login: 'b2b-' + owner.party_pk
+        project_id: projectId('ESHOP'), external_account_pk: 'B2B-' + owner.party_pk, external_account_id: 'b2b-' + owner.party_pk
       });
     });
     for (const code of tagCodes) {

@@ -4,6 +4,7 @@ import { CloseIcon, SearchIcon } from '@chakra-ui/icons';
 
 import { crm } from '../../api';
 import { useT } from '../../i18n';
+import { formatPhone } from '../../utils/format';
 
 /**
  * FIND ONE REGISTERED CUSTOMER.
@@ -40,7 +41,7 @@ export function partyAddress(party) {
 /** A customer on one line: party_pk, name, home address, every phone - comma-separated. */
 export function partyLine(party) {
   const phones = Array.isArray(party.phones) && party.phones.length ? party.phones : [party.mobile];
-  return [party.party_pk, party.display_name || '-', partyAddress(party)].concat(phones).filter(Boolean).join(', ');
+  return [party.party_pk, party.display_name || '-', partyAddress(party)].concat(phones.map(formatPhone)).filter(Boolean).join(', ');
 }
 
 export default function PartyPicker({ value, onChange, placeholder, isDisabled }) {

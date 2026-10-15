@@ -14,11 +14,13 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, money, number } from '../../utils/format';
-import { Status, amount, rowsOf, word, partyIdLabel, useOpenCustomer } from './shared';
+import { Status, amount, contactValue, rowsOf, word, partyIdLabel, useOpenCustomer } from './shared';
 import { Amount, Dot, InfoList, Panel, ProjectTags, ScoreBreakdown, Timeline } from './ui';
 import { ChannelLabel, KeyContactsCard, MiniTable, OrganizationInfoCard, RelationshipOwnershipCard, ServiceSummaryCard, useRowSearch } from './c360Cards';
 import { Card360, Empty360, Initials, Pill, RfmHexagon } from './ui360';
 import { usePeek } from './peek';
+import { RewardPointsCard, SHOW_CRM_LEDGER } from './RewardPoints';
+import TierDialog from './MembershipTier';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -56,8 +58,8 @@ function UnverifiedAccountsCard({ partyId, act }) {
   const decide = (row, action) => act.ask(
     action === 'LINK' ? 'crm.customer360Tabs.linkIdentifier' : 'crm.customer360Tabs.rejectIdentifier',
     action === 'LINK' ? 'crm.customer360Tabs.linkIdentifierExplained' : 'crm.customer360Tabs.rejectIdentifierExplained',
-    translate(row.project_name || '') + '  ' + row.external_login,
-    () => crm.parties.decideUnverified(partyId, { project_id: row.project_id, external_login: row.external_login, action: action }),
+    translate(row.project_name || '') + '  ' + row.external_account_id,
+    () => crm.parties.decideUnverified(partyId, { project_id: row.project_id, external_account_id: row.external_account_id, action: action }),
     action === 'LINK' ? 'info' : 'danger');
   if (!rows.length) return null;
   return (
@@ -65,11 +67,11 @@ function UnverifiedAccountsCard({ partyId, act }) {
       <Text fontSize="xs" mb={2}>{translate('crm.customer360Tabs.unverifiedExplained')}</Text>
       <MiniTable
         rows={rows}
-        rowKey={(row) => row.registration_intake_id + ':' + row.project_id + ':' + row.external_login}
+        rowKey={(row) => row.registration_intake_id + ':' + row.project_id + ':' + row.external_account_id}
         columns={[
           { key: 'project_name', label: 'Project or service', render: (row) => translate(row.project_name || '') },
-          { key: 'external_account_id', label: 'Account PK' },
-          { key: 'external_login', label: 'Account ID' },
+          { key: 'external_account_pk', label: 'Account PK' },
+          { key: 'external_account_id', label: 'Account ID' },
           { key: 'review_status', label: 'Review',
             render: (row) => translate(REVIEW_STATUS_KEY[row.review_status] || 'crm.customer360Tabs.unverifiedNotStaged') },
           { key: 'recorded_at', label: 'Recorded', render: (row) => date(row.recorded_at) },
@@ -97,6 +99,8 @@ export function AccountsTab({ record, view, act }) {
   const toast = useToast();
   const [linking, setLinking] = useState(false);
   const accounts = record.accounts || [];
+  /* The tier dialog: {} to add a tier, { membership } to change one; null when closed. */
+  const [tierFor, setTierFor] = useState(null);
   /* Ask the SMARTPHONE_OFFLINE system about this customer's phone numbers; numbers already linked are not asked again. */
   const autoLink = async () => {
     setLinking(true);
@@ -124,8 +128,8 @@ export function AccountsTab({ record, view, act }) {
           rowKey={(row) => row.project_code + ':' + (row.project_account_id || 'none')}
           columns={[
             { key: 'project_name', label: 'Project or service', render: (row) => <HStack spacing={2}><ProjectTags codes={[row.project_code]} /><Text as="span">{translate(row.project_name || '')}</Text></HStack> },
-            { key: 'external_account_id', label: 'Account PK' },
-            { key: 'external_login', label: 'Account ID' },
+            { key: 'external_account_pk', label: 'Account PK' },
+            { key: 'external_account_id', label: 'Account ID' },
             { key: 'account_status', label: 'Status', render: (row) => <Pill code={row.account_status} /> },
             { key: 'first_used_at', label: 'First use', render: (row) => date(row.first_used_at) },
             { key: 'last_activity_at', label: 'Last activity', render: (row) => date(row.last_activity_at) },
@@ -151,7 +155,7 @@ export function AccountsTab({ record, view, act }) {
                   <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdEdit} />} aria-label={translate('crm.customer360.editAccount')} title={translate('crm.customer360.editAccount')}
                     onClick={() => act.open('editAccount', account)} />
                   <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdPhonelinkOff} />} aria-label={translate('crm.customer360Tabs.unlink')} title={translate('crm.customer360Tabs.unlink')}
-                    onClick={() => act.ask('crm.customer360Tabs.unlinkAccount', 'crm.customer360Tabs.unlinkExplained', account.project_code + '  ' + account.external_login,
+                    onClick={() => act.ask('crm.customer360Tabs.unlinkAccount', 'crm.customer360Tabs.unlinkExplained', account.project_code + '  ' + account.external_account_id,
                       () => crm.parties.unlinkAccount(record.party.party_pk, account.project_account_id))} />
                 </HStack>
               );
@@ -159,33 +163,33 @@ export function AccountsTab({ record, view, act }) {
           ]}
         />
       </Card360>
+      <RewardPointsCard record={record} view={view} act={act} />
       <UnverifiedAccountsCard partyId={record.party.party_pk} act={act} />
       <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
-        <Card360 icon={Md.MdCardMembership} title={translate('crm.customer360Tabs.memberships')}>
+        {/* Each account's tier on each kind of ladder its project ranks on; given or changed by hand here. */}
+        <Card360 icon={Md.MdCardMembership} title={translate('crm.customer360Tabs.memberships')}
+          action={act.editable ? (
+            <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => setTierFor({})}>{translate('crm.memberships.addTier')}</Button>
+          ) : null}>
           <MiniTable
             rows={record.memberships || []}
             rowKey={(row) => row.membership_id}
             columns={[
               { key: 'project_code', label: 'Project', filter: true, render: (row) => <ProjectTags codes={[row.project_code]} /> },
+              { key: 'external_account_id', label: 'Account ID', render: (row) => row.external_account_id || '-' },
+              { key: 'kind_name', label: 'Kind', filter: true, render: (row) => translate(row.kind_name || row.tier_kind || '-') },
               { key: 'tier_name', label: 'Project tier', render: (row) => translate(row.tier_name || '-') },
-              { key: 'available_reward_points', label: 'Reward points', isNumeric: true, render: (row) => amount(row.available_reward_points, 2) },
               { key: 'membership_status', label: 'Status', render: (row) => <Pill code={row.membership_status} /> },
-              { key: 'joined_at', label: 'Joined', render: (row) => date(row.joined_at) }
+              { key: 'joined_at', label: 'Joined', render: (row) => date(row.joined_at) },
+              { key: 'change', label: 'Actions', render: (row) => (act.editable ? (
+                <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdEdit} />} aria-label={translate('crm.memberships.changeTier')} title={translate('crm.memberships.changeTier')}
+                  onClick={() => setTierFor({ membership: row })} />
+              ) : null) }
             ]}
           />
+          <TierDialog isOpen={!!tierFor} onClose={() => setTierFor(null)} partyPk={record.party.party_pk} accounts={record.accounts}
+            membership={tierFor && tierFor.membership} onSaved={act.refresh} />
         </Card360>
-        <Card360 icon={Md.MdStars} title={translate('crm.customer360Tabs.pointBalances')}>
-          <MiniTable
-            rows={record.point_accounts || []}
-            rowKey={(row) => row.point_account_id}
-            columns={[
-              { key: 'point_type_name', label: 'Points', filter: true, render: (row) => translate(row.point_type_name || row.point_type_code) },
-              { key: 'balance', label: 'Balance', isNumeric: true, render: (row) => <Text as="span" fontWeight="700">{amount(row.balance, row.decimal_places)}</Text> }
-            ]}
-          />
-        </Card360>
-      </Grid>
-      <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
         <Card360 icon={Md.MdTrendingUp} title={translate('crm.customer360Tabs.tierChanges')}>
           <MiniTable
             rows={record.tier_history || []}
@@ -198,19 +202,34 @@ export function AccountsTab({ record, view, act }) {
             ]}
           />
         </Card360>
-        <Card360 icon={Md.MdHistory} title={translate('crm.customer360Tabs.recentPoints')}>
-          <MiniTable
-            rows={record.point_events || []}
-            rowKey={(row) => row.point_event_id}
-            columns={[
-              { key: 'occurred_at', label: 'When', render: (row) => date(row.occurred_at) },
-              { key: 'event_code', label: 'Movement', filter: true, render: (row) => word(translate, row.event_code) },
-              { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => <Amount value={row.points_delta} sign /> },
-              { key: 'points_balance_after', label: 'Balance', isNumeric: true, render: (row) => amount(row.points_balance_after) }
-            ]}
-          />
-        </Card360>
       </Grid>
+      {/* The CRM's own points ledger is not part of the company-wide score and is set aside for now. */}
+      {SHOW_CRM_LEDGER ? (
+        <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gridGap={4}>
+          <Card360 icon={Md.MdStars} title={translate('crm.customer360Tabs.pointBalances')}>
+            <MiniTable
+              rows={record.point_accounts || []}
+              rowKey={(row) => row.point_account_id}
+              columns={[
+                { key: 'point_type_name', label: 'Points', filter: true, render: (row) => translate(row.point_type_name || row.point_type_code) },
+                { key: 'balance', label: 'Balance', isNumeric: true, render: (row) => <Text as="span" fontWeight="700">{amount(row.balance, row.decimal_places)}</Text> }
+              ]}
+            />
+          </Card360>
+          <Card360 icon={Md.MdHistory} title={translate('crm.customer360Tabs.recentPoints')}>
+            <MiniTable
+              rows={record.point_events || []}
+              rowKey={(row) => row.point_event_id}
+              columns={[
+                { key: 'occurred_at', label: 'When', render: (row) => date(row.occurred_at) },
+                { key: 'event_code', label: 'Movement', filter: true, render: (row) => word(translate, row.event_code) },
+                { key: 'points_delta', label: 'Change', isNumeric: true, render: (row) => <Amount value={row.points_delta} sign /> },
+                { key: 'points_balance_after', label: 'Balance', isNumeric: true, render: (row) => amount(row.points_balance_after) }
+              ]}
+            />
+          </Card360>
+        </Grid>
+      ) : null}
     </Stack>
   );
 }
@@ -595,7 +614,7 @@ export function ConsentTab({ record, view, act }) {
           rowKey={(row) => row.contact_point_id}
           columns={[
             { key: 'contact_type', label: 'Type', filter: true, render: (row) => word(translate, row.contact_type) },
-            { key: 'contact_value', label: 'Value' },
+            { key: 'contact_value', label: 'Value', render: (row) => contactValue(row) },
             { key: 'is_primary', label: 'Primary', render: (row) => (row.is_primary ? <Pill code="PRIMARY" /> : '-') },
             { key: 'is_verified', label: 'Verified', render: (row) => (row.is_verified ? translate('common.yes') : '-') },
             { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> },
@@ -610,7 +629,7 @@ export function ConsentTab({ record, view, act }) {
                 })}>{translate('common.edit')}</Button>
                 {/* Only a contact never used can go; the server says so for the others. */}
                 <Button size="xs" variant="ghost" colorScheme="red" onClick={() => act.ask('crm.customer360.deleteContact', 'crm.customer360.deleteContactExplained',
-                  word(translate, row.contact_type) + '  ' + row.contact_value, () => crm.parties.deleteContact(party.party_pk, row.contact_point_id))}>
+                  word(translate, row.contact_type) + '  ' + contactValue(row), () => crm.parties.deleteContact(party.party_pk, row.contact_point_id))}>
                   {translate('common.delete')}
                 </Button>
               </HStack>
@@ -647,7 +666,7 @@ export function ConsentTab({ record, view, act }) {
               { key: 'consent_status', label: 'Consent',
                 render: (row) => (row.consent_status ? <Pill code={row.consent_status} />
                   : (row.consent_required ? translate('crm.customer360Tabs.notAsked') : translate('crm.customer360Tabs.noConsentNeeded'))) },
-              { key: 'contact_value', label: 'Send to' },
+              { key: 'contact_value', label: 'Send to', render: (row) => contactValue(row) },
               { key: 'captured_at', label: 'Recorded', render: (row) => date(row.captured_at) }
             ]}
             actions={act.editable ? [{
@@ -1077,7 +1096,7 @@ export function ContactsTab({ record, view, act }) {
             rowKey={(row) => row.contact_point_id}
             columns={[
               { key: 'contact_type', label: 'Type', filter: true, render: (row) => word(translate, row.contact_type) },
-              { key: 'contact_value', label: 'Contact' },
+              { key: 'contact_value', label: 'Contact', render: (row) => contactValue(row) },
               { key: 'is_primary', label: 'Primary', render: (row) => (row.is_primary ? <Pill code="PRIMARY" /> : '-') },
               { key: 'status', label: 'Status', filter: true, render: (row) => <Pill code={row.status} /> }
             ]}

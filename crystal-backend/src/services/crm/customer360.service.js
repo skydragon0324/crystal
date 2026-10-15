@@ -3,6 +3,7 @@ const { HttpError } = require('../../utils/response');
 const locations = require('./locations');
 const { COUNTED_STATUSES } = require('./transactions.service');
 const config = require('../../config');
+const rewardPoints = require('./rewardPoints.service');
 
 /**
  * CUSTOMER 360 - the figures and cards at the top of the customer record.
@@ -154,13 +155,14 @@ async function serviceFacts(partyId) {
 /**
  * Each project: the customer's account there if any, and when they last did
  * something in it - a purchase or a case. A project they have no account in
- * is listed as not linked, so the gap shows.
+ * is listed as not linked, so the gap shows. An account once unlinked is as
+ * good as gone: its row is kept as history, but it is not listed.
  */
 async function accountsByProject(partyId) {
   const [projects, accounts, lastActivity] = await Promise.all([
     db('crm_project').where('status', 'ACTIVE').orderBy('project_id')
       .select('project_id', 'project_code', 'project_name'),
-    db('crm_project_account').where('party_pk', partyId).orderBy([{ column: 'unlinked_at', order: 'desc' }, { column: 'is_primary', order: 'desc' }]),
+    db('crm_project_account').where('party_pk', partyId).whereNull('unlinked_at').orderBy([{ column: 'is_primary', order: 'desc' }]),
     db.raw(`
       SELECT project_id, MAX(at) AS last_activity_at FROM (
         SELECT txn.project_id, txn.transaction_at AS at FROM crm_transaction txn
@@ -174,9 +176,7 @@ async function accountsByProject(partyId) {
 
   const rows = [];
   projects.forEach(function (project) {
-    const mine = accounts.filter(function (account) { return account.project_id === project.project_id; });
-    const live = mine.filter(function (account) { return !account.unlinked_at; });
-    const shown = live.length ? live : mine.slice(0, 1);
+    const shown = accounts.filter(function (account) { return account.project_id === project.project_id; });
     // The phone-keyed project (SMARTPHONE_OFFLINE) offers "link by phone" on its first line.
     const byPhone = project.project_code === config.smartphoneOffline.projectCode;
     if (!shown.length) {
@@ -187,9 +187,9 @@ async function accountsByProject(partyId) {
     shown.forEach(function (account, index) {
       rows.push({
         project_id: project.project_id, project_code: project.project_code, project_name: project.project_name,
-        project_account_id: account.project_account_id, external_account_id: account.external_account_id,
-        external_login: account.external_login,
-        account_status: account.unlinked_at ? 'UNLINKED' : (account.is_primary ? 'PRIMARY' : 'LINKED'),
+        project_account_id: account.project_account_id, external_account_pk: account.external_account_pk,
+        external_account_id: account.external_account_id,
+        account_status: account.is_primary ? 'PRIMARY' : 'LINKED',
         first_used_at: account.source_created_at || account.linked_at,
         last_activity_at: lastOf[project.project_id] || null,
         links_by_phone: byPhone && index === 0
@@ -392,6 +392,8 @@ async function overview(partyId) {
     assigned.manager_name = manager ? manager.name : null;
   }
 
+  // The company-wide score, worked out from each business system's points and weight.
+  const points = await rewardPoints.ofParty(partyId);
   const [
     purchases, monthly, yearly, service, accounts, reach, relationships, campaigns, snapshots,
     tags, segments, recentOrders, products, interactions, notes, team, agreement, organization, extra
@@ -549,6 +551,7 @@ async function overview(partyId) {
     service: service,
     reach: reach,
     accounts: accounts,
+    points: points,
     recent_orders: recentOrders,
     products: products,
     interactions: interactions,

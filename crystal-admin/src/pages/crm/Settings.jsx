@@ -111,6 +111,8 @@ export default function Settings() {
 function listsOf(meta, translate) {
   const yes = (value) => (value ? translate('common.yes') : '-');
   const projects = optionsFrom(meta.projects, 'project_id', 'project_name');
+  /* Tier kinds by their code, which is what a tier stores. */
+  const kinds = optionsFrom(meta.tier_kinds, 'kind_code', (kind) => translate(kind.kind_name));
   const classes = optionsFrom(meta.product_classes, 'product_class_id', 'class_name');
   const industries = optionsFrom(meta.industries, 'industry_id', 'industry_name');
   /* A vendor location's parent is named by its code, not its number. */
@@ -123,6 +125,7 @@ function listsOf(meta, translate) {
         { key: 'project_type_code', label: 'Kind', render: (row) => row.project_type_code || '-' },
         { key: 'source_system_code', label: 'Source system' },
         { key: 'identity_role', label: 'Identity role', render: (row) => (row.identity_role ? translate(IDENTITY_ROLES[row.identity_role] || row.identity_role) : '-') },
+        { key: 'point_weight', label: 'Point weight', isNumeric: true, render: (row) => (row.point_weight === null || row.point_weight === undefined ? '-' : Number(row.point_weight)) },
         { key: 'status', label: 'Status', render: (row) => <Status value={row.status} /> }
       ],
       fields: [
@@ -134,7 +137,10 @@ function listsOf(meta, translate) {
         /* Which project the Excel import's E-shop and User columns belong to; at most one project per role. */
         { name: 'identity_role', label: 'Identity role', type: 'select', colSpan: 'full',
           options: Object.keys(IDENTITY_ROLES).map((role) => ({ value: role, label: translate(IDENTITY_ROLES[role]) })),
-          help: 'E-shop: the project of the Excel import\'s E-shop PK / ID columns. User management: the project of its User PK / User ID columns (the same User PK is the same person). One project per role.' }
+          help: 'E-shop: the project of the Excel import\'s E-shop PK / ID columns. User management: the project of its User PK / User ID columns (the same User PK is the same person). One project per role.' },
+        /* The project keeps its own points; this only says what one of them is worth company-wide. */
+        { name: 'point_weight', label: 'Point weight', type: 'number', step: '0.000001', min: 0, nullable: true, colSpan: 'full',
+          help: 'Company-wide points one of this project\'s reward points is worth. Leave empty to show its points without counting them in the company-wide score.' }
       ],
       emptyRow: { status: 'ACTIVE' } },
 
@@ -154,17 +160,31 @@ function listsOf(meta, translate) {
       ],
       emptyRow: { is_active: true } },
 
+    /* The kinds of ladder a project ranks on (level, grade, ...): a member holds one tier of each kind, per account. */
+    { path: 'tier-kinds', title: 'Tier kinds', pk: 'tier_kind_id', sort: 'sort_no', hint: 'crm.settings.tierKindsHint',
+      columns: [
+        { key: 'kind_code', label: 'Code' }, { key: 'kind_name', label: 'Name', render: (row) => translate(row.kind_name) },
+        { key: 'sort_no', label: 'Order', isNumeric: true }, active
+      ],
+      fields: [
+        { name: 'kind_code', label: 'Code', required: true, help: 'A short code, such as LEVEL or GRADE. Changing it later changes it on every tier and membership of this kind.' },
+        { name: 'kind_name', label: 'Name', required: true },
+        { name: 'sort_no', label: 'Order', type: 'number' }, activeField
+      ],
+      emptyRow: { is_active: true } },
+
     { path: 'project-tiers', title: 'Project tiers', pk: 'project_tier_id', sort: 'project_tier_id', hint: 'crm.settings.tiersHint',
       columns: [
         { key: 'project_id', label: 'Project', render: (row) => labelOf(projects, row.project_id) },
         { key: 'tier_code', label: 'Code' }, { key: 'tier_name', label: 'Name' },
-        { key: 'tier_kind', label: 'Kind' }, { key: 'rank_no', label: 'Rank', isNumeric: true },
+        { key: 'tier_kind', label: 'Kind', render: (row) => labelOf(kinds, row.tier_kind) }, { key: 'rank_no', label: 'Rank', isNumeric: true },
         { key: 'min_value', label: 'From value', isNumeric: true }, active
       ],
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
         { name: 'tier_code', label: 'Code', required: true }, { name: 'tier_name', label: 'Name', required: true },
-        { name: 'tier_kind', label: 'Kind', type: 'select', options: ['LEVEL', 'GRADE', 'CARD_CLASS'].map((code) => ({ value: code, label: code })) },
+        { name: 'tier_kind', label: 'Kind', type: 'select', required: true, isClearable: false, options: kinds,
+          help: 'The ladder this tier is on. A member holds one tier of each kind; add kinds under Tier kinds.' },
         { name: 'rank_no', label: 'Rank', type: 'number' }, { name: 'min_value', label: 'From value', type: 'number', step: '0.0001' },
         { name: 'source_code', label: 'Code in the project' }, activeField
       ],

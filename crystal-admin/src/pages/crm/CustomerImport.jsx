@@ -8,7 +8,7 @@ import * as Md from 'react-icons/md';
 
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { date } from '../../utils/format';
+import { date, formatPhone } from '../../utils/format';
 import SelectField from '../../components/SelectField';
 import { optionsFrom, partyIdLabel, useCrmMeta } from './shared';
 
@@ -244,7 +244,7 @@ function CheckedRows({ rows, translate }) {
               <Td>{row.values.eshop_pk ? row.values.eshop_pk + ' / ' + (row.values.eshop_id || '-') : '-'}</Td>
               <Td>{row.values.user_pk ? row.values.user_pk + ' / ' + (row.values.user_id || '-') : '-'}</Td>
               <Td>{row.values.full_name || '-'}</Td>
-              <Td>{row.values.mobile || '-'}</Td>
+              <Td>{formatPhone(row.values.mobile) || '-'}</Td>
               <Td>{row.values.birth_date ? date(row.values.birth_date) : (row.values.birth_year || '-')}</Td>
               <Td>{row.values.location_label || '-'}</Td>
               <Td>{row.values.job_name || '-'}</Td>

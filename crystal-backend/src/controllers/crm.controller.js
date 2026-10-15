@@ -75,7 +75,7 @@ module.exports = {
 
   /* ---- memberships ---- */
   memberships: {
-    list: lister(memberships.search, ['tier_value', 'joined_at', 'available_reward_points'], 'membership_id'),
+    list: lister(memberships.search, ['tier_value', 'joined_at'], 'membership_id'),
     distribution: async function (req, res) { return ok(res, await memberships.distribution()); },
     history: async function (req, res) { return ok(res, await memberships.history(req.params.id)); },
     setTier: async function (req, res) { return ok(res, await memberships.setTier(req.params.id, req.body, req.actor), 'common.updated'); },

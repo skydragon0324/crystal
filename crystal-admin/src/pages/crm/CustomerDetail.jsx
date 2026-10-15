@@ -15,12 +15,12 @@ import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { useSurface } from '../../theme/tokens';
-import { date, money, number } from '../../utils/format';
-import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress, customersPagePath } from './shared';
+import { date, formatPhone, money, number } from '../../utils/format';
+import { PartyPicker, Pending, amount, choices, optionsFrom, problemsOf, useCrmMeta, useSiteOptions, word, partyIdLabel, homeAddress, customersPagePath, contactValue } from './shared';
 import CrmSearch from './CrmSearch';
 import { PeekProvider } from './peek';
 import {
-  AccountsCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
+  AccountsCard, MembershipSummaryCard, ContactPointsCard, HierarchyCard, InteractionsCard, KeyContactsCard, KeyMetricsCard, KeySegments,
   MarketingCard, NotesCard, OrganizationInfoCard, ProductsCard, RecentOrdersCard, RelatedPartiesCard,
   RelationshipOwnershipCard, ServiceSummaryCard, ValueMetricsCard, companySize
 } from './c360Cards';
@@ -29,6 +29,7 @@ import {
   RelatedTab, ServiceTab
 } from './c360Tabs';
 import { HeaderStat, Pill, TagChip } from './ui360';
+import { scoreNote } from './RewardPoints';
 
 const PAGE = '/admin/crm/customers';
 const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP'];
@@ -47,13 +48,11 @@ const ORGANIZATION_TABS = [
   ['consent', 'crm.customer360.tabConsent'], ['related', 'crm.customer360.tabRelated'], ['notes', 'crm.customer360.tabNotes']
 ];
 
+/* Age is this year minus the year of birth, whether or not the birthday has come yet this year. */
 function ageOf(birthDate) {
   if (!birthDate) return null;
-  const born = new Date(birthDate);
-  const today = new Date();
-  let years = today.getFullYear() - born.getFullYear();
-  if (today.getMonth() < born.getMonth() || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate())) years -= 1;
-  return years;
+  const year = Number(String(birthDate).slice(0, 4));
+  return year ? new Date().getFullYear() - year : null;
 }
 
 /**
@@ -130,6 +129,7 @@ export default function CustomerDetail() {
   const person = record.person || {};
   const org = record.organization || {};
   const header = facts.header || {};
+  const points = facts.points || {};
   const reach = facts.reach || {};
   const merged = party.party_status === 'MERGED';
   const editable = canWrite && !merged;
@@ -213,7 +213,7 @@ export default function CustomerDetail() {
             <WrapItem key={contact.contact_point_id || contact.contact_value}><HStack spacing={1.5}><Icon as={Md.MdMailOutline} color="brand.500" /><Text color="brand.500">{contact.contact_value}</Text></HStack></WrapItem>
           ))}
           {(reach.phones || (reach.phone ? [reach.phone] : [])).map((contact) => (
-            <WrapItem key={contact.contact_point_id || contact.contact_value}><HStack spacing={1.5}><Icon as={Md.MdPhone} color={surface.muted} /><Text>{contact.contact_value}</Text></HStack></WrapItem>
+            <WrapItem key={contact.contact_point_id || contact.contact_value}><HStack spacing={1.5}><Icon as={Md.MdPhone} color={surface.muted} /><Text>{formatPhone(contact.contact_value)}</Text></HStack></WrapItem>
           ))}
           {/* The address once: its text when there is one, otherwise the location name. */}
           {homeAddress(person.address_line, person.home_location_name) ? <WrapItem><HStack spacing={1.5}><Icon as={Md.MdPlace} color={surface.muted} /><Text>{homeAddress(person.address_line, person.home_location_name)}</Text></HStack></WrapItem> : null}
@@ -279,7 +279,7 @@ export default function CustomerDetail() {
   const gradeNote = [header.assigned_grade_reason, header.computed_grade_code ? translate('crm.customer360.gradeComputedWas', { grade: header.computed_grade_code }) : null].filter(Boolean).join(' · ');
   const figures = (
     <Box>
-      <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3}>
+      <SimpleGrid columns={{ base: 2, md: 3, xl: 6 }} spacing={3}>
         <HeaderStat icon={Md.MdStars} iconColor="yellow.500" label={translate('crm.customer360.customerGrade')}
           action={editable ? (
             <Tooltip label={translate('crm.customer360.setGrade')} hasArrow>
@@ -304,6 +304,9 @@ export default function CustomerDetail() {
           value={number(header.products_registered)} sub={translate('crm.customer360.registered')} />
         <HeaderStat icon={Md.MdHeadsetMic} label={translate('crm.customer360.openCases')} value={number(header.open_cases)}
           sub={translate('crm.customer360.totalN', { n: number(header.total_cases) })} />
+        {/* Worked out from each business system's points and weight, never stored; the rows are on the Accounts tab. */}
+        <HeaderStat icon={Md.MdStars} iconColor="orange.400" label={translate('crm.points.companyWide')} value={amount(points.company_points || 0, 2)}
+          sub={scoreNote(translate, points)} />
       </SimpleGrid>
       <Divider my={3} />
       <KeySegments view={facts} />
@@ -491,8 +494,10 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
   if (tabKey === 'overview') {
     return isPerson ? (
       <Stack spacing={4}>
-        <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
+        {/* Accounts, and the tiers they hold, side by side; two to a row, four on a wide screen. */}
+        <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', '2xl': '1fr 1fr 1fr 1fr' }} gridGap={4}>
           <AccountsCard view={view} onViewAll={() => goTab('accounts')} />
+          <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />
           <RecentOrdersCard view={view} onViewAll={() => goTab('orders')} />
           <ValueMetricsCard view={view} onViewAll={() => goTab('analytics')} />
         </Grid>
@@ -519,6 +524,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model }) {
             <KeyMetricsCard view={view} onViewAll={() => goTab('analytics')} />
             <AccountsCard view={view} onViewAll={() => goTab('accounts')} title={translate('crm.customer360.accountsAndProjects')}
               action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('account')}>{translate('crm.customer360.linkAccount')}</Button> : null} />
+            <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />
           </Stack>
           <Stack spacing={4}>
             <RelationshipOwnershipCard view={view} onEdit={act.editable ? () => goTab('organization') : null} />
@@ -651,8 +657,8 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       title: translate('crm.customer360.customerLinkAccount'),
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
-        { name: 'external_login', label: 'Account ID', required: true },
-        { name: 'external_account_id', label: 'Account PK in that project' }
+        { name: 'external_account_id', label: 'Account ID', required: true },
+        { name: 'external_account_pk', label: 'Account PK in that project' }
       ],
       submit: (values) => run(() => crm.parties.linkAccount(party.party_pk, values), 'Created')
     },
@@ -660,13 +666,13 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
     editAccount: {
       title: translate('crm.customer360.editAccount'),
       fields: [
-        { name: 'external_login', label: 'Account ID', required: true },
-        { name: 'external_account_id', label: 'Account PK in that project' },
+        { name: 'external_account_id', label: 'Account ID', required: true },
+        { name: 'external_account_pk', label: 'Account PK in that project' },
         { name: 'external_account_type', label: 'Type' },
         { name: 'is_primary', label: 'Primary in this project', type: 'checkbox' }
       ],
       submit: (values) => run(() => crm.parties.updateAccount(party.party_pk, dialog.initial.project_account_id, {
-        external_login: values.external_login, external_account_id: values.external_account_id,
+        external_account_id: values.external_account_id, external_account_pk: values.external_account_pk,
         external_account_type: values.external_account_type, is_primary: !!values.is_primary
       }))
     },
@@ -677,7 +683,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
           options: choices(['GRANTED', 'DENIED', 'WITHDRAWN', 'NOT_REQUIRED']) },
         { name: 'contact_point_id', label: 'Send to', type: 'select',
           options: (record.contacts || []).filter((contact) => contact.status === 'ACTIVE')
-            .map((contact) => ({ value: contact.contact_point_id, label: word(translate, contact.contact_type) + '  ' + contact.contact_value })) },
+            .map((contact) => ({ value: contact.contact_point_id, label: word(translate, contact.contact_type) + '  ' + contactValue(contact) })) },
         { name: 'reason', label: 'Reason', type: 'textarea', required: true, colSpan: 'full',
           help: 'Say how the customer told you - a call, a letter, at a counter.' }
       ],

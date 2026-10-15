@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const repo = require('../../repositories/crm/parties.repository');
 const vocabulary = require('../../repositories/crm/vocabulary.repository');
 const contact = require('./contact');
+const phoneOwners = require('./phoneOwners');
 const duplicates = require('./personDuplicates');
 const rules = require('./personRules');
 const ledger = require('./ledger');
@@ -96,6 +97,8 @@ async function insertContact(trx, partyId, data) {
   const existing = await trx('crm_contact_point')
     .where({ party_pk: partyId, contact_type: type, normalized_value: normalised }).first();
   if (existing) return null;
+  // One number, one customer: never give a phone another customer already has.
+  if (phoneOwners.PHONE_TYPES.indexOf(type) !== -1) await phoneOwners.assertFree(trx, partyId, normalised);
 
   const hasPrimary = await trx('crm_contact_point')
     .where({ party_pk: partyId, contact_type: type, is_primary: true }).first();
@@ -103,7 +106,8 @@ async function insertContact(trx, partyId, data) {
   const [row] = await trx('crm_contact_point').insert({
     party_pk: partyId,
     contact_type: type,
-    contact_value: String(data.contact_value).trim().slice(0, 500),
+    // A phone is kept as its digits; anything else as it was typed.
+    contact_value: contact.isPhone(type) ? normalised : String(data.contact_value).trim().slice(0, 500),
     normalized_value: normalised,
     label: data.label || null,
     is_verified: !!data.is_verified,
@@ -267,8 +271,8 @@ async function updateContact(partyId, contactId, body, actor) {
   const after = await transaction(async function (trx) {
     const patch = {};
     if (body.contact_value !== undefined) {
-      patch.contact_value = String(body.contact_value).trim();
       patch.normalized_value = contact.normalise(before.contact_type, body.contact_value);
+      patch.contact_value = contact.isPhone(before.contact_type) ? patch.normalized_value : String(body.contact_value).trim();
       if (!patch.normalized_value) throw new HttpError(400, 'crm.customers.contactValueIsRequired');
     }
     if (body.label !== undefined) patch.label = body.label || null;
@@ -282,6 +286,10 @@ async function updateContact(partyId, contactId, body, actor) {
     }
     const status = patch.status || before.status;
     if (body.is_primary && status !== 'ACTIVE') throw new HttpError(400, 'crm.customers.onlyAnActiveContactCanBePrimary');
+    // A number changed, or switched back on, must not be another customer's.
+    if (phoneOwners.PHONE_TYPES.indexOf(before.contact_type) !== -1 && status === 'ACTIVE' && (patch.normalized_value || before.status !== 'ACTIVE')) {
+      await phoneOwners.assertFree(trx, partyId, patch.normalized_value || before.normalized_value);
+    }
     if (body.is_primary) {
       await trx('crm_contact_point')
         .where({ party_pk: partyId, contact_type: before.contact_type })
@@ -321,18 +329,40 @@ async function deleteContact(partyId, contactId, actor) {
   return { contact_point_id: contactId };
 }
 
+/**
+ * Refuses an account another customer (or this one) already has in that
+ * project - by its Account ID, or by its PK when one is given - naming who
+ * has it, so nothing is linked twice. Unlinked accounts do not count.
+ */
+async function assertAccountFree(trx, partyId, projectId, login, pk, exceptAccountId) {
+  const query = trx('crm_project_account as account').join('crm_party as party', 'party.party_pk', 'account.party_pk')
+    .where('account.project_id', projectId).whereNull('account.unlinked_at')
+    .where(function () {
+      this.where('account.external_account_id', login);
+      if (pk) this.orWhere('account.external_account_pk', pk);
+    });
+  if (exceptAccountId) query.whereNot('account.project_account_id', exceptAccountId);
+  const taken = await query.first('account.party_pk', 'party.display_name', 'account.external_account_id');
+  if (!taken) return;
+  if (String(taken.party_pk) === String(partyId)) throw new HttpError(409, 'crm.customers.thisCustomerAlreadyHasThatAccount', null, { account: taken.external_account_id });
+  throw new HttpError(409, 'crm.customers.accountLinkedToAnother', [{ field: 'external_account_id', message: 'crm.customers.accountLinkedToAnother',
+    params: { customer: (taken.display_name || '') + ' #' + taken.party_pk } }], { customer: (taken.display_name || '') + ' #' + taken.party_pk });
+}
+
 async function linkAccount(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
   // The Account ID is the key every project links by; the PK is optional.
-  const login = String(body.external_login == null ? '' : body.external_login).trim();
+  const login = String(body.external_account_id == null ? '' : body.external_account_id).trim();
   if (!body.project_id || !login) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
+  // Already someone's: the link is not made, and the reader is told whose it is.
+  await assertAccountFree(db, partyId, body.project_id, login, String(body.external_account_pk == null ? '' : body.external_account_pk).trim() || null);
 
   const [row] = await db('crm_project_account').insert({
     party_pk: partyId,
     project_id: body.project_id,
-    external_account_id: String(body.external_account_id == null ? '' : body.external_account_id).trim() || null,
-    external_login: login,
+    external_account_pk: String(body.external_account_pk == null ? '' : body.external_account_pk).trim() || null,
+    external_account_id: login,
     external_account_type: body.external_account_type || null,
     account_status: body.account_status || null,
     is_primary: !!body.is_primary,
@@ -354,14 +384,18 @@ async function updateAccount(partyId, accountId, body, actor) {
   if (before.unlinked_at) throw new HttpError(409, 'crm.customers.alreadyUnlinked');
 
   const patch = {};
-  if (body.external_login !== undefined) {
-    patch.external_login = String(body.external_login == null ? '' : body.external_login).trim();
-    if (!patch.external_login) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
+  if (body.external_account_id !== undefined) {
+    patch.external_account_id = String(body.external_account_id == null ? '' : body.external_account_id).trim();
+    if (!patch.external_account_id) throw new HttpError(400, 'crm.customers.projectAndAccountAreRequired');
   }
-  if (body.external_account_id !== undefined) patch.external_account_id = String(body.external_account_id == null ? '' : body.external_account_id).trim() || null;
+  if (body.external_account_pk !== undefined) patch.external_account_pk = String(body.external_account_pk == null ? '' : body.external_account_pk).trim() || null;
   if (body.external_account_type !== undefined) patch.external_account_type = String(body.external_account_type == null ? '' : body.external_account_type).trim().slice(0, 50) || null;
   if (body.is_primary !== undefined) patch.is_primary = !!body.is_primary;
   if (!Object.keys(patch).length) return before;
+  if (patch.external_account_id !== undefined || patch.external_account_pk) {
+    await assertAccountFree(db, partyId, before.project_id, patch.external_account_id !== undefined ? patch.external_account_id : before.external_account_id,
+      patch.external_account_pk !== undefined ? patch.external_account_pk : before.external_account_pk, accountId);
+  }
 
   const after = await transaction(async function (trx) {
     if (patch.is_primary) {
@@ -598,9 +632,7 @@ async function merge(survivorId, mergedId, reason, method, actor) {
       await owned('crm_transaction_party', 'party_pk', notHeldBySurvivor('crm_transaction_party', ['transaction_id', 'party_role_code'])),
       { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
 
-    count('crm_membership', await change('crm_membership', 'membership_id',
-      await owned('crm_membership', 'party_pk', notHeldBySurvivor('crm_membership', ['project_id'])),
-      { party_pk: survivorPartyId }, 'party_pk', survivorPartyId));
+    /* Memberships hang on their account: the accounts moved above, and their tiers with them. */
 
     /* Points: re-point where the survivor has no account in that currency, carry over where it does. */
     const carried = [];
@@ -828,6 +860,8 @@ async function unmerge(mergeId, partyId, reason, actor) {
     const changes = log.undo.slice().reverse();
     for (let index = 0; index < changes.length; index += 1) {
       const step = changes[index];
+      // A merge from before memberships hung on their account moved them; now they follow the account, which is restored here too.
+      if (step.table === 'crm_membership') continue;
       for (let row = 0; row < step.rows.length; row += 1) {
         const entry = step.rows[row];
         try {
@@ -989,6 +1023,8 @@ async function detail(id) {
     ['crm_membership', ids(found.memberships, 'membership_id')],
     ['crm_party_communication_consent', ids(found.consents.filter(function (consent) { return consent.party_communication_consent_id; }), 'party_communication_consent_id')]
   ];
+  // An account once unlinked is as good as gone: its link and unlink stay in the change history above, but it is not listed.
+  found.accounts = (found.accounts || []).filter(function (account) { return !account.unlinked_at; });
 
   const [analysis, orgs, transactions, tierHistory, auditTrail] = await Promise.all([
     analysisRead.forParty(id),
@@ -1001,10 +1037,12 @@ async function detail(id) {
         'txn.currency_code', 'txn.net_amount', 'txn.reporting_net_amount', 'txn.points_used', 'txn.transaction_at',
         'txn.original_transaction_id', 'project.project_code'),
     db('crm_membership_tier_history as tier_history').join('crm_membership as membership', 'membership.membership_id', 'tier_history.membership_id')
-      .join('crm_project as project', 'project.project_id', 'membership.project_id')
+      .join('crm_project_account as account', 'account.project_account_id', 'membership.project_account_id')
+      .join('crm_project as project', 'project.project_id', 'account.project_id')
       .leftJoin('crm_project_tier as old_tier', 'old_tier.project_tier_id', 'tier_history.old_tier_id')
       .join('crm_project_tier as new_tier', 'new_tier.project_tier_id', 'tier_history.new_tier_id')
-      .where('membership.party_pk', id).orderBy('tier_history.changed_at', 'desc').limit(30)
+      // The tiers of the accounts linked to this customer now.
+      .where('account.party_pk', id).whereNull('account.unlinked_at').orderBy('tier_history.changed_at', 'desc').limit(30)
       .select('tier_history.*', 'project.project_code', 'old_tier.tier_name as old_tier_name', 'new_tier.tier_name as new_tier_name'),
     db('audit_log').where(function () {
       audited.forEach((pair) => {

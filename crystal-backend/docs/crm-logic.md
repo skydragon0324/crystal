@@ -29,7 +29,7 @@ field is described in [crm-database.md](crm-database.md); the phase-1 identity r
 | Registration intake | An incoming person or identifier that must pass the duplicate check before it becomes (or joins) a customer. | `crm_registration_intake` |
 | Product | A catalogue item, a concrete instance (IMEI, serial, licence), and who holds it over time. | `crm_product_*` |
 | Transaction | A sale, purchase or refund from any project, with its lines. | `crm_transaction*` |
-| Points | One ledger for every point currency, one balance per currency. | `crm_point_*` |
+| Reward points | The points each linked business-system account holds in its own system (one row per account), weighted by project into a company-wide score that is never stored. The CRM's own ledger (one balance per point currency) is kept but not part of that score. | `crm_reward_points`, `crm_point_*` |
 | Service case | A summary of every service contact (repair, complaint, enquiry). | `crm_service_case*` |
 | Interaction | A contact with the customer that already happened (call, email, chat, visit), written down by staff. | `crm_party_interaction` |
 | Site | A physical place: service centre, agency, collection point, shop. What happens there is logged. | `crm_service_center*` |
@@ -56,7 +56,7 @@ Rules that run through everything:
 | Transfers | Requests to hand a product to someone else. | `products.service.js` |
 | Transactions | Sales, purchases and refunds from every project. | `transactions.service.js` |
 | Memberships | Each customer's status and tier per project. | `memberships.service.js` |
-| Reward points | Point balances, the ledger, manual adjustments, point rules. | `ledger.js`, `points.service.js` |
+| Reward points | One line per customer with their company-wide points, opening to the rows behind them; Excel template and import. The CRM ledger's tabs (balances, the ledger, manual adjustments, point rules) are hidden for now. | `rewardPoints.service.js` (`ledger.js`, `points.service.js` for the hidden ledger) |
 | Service cases | Repairs, complaints and enquiries from every project. | `cases.service.js` |
 | Sites / Service center activity | Physical places, what they may do, what happened there, targets. | `sites.service.js` |
 | Events | Customer activity events with targets, quotas, reservations and awards. | `events.service.js` |
@@ -110,8 +110,8 @@ named the same way everywhere in the console:
 
 | Console label | Field | What it is | Example (e-shop) |
 |---|---|---|---|
-| **Account ID** | `external_login` | The id the customer signs in with. **The account's key**: required, and unique per project while linked. | `eshop_id` |
-| **Account PK** | `external_account_id` | The project's internal key for the account. Optional. | `eshop_pk` |
+| **Account ID** | `external_account_id` | The id the customer signs in with. **The account's key**: required, and unique per project while linked. | `eshop_id` |
+| **Account PK** | `external_account_pk` | The project's internal key for the account. Optional. | `eshop_pk` |
 
 The database and the department API keep the field names above; only the console labels changed.
 
@@ -164,7 +164,8 @@ project imports (`personDuplicates.js`, `registrationIntake.service.js`).
 details to the customer. The reviewer may choose to take the registration's name, birthday, gender, address or job
 title instead of the customer's; phones are never a choice - the customer always keeps every number, theirs and the
 registration's. Merging two existing customers moves their accounts, contacts (every phone and email; a value
-both had is kept once), products, cases and points to the survivor, re-proposes pending account assignments to the
+both had is kept once), products, cases and points (CRM ledger balances; an account's reward points follow the
+account) to the survivor, re-proposes pending account assignments to the
 survivor, records the move in `crm_party_merge_history` (so a wrong merge can be split again), and repoints department
 results to the survivor.
 
@@ -227,10 +228,11 @@ project always comes from the key, never from the request.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /registrations` | Register a person with `{ external_login, external_account_id?, party: { full_name, gender_code, birth_date, mobile, email, address_line, home_location_pk, job_title_id } }`. Runs the duplicate check. |
-| `GET /accounts/:external_login` | Which customer an account (by its Account ID) belongs to, or the status of its registration. |
+| `POST /registrations` | Register a person with `{ external_account_id, external_account_pk?, party: { full_name, gender_code, birth_date, mobile, email, address_line, home_location_pk, job_title_id } }`. Runs the duplicate check. |
+| `GET /accounts/:external_account_id` | Which customer an account (by its Account ID) belongs to, or the status of its registration. |
 | `GET /identity-resolutions` | The results feed: decided registrations and merges the department has not acknowledged yet. |
 | `POST /identity-resolutions/:id/acknowledge` | Mark a result as stored by the department. |
+| `POST /reward-points` | Send the points each of the project's accounts holds there, one figure per account: `{ accounts: [{ external_account_id, points, as_of? }] }` (section 9). |
 
 | Registration result | Meaning |
 |---|---|
@@ -250,9 +252,9 @@ the tabs read the full record from `/parties/:id`.
 
 | Part | What it shows or does |
 |---|---|
-| Header | Name, gender, birthday, address (shown once), **every phone and email**, grade (section 12.3), lifetime spend, orders, products held, open cases. |
+| Header | Name, gender, birthday, address (shown once), **every phone and email**, grade (section 12.3), lifetime spend, orders, products held, open cases, **company-wide points** (section 9; "N business systems not counted (no weight)" when a project has no weight). |
 | Overview | Value and RFM, service summary, contact points (one line per phone and email), consent, relationships, tags and segments, key cards with "View all". Order, product and case rows open their details over the record. |
-| Accounts tab | Accounts in each project (Account PK, Account ID, status, first use, last activity; unlink), previously linked identifiers (link or reject), memberships, point balances, tier changes, recent points. |
+| Accounts tab | Accounts in each project (Account PK, Account ID, status, first use, last activity; unlink), a *Reward points* card (the company-wide total, opening to one row per account: business system, Account ID, points, weight, company-wide points, note; administrators add, edit and remove rows), previously linked identifiers (link or reject), memberships, tier changes. The CRM ledger's point balances and recent points are hidden for now. |
 | Orders tab | The latest 50 orders. A search box and filters (project, type, status) narrow the list; clicking a row opens the order's details over the record. |
 | Products tab | Products held now and before (search and filters; clicking one opens its details over the record), counts per class, transfers. |
 | Service tab | Service summary, interactions (paged), and the latest 50 service cases with search and filters. Clicking a case opens it over the record, where it can be classified; the record reloads when it closes. |
@@ -326,13 +328,31 @@ reversals from every project.
 
 ## 9. Memberships and points
 
-Screens: **Memberships**, **Reward points**. Code: `ledger.js`, `points.service.js`.
+Screens: **Memberships**, **Reward points**. Code: `rewardPoints.service.js`; the CRM ledger: `ledger.js`, `points.service.js`.
 
 - A membership is a customer's status in one project (tier, member number); tier changes are kept in history.
-- **Points** have one ledger (`crm_point_event`) for every currency but one balance per currency
-  (`crm_point_account`). Currencies are not interchangeable (karaoke points cannot buy an app).
+- **Each business system runs its own reward points** by its own rules, and the CRM does not re-create them or follow
+  their movements. It keeps one figure per business-system account linked to a customer - the points that account
+  holds there - in `crm_reward_points` (a customer with two accounts in one system has two rows), with when it was
+  true, how it arrived and a note. No history is kept: a new figure replaces the old one.
+- **Company-wide points** are never stored. `v_crm_party_company_points` works them out every time: each row's points
+  times its project's *Point weight* (Settings > Projects), summed per customer. A project whose weight is empty is
+  shown but not counted (no 1:1 rate is assumed), and the total says how many business systems were left out. It is
+  for ranking and analysis only; nothing is spent from it.
+- **The CRM's own ledger** (`crm_point_event`, one balance per currency in `crm_point_account`; earning rules, event
+  costs and awards) is not part of the company-wide score. Its screens are hidden for now; its tables and code are
+  unchanged. Currencies are not interchangeable (karaoke points cannot buy an app).
 
-| Ledger rule | How it is enforced |
+| Reward points rule | How it is enforced |
+|---|---|
+| Three ways in | An administrator adds, edits or removes a row on the customer's Accounts tab (*Reward points* card; source `MANUAL`); the business system sends them (`POST /api/integration/crm/reward-points`; source `API`); a manager uploads a sheet (Reward points > import: Project code, Account ID, Points, optional As of; source `IMPORT`). |
+| One row per account | `project_account_id` is unique: a second row for the same account is refused (409); edit the row instead. Only the customer's linked accounts can be given a row. |
+| An older figure never overwrites a newer one | A sent or imported figure whose `as_of` is older than the stored one is ignored as STALE. A figure entered by hand is as of the date given (empty = now) and always replaces the row. |
+| Every line is answered | Unknown or unlinked accounts are UNKNOWN_ACCOUNT, bad numbers or times INVALID; nothing fails a push or a sheet as a whole. At most 5,000 lines per push or sheet. |
+| The points belong to the account | The customer and the system come from `crm_project_account`, so a row follows its account on merge and unmerge, is neither shown nor counted once the account is unlinked, and is deleted with the account. |
+| Audit | Pushes are not written to the audit log (each row keeps its source and time); manual and imported changes are. |
+
+| CRM ledger rule | How it is enforced |
 |---|---|
 | Every movement goes through `ledger.post` | The account is locked first. |
 | A balance never goes below zero | Refused, except when mirroring an import. |
@@ -422,7 +442,7 @@ active purchase days, average purchase, service cases, complaints, devices held,
 activity status (NEW, ACTIVE, AT_RISK, LAPSED, NEVER_BOUGHT). Running twice for the same date gives the same result.
 
 Custom metrics are definitions plus values (`crm_metric_definition`, `crm_party_metric_value`), so a new metric needs
-no new column.
+no new column. `POINTS_BALANCE` (*Company-wide points*) reads `v_crm_party_company_points` (section 9).
 
 ### 12.2 Computed score and grade
 
@@ -460,7 +480,8 @@ types, service center activity types, case types, service statuses and the statu
 resolution categories, corporate grades, ways to hold a product, relationships between customers, purchase purposes,
 usage and acquisition types, registration questions, channels, communication purposes and options, organization
 types, contact roles, industries, tags, job titles, **locations** (*Refresh from vendor* copies the vendor's list
-again: new ones added, changed ones updated, none removed), metric definitions and departments.
+again: new ones added, changed ones updated, none removed), metric definitions and departments. Projects carry a
+*Point weight* (section 9).
 
 | Rule | Applies to |
 |---|---|

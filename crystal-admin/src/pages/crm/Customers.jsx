@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import {
-  Box, Button, HStack, Icon, Input, Link, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
+  Alert, AlertIcon, Box, Button, HStack, Icon, Input, Link, Stack, Tab, TabList, TabPanel, TabPanels, Tabs, Text, Tooltip, useDisclosure, useToast
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
 import * as Md from 'react-icons/md';
@@ -20,7 +20,7 @@ import useList from '../../hooks/useList';
 import usePermission from '../../hooks/usePermission';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
-import { date, dateTime, number } from '../../utils/format';
+import { date, dateTime, formatPhone, number } from '../../utils/format';
 import { birthdayText } from '../../utils/birthday';
 import { Dot, GradeBadge, PartyAvatar, ProjectTags, ScoreMeter } from './ui';
 import { Status, choices, optionsFrom, problemsOf, useCrmMeta, word, filtersFor, partyIdLabel, rememberCustomersPage, useOpenCustomer } from './shared';
@@ -220,7 +220,7 @@ function CustomerList({ narrowedTo }) {
               render: (row) => (row.birth_date ? date(row.birth_date) : (row.birth_year || '-')) },
             { key: 'location_name', label: 'Location', sortable: false, maxW: '14rem', render: (row) => row.location_name || '-' },
             { key: 'job_title_name', label: 'Job title', sortable: false, render: (row) => (row.job_title_name ? translate(row.job_title_name) : '-') },
-            { key: 'mobile', label: 'Mobile', sortable: false },
+            { key: 'mobile', label: 'Mobile', sortable: false, render: (row) => formatPhone(row.mobile) || '-' },
             { key: 'grade_code', label: 'Grade', sortable: false, render: (row) => (row.grade_assigned ? (
               <Tooltip hasArrow label={translate('crm.customers.gradeSetByHand')}>
                 <HStack spacing={1} display="inline-flex"><GradeBadge code={row.grade_code} /><Icon as={Md.MdPanTool} boxSize="0.7rem" color="gray.500" /></HStack>
@@ -337,6 +337,7 @@ function Duplicates() {
           <Button size="sm" variant="subtle" isLoading={busy} onClick={scan}>{translate('crm.customers.scanForDuplicates')}</Button>
         ) : null}
       </HStack>
+      <SharedPhones onOpen={openCustomer} />
       {search}
       <Box px="0.5rem" pb="0.5rem">
         <DataTable
@@ -366,6 +367,44 @@ function Duplicates() {
           actionsMode="buttons"
         />
       </Box>
+    </Box>
+  );
+}
+
+/**
+ * Numbers more than one customer has. A number belongs to one customer only;
+ * these are from before that rule, and are fixed by hand - merge the
+ * customers if they are one, or retire the number on the one it is not.
+ * Nothing shows when there are none.
+ */
+function SharedPhones({ onOpen }) {
+  const translate = useT();
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    let live = true;
+    crm.parties.sharedPhones().then(({ data }) => { if (live) setRows(Array.isArray(data) ? data : []); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
+  }, []);
+  if (!rows.length) return null;
+  return (
+    <Box mx={5} mb={3}>
+      <Alert status="warning" borderRadius="md" fontSize="sm" alignItems="flex-start">
+        <AlertIcon />
+        <Box flex="1">
+          <Text fontWeight="600">{translate('crm.customers.sharedPhonesTitle', { n: rows.length })}</Text>
+          <Text fontSize="xs" mb={2}>{translate('crm.customers.sharedPhonesExplained')}</Text>
+          <Stack spacing={1} maxH="12rem" overflowY="auto">
+            {rows.map((row) => (
+              <HStack key={row.phone} spacing={3} wrap="wrap" fontSize="sm">
+                <Text as="span" fontWeight="700" minW="8rem">{formatPhone(row.phone)}</Text>
+                {(row.customers || []).map((customer) => (
+                  <CustomerLink key={customer.party_pk} partyPk={customer.party_pk} name={customer.display_name} onOpen={onOpen} />
+                ))}
+              </HStack>
+            ))}
+          </Stack>
+        </Box>
+      </Alert>
     </Box>
   );
 }

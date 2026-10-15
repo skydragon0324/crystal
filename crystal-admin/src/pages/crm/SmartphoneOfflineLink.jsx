@@ -7,6 +7,7 @@ import {
 import { crm } from '../../api';
 import { useT } from '../../i18n';
 import { partyIdLabel } from './shared';
+import { formatPhone } from '../../utils/format';
 
 /* How often a running link is asked how far it got. */
 const POLL_MS = 1500;
@@ -130,7 +131,7 @@ export default function SmartphoneOfflineLink({ isOpen, onClose, onLinked }) {
                     <Tbody>
                       {summary.conflicts.map((row, index) => (
                         <Tr key={index}>
-                          <Td>{partyIdLabel(row.party_pk)}</Td><Td>{row.phone}</Td><Td>{row.user_id}</Td>
+                          <Td>{partyIdLabel(row.party_pk)}</Td><Td>{formatPhone(row.phone)}</Td><Td>{row.user_id}</Td>
                           <Td>{row.linked_party_pk ? partyIdLabel(row.linked_party_pk) : '-'}</Td>
                         </Tr>
                       ))}
@@ -145,7 +146,7 @@ export default function SmartphoneOfflineLink({ isOpen, onClose, onLinked }) {
                     <Thead><Tr><Th>{translate('Customer')}</Th><Th>{translate('Phone')}</Th><Th>{translate('crm.customers.soError')}</Th></Tr></Thead>
                     <Tbody>
                       {summary.failed.map((row, index) => (
-                        <Tr key={index}><Td>{partyIdLabel(row.party_pk)}</Td><Td>{row.phone}</Td><Td>{row.error}</Td></Tr>
+                        <Tr key={index}><Td>{partyIdLabel(row.party_pk)}</Td><Td>{formatPhone(row.phone)}</Td><Td>{row.error}</Td></Tr>
                       ))}
                     </Tbody>
                   </Table>

@@ -10,6 +10,7 @@ import SelectField from '../../components/SelectField';
 import StatusBadge from '../../components/StatusBadge';
 import { crm } from '../../api';
 import { useT } from '../../i18n';
+import { formatPhone } from '../../utils/format';
 
 /**
  * WHAT EVERY CRM SCREEN SHARES.
@@ -377,6 +378,12 @@ export function customersPagePath() {
   let search = '';
   try { search = window.sessionStorage.getItem(CUSTOMERS_RETURN_KEY) || ''; } catch (error) { search = ''; }
   return CUSTOMERS_PAGE + (search && search.charAt(0) === '?' ? search : '');
+}
+
+/** A contact's value as shown: a phone formatted (XXX-XXX-XXXX for ten digits), anything else as stored. */
+export function contactValue(row) {
+  if (!row) return '';
+  return ['MOBILE', 'PHONE', 'SIM_CID'].indexOf(String(row.contact_type || '').toUpperCase()) !== -1 ? formatPhone(row.contact_value) : (row.contact_value || '');
 }
 
 /** A number with a unit, blank-safe. */

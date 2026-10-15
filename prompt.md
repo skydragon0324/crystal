@@ -335,4 +335,49 @@ I think we need to separate these searches
 with current search field, we should be able to search by party_pk and name
 and we need to add other search fields for birthday, location, phone number
 so, we can search by name, birthday, phone number, and location at the same time
-------------------------------------------------------------
+-------------------------- 10 / 15 ----------------------------------
+Let's organize the reward point system.
+First, we will create a new table named `crm_reward_points` to manage reward points categorized by business system.
+The UI will be structured as follows:
+It will display a user's total points at the company level. Expanding the view will reveal details such as the specific business system, the account ID within that system, the points, the weight (assigned via project management), and the resulting points from the company's perspective.
+The company-level point total is derived by aggregating these individual scores.
+Initially, we will allow administrators to add these entries manually.
+In the future, this will be automated through API integration with the relevant departments.
+We will disregard specific point-earning mechanics currently in place and focus solely on displaying the total score for each business system.
+We will also ignore point movements for the time being.
+The system will track only the points associated with a specific business system ID linked to a customer, using these figures to calculate the comprehensive company-level score.
+In other words, the company-level score will not be stored directly; instead, it will be dynamically determined based on the scores from individual business systems and their respective weights.
+-------------------------------------------------------------------------------------
+The logic for importing data from the user management system via Excel has changed.
+Phone numbers in the customer list must be unique;
+in other words, if a phone number is already linked to one person, it cannot be linked to another.
+
+Under the previous logic, if the phone numbers matched but the names differed, the record would be sent to a "pending registration" queue rather than being registered as new—even if the match score was 50 or higher.
+Similarly, if the names differed but the match score was 70 or higher, the record must also go to the pending registration queue.
+In short, while a single phone number can correspond to only one person, a single customer can be associated with multiple phone numbers.
+This logic must be implemented regardless of whether a new user is registered manually or via API.
+That is, when registering a new user, the system must check against existing users; if the phone number matches, the record must be placed in the pending registration queue, whether the match score is 50 or 70+.
+---------------------------------------------------------
+Regarding the "Accounts" tab: once an account has been separated, it no longer needs to be displayed there.
+Once separated, it should be treated as if it no longer exists.
+While retaining the history is beneficial, there is no need to show it in the UI.
+Additionally, when linking an account within the system, you must check if it is already linked to another user; if it is, you should cancel the link and display an error message.
+
+As for phone numbers, store them in the database without any special characters or symbols.
+When displaying them, since they consist of 10 digits, format them using hyphens (e.g., XXX-XXX-XXXX).
+
+When calculating and displaying age, do not factor in whether the birthday has already passed; simply calculate the age based on the difference between the current year and the birth year.
+----------------------------------------------------------------------------------
+each project can have several kinds of tier - like level, grade, xxx, etc...
+so, we need to update crm_membership table so that it has tier_kind
+also, we could be able to manage this kind as well
+since we might need to add some more kinds for different tier in one project
+also, how can I add tier to each customer?
+there is no way to add tier manaully, let's add it possible to add tier manually
+on customer details page and membership page, we could be able to add tier for each project for each account
+----------------------------------------------------------------------------------
+on crm_project_account table, let's chanage external_account_id as external_account_pk and external_login as external_account_id
+----------------------------------------------------------------------------------
+Regarding the `crm_membership` table: instead of adding the `project_account_id` from `crm_project_account` (which would necessitate an extra JOIN operation), please add the `external_account_id` instead.
+By adding the `external_account_id` to `crm_membership`, you can avoid the need for additional joins or the inclusion of `party_pk` or `project_id` in that table.
+------------------------------------------------------------------------------------
