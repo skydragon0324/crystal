@@ -169,6 +169,25 @@ module.exports = {
     tokenExpired: 'срок действия токена истёк'
   },
 
+  lifecycle: {
+    aDateIsRequired: '{name} обязателен и должен быть датой',
+    thatIsNotADate: '{name} должен быть датой в формате ГГГГ-ММ-ДД',
+    theRangeEndsBeforeIt: 'конец диапазона раньше его начала',
+    thatRangeIsTooLong: 'диапазон может охватывать не более {days} дней',
+    thatIsNotAGrouping: 'группировка - DAY, WEEK или CUSTOM',
+    aCustomIntervalIsBetween: 'произвольный интервал - от 2 до 90 дней',
+    thatIsNotAStatus: '{name} должен быть NEW, ACTIVE, DORMANT или CHURNED',
+    thatIsNotACustomer: 'это не ключ клиента',
+    noSuchCustomer: 'клиент с таким ключом ещё не синхронизирован',
+    aReconciliationIsAlready: 'сверка уже выполняется; этот запрос не запущен повторно',
+    reconciliationFinished: 'сверка завершена',
+    thatIsNotAnInstant: '{name} должен быть датой и временем',
+    aWindowIsBetween: 'окно сравнения - от 1 до {days} дней с каждой стороны',
+    thatIsNotAnEvent: 'это не ключ события',
+    noSuchEvent: 'события с таким ключом нет',
+    anEventNeedsAName: 'у события должно быть название, не длиннее {max} символов',
+    thatTextIsTooLong: '{name} - не длиннее {max} символов'
+  },
   scene: {
     aLayerNeedsAPicture: 'слою {layer} сцены нужно изображение',
     aPictureMustBeAnUpload: 'слой {layer} должен указывать на загруженный файл, а не на другой адрес',

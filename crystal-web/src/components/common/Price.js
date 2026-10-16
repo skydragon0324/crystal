@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from '@chakra-ui/react';
-import { formatPrice, MONEY_COLOR } from '@/theme/tokens';
+import { formatPrice, hasPrice, MONEY_COLOR } from '@/theme/tokens';
 
 /**
  * One rounding rule, one symbol and ONE COLOUR for money across the site.
@@ -14,13 +14,26 @@ import { formatPrice, MONEY_COLOR } from '@/theme/tokens';
  * `color` is still overridable - a price reversed out on a brand-coloured
  * panel has to be, and a couple are.
  *
+ * AN UNPRICED PRODUCT GETS NOTHING, not "$0". The catalogue uses 0 and -1
+ * for "no published price" (see hasPrice), and the check is here rather than
+ * at each call site because a component that prints nothing on its own
+ * cannot be forgotten by the next screen to show a price - which is exactly
+ * what happened: -1 was handled on the listing card and nowhere else, so the
+ * comparison table and the product page both printed it.
+ *
+ * `fallback` is for the places where a blank cell would read as a missing
+ * row rather than as an absent figure - a table wants a dash. Nothing is the
+ * default, because a listing holds its own space.
+ *
  * IT DOES NOT WRAP. Thousands are grouped with a SPACE now (see
  * utils/format), and a space is a line-breaking opportunity to every browser
  * there is - so "$1 234.5" at the end of a narrow column would break after
  * the 1 and read as two numbers. `nowrap` is the whole cost of using the
  * separator that is unambiguous in Russian and Chinese as well as English.
  */
-export default function Price({ amount, currency, ...rest }) {
+export default function Price({ amount, currency, fallback = null, ...rest }) {
+  if (!hasPrice(amount)) return fallback;
+
   return (
     <Text as="span" fontWeight="700" color={MONEY_COLOR} whiteSpace="nowrap" {...rest}>
       {formatPrice(amount, currency)}

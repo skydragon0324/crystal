@@ -1,5 +1,5 @@
 import { useColorModeValue } from '@chakra-ui/react';
-import { money } from '@/utils/format';
+import { hasPrice, money } from '@/utils/format';
 
 /**
  * The surface colours every panel on the site needs.
@@ -126,3 +126,11 @@ export function amountColor(currency) {
 export function formatPrice(amount, currency) {
   return money(amount, currency);
 }
+
+/**
+ * Re-exported beside formatPrice for the same reason it is: a screen that
+ * imports one of these almost always wants the other, and sending it to two
+ * modules to ask "is there a price" and "what does it look like" is how one
+ * of the two gets skipped.
+ */
+export { hasPrice };

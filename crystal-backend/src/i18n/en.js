@@ -203,6 +203,25 @@ module.exports = {
     tokenExpired: 'token expired'
   },
 
+  lifecycle: {
+    aDateIsRequired: '{name} is required and must be a date',
+    thatIsNotADate: '{name} must be a date, as YYYY-MM-DD',
+    theRangeEndsBeforeIt: 'the range ends before it begins',
+    thatRangeIsTooLong: 'a range may cover at most {days} days',
+    thatIsNotAGrouping: 'group by DAY, WEEK or CUSTOM',
+    aCustomIntervalIsBetween: 'a custom interval is between 2 and 90 days',
+    thatIsNotAStatus: '{name} must be NEW, ACTIVE, DORMANT or CHURNED',
+    thatIsNotACustomer: 'that is not a customer key',
+    noSuchCustomer: 'no customer with that key has been synchronised',
+    aReconciliationIsAlready: 'a reconciliation is already running; this request was not started again',
+    reconciliationFinished: 'reconciliation finished',
+    thatIsNotAnInstant: '{name} must be a date and time',
+    aWindowIsBetween: 'a comparison window is between 1 and {days} days on each side',
+    thatIsNotAnEvent: 'that is not an event key',
+    noSuchEvent: 'no event has that key',
+    anEventNeedsAName: 'an event needs a name, of at most {max} characters',
+    thatTextIsTooLong: '{name} is at most {max} characters'
+  },
   scene: {
     aLayerNeedsAPicture: 'the {layer} layer of a scene needs a picture',
     aPictureMustBeAnUpload: 'the {layer} layer must point at an uploaded file, not at another address',

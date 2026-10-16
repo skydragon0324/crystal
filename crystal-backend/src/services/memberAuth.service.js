@@ -253,22 +253,34 @@ async function loginWithPassword(login, password, device, cid) {
 
   const user = await mirrorOf(found.member);
 
-  await afterLogin(user);
-  if (cid) await recordCid(found.member.id, cid);
+  await afterLogin(user, cid);
   return buildSession(user, device, 'password');
 }
 
 /**
- * THE cid IS RECORDED AND NEVER CHECKED - a decision, not an omission.
+ * THE SIGN-IN GOES IN THE PLATFORM'S LOGIN LOG - every sign-in, not only the
+ * ones that carried a SIM card number.
  *
- * It goes into the platform's login log, where the vendor's apps put theirs,
- * and it does not refuse anybody: a member on a new SIM signs in exactly as
- * they would on the old one. The vendor's app goes further and locks an
- * account to its known cid; Crystal's web sign-in deliberately does not.
+ * `ora_pid.user_login_log` is where the vendor's own apps record who signed
+ * in, and it is the ONLY thing the customer-lifecycle metrics read. So a
+ * sign-in that does not land there is a sign-in those metrics cannot see:
+ * before this recorded every path, a member signing in by certificate or by
+ * one-time code every day would still have decayed to DORMANT and then
+ * CHURNED, because as far as the log was concerned they had never been back.
  *
- * A failure to write it is logged and swallowed, like the sign-in points
- * below: a log row that could not be written must never cost somebody the
- * session they just proved they own.
+ * THE cid IS RECORDED AND NEVER CHECKED - a decision, not an omission. It
+ * does not refuse anybody: a member on a new SIM signs in exactly as they
+ * would on the old one. The vendor's app goes further and locks an account to
+ * its known cid; Crystal's web sign-in deliberately does not. A sign-in with
+ * no cid at all - the desktop certificate form, a one-time code - is still
+ * recorded, with the column left null, because WHEN somebody signed in is the
+ * fact the lifecycle needs and the card number is not.
+ *
+ * A FAILURE IS LOGGED AND SWALLOWED, like the sign-in points below: a log row
+ * that could not be written must never cost somebody the session they have
+ * just proved they own. It costs a lifecycle event instead, which is the
+ * right way round - and the nightly reconciliation cannot recover it, because
+ * a row that was never written is not a row that was missed.
  */
 /*
  * The width of ora_pid.user_login_log.cid. A longer value is not cut down to
@@ -278,19 +290,21 @@ async function loginWithPassword(login, password, device, cid) {
  */
 const CID_MAX = 12;
 
-async function recordCid(userPk, cid) {
-  const value = String(cid || '').trim();
-  if (!value) return;
+async function recordSignIn(userPk, cid) {
+  /* See config.lifecycle.recordWebLogins for what turning this off means. */
+  if (!config.lifecycle.recordWebLogins) return;
+
+  let value = String(cid === undefined || cid === null ? '' : cid).trim();
 
   if (value.length > CID_MAX) {
     console.warn('[auth] not recording a ' + value.length + '-character cid for user ' + userPk + ': the column holds ' + CID_MAX);
-    return;
+    value = '';
   }
 
   try {
-    await members.recordLogin(userPk, value);
+    await members.recordLogin(userPk, value || null);
   } catch (err) {
-    console.warn('[auth] could not record the cid for user ' + userPk + ': ' + err.message);
+    console.warn('[auth] could not record the sign-in for user ' + userPk + ': ' + err.message);
   }
 }
 
@@ -639,7 +653,21 @@ async function refresh(refreshToken, device) {
  * the login, so two parallel sign-ins cannot both win it.  A failure to award
  * is swallowed: a points hiccup must never cost a member their session.
  */
-async function afterLogin(user) {
+async function afterLogin(user, cid) {
+  /*
+   * ONE PLACE, SO NO SIGN-IN PATH CAN FORGET IT.
+   *
+   * Every real sign-in - password, certificate, one-time code, MIK card -
+   * comes through here, and the token refresh and registration deliberately
+   * do not: a refreshed token is not a new sign-in, and counting it as one
+   * would make a member who left a tab open look active for ever.
+   *
+   * `user.id` IS the platform's user_pk - the local mirror is created with
+   * the id the platform allocated (see mirrorOf) - so this is the key the
+   * login log and the lifecycle both use.
+   */
+  await recordSignIn(user.id, cid);
+
   let won = false;
   try {
     won = await users.claimDailyLogin(user.id);
@@ -723,7 +751,7 @@ async function bindPhone(userId, rawPhone, code) {
 /*
  * MIK: THE cid, PROVED INSTEAD OF TYPED.
  *
- * The phone form above already sends the SIM's cid, and `recordCid` records
+ * The phone form above already sends the SIM's cid, and `recordSignIn` records
  * it and never checks it - because a number typed into a form is a claim, and
  * a claim proves only that somebody knew the number. The customised mobile
  * browser can reach the card's MIK certificate and sign with a key that never
@@ -876,8 +904,7 @@ async function loginWithMik(body, device) {
 
   const user = await mirrorOf(found.member);
 
-  await afterLogin(user);
-  await recordCid(found.member.id, cid);
+  await afterLogin(user, cid);
 
   /* The card's own row remembers when it was last used; a failure is nothing. */
   try {

@@ -6,6 +6,7 @@ const { SYSTEM } = require('../utils/actor');
 const feedback = require('./feedback.service');
 const maintenance = require('../security/maintenance');
 const signingService = require('../security/signingService');
+const lifecycle = require('./lifecycle/jobs.service');
 
 /**
  * The work nobody asks for.
@@ -49,6 +50,35 @@ const FEEDBACK_CRON = '0 20 3 * * *';
  * hashes every uploaded image, which is the heaviest thing this schedule does.
  */
 const SIGNATURE_AUDIT_CRON = '0 10 4 * * *';
+
+/*
+ * THE CUSTOMER LIFECYCLE JOBS - four of them, on three different rhythms,
+ * because they answer to three different kinds of change.
+ *
+ *   THE POLL runs every ten minutes. New logins are the only thing that
+ *   arrives continuously, and ten minutes is close enough for a dashboard
+ *   while leaving the source alone the rest of the time. Each run reads the
+ *   keys above its watermark plus the overlap band, so an idle ten minutes
+ *   costs one indexed query.
+ *
+ *   THE DEADLINES run hourly. A status that changes because thirty days have
+ *   passed changes at a particular instant, and the furthest the stored state
+ *   can then be from the truth is one hour. Running it every minute would
+ *   mean 1,440 selects a day over a partial index to catch the same few
+ *   hundred customers.
+ *
+ *   THE PROFILES and THE RECONCILIATION run nightly, after the existing
+ *   housekeeping has finished with the database. The reconciliation is the
+ *   expensive one - it streams the whole source key space - so it goes last
+ *   and alone.
+ *
+ * All four decline rather than queue if another instance is already running
+ * them; see the advisory lock in lifecycle/jobs.service.js.
+ */
+const LIFECYCLE_POLL_CRON = '0 */10 * * * *';
+const LIFECYCLE_DEADLINE_CRON = '0 5 * * * *';
+const LIFECYCLE_PROFILE_CRON = '0 50 2 * * *';
+const LIFECYCLE_RECONCILE_CRON = '0 30 4 * * *';
 
 async function expireWarranties() {
   try {
@@ -138,6 +168,15 @@ async function auditSignatures() {
 
 let jobs = [];
 
+/*
+ * The lifecycle jobs report their own failures and never throw - see
+ * lifecycle/jobs.service.js - so they need no wrapper of their own here.
+ */
+function lifecyclePoll() { return lifecycle.poll(); }
+function lifecycleDeadlines() { return lifecycle.deadlines(); }
+function lifecycleProfiles() { return lifecycle.profiles(); }
+function lifecycleReconcile() { return lifecycle.reconcile(); }
+
 function schedule() {
   if (jobs.length) return jobs;
 
@@ -145,12 +184,21 @@ function schedule() {
     new CronJob(EXPIRY_CRON, expireWarranties, null, true),
     new CronJob(REORDER_CRON, reorderParts, null, true),
     new CronJob(FEEDBACK_CRON, finishFeedback, null, true),
-    new CronJob(SIGNATURE_AUDIT_CRON, auditSignatures, null, true)
+    new CronJob(SIGNATURE_AUDIT_CRON, auditSignatures, null, true),
+
+    new CronJob(LIFECYCLE_POLL_CRON, lifecyclePoll, null, true),
+    new CronJob(LIFECYCLE_DEADLINE_CRON, lifecycleDeadlines, null, true),
+    new CronJob(LIFECYCLE_PROFILE_CRON, lifecycleProfiles, null, true),
+    new CronJob(LIFECYCLE_RECONCILE_CRON, lifecycleReconcile, null, true)
   ];
 
   console.log('housekeeping scheduled: warranty expiry ' + EXPIRY_CRON
     + ', reorder ' + REORDER_CRON + ', feedback ' + FEEDBACK_CRON
     + ', signature audit ' + SIGNATURE_AUDIT_CRON);
+  console.log('customer lifecycle scheduled: poll ' + LIFECYCLE_POLL_CRON
+    + ', deadlines ' + LIFECYCLE_DEADLINE_CRON
+    + ', profiles ' + LIFECYCLE_PROFILE_CRON
+    + ', reconcile ' + LIFECYCLE_RECONCILE_CRON);
   return jobs;
 }
 
@@ -163,6 +211,10 @@ module.exports = {
   EXPIRY_CRON: EXPIRY_CRON,
   REORDER_CRON: REORDER_CRON,
   SIGNATURE_AUDIT_CRON: SIGNATURE_AUDIT_CRON,
+  LIFECYCLE_POLL_CRON: LIFECYCLE_POLL_CRON,
+  LIFECYCLE_DEADLINE_CRON: LIFECYCLE_DEADLINE_CRON,
+  LIFECYCLE_PROFILE_CRON: LIFECYCLE_PROFILE_CRON,
+  LIFECYCLE_RECONCILE_CRON: LIFECYCLE_RECONCILE_CRON,
   expireWarranties: expireWarranties,
   reorderParts: reorderParts,
   finishFeedback: finishFeedback,

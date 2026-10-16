@@ -80,6 +80,16 @@ router.use('/wallets', require('./wallets.routes'));
  */
 router.use('/crm', require('./crm.routes'));
 
+/*
+ * CUSTOMER LIFECYCLE KPIs.
+ *
+ * Its own prefix rather than a path under /crm, because the URLs are the
+ * ones the specification names and because the feature reads its own
+ * analytics tables rather than the CRM ones. Its permission page sits in the
+ * CRM group all the same, which is where an operator would look for it.
+ */
+router.use('/customer-lifecycle', require('./lifecycle.routes'));
+
 /* ---- 1. management ---- */
 router.use('/admins', require('./managers.routes'));
 router.use('/permissions', require('./permissions.routes'));

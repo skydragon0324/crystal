@@ -6619,3 +6619,83 @@ The quality certifications should be shown next to the factory image. Also we ma
 The background of AboutScene features a few white clouds drifting near the horizon; these clouds shift slightly in response to mouse movements. A globe sits on the left side of the screen, while an airplane flies from off-screen left toward the center, leaving a motion trail behind it. Once the plane comes to a stop, the text "Crystal Trading Company" smoothly appears beneath it, and the phrase "Bluesky is everywhere" gradually fades into view to the right of the aircraft.
 - VisionSection, on desktop, vision description is showing only on the left, but I'd like to show it full-width
 - RecognitionSection, the recognision image size is 274x204, and it should be shown fully without crop or cover.
+
+-------------------------------------------------------------
+- On the "smartphones" page of the crystal-web project, price information must not be displayed for products with a price of 0 or -1.
+- In crystal-admin, the default layout setting must be full-width.
+- The crystal-web project does not support night mode; even if night mode is selected in crystal-admin, crystal-web must always operate in light mode. However, the code should still implement a flag to allow for the future possibility of toggling between light and night modes via settings, with light mode serving as the default.
+
+-------------------------------------------------------------
+New customers: Registered within the last month
+Active customers: Last activity within the last month
+Dormant customers: Last activity between 1 and 3 months ago
+Churned customers: Last activity more than 3 months ago
+
+There is a table named `user_login_log` in the Oracle database that stores customer login information. Based on this table, I need to determine the status of each customer—specifically whether they are new, active, dormant, or churned. I want to analyze these status changes within specific date ranges—for example, by week (Week 1, Week 2, etc.) or by custom intervals—to see the counts for each category.
+
+CREATE TABLE users (
+  user_pk NUMBER PRIMARY KEY,
+  user_id VARCHAR2(50) UNIQUE NOT NULL,
+  password VARCHAR2(255) NOT NULL,
+  user_name VARCHAR2(50) NOT NULL,
+  user_alias VARCHAR2(50),
+  user_avatar VARCHAR2(255),
+  gender CHAR(1),
+  birthday DATE,
+  job NUMBER(2),
+  location_pk NUMBER,
+  id_card VARCHAR2(50),
+  cid VARCHAR2(12) UNIQUE,
+  status NUMBER(1) DEFAULT 1,
+  locked NUMBER(1) DEFAULT 0,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_location_fk FOREIGN KEY (location_pk) REFERENCES locations(location_pk),
+  CONSTRAINT ck_user_gender CHECK (gender IN ('M', 'F'))
+);
+
+COMMENT ON COLUMN "USERS"."GENDER" IS 'Gender (M, F)';
+COMMENT ON COLUMN "USERS"."LOCATION_PK" IS 'Address Location';
+COMMENT ON COLUMN "USERS"."ID_CARD" IS 'Citizen No';
+COMMENT ON COLUMN "USERS"."CID" IS 'CID';
+COMMENT ON COLUMN "USERS"."STATUS" IS 'user status (0: inactive, 1: active)';
+COMMENT ON COLUMN "USERS"."LOCKED" IS 'allow only registered cid for login';
+
+CREATE TABLE user_login_log (
+  table_pk NUMBER PRIMARY KEY,
+  user_pk NUMBER NOT NULL,
+  cid VARCHAR2(12),
+  phone_brand VARCHAR2(100) NOT NULL,
+  phone_model VARCHAR2(100) NOT NULL,
+  phone_imei VARCHAR2(20) NOT NULL,
+  action_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_login_log_user_pk FOREIGN KEY (user_pk) REFERENCES users(user_pk)
+);
+
+COMMENT ON COLUMN "USER_LOGIN_LOG"."USER_PK" IS 'users.user_pk';
+COMMENT ON COLUMN "USER_LOGIN_LOG"."CID" IS 'cid';
+COMMENT ON COLUMN "USER_LOGIN_LOG"."CID" IS 'SIM CID';
+COMMENT ON COLUMN "USER_LOGIN_LOG"."PHONE_BRAND" IS 'phone brand';
+COMMENT ON COLUMN "USER_LOGIN_LOG"."PHONE_MODEL" IS 'phone model';
+COMMENT ON COLUMN "USER_LOGIN_LOG"."PHONE_IMEI" IS 'phone imei';
+
+CREATE TABLE user_phone_numbers (
+  phone_pk NUMBER PRIMARY KEY,
+  user_pk NUMBER NOT NULL,
+  phone_number VARCHAR2(20) NOT NULL,
+  phone_type NUMBER(1) DEFAULT 0,
+  created_at DATE DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_phone_pk FOREIGN KEY (user_pk) REFERENCES users(user_pk),
+  CONSTRAINT uq_user_phone_type UNIQUE (user_pk, phone_type, phone_number)
+);
+
+COMMENT ON COLUMN "USER_PHONE_NUMBERS"."USER_PK" IS 'users.user_pk';
+COMMENT ON COLUMN "USER_PHONE_NUMBERS"."PHONE_NUMBER" IS 'phone number';
+COMMENT ON COLUMN "USER_PHONE_NUMBERS"."PHONE_TYPE" IS '0: User input, 1: By report, 2: by feedback, 3: by manager, 4: eprod register';
+
+
+The challenge is that the `user_login_log` table contains over a million records; relying solely on standard queries makes efficient analysis difficult. Additionally, I want to track overall customer status changes before and after specific events, which requires analysis based on event timelines rather than fixed weekly intervals.
+What I need is a system that displays a table and chart showing customer counts by status—broken down by day or custom intervals (e.g., every 2–3 days or weekly)—based on a user-selected date range. I also need a detailed list of customers who meet specific transition criteria within that period (e.g., Dormant → Active, Dormant → Churned), including details such as name, date of birth, phone number, occupation, address, status during the period, and previous status.
+Finally, I would like advice on the optimal database architecture. If I were to create additional tables, could I utilize a PostgreSQL database for the new data while keeping the source data in Oracle? I think it would be a good idea to create a table tracking customer status changes based on the `user_login_log`—for instance, a customer transitioning from new (May 4) to active (June 5), then to dormant (Aug 20), churned (Oct 20), and back to active (Nov 6)—and to perform statistical analysis based on this table, which would be updated periodically. What do you think?
+Well, all of these request is to implement KPI, isn't it?

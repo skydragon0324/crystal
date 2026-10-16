@@ -54,11 +54,17 @@ beforeEach(() => {
   document.documentElement.style.fontSize = '';
 });
 
-test('the console starts at 100% and a readable width', () => {
+test('the console starts at 100% and the full width', () => {
+  /*
+   * FULL WIDTH, not a reading measure. Nearly every screen here is a table,
+   * and a table capped at a text measure wastes the half of a wide monitor
+   * the operator bought it for. Somebody reading one customer record can
+   * still choose the narrow column.
+   */
   const ui = mount();
 
   expect(ui.seen.scale).toBe(100);
-  expect(ui.seen.width).toBe('static');
+  expect(ui.seen.width).toBe('full');
   expect(document.documentElement.style.fontSize).toBe('16px');
 
   ui.done();
@@ -132,7 +138,7 @@ test('a stored value nobody should have written is ignored', () => {
 
   expect(ui.seen.scale).toBe(100);
   expect(ui.seen.palette).toBe('sky');
-  expect(ui.seen.width).toBe('static');
+  expect(ui.seen.width).toBe('full');
 
   ui.done();
 });

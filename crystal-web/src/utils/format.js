@@ -128,6 +128,26 @@ export function number(value) {
   return parsed < 0 && text !== '0' ? '-' + text : text;
 }
 
+/**
+ * WHETHER THERE IS A PRICE TO SHOW AT ALL.
+ *
+ * The catalogue uses two values for "no figure", both inherited from the
+ * vendor: 0 for a product nobody has priced, and -1 for one that is not sold
+ * at a published price. Neither is an amount, and printing either - "$0",
+ * "$-1" - tells a reader something untrue rather than nothing.
+ *
+ * ANYTHING AT OR BELOW ZERO, rather than those two exactly. A negative price
+ * is not a price whichever negative it is, so -2 arriving from a bad import
+ * is handled by the same rule instead of reaching a shopper.
+ *
+ * It does not decide what to show INSTEAD - a listing holds its space, a
+ * table may want a dash - only that a figure is not it.
+ */
+export function hasPrice(amount) {
+  const parsed = Number(amount);
+  return isFinite(parsed) && parsed > 0;
+}
+
 /** What a currency is written as. An unknown code gets no symbol, not a guess. */
 // const SYMBOLS = { USD: '$', CNY: '¥', JPY: '¥', KRW: '₩', EUR: '€', RUB: '₽' };
 

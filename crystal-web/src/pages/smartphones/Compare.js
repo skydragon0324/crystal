@@ -242,7 +242,21 @@ export default function Compare() {
                       </Text>
                     </Box>
                     <Text textAlign="center" mt="1">
-                      <Price amount={product.price} currency={product.currency} fontSize="sm" />
+                      {/*
+                        * A DASH WHERE THERE IS NO PRICE, not an empty cell.
+                        *
+                        * This column is one of three or four side by side, and
+                        * a blank under one phone reads as a column that has
+                        * failed to load rather than as a product with no
+                        * published figure. The listing card wants the
+                        * opposite - nothing, and its own reserved height.
+                        */}
+                      <Price
+                        amount={product.price}
+                        currency={product.currency}
+                        fontSize="sm"
+                        fallback={<Text as="span" color={surface.muted} fontSize="sm">—</Text>}
+                      />
                     </Text>
                   </Box>
                 ))}

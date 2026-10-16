@@ -23,6 +23,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 
 import { branchLinks, HEADER_BAR_HEIGHT, PHONE_BRANCHES, SITE_PHONE } from './siteNav';
+import { ALLOW_NIGHT_MODE } from '@/app/colourMode';
 import { selectIsSignedIn, selectUser, signOut } from '@/app/authSlice';
 import { ACCOUNT_MENU, accountName, hrefOf } from '@/components/account/accountNav';
 import { useSurface } from '@/theme/tokens';
@@ -346,6 +347,8 @@ export default function MobileNav({ isOpen, onClose }) {
                 </Button>
               ))}
             </Flex>
+            {/* Hidden while the site is light-only - see ALLOW_NIGHT_MODE. */}
+            {ALLOW_NIGHT_MODE && (
             <Flex px="5" pt="2" pb="4" gap="3" data-gap="12" data-gap-wrap wrap="wrap">
               <Button
                 size="sm"
@@ -356,6 +359,7 @@ export default function MobileNav({ isOpen, onClose }) {
                 {colorMode === 'light' ? t('layout.darkMode') : t('layout.lightMode')}
               </Button>
             </Flex>
+            )}
           </Box>
 
           {/* ---- level two: one branch of whichever root is showing ---- */}

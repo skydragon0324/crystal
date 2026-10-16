@@ -28,7 +28,8 @@ const ACTIONS = {
   UPDATE: 'update',
   DELETE: 'delete',
   RESTORE: 'restore',
-  IMPORT: 'import'
+  IMPORT: 'import',
+  EXPORT: 'export'
 };
 
 /** Dates, numerics and buffers all have to survive JSON.stringify intact. */
@@ -160,6 +161,27 @@ function imported(actor, entity, summary, page) {
   }));
 }
 
+/**
+ * A BULK READ: one entry for the file that left, not one per row.
+ *
+ * The only action here that changes nothing, and the only one whose entry is
+ * therefore the whole record of it - there is no row left behind to compare
+ * against later. What is kept is what was asked for and how much came back:
+ * the filter, the row count and whether the export hit its ceiling. That is
+ * enough to answer the question somebody will eventually ask, which is not
+ * "what changed" but "who took a copy of this, and of how much of it".
+ *
+ * `before_data` holds the filter and `after_data` the outcome, which keeps
+ * the two readable side by side in the existing audit screen without it
+ * needing to know anything about exports.
+ */
+function exported(actor, entity, request, outcome, page) {
+  write(Object.assign(base(actor, entity, '', ACTIONS.EXPORT, page), {
+    before_data: JSON.stringify(request || {}),
+    after_data: JSON.stringify(outcome || {})
+  }));
+}
+
 /*
  * Wrappers for the three shapes almost every write in this codebase takes.
  *
@@ -244,6 +266,7 @@ module.exports = {
   deleted: deleted,
   restored: restored,
   imported: imported,
+  exported: exported,
 
   trackInsert: trackInsert,
   trackUpdate: trackUpdate,

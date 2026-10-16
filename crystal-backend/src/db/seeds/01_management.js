@@ -159,7 +159,8 @@ const PAGES = [
   ['/admin/crm/site-activity', 'Service center activity', 'MdTimeline', '/admin/crm'],
   ['/admin/crm/settings', 'CRM basic data', 'MdSettingsApplications', '/admin/crm'],
   /* One word for one thing across every workflow: each term, per language, with its meaning. */
-  ['/admin/crm/terminology', 'Terminology', 'MdTranslate', '/admin/crm']
+  ['/admin/crm/terminology', 'Terminology', 'MdTranslate', '/admin/crm'],
+  ['/admin/crm/lifecycle', 'Customer lifecycle KPIs', 'MdTimeline', '/admin/crm']
 ];
 
 /**

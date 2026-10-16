@@ -1,6 +1,8 @@
 import { extendTheme } from '@chakra-ui/react';
 import { mode } from '@chakra-ui/theme-tools';
 
+import { DEFAULT_COLOUR_MODE } from '@/app/colourMode';
+
 /**
  * The storefront theme.
  *
@@ -176,7 +178,16 @@ const components = {
 };
 
 const theme = extendTheme({
-  config: { initialColorMode: 'light', useSystemColorMode: false },
+  /*
+   * ONE PLACE DECIDES THE SCHEME - app/colourMode.js. `initialColorMode` is
+   * only what a visitor with no stored preference gets, which is why it is
+   * not enough on its own; the manager passed to ChakraProvider is what
+   * actually holds the site to it.
+   *
+   * `useSystemColorMode` stays false whatever the flag says: a reader who
+   * has their laptop set to dark has not asked this site for anything.
+   */
+  config: { initialColorMode: DEFAULT_COLOUR_MODE, useSystemColorMode: false },
   colors,
   fonts,
   styles,
