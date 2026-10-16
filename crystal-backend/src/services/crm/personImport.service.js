@@ -5,6 +5,7 @@ const intake = require('./registrationIntake.service');
 const db = require('../../config/db');
 const identityProjects = require('./identityProjects');
 const duplicates = require('./personDuplicates');
+const phoneOwners = require('./phoneOwners');
 const locations = require('./locations');
 const rules = require('./personRules');
 const { searchBirthday, textPattern } = require('./birthday');
@@ -328,9 +329,9 @@ function addEshopConflicts(checkedRows, records) {
 /** The identifiers a row claims - its e-shop account and its user-management account - staged for review instead of committed. */
 function unverifiedAccounts(values, projects) {
   return [
-    { project_id: projects.eshop, external_account_id: values.eshop_pk, external_login: values.eshop_id,
+    { project_id: projects.eshop, external_account_pk: values.eshop_pk, external_account_id: values.eshop_id,
       external_account_type: 'ESHOP_CUSTOMER', source: 'EXCEL_IMPORT' },
-    { project_id: projects.user, external_account_id: values.user_pk, external_login: values.user_id,
+    { project_id: projects.user, external_account_pk: values.user_pk, external_account_id: values.user_id,
       external_account_type: 'USER_ACCOUNT', source: 'EXCEL_IMPORT' }
   ];
 }
@@ -385,11 +386,28 @@ async function preview(buffer, options) {
     if (other.party_pk) { if (!found.some(row => String(row.party_pk) === String(other.party_pk))) found.push(Object.assign({ party_pk: other.party_pk, display_name: other.full_name }, match)); return; }
     found.push(Object.assign({ row_number: other.row_number, pending: other.pending }, match));
    });
+   /*
+    * One number, one customer: whoever already has one of the row's numbers -
+    * a customer on file, or an earlier row of this sheet that becomes one - is
+    * a candidate whatever the score, and the row joins them only when it is
+    * clearly them (same name, 70 or more). Otherwise it goes to review.
+    */
+   const numbers = phoneOwners.numbersOf(checked.values);
+   const owners = await phoneOwners.find(db, numbers);
+   intake.addOwners(checked.values, found, owners);
+   const rowOwners = earlier.find(checked.values).filter(other => !other.pending && !other.party_pk && phoneOwners.numbersOf(other).some(number => numbers.includes(number)));
+   rowOwners.forEach(other => {
+    const listed = found.find(row => row.row_number === other.row_number);
+    if (listed) listed.phone_owner = true;
+    else found.push(Object.assign({ row_number: other.row_number, display_name: other.full_name, phone_owner: true }, duplicates.score(checked.values, other, EXCEL_SCORING)));
+   });
    found.sort((a,b) => b.score-a.score);
    result.similar = found;
-   const strong = found.filter(r => r.score >= duplicates.MERGE_FROM);
+   const target = intake.mergeTarget(checked.values, found,
+    owners.map(owner => ({ party_pk: owner.party_pk })).concat(rowOwners.map(other => ({ row_number: other.row_number }))));
    // A strong match with a pending registration (on file, or a row going to review) is decided by review.
-   result.status = strong.length === 1 && !strong[0].intake_id && !strong[0].pending ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
+   result.status = target ? 'DUPLICATE' : found.length ? 'REVIEW' : 'NEW';
+   const strong = target ? [target] : [];
    if (found.length && found[0].row_number) result.duplicate_of_row = found[0].row_number;
    const key = 'row:' + record.row_number;
    if (result.status === 'DUPLICATE' && strong[0].row_number) absorb('row:' + strong[0].row_number, checked.values);

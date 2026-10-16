@@ -335,4 +335,188 @@ I think we need to separate these searches
 with current search field, we should be able to search by party_pk and name
 and we need to add other search fields for birthday, location, phone number
 so, we can search by name, birthday, phone number, and location at the same time
-------------------------------------------------------------
+-------------------------- 10 / 15 ----------------------------------
+Let's organize the reward point system.
+First, we will create a new table named `crm_reward_points` to manage reward points categorized by business system.
+The UI will be structured as follows:
+It will display a user's total points at the company level. Expanding the view will reveal details such as the specific business system, the account ID within that system, the points, the weight (assigned via project management), and the resulting points from the company's perspective.
+The company-level point total is derived by aggregating these individual scores.
+Initially, we will allow administrators to add these entries manually.
+In the future, this will be automated through API integration with the relevant departments.
+We will disregard specific point-earning mechanics currently in place and focus solely on displaying the total score for each business system.
+We will also ignore point movements for the time being.
+The system will track only the points associated with a specific business system ID linked to a customer, using these figures to calculate the comprehensive company-level score.
+In other words, the company-level score will not be stored directly; instead, it will be dynamically determined based on the scores from individual business systems and their respective weights.
+-------------------------------------------------------------------------------------
+The logic for importing data from the user management system via Excel has changed.
+Phone numbers in the customer list must be unique;
+in other words, if a phone number is already linked to one person, it cannot be linked to another.
+
+Under the previous logic, if the phone numbers matched but the names differed, the record would be sent to a "pending registration" queue rather than being registered as new—even if the match score was 50 or higher.
+Similarly, if the names differed but the match score was 70 or higher, the record must also go to the pending registration queue.
+In short, while a single phone number can correspond to only one person, a single customer can be associated with multiple phone numbers.
+This logic must be implemented regardless of whether a new user is registered manually or via API.
+That is, when registering a new user, the system must check against existing users; if the phone number matches, the record must be placed in the pending registration queue, whether the match score is 50 or 70+.
+---------------------------------------------------------
+Regarding the "Accounts" tab: once an account has been separated, it no longer needs to be displayed there.
+Once separated, it should be treated as if it no longer exists.
+While retaining the history is beneficial, there is no need to show it in the UI.
+Additionally, when linking an account within the system, you must check if it is already linked to another user; if it is, you should cancel the link and display an error message.
+
+As for phone numbers, store them in the database without any special characters or symbols.
+When displaying them, since they consist of 10 digits, format them using hyphens (e.g., XXX-XXX-XXXX).
+
+When calculating and displaying age, do not factor in whether the birthday has already passed; simply calculate the age based on the difference between the current year and the birth year.
+----------------------------------------------------------------------------------
+each project can have several kinds of tier - like level, grade, xxx, etc...
+so, we need to update crm_membership table so that it has tier_kind
+also, we could be able to manage this kind as well
+since we might need to add some more kinds for different tier in one project
+also, how can I add tier to each customer?
+there is no way to add tier manaully, let's add it possible to add tier manually
+on customer details page and membership page, we could be able to add tier for each project for each account
+----------------------------------------------------------------------------------
+on crm_project_account table, let's chanage external_account_id as external_account_pk and external_login as external_account_id
+----------------------------------------------------------------------------------
+Regarding the `crm_membership` table: instead of adding the `project_account_id` from `crm_project_account` (which would necessitate an extra JOIN operation), please add the `external_account_id` instead.
+By adding the `external_account_id` to `crm_membership`, you can avoid the need for additional joins or the inclusion of `party_pk` or `project_id` in that table.
+------------------------------------------------------------------------------------
+I would like to add a "Membership Summary" section to the "Overview" tab of the customer details page.
+A single customer can hold multiple accounts within a system, with each account assigned a different type of membership tier.
+For instance, a user named "A" could hold distinct tiers—such as "Level 1" and "Grade 2"—within the online store.
+Additional tier types may be introduced as the system evolves.
+This information needs to be displayed in the "Membership Summary" section, with further details provided in the "Membership" section of the "Account" tab.
+--------------------------------------------------------------------------------------
+if you remove project_account_id from crm_membership, we need to have party_pk, how can you find that row is connected with which customer?
+so, when you remove project_account_id, we need to keep party_pk and project_id
+but, if you want to keep project_account_id, we don't need to keep those party_pk, project_id, external_account_id
+since project_account_id is determinded with those data 
+-------------------------------
+transactions tab, let's not use our DB, I will fill out this page with api to a projects
+we already have the api which can get orders list with eshop_pk
+we can use this api as well
+
+so, on transactions tab, let's make a new section for eshop transactions
+and this section will call the api and get data and show the order list for that customer's eshop_pks,
+right now, that api can get order list for one eshop_pk, 
+so, on this eshop transaction section, if that customer has more than 2 eshop accounts, let's set one as default and show the order list with that eshop_pk
+and if user select another one, we can get data with that another eshop_pk 
+if all is selected, we can call the api twice or more and show the orders list with related eshop_pk or eshop_id
+------------------------------------------------------
+looks good, 
+but we need to change something
+first, if I select all, it shows account_id field, 
+and if I select one of them, it doesn't show that account_id field
+ 
+second, for goods fields, it shows the first good's name of the goods in that transaction, instead of showing the first good's name, let's show the count of goods
+
+third, for currrency, instead of showing Foreign currency or Native currency, let's use our currency system
+we already have currency table, 
+I chanaged the name as NATIVE and FOREIGN of currencies name
+so, let's use currency's code with colors
+
+fourth, on orderslist, the price means total_price, not unit price, 
+you are showing qty * price, - this is not correct
+price is total price, so change name `paid with`  field with Total price
+
+------------------------------------------------------
+on overview tab, why do you still show mock data, please show the list on orders tab
+for e-shop orders, we have the selecting eshop_pk part is right-top corner of the table, let's move it to next table title with some spaces
+also we need to show all first and then show eshop pks one by one
+of course, one of them is selected by default
+
+on orders tab, we need to add more tables for other projects
+so, we need to make each table could be collapse and can see other projects orders list
+or we might have projects sub tabs under orders tab
+so, if I click eshop project, it shows eshop-orders
+and if I click eproduct project, it shows eshop-orders
+------------------------------------------------------
+let's show only the name, without code
+and let's show only eshop and smartphone_offline, and appstore
+
+also, on crystal-web page, we already implemented appstore purchase list on this page - account/appstore/purchases 
+please check how it works, don't check code right now for appstore orders list
+------------------------------------------------------
+Now, let's move on to the "Service" tab.
+We need to integrate with the "SMARTPHONE_OFFLINE" system to retrieve and display the service history of registered users.
+Since this involves integration with the "SMARTPHONE_OFFLINE" system, let's create a temporary table to display the data.
+The API format is as follows:
+url: "/xxxx"
+param: {
+master_ids: "s2342523, sd652342, ej234234"
+}
+The response data format is:
+{
+items: [
+{
+master_id: s2342523
+customer_name: "adfewerwer"
+phone_number:
+address:
+imei_1:
+imei_2
+modal_name:
+agent_name:
+created_at:
+updated_at:
+reason_name
+point:
+reason_type_name:
+}
+]
+}
+Here, the `master_id`s correspond to the IDs linked to "SMARTPHONE_OFFLINE" in the "Accounts" tab.
+The display should be implemented as follows:
+The table must include a filtering function that allows users to select individual `account_id`s, similar to the implementation used for e-commerce order lists or product lists.
+Please configure the fields as follows:
+Map `master_id` to a single field named "Account ID".
+Combine `customer_name`, `phone_number`, and `address` into a single field named "Customer Info".
+Combine `modal_name`, `imei_1`, and `imei_2` into a single field named "Device Type".
+Combine `agent_name`, `created_at`, and `updated_at` into a single field named "Agency".
+Combine `reason_name` and `point` into a single field named "Service Type".
+Map `reason_type_name` to a single field named "Service Reason". Since this data can be retrieved and displayed from the `smartphone_offline` system via the API, there is no need to create or update a database.
+Also, as this is a temporary measure, please implement it by creating a new table in the 'Service' tab for display—similar to how the e-shop order list or product list was implemented earlier.
+Please ensure the implementation follows the project's coding style.
+------------------------------------------------------
+We need to create a new "Privileges" tab to display service records.
+We need to integrate with the `smartphone_offline` system to fetch and display the Privileges of registered users.
+Since this involves integration with the `smartphone_offline` system, let's use a temporary table for the display.
+The API format is as follows:
+url: "/xxxx"
+param: {
+master_ids: "s2342523, sd652342, ej234234"
+}
+The response data format is:
+{
+items: [
+{
+master_id: s2342523
+modal:
+imei:
+phone_number:
+color:
+title
+}
+]
+}
+Here, the `master_ids` correspond to the IDs linked to `SMARTPHONE_OFFLINE` in the "Accounts" tab.
+The display requirements are as follows:
+The table must include a filtering function—similar to the implementation for the e-shop order list or product list—allowing users to select specific `account_id`s.
+Please map the fields as follows:
+Map `master_id` to the "Account ID" field.
+Map `modal` to the "Device Type" field.
+Map `phone_number` to the "Phone Number" field.
+Map `imei` to the "IMEI" field.
+Map `color` to the "Device Color" field.
+Map `title` to the "Service Summary" field.
+Since the data is fetched directly from the `smartphone_offline` system via the API, there is no need to create or update a database—just like the implementation for the e-shop order list or product list mentioned earlier.
+Please implement this while adhering to the project's coding style.
+------------------------------------------------------
+on accounts tab, for smartphone_offline project, once the project account is linked by manually or api call, we should show the 'link by phone" button on the row
+on the header the values for total_amount, total_spend, total_orders, total product, open cases, should refelect the data from API call
+
+also, on the service tab, and notes and files tab, those pages' values also reflect the result of apis
+for example, for recent activity list of notes and files tab, it shows DB data right now
+it should also reflect based api_result data
+same as for service summary of service tab
+------------------------------------------------------

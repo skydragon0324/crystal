@@ -55,6 +55,7 @@ const UNIQUE = {
   uq_crm_contact: 'crm.customers.thisContactIsAlready',
   uq_crm_target: 'crm.events.alreadyATarget',
   uq_crm_project_account: 'crm.customers.thatAccountIsAlreadyLinked',
+  uq_crm_reward_points_account: 'crm.rewardPoints.accountAlreadyHasPoints',
   uq_crm_instance_ext: 'crm.products.thatSerialIsAlreadyKnown',
   uq_crm_product_code: 'crm.settings.thatCodeIsTaken',
   uq_crm_event_location: 'crm.events.thatSiteIsAlreadyInTheEvent',

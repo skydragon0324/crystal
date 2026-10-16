@@ -163,7 +163,7 @@ function narrowed(filters) {
         this.select(db.raw(1)).from('crm_project_account as account')
           .whereRaw('account.party_pk = party.party_pk')
           .where(function () {
-            this.where('account.external_account_id', term).orWhere('account.external_login', 'ilike', term);
+            this.where('account.external_account_pk', term).orWhere('account.external_account_id', 'ilike', term);
           });
       });
     });
@@ -295,10 +295,15 @@ async function detail(id) {
     db('crm_project_account as account').join('crm_project as project', 'project.project_id', 'account.project_id')
       .where('account.party_pk', id).orderBy([{ column: 'account.unlinked_at', order: 'desc' }, { column: 'project.project_id' }])
       .select('account.*', 'project.project_code', 'project.project_name'),
-    db('crm_membership as membership').join('crm_project as project', 'project.project_id', 'membership.project_id')
+    // One row per account and kind of tier, on the accounts linked to this customer now.
+    db('crm_membership as membership').join('crm_project_account as account', 'account.project_account_id', 'membership.project_account_id')
+      .join('crm_project as project', 'project.project_id', 'account.project_id')
       .leftJoin('crm_project_tier as tier', 'tier.project_tier_id', 'membership.current_tier_id')
-      .where('membership.party_pk', id).orderBy('project.project_id')
-      .select('membership.*', 'project.project_code', 'tier.tier_code', 'tier.tier_name'),
+      .leftJoin('crm_tier_kind as kind', 'kind.kind_code', 'membership.tier_kind')
+      .where('account.party_pk', id).whereNull('account.unlinked_at')
+      .orderBy([{ column: 'project.project_id' }, { column: 'account.external_account_id' }, { column: 'kind.sort_no' }])
+      .select('membership.*', 'project.project_code', 'project.project_name', 'tier.tier_code', 'tier.tier_name',
+        'account.party_pk', 'account.project_id', 'account.external_account_id', 'kind.kind_name'),
     db('crm_product_registration as registration')
       .join('crm_product_instance as instance', 'instance.product_instance_id', 'registration.product_instance_id')
       .join('crm_product_catalog as catalog', 'catalog.product_id', 'instance.product_id')

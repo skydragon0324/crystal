@@ -176,10 +176,10 @@ async function overview(options) {
            (SELECT COUNT(*) FROM crm_product_registration registration JOIN crm_party party ON party.party_pk = registration.party_pk
              WHERE party.party_status IN ('ACTIVE', 'INACTIVE') AND ${inProject('registration.project_id')}
                AND registration.valid_from < ${START} AND (registration.valid_to IS NULL OR registration.valid_to >= ${START}))::int AS registrations_prior,
-           (SELECT COUNT(*) FROM crm_membership membership
-             WHERE ${inProject('membership.project_id')} AND membership.membership_status = 'ACTIVE')::int AS memberships,
-           (SELECT COUNT(*) FROM crm_membership membership
-             WHERE ${inProject('membership.project_id')} AND COALESCE(membership.joined_at, membership.created_at) < ${START}
+           (SELECT COUNT(*) FROM crm_membership membership JOIN crm_project_account account ON account.project_account_id = membership.project_account_id
+             WHERE ${inProject('account.project_id')} AND membership.membership_status = 'ACTIVE')::int AS memberships,
+           (SELECT COUNT(*) FROM crm_membership membership JOIN crm_project_account account ON account.project_account_id = membership.project_account_id
+             WHERE ${inProject('account.project_id')} AND COALESCE(membership.joined_at, membership.created_at) < ${START}
                AND (membership.left_at IS NULL OR membership.left_at >= ${START}))::int AS memberships_prior,
            (SELECT COUNT(*) FROM crm_service_case service_case
              WHERE ${inProject('service_case.project_id')} AND service_case.received_at >= ${START})::int AS cases,
@@ -211,7 +211,8 @@ async function overview(options) {
                         FROM crm_project_account account GROUP BY account.project_id) accounts ON accounts.project_id = project.project_id
            LEFT JOIN (SELECT sale.project_id, MAX(sale.ingested_at) AS last_at FROM crm_transaction sale GROUP BY sale.project_id) sales
                   ON sales.project_id = project.project_id
-           LEFT JOIN (SELECT membership.project_id, MAX(membership.synced_at) AS last_at FROM crm_membership membership GROUP BY membership.project_id) members
+           LEFT JOIN (SELECT account.project_id, MAX(membership.synced_at) AS last_at FROM crm_membership membership
+                        JOIN crm_project_account account ON account.project_account_id = membership.project_account_id GROUP BY account.project_id) members
                   ON members.project_id = project.project_id
            LEFT JOIN (SELECT service_case.project_id, MAX(COALESCE(service_case.ingested_at, service_case.created_at)) AS last_at
                         FROM crm_service_case service_case GROUP BY service_case.project_id) cases ON cases.project_id = project.project_id
@@ -260,9 +261,10 @@ async function overview(options) {
          (SELECT 'TIER', history.changed_at, tier.tier_name, project.project_code
             FROM crm_membership_tier_history history
             JOIN crm_membership membership ON membership.membership_id = history.membership_id
-            JOIN crm_project project ON project.project_id = membership.project_id
+            JOIN crm_project_account account ON account.project_account_id = membership.project_account_id
+            JOIN crm_project project ON project.project_id = account.project_id
             LEFT JOIN crm_project_tier tier ON tier.project_tier_id = history.new_tier_id
-           WHERE ${inProject('membership.project_id')} ORDER BY history.changed_at DESC LIMIT 8)
+           WHERE ${inProject('account.project_id')} ORDER BY history.changed_at DESC LIMIT 8)
          UNION ALL
          (SELECT 'CAMPAIGN', COALESCE(campaign.start_at, campaign.approved_at, campaign.created_at), campaign.campaign_name, project.project_code
             FROM crm_campaign campaign LEFT JOIN crm_project project ON project.project_id = campaign.project_id

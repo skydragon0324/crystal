@@ -1269,6 +1269,135 @@ function licenseErrorReport(params) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  the phone server (SMARTPHONE_OFFLINE)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Who has a phone number. A number ending in an even digit belongs to one
+ * user, an odd one to nobody - enough to exercise linking both ways. The
+ * user's master id is derived from the number, so the same number always
+ * finds the same user.
+ */
+function phoneUserByPhone(params) {
+  const digits = String(params.phone || '').replace(/\D/g, '');
+  if (!digits || Number(digits.slice(-1)) % 2) return { items: [] };
+  return { items: [{ user_id: 'so' + digits.slice(-11), user_pk: digits.slice(-8), phone: digits, province: null, city: null }] };
+}
+
+const PHONE_MODELS = ['Crystal C9', 'Crystal C9 Pro', 'Crystal C7', 'Crystal C7 Plus', 'Crystal C5', 'Crystal C5 Lite', 'Crystal C3', 'Crystal Fold 2'];
+const PHONE_COLORS = ['Black', 'White', 'Blue', 'Gold', 'Green', 'Silver', 'Purple', 'Red'];
+/* Each colour as the server sends it beside the name: "#rrggbb". */
+const PHONE_RGB = { Black: '#1c1c1e', White: '#f5f5f7', Blue: '#2f6fd6', Gold: '#d4af37', Green: '#2e8b57', Silver: '#c0c0c0', Purple: '#7b4bb3', Red: '#c62828' };
+
+/**
+ * The devices registered to some master ids, sent as ONE comma-separated
+ * string, as the server takes them. Two to four per id, so every linked
+ * account shows some, the same ones every time; IMEI
+ * upper-case and the date as "YYYY.MM.DD", as the server sends.
+ */
+function phoneDevices(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'devices', 2, 4);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'device:' + i;
+      items.push({
+        master_id: id,
+        device: choose(id, slot + ':model', PHONE_MODELS),
+        color: choose(id, slot + ':color', PHONE_COLORS),
+        rgb: PHONE_RGB[choose(id, slot + ':color', PHONE_COLORS)],
+        IMEI: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
+        created_at: stamp(pick(id, slot + ':at', 20, 900), 10).slice(0, 10).replace(/-/g, '.')
+      });
+    }
+  });
+  return { items: items };
+}
+
+const PHONE_AGENTS = ['Central Service Agent', 'North Repair Point', 'East Phone Centre', 'West Service Agent', 'South Phone Repair'];
+const PHONE_SERVICE_REASONS = [
+  { reason_name: 'Screen replacement', reason_type_name: 'Broken screen', point: 300 },
+  { reason_name: 'Battery replacement', reason_type_name: 'Battery drains fast', point: 150 },
+  { reason_name: 'Software reinstall', reason_type_name: 'Does not start', point: 50 },
+  { reason_name: 'Charging port repair', reason_type_name: 'Does not charge', point: 120 },
+  { reason_name: 'Camera module', reason_type_name: 'Camera out of focus', point: 200 },
+  { reason_name: 'Inspection', reason_type_name: 'Warranty check', point: 0 }
+];
+
+/**
+ * The service history of some master ids' devices: one to three visits per
+ * id, the same ones every time; the first visit of about half the ids is
+ * still open (no updated_at). Each visit names the customer as the service
+ * point wrote them down, the device (its model and both IMEIs), the agent
+ * and when the job was opened and last updated, what was done and what it
+ * earned in points, and why the customer came - the server's field names,
+ * `modal_name` included.
+ */
+function phoneServices(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'services', 1, 3);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'service:' + i;
+      const reason = choose(id, slot + ':reason', PHONE_SERVICE_REASONS);
+      const opened = pick(id, slot + ':at', 15, 700);
+      items.push({
+        master_id: id,
+        customer_name: choose(id, 'name', ['Customer A', 'Customer B', 'Customer C', 'Customer D', 'Customer E']),
+        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
+        address: choose(id, slot + ':address', ['No. 12, Main Street', 'No. 48, Station Road', 'Block 3, River District', 'No. 7, Market Lane']),
+        imei_1: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei1b', 100000, 999999)),
+        imei_2: '35' + String(pick(id, slot + ':imei2', 1000000, 9999999)) + String(pick(id, slot + ':imei2b', 100000, 999999)),
+        modal_name: choose(id, slot + ':model', PHONE_MODELS),
+        agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
+        created_at: stamp(opened, 9),
+        /* The newest visit of some ids is still open: the system has not updated it, and sends no updated_at. */
+        updated_at: i === 0 && pick(id, 'open', 0, 1) === 0 ? null : stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16),
+        reason_name: reason.reason_name,
+        point: reason.point,
+        reason_type_name: reason.reason_type_name
+      });
+    }
+  });
+  return { items: items };
+}
+
+const PHONE_PRIVILEGE_TITLES = [
+  'Extended warranty - 12 months', 'Free screen protector replacement', 'Priority repair service',
+  'Free battery check every year', 'Trade-in discount - 10%', 'Free case with the next purchase',
+  'Loan phone during repairs', 'Free data transfer to a new phone'
+];
+
+/**
+ * The privileges of some master ids' devices: two to five per id, the same
+ * ones every time - the device (model, IMEI, colour), the number it is
+ * registered under, the privilege's one-line title and its status (mostly
+ * ACTIVE, some USED or EXPIRED). The server's field names, `modal` included.
+ */
+function phonePrivileges(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  const items = [];
+  ids.forEach(function (id) {
+    const count = pick(id, 'privileges', 2, 5);
+    for (let i = 0; i < count; i += 1) {
+      const slot = 'privilege:' + i;
+      items.push({
+        master_id: id,
+        modal: choose(id, slot + ':model', PHONE_MODELS),
+        imei: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
+        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
+        color: choose(id, slot + ':color', PHONE_COLORS),
+        title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES),
+        status: choose(id, slot + ':status', ['ACTIVE', 'ACTIVE', 'USED', 'EXPIRED'])
+      });
+    }
+  });
+  return { items: items };
+}
+
+/* ------------------------------------------------------------------ */
 /*  the switchboard                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -1295,7 +1424,13 @@ const ROUTES = {
   '/eproduct/api/client/keygen_manbang_log_new': manbangKeygenLog,
   '/eproduct/api/client/media_license_log_new': bmediaKeygenLog,
   '/eproduct/api/client/media_license_by_id': bmediaKeygenById,
-  '/eproduct/api/client/send_lic_error_request_new': licenseErrorReport
+  '/eproduct/api/client/send_lic_error_request_new': licenseErrorReport,
+
+  /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
+  '/getUserByPhone': phoneUserByPhone,
+  '/phone_devices': phoneDevices,
+  '/phone_services': phoneServices,
+  '/phone_privileges': phonePrivileges
 };
 
 /**

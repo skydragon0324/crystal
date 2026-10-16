@@ -68,26 +68,26 @@ async function main() {
 
   console.log('\nregistration');
   await check('an unknown person is created and the account linked', async function () {
-    created = data(await appstore.post('/registrations', { external_login: RUN + '-A1', external_account_id: '7001', party: person }));
+    created = data(await appstore.post('/registrations', { external_account_id: RUN + '-A1', external_account_pk: '7001', party: person }));
     if (created.outcome !== 'CREATED' || !/^[1-9][0-9]*$/.test(created.party_pk)) return JSON.stringify(created);
     const lookup = data(await appstore.get('/accounts/' + RUN + '-A1'));
     return lookup.status === 'LINKED' && lookup.party_pk === created.party_pk ? true : JSON.stringify(lookup);
   });
   await check('the same account again is the same customer', async function () {
-    const again = data(await appstore.post('/registrations', { external_login: RUN + '-A1', party: person }));
+    const again = data(await appstore.post('/registrations', { external_account_id: RUN + '-A1', party: person }));
     return again.outcome === 'EXISTING' && again.party_pk === created.party_pk ? true : JSON.stringify(again);
   });
   await check('a second account of a strongly matching person is linked to that customer', async function () {
-    const second = data(await appstore.post('/registrations', { external_login: RUN + '-A2', party: person }));
+    const second = data(await appstore.post('/registrations', { external_account_id: RUN + '-A2', party: person }));
     if (second.outcome !== 'MERGED' || second.party_pk !== created.party_pk) return JSON.stringify(second);
     const detail = data(await admin.get('/crm/parties/' + created.party_pk));
-    const ids = (detail.accounts || []).filter(function (row) { return !row.unlinked_at; }).map(function (row) { return row.external_login; });
+    const ids = (detail.accounts || []).filter(function (row) { return !row.unlinked_at; }).map(function (row) { return row.external_account_id; });
     return ids.indexOf(RUN + '-A1') !== -1 && ids.indexOf(RUN + '-A2') !== -1 ? true : 'accounts ' + ids.join(',');
   });
   let queued;
   await check('an uncertain match (50-69) is queued and creates nobody', async function () {
     const before = data(await admin.get('/crm/parties', { params: { q: RUN + ' Grace' } })).rows.length;
-    queued = data(await appstore.post('/registrations', { external_login: RUN + '-A3',
+    queued = data(await appstore.post('/registrations', { external_account_id: RUN + '-A3',
       party: { full_name: RUN + ' Grace', mobile: person.mobile, birth_date: '1980-01-01' } }));
     const after = data(await admin.get('/crm/parties', { params: { q: RUN + ' Grace' } })).rows.length;
     if (queued.outcome !== 'QUEUED' || queued.party_pk !== null || after !== before) return JSON.stringify(queued) + ' parties ' + before + '->' + after;
@@ -111,16 +111,16 @@ async function main() {
       ? true : 'saw another project';
   });
   await check('a registration without a name is refused', async function () {
-    return (await status(appstore.post('/registrations', { external_login: RUN + '-X', party: { mobile: '+86 135 ' + DIGITS } }))) === 400 ? true : 'not 400';
+    return (await status(appstore.post('/registrations', { external_account_id: RUN + '-X', party: { mobile: '+86 135 ' + DIGITS } }))) === 400 ? true : 'not 400';
   });
   await check('a registration with a bad mobile is refused', async function () {
-    return (await status(appstore.post('/registrations', { external_login: RUN + '-Y', party: { full_name: 'X', mobile: 'call me' } }))) === 400 ? true : 'not 400';
+    return (await status(appstore.post('/registrations', { external_account_id: RUN + '-Y', party: { full_name: 'X', mobile: 'call me' } }))) === 400 ? true : 'not 400';
   });
   await check('an unknown account lookup is 404', async function () {
     return (await status(appstore.get('/accounts/' + RUN + '-NOPE'))) === 404 ? true : 'not 404';
   });
   await check('an e-shop registration through the API is matched and linked, not queued', async function () {
-    const shop = data(await eshop.post('/registrations', { external_login: RUN + '-E1', external_account_id: '7002', party: person }));
+    const shop = data(await eshop.post('/registrations', { external_account_id: RUN + '-E1', external_account_pk: '7002', party: person }));
     return shop.outcome === 'MERGED' && shop.party_pk === created.party_pk ? true : JSON.stringify(shop);
   });
   await check('a revoked key is refused', async function () {

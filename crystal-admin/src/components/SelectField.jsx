@@ -57,7 +57,13 @@ export default function SelectField({
 
   const dims = SIZES[size] || SIZES.md;
   const list = useMemo(() => options || [], [options]);
-  const searchable = isSearchable === undefined ? list.length > 7 : isSearchable;
+  /*
+   * Searchable past seven options - and ALWAYS in the CRM, where lists are of
+   * customers' accounts, projects, tiers and codes that people look for by
+   * typing. A field can still ask for one or the other.
+   */
+  const inCrm = typeof window !== 'undefined' && window.location.pathname.indexOf('/admin/crm') !== -1;
+  const searchable = isSearchable === undefined ? (inCrm || list.length > 7) : isSearchable;
   const clearable = isClearable === undefined ? !isMulti : isClearable;
   const chunk = maxRendered || CHUNK_SIZE;
 

@@ -70,11 +70,11 @@ function createIndex() {
  * USER_MANAGEMENT role in Settings > Projects.
  */
 const USER_IDS_SQL = `
-  SELECT account.party_pk, account.external_login AS id
+  SELECT account.party_pk, account.external_account_id AS id
     FROM crm_project_account account JOIN crm_project project ON project.project_id = account.project_id
    WHERE project.identity_role = 'USER_MANAGEMENT' AND account.unlinked_at IS NULL
   UNION
-  SELECT registration.party_pk, listed->>'external_login' AS id
+  SELECT registration.party_pk, listed->>'external_account_id' AS id
     FROM crm_registration_intake registration
     CROSS JOIN LATERAL jsonb_array_elements(COALESCE(registration.payload->'unverified_accounts', '[]'::jsonb)) listed
     JOIN crm_project project ON project.project_id::text = listed->>'project_id'

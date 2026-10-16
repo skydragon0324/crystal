@@ -28,14 +28,14 @@ and repository behind it) and `src/services/crm/*`. When the code changes, this 
 | 14 | [Product instances and registrations](#14-product-instances-and-registrations) | `GET /instances`, `GET /instances/:id`, `PUT /instances/:id`, `GET /registrations`, `POST /registrations`, `POST /registrations/:id/end` |
 | 15 | [Transfers](#15-transfers) | `GET /transfers`, `POST /transfers`, `POST /transfers/:id/status` |
 | 16 | [Service cases](#16-service-cases) | `GET /cases`, `POST /cases`, `GET /cases/:id`, `PUT /cases/:id`, `PUT /cases/:id/classification` |
-| 17 | [Reward points](#17-reward-points) | `GET /point-accounts`, `GET /point-events`, `GET /point-drift`, `POST /point-adjustments` |
+| 17 | [Reward points](#17-reward-points) | `GET /reward-points`, `GET /reward-points/import/template`, `POST /reward-points/import`, `GET /parties/:id/reward-points`, `POST /parties/:id/reward-points`, `PUT /parties/:id/reward-points/:rewardPointsId`, `DELETE /parties/:id/reward-points/:rewardPointsId`, `GET /point-accounts`, `GET /point-events`, `GET /point-drift`, `POST /point-adjustments` |
 | 18 | [Activity events](#18-activity-events) | `GET /events`, `POST /events`, `GET /events/:id`, `PUT /events/:id`, `POST /events/:id/status`, `POST /events/:id/tiers`, `PUT /events/:id/tiers/:tierId`, `DELETE /events/:id/tiers/:tierId`, `POST /events/:id/locations`, `DELETE /events/:id/locations/:rowId`, `POST /events/:id/quotas`, `PUT /events/:id/quotas/:quotaId`, `DELETE /events/:id/quotas/:quotaId`, `POST /events/:id/rewards`, `PUT /events/:id/rewards/:rewardId`, `DELETE /events/:id/rewards/:rewardId`, `GET /events/:id/targets`, `POST /events/:id/targets`, `POST /events/:id/targets/build`, `POST /events/:id/targets/:targetId/revoke`, `GET /events/:id/reservations`, `POST /events/:id/reservations`, `GET /reservations/:reservationId/events`, `POST /reservations/:reservationId/status`, `GET /events/:id/awards`, `POST /events/:id/awards`, `POST /awards/:awardId/status` |
 | 19 | [Sites (service centres)](#19-sites-service-centres) | `GET /sites`, `POST /sites`, `GET /sites/:id`, `PUT /sites/:id`, `POST /sites/:id/capabilities`, `POST /sites/:id/capabilities/:capabilityId/end` |
 | 20 | [Site activity](#20-site-activity) | `GET /site-activities`, `POST /site-activities`, `POST /site-activities/:id/reverse`, `GET /site-events`, `POST /site-events`, `PUT /site-events/:id`, `GET /site-targets`, `POST /site-targets`, `PUT /site-targets/:id`, `DELETE /site-targets/:id` |
 | 21 | [Segments](#21-segments) | `GET /segments`, `POST /segments`, `POST /segments/preview`, `GET /segments/:id`, `PUT /segments/:id`, `GET /segments/:id/members`, `POST /segments/:id/versions`, `POST /segments/:id/evaluate` |
 | 22 | [Campaigns](#22-campaigns) | `GET /campaigns`, `POST /campaigns`, `GET /campaigns/:id`, `PUT /campaigns/:id`, `POST /campaigns/:id/status`, `POST /campaigns/:id/audiences`, `POST /campaigns/:id/actions`, `PUT /campaigns/:id/actions/:actionId`, `POST /campaigns/:id/actions/:actionId/prepare`, `POST /campaigns/:id/actions/:actionId/status`, `GET /campaigns/:id/actions/:actionId/recipients`, `POST /campaigns/:id/costs`, `DELETE /campaigns/:id/costs/:costId` |
 | 23 | [Master-table endpoints (catalogue, point rules, settings lists)](#23-master-table-endpoints-catalogue-point-rules-settings-lists) | Nine CRUD endpoints each for `/catalog`, `/point-rules` and 32 `/settings/<list>` paths; `POST /settings/locations/refresh`, `GET /settings/status-map`, `PUT /settings/status-map`, `DELETE /settings/status-map/:projectId/:code`, `GET /settings/api-keys`, `POST /settings/api-keys`, `POST /settings/api-keys/:id/revoke` |
-| 24 | [Integration API (department systems)](#24-integration-api-department-systems) | `POST /registrations`, `GET /accounts/:externalLogin`, `GET /identity-resolutions`, `POST /identity-resolutions/:id/acknowledge` |
+| 24 | [Integration API (department systems)](#24-integration-api-department-systems) | `POST /registrations`, `GET /accounts/:externalAccountId`, `GET /identity-resolutions`, `POST /identity-resolutions/:id/acknowledge`, `POST /reward-points` |
 
 Paths in the Endpoints column are relative to `/api/admin/crm`, except in "Integration API", where they are relative to `/api/integration/crm`.
 
@@ -307,7 +307,7 @@ Finds customers for a picker. It searches by name, contact, account number, birt
 | name | type | required | default | meaning |
 |---|---|---|---|---|
 | `ids` | string | no | none | Comma-separated `party_pk` values. Each value is trimmed, and any value that is not `^[1-9][0-9]*$` is dropped. If at least one id is left, the endpoint returns exactly those parties (`WHERE party_pk IN (...)`). In this mode there is no status filter, so MERGED and DELETED parties are returned too, there is no row limit, the order is unspecified, and `q` is ignored. |
-| `q` | string | no | none | Trimmed. A party matches if **any** of these holds: (1) `party_pk` equals the term exactly, after `%` is removed and a leading `#` is stripped, and only when the term is all digits; (2) `display_name ILIKE %term%`; (3) the term's digits, with `+` removed and at least 4 digits, appear as a substring of an ACTIVE or inactive contact point's `normalized_value`; (4) when the term contains `@` or a letter, its lower-cased form appears as a substring of `normalized_value`; (5) the term parses as a birth date (`1990-05-03`, `1990.05.03`, `1990/5/3`, `19900503`, `03.05.1990`, `03/05/1990`; day first unless the middle part cannot be a month), and it equals `crm_person.birth_date`; (6) it equals a linked account's `external_account_id` exactly, or `external_login` case-insensitively. |
+| `q` | string | no | none | Trimmed. A party matches if **any** of these holds: (1) `party_pk` equals the term exactly, after `%` is removed and a leading `#` is stripped, and only when the term is all digits; (2) `display_name ILIKE %term%`; (3) the term's digits, with `+` removed and at least 4 digits, appear as a substring of an ACTIVE or inactive contact point's `normalized_value`; (4) when the term contains `@` or a letter, its lower-cased form appears as a substring of `normalized_value`; (5) the term parses as a birth date (`1990-05-03`, `1990.05.03`, `1990/5/3`, `19900503`, `03.05.1990`, `03/05/1990`; day first unless the middle part cannot be a month), and it equals `crm_person.birth_date`; (6) it equals a linked account's `external_account_pk` exactly, or `external_account_id` case-insensitively. |
 
 In search mode (no usable `ids`), only `ACTIVE` and `INACTIVE` parties are returned. The order is `party_pk DESC` and the limit is 20 rows. If `q` is empty, the 20 newest parties come back.
 
@@ -804,7 +804,7 @@ A paged list of party metric values, by default on the latest metric date.
 | party_name | string \| null | |
 | metric_code, metric_name, value_type, unit_code | string | from `crm_metric_definition`; `value_type` is `NUMBER`, `TEXT`, `BOOLEAN` or `DATE` |
 
-The metrics the run computes, when a definition with the matching code exists and is active, are `DAYS_SINCE_LAST_PURCHASE`, `CROSS_PROJECT_COUNT`, `PRODUCT_OWNERSHIP_COUNT`, `CHURN_RISK`, `POINTS_BALANCE`, `IS_MULTI_PROJECT` (boolean) and `LAST_SERVICE_DATE` (date).
+The metrics the run computes, when a definition with the matching code exists and is active, are `DAYS_SINCE_LAST_PURCHASE`, `CROSS_PROJECT_COUNT`, `PRODUCT_OWNERSHIP_COUNT`, `CHURN_RISK`, `POINTS_BALANCE` ("Company-wide points": `company_points` from `v_crm_party_company_points`, section 17), `IS_MULTI_PROJECT` (boolean) and `LAST_SERVICE_DATE` (date).
 
 ```json
 {
@@ -1380,7 +1380,7 @@ A scored match (a "candidate") has this shape wherever it is returned:
 | gender_code, birth_date, address_line | string\|null | Person fields (customer candidates only) |
 | home_location_pk | string\|null | |
 | job_title_id | integer\|null | |
-| user_ids | array of string | The customer's user-management Account IDs (`external_login`): linked accounts, plus ids an earlier import listed for them |
+| user_ids | array of string | The customer's user-management Account IDs (`external_account_id`): linked accounts, plus ids an earlier import listed for them |
 | mobile | string\|null | The first active MOBILE/PHONE value, **masked**: first 3 and last 4 characters kept (`"+86*******8000"`) |
 | score | integer | Sum of the points |
 | evidence | array | `[{ "field": "phone", "points": 40 }, ...]` |
@@ -1425,7 +1425,7 @@ How `q` matches. The alternatives below are combined with OR, so a party matches
 | Phone digits | If the term has 4 or more digits: every non-digit is removed (`"138 0013-8000"` becomes `"13800138000"`), and the result is matched as a substring of any contact point's `normalized_value` (`LIKE '%digits%'`). |
 | Text / email | If the lower-cased term contains `@` or a letter: matched as a substring of any contact point's `normalized_value` (`LIKE`, case-sensitive). Emails are stored lower-cased. Other contact types (WeChat id and so on) are stored only trimmed, so for them the case must match. |
 | Birthday | Three forms (`services/crm/birthday.js`). **A whole date** from 1900, typed as `1990-05-03`, `1990.5.3`, `1990/05/03`, `19900503`, `03.05.1990`, `03/05/1990`, `1990年5月3日`, `1990년 5월 3일` or `1990 5 3` (day first, unless the second part is over 12, as in `05/23/1990`): `crm_person.birth_date` equals it. **A year alone**, `1990` (1900 to this year): `crm_person.birth_year` or the year of `birth_date` equals it, so people known only by their year are found. **A month and day alone**, `05-03`, `03.05`, `5/3` or `5월 3일`: `birth_date` falls on that day in any year; when both parts could be the month, both readings (3 May and 5 March) are searched. Anything else, or an impossible date, is not treated as a birthday. |
-| Account | Any `crm_project_account` where `external_account_id` equals the term exactly (case-sensitive), or `external_login ILIKE term` (whole value, any case). Unlinked accounts are included. |
+| Account | Any `crm_project_account` where `external_account_pk` equals the term exactly (case-sensitive), or `external_account_id ILIKE term` (whole value, any case). Unlinked accounts are included. |
 
 The contact-point alternatives look at every contact the party has, including INVALID and RETIRED ones.
 
@@ -1992,7 +1992,7 @@ Deletes a contact point that was entered by mistake. A contact that has ever bee
 
 ### POST /api/admin/crm/parties/:id/accounts
 
-Links the customer to an account issued by a project (keyed by its Account ID, `external_login`), by hand (`link_method` `MANUAL`).
+Links the customer to an account issued by a project (keyed by its Account ID, `external_account_id`), by hand (`link_method` `MANUAL`).
 
 **Permission:** WRITE on `/admin/crm/customers`.
 
@@ -2009,8 +2009,8 @@ Links the customer to an account issued by a project (keyed by its Account ID, `
 | field | type | required | rules |
 |---|---|---|---|
 | project_id | integer | yes | Must exist (foreign key) |
-| external_login | string | yes | The Account ID, the account's key. Trimmed. Max 250 characters (database). |
-| external_account_id | string | no | The Account PK. Trimmed; empty is stored as null. Max 250 characters (database). |
+| external_account_id | string | yes | The Account ID, the account's key. Trimmed. Max 250 characters (database). |
+| external_account_pk | string | no | The Account PK. Trimmed; empty is stored as null. Max 250 characters (database). |
 | external_account_type | string | no | Max 50 characters (database) |
 | account_status | string | no | Max 30 characters (database) |
 | is_primary | boolean | no | Stored as given. Other accounts are not changed. |
@@ -2021,8 +2021,8 @@ Links the customer to an account issued by a project (keyed by its Account ID, `
 |---|---|---|
 | project_account_id, party_pk | string | |
 | project_id | integer | |
-| external_login | string | |
-| external_account_id, external_account_type, account_status | string\|null | |
+| external_account_id | string | |
+| external_account_pk, external_account_type, account_status | string\|null | |
 | crystal_user_id | integer\|null | |
 | is_primary | boolean | |
 | link_method | string | `MANUAL` |
@@ -2030,16 +2030,16 @@ Links the customer to an account issued by a project (keyed by its Account ID, `
 | linked_at, unlinked_at, source_created_at, source_updated_at, created_at, updated_at | string\|null | |
 
 ```json
-{ "success": true, "message": "created", "data": { "project_account_id": "731", "party_pk": "1042", "project_id": 3, "external_account_id": "100245", "external_login": "liwei88", "external_account_type": "ESHOP_CUSTOMER", "crystal_user_id": null, "account_status": null, "is_primary": false, "link_method": "MANUAL", "link_confidence": null, "linked_at": "2026-10-11T07:30:00.000Z", "unlinked_at": null } }
+{ "success": true, "message": "created", "data": { "project_account_id": "731", "party_pk": "1042", "project_id": 3, "external_account_pk": "100245", "external_account_id": "liwei88", "external_account_type": "ESHOP_CUSTOMER", "crystal_user_id": null, "account_status": null, "is_primary": false, "link_method": "MANUAL", "link_confidence": null, "linked_at": "2026-10-11T07:30:00.000Z", "unlinked_at": null } }
 ```
 
 **Errors**
 
 | status | message key | when |
 |---|---|---|
-| 400 | crm.customers.projectAndAccountAreRequired | `project_id` or `external_login` is missing (or blank) |
+| 400 | crm.customers.projectAndAccountAreRequired | `project_id` or `external_account_id` is missing (or blank) |
 | 404 | common.notFound | No such party |
-| 409 | crm.customers.thatAccountIsAlreadyLinked | That project and Account ID (`external_login`) are already linked (to any party) |
+| 409 | crm.customers.thatAccountIsAlreadyLinked | That project and Account ID (`external_account_id`) are already linked (to any party) |
 | 409 | common.referencedRecordIsMissing | Unknown `project_id` |
 
 ### POST /api/admin/crm/parties/:id/accounts/:accountId/unlink
@@ -2062,7 +2062,7 @@ Unlinks an account (sets `unlinked_at`). The row is kept.
 **Response** `200`, message `common.updated`. `data` is the updated account row, with `unlinked_at` set.
 
 ```json
-{ "success": true, "message": "updated", "data": { "project_account_id": "731", "party_pk": "1042", "project_id": 3, "external_account_id": "100245", "link_method": "MANUAL", "unlinked_at": "2026-10-11T07:31:00.000Z" } }
+{ "success": true, "message": "updated", "data": { "project_account_id": "731", "party_pk": "1042", "project_id": 3, "external_account_pk": "100245", "link_method": "MANUAL", "unlinked_at": "2026-10-11T07:31:00.000Z" } }
 ```
 
 **Errors**
@@ -2865,7 +2865,7 @@ Intake statuses (CHECK on `crm_registration_intake.status`):
 | `ASSIGNED` | Category `ESHOP` only: the department account was linked to a customer. |
 | `REJECTED` | Category `ESHOP` only: the proposed assignment was refused. |
 
-Categories: `PERSON` (a person registration) and `ESHOP` (an "assignment review": a department account identifier proposed for one specific customer, staged either from an Excel import's unverified identifiers or by a legacy e-shop link). The pair (`source_project_id`, `source_record_id`, `category`) is unique, so the same account submitted twice returns the first intake. For a registration carrying an account, and for every `ESHOP` review, `source_record_id` is the account's Account ID (`external_login`).
+Categories: `PERSON` (a person registration) and `ESHOP` (an "assignment review": a department account identifier proposed for one specific customer, staged either from an Excel import's unverified identifiers or by a legacy e-shop link). The pair (`source_project_id`, `source_record_id`, `category`) is unique, so the same account submitted twice returns the first intake. For a registration carrying an account, and for every `ESHOP` review, `source_record_id` is the account's Account ID (`external_account_id`).
 
 Whenever an intake is resolved to a customer (MERGED, CREATED or ASSIGNED, automatic or by hand), a row is added to `crm_identity_resolution` for the source project; that is the feed the Integration API exposes (see below).
 
@@ -2899,7 +2899,7 @@ Ordering is fixed: `created_at` descending. There is no `sort`/`dir`.
 |---|---|---|
 | `rows[].intake_id` | string | |
 | `rows[].source_project_id` | string or null | Project the registration came from. |
-| `rows[].source_record_id` | string or null | The account's Account ID (`external_login`) for a department registration or an `ESHOP` review; `excel:<file hash>:<row>` for an Excel row; a random 32-hex string for console/import registrations with no record id. |
+| `rows[].source_record_id` | string or null | The account's Account ID (`external_account_id`) for a department registration or an `ESHOP` review; `excel:<file hash>:<row>` for an Excel row; a random 32-hex string for console/import registrations with no record id. |
 | `rows[].category` | string | `PERSON` or `ESHOP`. |
 | `rows[].status` | string | `PENDING` or `MERGED` (see filter). |
 | `rows[].payload` | object | `{ party, account, unverified_accounts }` exactly as submitted: `party` holds the person fields and `contacts`; `account` is the department account (or null); `unverified_accounts` the identifiers an import listed. |
@@ -2927,7 +2927,7 @@ Ordering is fixed: `created_at` descending. There is no `sort`/`dir`.
         "payload": {
           "party": { "party_type": "PERSON", "origin_project_id": 3, "full_name": "Wang Li", "mobile": "13800138000", "birth_date": "1990-05-03", "birth_year": 1990,
                      "contacts": [{ "contact_type": "MOBILE", "contact_value": "13800138000", "source_project_id": 3 }] },
-          "account": { "project_id": 3, "external_account_id": "U-88213", "external_login": "wangli" },
+          "account": { "project_id": 3, "external_account_pk": "U-88213", "external_account_id": "wangli" },
           "unverified_accounts": []
         },
         "candidates": [
@@ -3006,7 +3006,7 @@ Everything a reviewer compares for one staged registration: the incoming person 
 | `job_title_name` | string or null | |
 | `origin_project_name` | string or null | Incoming: the payload's `origin_project_id`, else the intake's source project. |
 
-`identifiers[]` item: `{ project_id, project_name, account_pk, account_id, kind }` where `account_id` = `external_login` (always present, the account's key) and `account_pk` = `external_account_id` (or null), and `kind` is `INCOMING` (the payload's account), `CANDIDATE` (an unverified identifier) or `LINKED`.
+`identifiers[]` item: `{ project_id, project_name, account_pk, account_id, kind }` where `account_id` = `external_account_id` (always present, the account's key) and `account_pk` = `external_account_pk` (or null), and `kind` is `INCOMING` (the payload's account), `CANDIDATE` (an unverified identifier) or `LINKED`.
 
 ```json
 {
@@ -3146,7 +3146,7 @@ The department identifiers an Excel import listed for this customer but which we
 
 **Request body:** None.
 
-Collected from every PERSON intake resolved to this customer whose payload has `unverified_accounts`, oldest intake first; the same project + Account ID (`external_login`) is listed once (first recorded). Its review is the ESHOP intake with the same project and `source_record_id` (= the identifier's `external_login`), if any.
+Collected from every PERSON intake resolved to this customer whose payload has `unverified_accounts`, oldest intake first; the same project + Account ID (`external_account_id`) is listed once (first recorded). Its review is the ESHOP intake with the same project and `source_record_id` (= the identifier's `external_account_id`), if any.
 
 **Response** `200`: `data` is an array (no paging).
 
@@ -3154,8 +3154,8 @@ Collected from every PERSON intake resolved to this customer whose payload has `
 |---|---|---|
 | `project_id` | integer or string | As stored in the import payload. |
 | `project_name` | string or null | |
-| `external_account_id` | string or null | The Account PK, as stored in the payload. |
-| `external_login` | string | The Account ID; the identifier's key. |
+| `external_account_pk` | string or null | The Account PK, as stored in the payload. |
+| `external_account_id` | string | The Account ID; the identifier's key. |
 | `recorded_at` | string | `created_at` of the intake that listed it. |
 | `registration_intake_id` | string | That intake. |
 | `review_intake_id` | string or null | The ESHOP assignment review, if one has been staged. |
@@ -3166,7 +3166,7 @@ Collected from every PERSON intake resolved to this customer whose payload has `
   "success": true,
   "message": "ok",
   "data": [
-    { "project_id": 1, "project_name": "E-shop", "external_account_id": "7781", "external_login": "li.w",
+    { "project_id": 1, "project_name": "E-shop", "external_account_pk": "7781", "external_account_id": "li.w",
       "recorded_at": "2026-09-14T02:00:11.032Z", "registration_intake_id": "388", "review_intake_id": "390", "review_status": "PENDING" }
   ]
 }
@@ -3198,7 +3198,7 @@ Links or rejects one of those identifiers from the customer record. It goes thro
 |---|---|---|---|
 | `action` | string | yes | `LINK` or `REJECT` (exact, upper case). |
 | `project_id` | integer or string | yes | Compared as text with the listed identifier's project. |
-| `external_login` | string | yes | The Account ID, compared as text with the listed identifier's `external_login`. |
+| `external_account_id` | string | yes | The Account ID, compared as text with the listed identifier's `external_account_id`. |
 
 `LINK` runs the intake decision `{ action: "ASSIGN", party_pk: <id> }`; `REJECT` runs `{ action: "REJECT" }` (see the decide endpoint above for effects). If the review has not been staged and the identifier turns out to be already linked to this customer, nothing is staged and the call fails with 409.
 
@@ -3324,6 +3324,7 @@ Terms used in the tables below:
 | `service` | object | Service case figures. See below. |
 | `reach` | object | Contacts and consent. See below. |
 | `accounts` | array | One or more rows per active project. See below. |
+| `points` | object | Company-wide points and the rows behind them. See below. |
 | `recent_orders` | array | Last 5 orders. See below. |
 | `products` | array | Up to 6 current registrations. |
 | `interactions` | array | Last 5 interactions. |
@@ -3415,9 +3416,19 @@ There is at least one row per `ACTIVE` project, ordered by `project_id`.
 |---|---|---|
 | `project_id`, `project_code`, `project_name` | | |
 | `account_status` | string | `PRIMARY`, `LINKED`, `UNLINKED` or `NOT_LINKED`. A project with several live accounts produces one row per account. A project with only unlinked accounts shows the most recently unlinked one. |
-| `project_account_id`, `external_account_id`, `external_login` | | Missing on `NOT_LINKED` rows. |
+| `project_account_id`, `external_account_pk`, `external_account_id` | | Missing on `NOT_LINKED` rows. |
 | `first_used_at` | string | `source_created_at`, or `linked_at` if that is empty. Missing on `NOT_LINKED` rows. |
 | `last_activity_at` | string or null | The latest transaction (any role, any status) or case received in that project. |
+**`points`**
+
+The company-wide points, worked out on each request (`rewardPoints.ofParty`, section 17); the same object as `GET /parties/:id/reward-points`. A party with no rows gets `{ "company_points": "0", "counted_systems": 0, "uncounted_systems": 0, "rows": [] }`. Account lines (`accounts[]`) carry no points fields.
+
+| field | type | notes |
+|---|---|---|
+| `company_points` | string | From `v_crm_party_company_points`: each linked account's points times its project's `point_weight`, summed and rounded to 4 decimals. |
+| `counted_systems` | integer | Rows included in `company_points` (their project has a weight). |
+| `uncounted_systems` | integer | Rows left out because their project has no weight. The console shows "N business systems not counted (no weight)". |
+| `rows` | array | One row per linked account that has points. See section 17. |
 
 **Other arrays**
 
@@ -3475,8 +3486,12 @@ Example: a person, with arrays shortened.
                "phones": [], "emails": [], "preferred_channel": "SMS",
                "consent_by_channel": [{ "channel_code": "SMS", "channel_name": "SMS", "asked": true, "granted": true }] },
     "accounts": [{ "project_id": 2, "project_code": "MALL", "project_name": "Online mall", "project_account_id": "88",
-                   "external_account_id": "u-55120", "external_login": "mary.c", "account_status": "PRIMARY",
+                   "external_account_pk": "u-55120", "external_account_id": "mary.c", "account_status": "PRIMARY",
                    "first_used_at": "2024-05-02T00:00:00.000Z", "last_activity_at": "2026-08-19T06:21:00.000Z" }],
+    "points": { "company_points": "600.0000", "counted_systems": 1, "uncounted_systems": 0,
+                "rows": [{ "reward_points_id": "31", "project_account_id": "88", "project_id": 2, "project_code": "MALL", "project_name": "Online mall",
+                           "external_account_id": "mary.c", "external_account_pk": "u-55120", "points": "1200.0000", "as_of": "2026-10-13T16:00:00.000Z",
+                           "source": "API", "note": null, "updated_at": "2026-10-13T16:00:04.000Z", "point_weight": "0.500000", "company_points": "600.0000" }] },
     "recent_orders": [], "products": [], "interactions": [], "campaigns": [], "segments": [],
     "tags": [{ "tag_id": 4, "tag_code": "VIP", "tag_name": "VIP", "color_scheme": "purple", "tagged_at": "2026-01-10T02:00:00.000Z" }],
     "relationships": [{ "party_relationship_id": "12", "status": "ACTIVE", "valid_from": "2025-06-01", "valid_to": null, "note": null,
@@ -5658,7 +5673,51 @@ Sets the CRM's own classification of a case (issue, fault, root cause, resolutio
 
 ## 17. Reward points
 
-Points live in one ledger, `crm_point_event`, but each **point type** is its own currency: a party has one `crm_point_account` per point type, and balances of different types are never added together. `crm_point_account.balance` is a cached total kept in step by `src/services/crm/ledger.js`, the only code path that moves points. For every movement the ledger:
+**Reward points per business system.** Each business system (project) runs its own reward points by its own rules, and the CRM does not re-create them or follow their movements. It keeps one figure per business-system account linked to a customer, the points that account holds there, in `crm_reward_points`: one row per `crm_project_account` (unique `project_account_id`, deleted with the account), with `points` (numeric(20,4)), `as_of`, `source` (`MANUAL`, `API` or `IMPORT`), `note` and `updated_by_manager_id`. A customer with two accounts in one system has two rows. No history is kept: a new figure replaces the old one. The customer and the system come from the account row, so a row follows its account on merge and unmerge, and the rows of unlinked accounts are neither shown nor counted. Logic: `src/services/crm/rewardPoints.service.js`. A figure arrives in three ways:
+
+- an administrator enters it on the customer: `POST`/`PUT /parties/:id/reward-points`, source `MANUAL` (always replaces the row; `as_of` is the date given, else now);
+- the business system sends it: `POST /api/integration/crm/reward-points` (section 24), source `API`;
+- a manager uploads a sheet: `POST /reward-points/import`, source `IMPORT`.
+
+Sent and imported figures follow these rules:
+
+| Rule | Detail |
+|---|---|
+| Out-of-order figures | A figure whose `as_of` is older than the stored `as_of` is ignored as `STALE`. |
+| Same figure twice | Same points and same `as_of` as stored: `UNCHANGED`, nothing written. |
+| Unknown accounts | No **live** (not unlinked) account with that Account ID (`external_account_id`) in that project: `UNKNOWN_ACCOUNT`. |
+| Bad lines | Missing Account ID, points that are not a number with up to 16 digits and 4 decimals (spaces and `,` are dropped first), or an `as_of` that is not a time or is more than 10 minutes in the future: `INVALID`. An empty `as_of` means now. |
+| New rows | An account with no row yet gets one. |
+| Batches | At most 5000 lines per push or sheet. Every line is answered; nothing fails the batch as a whole. The batch runs in one transaction. |
+| Audit | Pushes (`API`) are not written to the audit log; the row keeps its source and time. `MANUAL` and `IMPORT` changes are audited (page `/admin/crm/points`). |
+
+Push and import both answer with this summary (`message` texts translated into the reader's language):
+
+| field | type | notes |
+|---|---|---|
+| `received` | integer | Lines read. |
+| `updated`, `unchanged`, `stale`, `unknown_accounts`, `invalid` | integer | Lines by outcome (`updated` includes rows created). |
+| `problems` | array | One item per line not `UPDATED` or `UNCHANGED`: `{ row, external_account_id, status, message }`. `row` is the 1-based index in the push, or the sheet row number. `status` is `STALE`, `UNKNOWN_ACCOUNT` or `INVALID`. |
+
+**Company-wide points.** Never stored. The view `v_crm_party_company_points` gives each party with at least one row on a live account `company_points` = the sum of `crm_reward_points.points × crm_project.point_weight`, rounded to 4 decimals, plus `counted_systems` (rows whose project has a weight) and `uncounted_systems` (rows whose project's weight is null: shown, not counted; no 1:1 rate is assumed). Weights are set in Settings > Projects (section 23). The total is shown on the Customer 360 header (`points` in `GET /parties/:id/360`), on the Points page, and is the analysis metric `POINTS_BALANCE` ("Company-wide points"). It is for ranking only; nothing is spent from it.
+
+A row as returned by `GET /parties/:id/reward-points` and in `points.rows` of the 360 overview, ordered by `project_id`, then `external_account_id`:
+
+| field | type | notes |
+|---|---|---|
+| `reward_points_id`, `project_account_id` | string | |
+| `project_id` | integer | |
+| `project_code`, `project_name` | string | |
+| `external_account_id`, `external_account_pk` | string or null | Account ID and Account PK. |
+| `points` | string | numeric(20,4). |
+| `as_of` | string | When the figure was true. |
+| `source` | string | `MANUAL`, `API` or `IMPORT`. |
+| `note` | string or null | |
+| `updated_at` | string | |
+| `point_weight` | string or null | The project's weight; null = not counted. |
+| `company_points` | string or null | `points × point_weight`, rounded to 4 decimals; null when the project has no weight. |
+
+**The CRM ledger.** The CRM's own points (earning rules, event costs and awards, product registrations, merges) are **not** part of company-wide points. The console hides their screens for now (`SHOW_CRM_LEDGER = false` in the admin's `RewardPoints.jsx`); the endpoints `GET /point-accounts`, `GET /point-events`, `GET /point-drift`, `POST /point-adjustments` and their tables are unchanged. They live in one ledger, `crm_point_event`, but each **point type** is its own currency: a party has one `crm_point_account` per point type, and balances of different types are never added together. `crm_point_account.balance` is a cached total kept in step by `src/services/crm/ledger.js`, the only code path that moves points. For every movement the ledger:
 
 - rounds `points_delta` to 3 decimals (the column scale) and refuses a result of 0;
 - requires the event type code to exist, the point type to exist and be active;
@@ -5668,6 +5727,237 @@ Points live in one ledger, `crm_point_event`, but each **point type** is its own
 - inserts the event with `points_balance_after`, then updates `balance`, `lifetime_earned` (positive deltas) and `lifetime_spent` (negative deltas, as a positive number) and `last_event_at`.
 
 A database trigger also requires the sign of `points_delta` to match the event type's direction (`EARN` +, `REDEEM` -, `ADJUST` either).
+
+### GET /api/admin/crm/reward-points
+
+Lists customers who have points anywhere, one line per customer with their company-wide points, worked out now (the Points page). Opening a line in the console loads its rows with `GET /parties/:id/reward-points`.
+
+**Permission:** READ on `/admin/crm/points`.
+
+**Path parameters** None.
+
+**Query parameters**
+
+| name | type | required | default | meaning |
+|---|---|---|---|---|
+| `page` | integer | no | 1 | |
+| `limit` | integer | no | 20 | Clamped 1..200. |
+| `sort` | string | no | `company_points` | Allowed: `company_points`, `display_name`. Ties are broken by `party_pk`. |
+| `dir` | string | no | `desc` | `desc`, or anything else for ascending. |
+| `q` | string | no | | ILIKE contains-match on the party's `display_name` or a live account's `external_account_id`, or exact `party_pk`. |
+| `project_id` | integer | no | | Only customers with a row on a live account of this project. |
+
+**Request body** None.
+
+**Response** `200` - `data` is `{ rows, total, page, limit, summary: null }`. Each row:
+
+| field | type | notes |
+|---|---|---|
+| `party_pk` | string | |
+| `display_name` | string | The party's name. |
+| `company_points` | string | From `v_crm_party_company_points`, rounded to 4 decimals. |
+| `counted_systems`, `uncounted_systems` | string | bigint counts: rows counted, and rows left out because their project has no weight. |
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "rows": [
+      { "party_pk": "1042", "display_name": "Mary Chen", "company_points": "600.0000", "counted_systems": "1", "uncounted_systems": "0" }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "summary": null
+  }
+}
+```
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 403 | `common.permissionDenied` | Role lacks READ on the page. |
+
+### GET /api/admin/crm/reward-points/import/template
+
+Downloads the reward points import template. This is **not** a JSON envelope. The reply is the file itself: `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="crm-reward-points-template.xlsx"`.
+
+**Permission:** READ on `/admin/crm/points`.
+
+**Path parameters:** None. **Query parameters:** None. **Request body:** None.
+
+**Response** `200`: an `.xlsx` workbook with one sheet, **Reward points**, a bold header row and, if any live account exists, one example row built from it (points 1200, today's date).
+
+| Template header | Required | Accepted header aliases | Content |
+|---|---|---|---|
+| Project code | yes | `project` | A project's code (any case). |
+| Account ID | yes | `external_account_id`, `login` | The account's Account ID in that project. |
+| Points | yes | `balance`, `reward points` | A number, up to 4 decimals. |
+| As of | no | `as_of`, `date` | An Excel date or ISO 8601 text. Empty = now. |
+
+Header matching ignores case, whitespace, `_`, `*` and `-`. Only the **first** worksheet and its first row are read; other columns are ignored.
+
+### POST /api/admin/crm/reward-points/import
+
+Uploads a filled-in reward points sheet (`multipart/form-data`, field `file`, `.xlsx`). Each row is stored with source `IMPORT` under the rules above.
+
+**Permission:** WRITE on `/admin/crm/points`.
+
+**Path parameters:** None. **Query parameters:** None.
+
+**Response** `200`, message `excel.imported`. `data` is the summary described at the top of this section. A row whose Project code is unknown is `INVALID` ("no project with this code"). Rows that are blank in every column are skipped.
+
+```json
+{
+  "success": true,
+  "message": "imported",
+  "data": {
+    "received": 3, "updated": 1, "unchanged": 0, "stale": 1, "unknown_accounts": 1, "invalid": 0,
+    "problems": [
+      { "row": 3, "external_account_id": "wang.fang", "status": "STALE", "message": "older than the points already stored; ignored" },
+      { "row": 4, "external_account_id": "nobody", "status": "UNKNOWN_ACCOUNT", "message": "no linked account with this Account ID in this project" }
+    ]
+  }
+}
+```
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 400 | `crm.common.thisIsNotAnExcelFile` | No file, a file name not ending in `.xlsx`, or content that cannot be read as a workbook. |
+| 400 | `crm.customerImport.theFileHasNoSheet` | The workbook has no worksheet. |
+| 400 | `crm.customerImport.requiredColumnsAreMissing` | `detail` is the array of missing headers, e.g. `["Points"]`. |
+| 400 | `crm.customerImport.theFileHasNoRows` | No non-blank rows below the header. |
+| 400 | `crm.rewardPoints.tooManyRows` | More than 5000 rows ("at most 5000 rows at a time"). |
+| 403 | `common.permissionDenied` | Role lacks WRITE on the page. |
+
+### GET /api/admin/crm/parties/:id/reward-points
+
+One customer's company-wide points and the rows they come from (live accounts only). The same object is returned as `points` by `GET /parties/:id/360`.
+
+**Permission:** READ on `/admin/crm/customers`.
+
+**Path parameters**
+
+| name | type | notes |
+|---|---|---|
+| id | string | `party_pk` |
+
+**Query parameters:** None. **Request body:** None.
+
+**Response** `200`: `data` is `{ company_points, counted_systems, uncounted_systems, rows }`. `counted_systems` and `uncounted_systems` are integers; `rows` are described at the top of this section. A party with no rows (or an unknown `id`) gets `{ "company_points": "0", "counted_systems": 0, "uncounted_systems": 0, "rows": [] }`.
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "company_points": "600.0000", "counted_systems": 1, "uncounted_systems": 1,
+    "rows": [
+      { "reward_points_id": "31", "project_account_id": "88", "project_id": 2, "project_code": "MALL", "project_name": "Online mall",
+        "external_account_id": "mary.c", "external_account_pk": "u-55120", "points": "1200.0000", "as_of": "2026-10-13T16:00:00.000Z",
+        "source": "API", "note": null, "updated_at": "2026-10-13T16:00:04.000Z", "point_weight": "0.500000", "company_points": "600.0000" },
+      { "reward_points_id": "32", "project_account_id": "91", "project_id": 5, "project_code": "KTV", "project_name": "Karaoke",
+        "external_account_id": "maryc", "external_account_pk": null, "points": "80.0000", "as_of": "2026-10-14T00:00:00.000Z",
+        "source": "MANUAL", "note": "From the karaoke admin screen", "updated_at": "2026-10-14T09:12:00.000Z", "point_weight": null, "company_points": null }
+    ]
+  }
+}
+```
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 403 | `common.permissionDenied` | Role lacks READ on the page. |
+
+### POST /api/admin/crm/parties/:id/reward-points
+
+Adds the points of one of the customer's linked accounts (*Add points* on the Accounts tab's *Reward points* card). Stored with source `MANUAL`. Audited.
+
+**Permission:** WRITE on `/admin/crm/customers`.
+
+**Path parameters**
+
+| name | type | notes |
+|---|---|---|
+| id | string | `party_pk` |
+
+**Query parameters:** None.
+
+**Request body**
+
+| field | type | required | rules |
+|---|---|---|---|
+| `project_account_id` | string or integer | yes | An account of this party that is not unlinked and has no row yet. |
+| `points` | number or string | yes | Up to 16 digits and 4 decimals; may be negative. Spaces and `,` are dropped. |
+| `as_of` | string | no | Date or ISO 8601 time when the figure was true; at most 10 minutes in the future. Empty = now. |
+| `note` | string | no | Trimmed, cut to 500 characters; empty = null. |
+
+**Response** `200`, message `common.created`. `data` is the new `crm_reward_points` row: `{ reward_points_id, project_account_id, points, as_of, source, note, updated_by_manager_id, created_at, updated_at }`.
+
+```json
+{ "success": true, "message": "created", "data": { "reward_points_id": "32", "project_account_id": "91", "points": "80.0000", "as_of": "2026-10-14T00:00:00.000Z", "source": "MANUAL", "note": "From the karaoke admin screen", "updated_by_manager_id": 7, "created_at": "2026-10-14T09:12:00.000Z", "updated_at": "2026-10-14T09:12:00.000Z" } }
+```
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 400 | `crm.common.checkTheDetails` | `detail` lists `{ field, message }` for `points` ("the points are required", "the points must be a number (up to 4 decimals)"), `as_of` ("\"as of\" is not a date or time", "\"as of\" is in the future") or `project_account_id` ("choose one of the customer's linked accounts", when it is missing or not a positive integer). |
+| 404 | `common.notFound` | The account is not on this party, or it is unlinked. |
+| 409 | `crm.rewardPoints.accountAlreadyHasPoints` | The account already has a row ("this account already has points; edit them instead"). Also returned if the unique constraint `uq_crm_reward_points_account` is hit by a concurrent insert. |
+
+### PUT /api/admin/crm/parties/:id/reward-points/:rewardPointsId
+
+Corrects a row (the pencil on the *Reward points* card). The figure entered by hand replaces whatever came before, whatever its `as_of`; `source` becomes `MANUAL`. Audited.
+
+**Permission:** WRITE on `/admin/crm/customers`.
+
+**Path parameters**
+
+| name | type | notes |
+|---|---|---|
+| id | string | `party_pk` |
+| rewardPointsId | string | `reward_points_id`. Its account must belong to this party. |
+
+**Query parameters:** None.
+
+**Request body**
+
+| field | type | required | rules |
+|---|---|---|---|
+| `points` | number or string | yes | As for POST. |
+| `as_of` | string | no | As for POST. Empty = now. |
+| `note` | string or null | no | Changed only when the key is sent (null or empty clears it); left out, the stored note is kept. |
+
+**Response** `200`, message `common.updated`. `data` is the updated `crm_reward_points` row.
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 400 | `crm.common.checkTheDetails` | As for POST (`points`, `as_of`). |
+| 404 | `common.notFound` | `rewardPointsId` is not a positive integer, no such row, or its account is not on this party. |
+
+### DELETE /api/admin/crm/parties/:id/reward-points/:rewardPointsId
+
+Removes a row. The account then has no points in the CRM until a figure is entered, sent or imported again. Audited.
+
+**Permission:** WRITE on `/admin/crm/customers`.
+
+**Path parameters:** as for PUT. **Query parameters:** None. **Request body:** None.
+
+**Response** `200`, message `common.deleted`: `{ "success": true, "message": "deleted", "data": { "reward_points_id": "32" } }`
+
+**Errors**
+
+| status | message key | when |
+|---|---|---|
+| 404 | `common.notFound` | `rewardPointsId` is not a positive integer, no such row, or its account is not on this party. |
 
 ### GET /api/admin/crm/point-accounts
 
@@ -9554,7 +9844,7 @@ Page: `/admin/crm/settings` for all of them. For each list:
 
 | Path | Table | Primary key | Code column | Writable columns (type) | Notes |
 |---|---|---|---|---|---|
-| `projects` | `crm_project` | `project_id` | `project_code` | `project_code` (varchar 30, unique), `project_name` (varchar 150), `project_type_code` (varchar 30), `source_system_code` (varchar 40), `legal_entity_code` (varchar 50), `status` (`ACTIVE`/`INACTIVE`), `identity_role` (`ESHOP`, `USER_MANAGEMENT` or null; one project per role, `409 crm.settings.anotherProjectHasThatRole`) | **In-use guard**, see below. |
+| `projects` | `crm_project` | `project_id` | `project_code` | `project_code` (varchar 30, unique), `project_name` (varchar 150), `project_type_code` (varchar 30), `source_system_code` (varchar 40), `legal_entity_code` (varchar 50), `status` (`ACTIVE`/`INACTIVE`), `identity_role` (`ESHOP`, `USER_MANAGEMENT` or null; one project per role, `409 crm.settings.anotherProjectHasThatRole`), `point_weight` (numeric(12,6) >= 0 or null; company-wide points one of the project's reward points is worth, null = shown but not counted, section 17) | **In-use guard**, see below. |
 | `product-classes` | `crm_product_class` | `product_class_id` | `class_code` | `class_code` (varchar 40), `class_name` (varchar 120), `parent_product_class_id` (int), `product_domain` (`SMARTPHONE`, `EPRODUCT`, `SOFTWARE`, `LICENCE`, `GOODS`, `SERVICE`; required), `rank_no` (smallint), `legacy_column` (varchar 40), `description` (text), `is_active` (boolean) | System codes: `SMARTPHONE`, `EPRODUCT`, `SOFTWARE`, `STB`, `PC`, `CAMERA`, `KARAOKE_LICENCE`, `MEDIA_LICENCE`. |
 | `project-tiers` | `crm_project_tier` | `project_tier_id` | `tier_code` | `project_id` (int, required), `tier_code` (varchar 30), `tier_name` (varchar 100), `rank_no` (smallint), `tier_kind` (`LEVEL`, `GRADE`, `CARD_CLASS`; default `LEVEL`), `source_code` (varchar 60), `min_value` (numeric), `is_active` | Filterable: `project_id`. Unique `(project_id, tier_kind, tier_code)`. |
 | `point-types` | `crm_point_type` | `point_type_id` | `point_type_code` | `point_type_code` (varchar 30), `point_type_name` (varchar 100), `owner_project_id` (int), `is_dream_managed` (boolean), `decimal_places` (smallint, default 3), `expires_after_days` (int > 0), `is_active` | System code: `CRYSTAL`. |
@@ -9813,8 +10103,8 @@ Registers one of the caller's accounts. The CRM either links it to the customer 
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `external_login` | string | yes | The Account ID: the id the customer signs in with, and the account's key. Converted to text and trimmed; 1..250 characters. |
-| `external_account_id` | string | no | The Account PK: the account's internal key in the department system. Converted to text and trimmed; empty is treated as absent; at most 250 characters. |
+| `external_account_id` | string | yes | The Account ID: the id the customer signs in with, and the account's key. Converted to text and trimmed; 1..250 characters. |
+| `external_account_pk` | string | no | The Account PK: the account's internal key in the department system. Converted to text and trimmed; empty is treated as absent; at most 250 characters. |
 | `external_account_type` | string | no | Converted to text and silently cut to 50 characters. |
 | `party` | object | yes | The person. Only the keys below are read; keys sent as `""` are dropped. Values are not trimmed before storage. |
 | `party.full_name` | string | yes | Must be present (400 otherwise); at most 250 characters (after trim); all-blank fails with `crm.problems.nameIsRequired`. |
@@ -9832,12 +10122,12 @@ Validation is `personRules.check(..., 'create', 'PERSON')`, the same checks as t
 
 | `outcome` | When | Effect |
 |---|---|---|
-| `EXISTING` | This project already has an active (`unlinked_at` null) account with this `external_login`. | `external_account_id` / `external_account_type` on the account are updated if sent. The customer's blank person fields are filled from `party` (never overwritten) and a mobile/email it does not have is added. No intake, no resolution row. `intake_id` is null. |
+| `EXISTING` | This project already has an active (`unlinked_at` null) account with this `external_account_id`. | `external_account_pk` / `external_account_type` on the account are updated if sent. The customer's blank person fields are filled from `party` (never overwritten) and a mobile/email it does not have is added. No intake, no resolution row. `intake_id` is null. |
 | `MERGED` | No such account; exactly one existing customer scores 70+ against the person. | Evidence added to that customer as above, account linked (`link_method` `MATCHED`, primary if the customer has no other active account in this project), intake stored with status MERGED, resolution row written. |
 | `CREATED` | No candidate scoring 50+ (customer or pending registration). | New customer (`display_name` = `full_name`, `origin_project_id` = caller's project, mobile/email as primary contacts with `source_project_id` = caller's project), account linked as above, intake CREATED, resolution row written. |
 | `QUEUED` | Any other result: a 50-69 match, two or more 70+ matches, or a pending registration scoring 50+. | Intake stored as PENDING with its candidates; nothing is linked. `party_pk` is null. The result arrives later through the resolution feed. |
 
-If the same `external_login` was submitted before and is not (or no longer) linked, the earlier intake is returned as is and the new body is ignored: `QUEUED` with the same `intake_id` while it is still PENDING, otherwise the stored status (`MERGED` or `CREATED`) with its `party_pk`. In that last case (an account unlinked since) the account is not linked again.
+If the same `external_account_id` was submitted before and is not (or no longer) linked, the earlier intake is returned as is and the new body is ignored: `QUEUED` with the same `intake_id` while it is still PENDING, otherwise the stored status (`MERGED` or `CREATED`) with its `party_pk`. In that last case (an account unlinked since) the account is not linked again.
 
 **Response** `200`
 
@@ -9859,13 +10149,13 @@ If the same `external_login` was submitted before and is not (or no longer) link
 
 | Status | Message | When |
 |---|---|---|
-| 400 | `crm.integration.externalLoginIsRequired` (params `{max: 250}`) | `external_login` missing, blank, or longer than 250 characters. |
-| 400 | `crm.integration.externalAccountIdIsTooLong` (params `{max: 250}`) | `external_account_id` longer than 250 characters. |
+| 400 | `crm.integration.externalAccountIdIsRequired` (params `{max: 250}`) | `external_account_id` missing, blank, or longer than 250 characters. |
+| 400 | `crm.integration.externalAccountPkIsTooLong` (params `{max: 250}`) | `external_account_pk` longer than 250 characters. |
 | 400 | `crm.integration.fullNameIsRequired` | `party` or `party.full_name` missing or `""`. |
 | 400 | `crm.common.checkTheDetails` ("some details are not valid") | `personRules.check` found problems; `detail` = `[{ field, message }]` with each message translated from its key, e.g. `crm.problems.notAPhoneNumber` on `mobile`, `crm.problems.isInTheFuture` on `birth_date`, `crm.problems.genderMustBeMOrF` on `gender_code`, `crm.problems.jobTitleIsSwitchedOff` / `crm.problems.jobTitleIsNotOnTheList` on `job_title_id`, `crm.problems.locationIsNotOnTheList` on `home_location_pk`. |
 | 401 / 403 | see Authentication | |
 
-### GET /api/integration/crm/accounts/:externalLogin
+### GET /api/integration/crm/accounts/:externalAccountId
 
 Which customer one of the caller's accounts belongs to, or where its registration stands.
 
@@ -9875,13 +10165,13 @@ Which customer one of the caller's accounts belongs to, or where its registratio
 
 | Name | Type | Notes |
 |---|---|---|
-| `externalLogin` | string | The account's `external_login` (Account ID), URL-encoded; trimmed; 1..250 characters. |
+| `externalAccountId` | string | The account's `external_account_id` (Account ID), URL-encoded; trimmed; 1..250 characters. |
 
 **Query parameters:** None.
 
 **Request body:** None.
 
-Looks first for an active account link with this `external_login` in the caller's project; if none, the most recent intake (highest `intake_id`, any category) from the caller's project with this `source_record_id`.
+Looks first for an active account link with this `external_account_id` in the caller's project; if none, the most recent intake (highest `intake_id`, any category) from the caller's project with this `source_record_id`.
 
 **Response** `200`
 
@@ -9902,7 +10192,7 @@ Looks first for an active account link with this `external_login` in the caller'
 
 | Status | Message | When |
 |---|---|---|
-| 400 | `crm.integration.externalLoginIsRequired` (params `{max: 250}`) | Blank or longer than 250 characters. |
+| 400 | `crm.integration.externalAccountIdIsRequired` (params `{max: 250}`) | Blank or longer than 250 characters. |
 | 404 | `common.notFound` | Neither a link nor an intake exists for this account. |
 
 ### GET /api/integration/crm/identity-resolutions
@@ -9926,7 +10216,7 @@ A row is written to `crm_identity_resolution` each time an intake whose `source_
 | `resolution_id` | string | Pass to acknowledge. |
 | `intake_id` | string | The registration (equals the `intake_id` returned by POST /registrations). |
 | `source_project_id` | string | The caller's project. |
-| `source_record_id` | string or null | The caller's `external_login` (the Account ID it registered). |
+| `source_record_id` | string or null | The caller's `external_account_id` (the Account ID it registered). |
 | `party_pk` | string | The customer to save against the account. |
 | `outcome` | string | `MERGED`, `CREATED` or `ASSIGNED`. |
 | `acknowledged_at` | null | Always null here. |
@@ -9978,3 +10268,61 @@ Sets `acknowledged_at = now()` on the row if it belongs to the caller's project.
 | Status | Message | When |
 |---|---|---|
 | 404 | `common.notFound` | `id` not a positive integer, no such resolution, or it belongs to another project. |
+
+### POST /api/integration/crm/reward-points
+
+Sends the reward points the caller's own accounts hold in its system, one figure per account. The CRM keeps one row per account (`crm_reward_points`) and does not re-create the system's point rules or follow its movements (section 17). Send the full current figure, not a change.
+
+**Authentication:** department API key. The project is the key's; only its accounts can be updated.
+
+**Path parameters:** None.
+
+**Query parameters:** None.
+
+**Request body**: `{ "accounts": [ ... ] }`, or the bare array. At most 5000 items.
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `external_account_id` | string | yes | The Account ID of a live (not unlinked) account of the caller's project. Trimmed. |
+| `points` | number or string | yes | Up to 16 digits and 4 decimals; may be negative. Spaces and `,` are dropped. |
+| `as_of` | string | no | ISO 8601: when the figure was true in the system. Empty = when the CRM receives it. At most 10 minutes in the future. |
+
+Each item is stored (the account's row is created or replaced, source `API`) unless the stored figure is newer (`STALE`), the account is not found (`UNKNOWN_ACCOUNT`) or the item is not valid (`INVALID`); an item identical to the stored one (same points and `as_of`) is `UNCHANGED`. Nothing fails the batch as a whole. Sending `as_of` is recommended, so a delayed or retried push cannot overwrite a newer figure. Pushes are not written to the audit log.
+
+```json
+{
+  "accounts": [
+    { "external_account_id": "mary.c", "points": 1200, "as_of": "2026-10-13T16:00:00Z" },
+    { "external_account_id": "wangli", "points": "12abc" }
+  ]
+}
+```
+
+**Response** `200`: `data` is the summary described in section 17.
+
+| Field | Type | Notes |
+|---|---|---|
+| `received` | integer | Items in the body. |
+| `updated`, `unchanged`, `stale`, `unknown_accounts`, `invalid` | integer | Items by outcome (`updated` includes rows created). |
+| `problems` | array | `{ row, external_account_id, status, message }` for each item that is `STALE`, `UNKNOWN_ACCOUNT` or `INVALID`. `row` is the item's 1-based position; `message` is translated. |
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "received": 2, "updated": 1, "unchanged": 0, "stale": 0, "unknown_accounts": 0, "invalid": 1,
+    "problems": [
+      { "row": 2, "external_account_id": "wangli", "status": "INVALID", "message": "the points must be a number (up to 4 decimals)" }
+    ]
+  }
+}
+```
+
+**Errors**
+
+| Status | Message | When |
+|---|---|---|
+| 400 | `crm.rewardPoints.nothingSent` | The body is neither an array nor `{ accounts: [...] }`, or the list is empty. |
+| 400 | `crm.rewardPoints.tooManyRows` (params `{max: 5000}`) | More than 5000 items. |
+| 401 / 403 | see Authentication | |

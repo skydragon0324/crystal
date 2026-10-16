@@ -293,6 +293,9 @@ module.exports = {
       unknownChannel: 'unknown channel'
     },
     customers: {
+      accountLinkedToAnother: 'this account is already linked to {customer}; it was not linked again',
+      thisCustomerAlreadyHasThatAccount: 'this customer already has the account {account}',
+      phoneBelongsToAnother: 'this phone number already belongs to {customer}; one number can belong to one customer only',
       contactIsInUse: 'the contact has been used (consent, campaign or interaction), so it cannot be deleted: set its status to Retired or Invalid instead',
       onlyAnActiveContactCanBePrimary: 'only an active contact can be primary',
       aCustomerCannotBeRelatedToThemselves: 'a customer cannot be related to themselves',
@@ -393,6 +396,10 @@ module.exports = {
       unknownPointType: 'unknown point type'
     },
     memberships: {
+      thatTierIsOfAnotherKind: 'that tier is of another kind than this membership; choose a tier of the same kind',
+      chooseAnAccount: "choose one of the customer's linked accounts",
+      chooseATier: 'choose a tier',
+      aReasonForTheChange: 'this account already has a tier of that kind; give a reason for the change',
       alreadyOnThatTier: 'the member is already on that tier',
       thatTierBelongsToAnotherProject: 'that tier belongs to another project'
     },
@@ -530,6 +537,8 @@ module.exports = {
       same_user_id: 'same user ID'
     },
     registrations: {
+      phoneBelongsToSomeoneElse: 'its phone number belongs to {customer}: merge it into that customer, or create a new customer without the number',
+      phoneBelongsToThem: 'has the same phone number',
       chooseAPerson: 'choose a person',
       chooseLinkOrReject: 'choose link or reject',
       chooseMergeNewOrAssign: 'choose merge, register as new, or assign',
@@ -537,9 +546,23 @@ module.exports = {
       resolveTheMatchingPendingFirst: 'resolve the matching pending registration first',
       unverifiedProjectAssignment: 'unverified project assignment'
     },
+    rewardPoints: {
+      pointsAreRequired: 'the points are required',
+      pointsMustBeANumber: 'the points must be a number (up to 4 decimals)',
+      asOfIsNotATime: '"as of" is not a date or time',
+      asOfIsInTheFuture: '"as of" is in the future',
+      accountIdIsRequired: 'the Account ID is required',
+      chooseAnAccount: "choose one of the customer's linked accounts",
+      noSuchAccount: 'no linked account with this Account ID in this project',
+      noSuchProject: 'no project with this code',
+      olderThanStored: 'older than the points already stored; ignored',
+      accountAlreadyHasPoints: 'this account already has points; edit them instead',
+      nothingSent: 'nothing was sent',
+      tooManyRows: 'at most {max} rows at a time'
+    },
     smartphoneOffline: {
       noProject: 'there is no project with the code {code}; add it in Settings > Projects',
-      notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (SMARTPHONE_OFFLINE_BASE_URL)',
+      notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (PHONE_SERVER_URL)',
       chooseARange: 'enter the first and the last customer number',
       rangeIsBackwards: 'the first customer number must not be larger than the last',
       noCustomersInRange: 'no customer with a phone number in that range',
@@ -548,8 +571,8 @@ module.exports = {
     },
     integration: {
       aValidApiKeyIsRequired: 'a valid department API key is required',
-      externalLoginIsRequired: 'external_login (the account ID) is required (at most {max} characters)',
-      externalAccountIdIsTooLong: 'external_account_id is longer than {max} characters',
+      externalAccountIdIsRequired: 'external_account_id (the account ID) is required (at most {max} characters)',
+      externalAccountPkIsTooLong: 'external_account_pk is longer than {max} characters',
       fullNameIsRequired: 'party.full_name is required',
       thisProjectIsInactive: 'this project is inactive'
     }

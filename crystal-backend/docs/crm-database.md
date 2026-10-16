@@ -16,8 +16,8 @@ Every CRM table and view, field by field. Business rules and screens are explain
 | **Who did it** | `*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives. |
 | **History** | `valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it. |
 | **Source ids** | `source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates. |
-| **Account ids** | In a project account, `external_login` is the id the customer signs in with (shown as "Account ID") and is the account's key: required, one active link per project + Account ID. `external_account_id` is the project's internal key (shown as "Account PK" in the console) and is optional. |
-| **Money and points** | Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). Points are `numeric(14,3)`. |
+| **Account ids** | In a project account, `external_account_id` is the id the customer signs in with (shown as "Account ID") and is the account's key: required, one active link per project + Account ID. `external_account_pk` is the project's internal key (shown as "Account PK" in the console) and is optional. |
+| **Money and points** | Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). CRM ledger points are `numeric(14,3)`; the reward points a business-system account holds (`crm_reward_points.points`) are `numeric(20,4)`. |
 
 In the field tables, **Req.** means NOT NULL, **(PK)** marks the primary key, and **Links to / allowed values**
 shows the foreign key (→) and the values the column's CHECK constraint allows.
@@ -33,7 +33,7 @@ shows the foreign key (→) and the values the column's CHECK constraint allows.
 | 5 | [Communication and consent](#5-communication-and-consent) | What each project may send, through which channel and for which purpose, and what each customer agreed to. Consent changes are kept as an append-only history. | 5 |
 | 6 | [Products, registrations and transfers](#6-products-registrations-and-transfers) | The product catalogue, concrete product instances (by serial, IMEI or licence key), who holds each instance over time, and requests to hand an instance to someone else. | 13 |
 | 7 | [Transactions](#7-transactions) | Sales, purchases, refunds and reversals from every project, with their lines and the customers involved. | 3 |
-| 8 | [Memberships and points](#8-memberships-and-points) | Each customer membership and tier in each project, and the points ledger: one append-only ledger, one balance per point currency. | 8 |
+| 8 | [Memberships and points](#8-memberships-and-points) | Each customer membership and tier in each project; the reward points each linked business-system account holds in its own system (crm_reward_points), weighted by project into a company-wide score that is never stored (v_crm_party_company_points); and the CRM's own points ledger (one append-only ledger, one balance per point currency), which is not part of that score and whose screens are hidden for now. | 10 |
 | 9 | [Service cases](#9-service-cases) | A summary of every service contact (repair, complaint, enquiry) from any project, with its status and classification. | 10 |
 | 10 | [Sites (service centres) and service center activity](#10-sites-service-centres-and-service-center-activity) | Physical places (service centres, agencies, shops), what each may do, what happened there, and the targets set for them. | 7 |
 | 11 | [Events (formerly "programs")](#11-events-formerly-programs) | Customer activity events: phone reservations, lotteries, prize services, puzzles, survey rewards, attendance events. An event decides who may take part (targets), how many entries exist (quotas), and what is handed out (rewards and awards). | 9 |
@@ -61,7 +61,8 @@ Registry of Dream projects. Each project is one operational source system and th
 | **Used by** | Settings > Projects; imports and the department API. The Excel import finds its e-shop and user-management projects by `identity_role`, not by code. |
 | **Primary key** | `project_id` |
 | **Unique** | (project_code)<br>(identity_role, (partial: (identity_role IS NOT NULL))) |
-| **Code** | `scripts/`: crm-import-mock<br>`src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, cases.service, customer360.service, engagement.service, events.service, identityProjects, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, search.service, sites.service, transactions.service |
+| **Rules** | `CHECK (((point_weight IS NULL) OR (point_weight >= (0))))` |
+| **Code** | `scripts/`: crm-import-mock<br>`src/controllers/`: crm.controller<br>`src/repositories/crm/`: parties.repository, vocabulary.repository<br>`src/routes/`: crm.routes<br>`src/services/crm/`: analysis.service, analysisRead.service, cases.service, customer360.service, engagement.service, events.service, identityProjects, marketing.service, memberships.service, organizations.service, parties.service, personDuplicates, personImport.service, personRules, points.service, products.service, projectApiKeys.service, registrationIntake.service, rewardPoints.service, search.service, sites.service, transactions.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
@@ -75,6 +76,7 @@ Registry of Dream projects. Each project is one operational source system and th
 | `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
 | `updated_at` | timestamptz | yes | `now()` |  | When the row was last changed. |
 | `identity_role` | varchar(30) |  |  | `ESHOP`, `USER_MANAGEMENT` | ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_id is the same person). At most one project per role; set in Settings > Projects. |
+| `point_weight` | numeric(12,6) |  |  |  | Company-wide points one of this project's reward points is worth (Settings > Projects). NULL = its points (crm_reward_points) are shown but not counted in the company-wide score. |
 
 ### crm_project_api_key
 
@@ -697,17 +699,17 @@ Links a party to the account id a project issues. Main cross-project identity ma
 |---|---|
 | **Used by** | Customer 360 > Accounts; department API; Crystal and vendor imports; account assignment review (Customers > Account assignments). |
 | **Primary key** | `project_account_id` |
-| **Unique** | (project_id, external_login, (partial: (unlinked_at IS NULL))) |
+| **Unique** | (project_id, external_account_id, (partial: (unlinked_at IS NULL))) |
 | **Rules** | `CHECK (((link_confidence >= (0)) AND (link_confidence <= (1))))`<br>`CHECK (((unlinked_at IS NULL) OR (unlinked_at >= linked_at)))` |
-| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service |
+| **Code** | `scripts/`: demo-crm<br>`src/db/seeds/`: 00_reset<br>`src/repositories/crm/`: parties.repository<br>`src/routes/`: crmIntegration.routes<br>`src/services/crm/`: analysis.service, analysisRun.service, customer360.service, identity.service, marketing.service, parties.service, personDuplicates, personImport.service, registrationIntake.service, rewardPoints.service |
 
 | Field | Type | Req. | Default | Links to / allowed values | Meaning |
 |---|---|:---:|---|---|---|
 | `project_account_id` (PK) | bigint | yes | `identity` |  | Account link key. |
 | `party_pk` | bigint | yes |  | → `crm_party.party_pk` | Customer the account belongs to. |
 | `project_id` | int | yes |  | → `crm_project.project_id` | Project that issued the account. |
-| `external_account_id` | varchar(250) |  |  |  | The account's internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional. |
-| `external_login` | varchar(250) | yes |  |  | The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account's key: required, and only one active link per project + Account ID. |
+| `external_account_pk` | varchar(250) |  |  |  | The account's internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional. |
+| `external_account_id` | varchar(250) | yes |  |  | The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account's key: required, and only one active link per project + Account ID. |
 | `external_account_type` | varchar(50) |  |  |  | Kind of account in the project (MEMBER, PID, ESHOP_CUSTOMER, ...). |
 | `crystal_user_id` | int |  |  | → `users.id (set null on delete)` | For Crystal accounts, the Crystal user row (→ users). |
 | `account_status` | varchar(30) |  |  |  | Status reported by the project. |
@@ -736,7 +738,7 @@ Every incoming registration (console, Excel row, department API, imports) and ev
 |---|---|:---:|---|---|---|
 | `intake_id` (PK) | bigint | yes | `identity` |  | Intake key; departments receive it for QUEUED registrations. |
 | `source_project_id` | bigint |  |  | → `crm_project.project_id` | Project the registration came from. |
-| `source_record_id` | text |  |  |  | The record's id in the source (the account's Account ID `external_login`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake. |
+| `source_record_id` | text |  |  |  | The record's id in the source (the account's Account ID `external_account_id`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake. |
 | `category` | text | yes | `'PERSON'` | `PERSON`, `ESHOP` | PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment. |
 | `status` | text | yes | `'PENDING'` | `PENDING`, `MERGED`, `CREATED`, `ASSIGNED`, `REJECTED` | PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment). |
 | `payload` | jsonb | yes |  |  | What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet's e-shop and user identifiers, staged for review once the person is resolved). |
@@ -762,7 +764,7 @@ Results departments collect: for each resolved intake, the customer key to store
 | `resolution_id` (PK) | bigint | yes | `identity` |  | Result key; the department acknowledges by this id. |
 | `intake_id` | bigint | yes |  | → `crm_registration_intake.intake_id` | The intake that was resolved (one result per intake). |
 | `source_project_id` | bigint |  |  | → `crm_project.project_id` | Project the data came from (→ crm_project). |
-| `source_record_id` | text |  |  |  | The department's own record id (the Account ID, `external_login`, it registered), so it can update the right record. |
+| `source_record_id` | text |  |  |  | The department's own record id (the Account ID, `external_account_id`, it registered), so it can update the right record. |
 | `party_pk` | bigint | yes |  | → `crm_party.party_pk` | Customer key to store. Updated if the customer is later merged. |
 | `outcome` | text | yes |  |  | CREATED, MERGED or ASSIGNED. |
 | `acknowledged_at` | timestamptz |  |  |  | When the department confirmed it saved the key; acknowledged results leave the feed. |
@@ -1429,18 +1431,20 @@ Parties in a transaction and their role.
 
 ## 8. Memberships and points
 
-Each customer membership and tier in each project, and the points ledger: one append-only ledger, one balance per point currency.
+Each customer membership and tier in each project; the reward points each linked business-system account holds in its own system (crm_reward_points), weighted by project into a company-wide score that is never stored (v_crm_party_company_points); and the CRM's own points ledger (one append-only ledger, one balance per point currency), which is not part of that score and whose screens are hidden for now.
 
 | Table | Kind | Purpose |
 |---|---|---|
 | [crm_membership](#crm_membership) | table | Current membership state of a party in a project. |
 | [crm_membership_tier_history](#crm_membership_tier_history) | table | History of tier changes. |
-| [crm_point_type](#crm_point_type) | table | A point currency. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT (appstore + karaoke + bmedia), REGISTER (phone + eproduct registration), CRYSTAL (point_logs), ESHOP_PRIZE. |
+| [crm_point_type](#crm_point_type) | table | A point currency of the CRM's own ledger. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT, REGISTER, MEMBER; each needs an owner project before points can be posted to it. |
 | [crm_point_account](#crm_point_account) | table | Balance of one party in one currency: the cached total of crm_point_event, like wallets.point_balance over point_logs. |
 | [crm_point_event](#crm_point_event) | table | Append-only point ledger for every currency. Generalises crm_membership_point_event: an event belongs to a point account, and through it to a membership when there is one. |
 | [crm_point_event_type](#crm_point_event_type) | table | Point event categories. Seeded: EARN, REDEEM, EXPIRE, ADJUST, REFUND, RESERVATION_COST, EVENT_AWARD, MERGE_CARRY_OVER. |
 | [crm_point_rule](#crm_point_rule) | table | How points are earned: one row per rule, replacing activity_point_types (6-digit codes), register_point_types (points per product) and duties (tasks). |
 | [v_crm_point_account_drift](#v_crm_point_account_drift) | view | View: point accounts whose cached balance differs from the sum of their ledger. Should be empty. |
+| [crm_reward_points](#crm_reward_points) | table | The reward points one business-system account holds in its own system, as last entered or reported. One row per linked account; the customer and the system come from crm_project_account. Movements are not kept. |
+| [v_crm_party_company_points](#v_crm_party_company_points) | view | Company-wide points per customer: each linked account's reward points times its project's weight. Never stored. Points of projects without a weight are counted in uncounted_systems, not in the score. |
 
 ### crm_membership
 
@@ -1462,7 +1466,7 @@ Current membership state of a party in a project.
 | `external_member_id` | varchar(250) |  |  |  | Member/card number in the project. |
 | `current_tier_id` | int |  |  |  | Current tier (→ crm_project_tier). |
 | `tier_value` | numeric(20,4) |  |  |  | Value the tier is based on. |
-| `available_reward_points` | numeric(20,4) |  |  |  | Points available as reported by the project. |
+| `available_reward_points` | numeric(20,4) |  |  |  | Unused: nothing writes it (the Memberships list still shows it). Superseded by the per-account rows in crm_reward_points. |
 | `membership_status` | varchar(30) | yes | `'ACTIVE'` | `ACTIVE`, `INACTIVE`, `SUSPENDED`, `LEFT` | ACTIVE, INACTIVE, SUSPENDED or LEFT. |
 | `source_payload` | jsonb |  |  |  | Raw data received from the project. |
 | `joined_at` | timestamptz |  |  |  | When the customer joined. |
@@ -1492,11 +1496,12 @@ History of tier changes.
 
 ### crm_point_type
 
-A point currency. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT (appstore + karaoke + bmedia), REGISTER (phone + eproduct registration), CRYSTAL (point_logs), ESHOP_PRIZE.
+A point currency of the CRM's own ledger. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT, REGISTER, MEMBER; each needs an owner project before points can be posted to it.
 
 | About | |
 |---|---|
-| **Used by** | Points screen; Settings > Point types; point rules; events (ranking and cost). |
+| **Schema comment** | A point currency of the CRM's own ledger. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT, REGISTER, MEMBER. |
+| **Used by** | Points screen (ledger tabs, hidden for now); Settings > Point types; point rules; events (ranking and cost). Not part of company-wide points. |
 | **Primary key** | `point_type_id` |
 | **Unique** | (point_type_code) |
 | **Rules** | `CHECK ((expires_after_days > 0))` |
@@ -1641,6 +1646,45 @@ View: point accounts whose cached balance differs from the sum of their ledger. 
 | `point_type_id` | smallint |  |  |  | Point currency (→ crm_point_type). |
 | `balance` | numeric(14,3) |  |  |  | Cached balance. |
 | `ledger_balance` | numeric |  |  |  | Sum of the ledger. |
+
+### crm_reward_points
+
+The reward points one business-system account holds in its own system, as last entered or reported. One row per linked account; the customer and the system come from crm_project_account. Movements are not kept.
+
+| About | |
+|---|---|
+| **Used by** | Customer 360 > Accounts (Reward points card: add, edit, remove); Points page; Integration API POST /reward-points; Excel import. |
+| **Primary key** | `reward_points_id` |
+| **Unique** | (project_account_id) |
+| **Code** | `src/services/crm/`: rewardPoints.service |
+
+| Field | Type | Req. | Default | Links to / allowed values | Meaning |
+|---|---|:---:|---|---|---|
+| `reward_points_id` (PK) | bigint | yes | `identity` |  | Row key. |
+| `project_account_id` | bigint | yes |  | → `crm_project_account.project_account_id (cascade delete)` | The business-system account the points are held on; one row per account. The customer and the system come from it, so the row follows the account on merge and unmerge, is not shown or counted while the account is unlinked, and is deleted with it. |
+| `points` | numeric(20,4) | yes |  |  | The points the account holds in its business system. |
+| `as_of` | timestamptz | yes | `now()` |  | When the figure was true: the system's own time when it sends one, else when it was entered. |
+| `source` | varchar(10) | yes | `'MANUAL'` | `MANUAL`, `API`, `IMPORT` | MANUAL (entered in the console), API (sent by the business system), IMPORT (an Excel sheet). |
+| `note` | varchar(500) |  |  |  | Where the figure came from, for whoever checks it later. Changed only when one is sent. |
+| `updated_by_manager_id` | int |  |  | → `managers.id (set null on delete)` | Console manager who last entered or imported the figure; NULL when the business system sent it. |
+| `created_at` | timestamptz | yes | `now()` |  | When the row was created. |
+| `updated_at` | timestamptz | yes | `now()` |  | When the CRM last stored a figure for this account. |
+
+### v_crm_party_company_points
+
+Company-wide points per customer: each linked account's reward points times its project's weight. Never stored. Points of projects without a weight are counted in uncounted_systems, not in the score.
+
+| About | |
+|---|---|
+| **Used by** | Customer 360 header and Reward points card; Points page; analysis metric POINTS_BALANCE ("Company-wide points"). |
+| **Code** | `src/services/crm/`: analysisRun.service, rewardPoints.service |
+
+| Field | Type | Req. | Default | Links to / allowed values | Meaning |
+|---|---|:---:|---|---|---|
+| `party_pk` | bigint |  |  |  | The customer (person or organization) this row belongs to (→ crm_party). |
+| `company_points` | numeric |  |  |  | Each linked account's points times its project's point_weight, summed and rounded to 4 decimals. For ranking only; nothing is spent from it. |
+| `counted_systems` | bigint |  |  |  | Rows (business-system accounts) included in company_points. |
+| `uncounted_systems` | bigint |  |  |  | Rows left out because their project has no weight. |
 
 ## 9. Service cases
 

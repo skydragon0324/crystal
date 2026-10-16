@@ -9,12 +9,17 @@
  * them. So both call this.
  */
 
-/** Digits only, keeping a leading +: "+86 138-0013 8000" -> "+8613800138000". */
+/**
+ * Digits only: "+86 138-0013 8000" -> "8613800138000". Phones are stored this
+ * way, both as entered and normalised; the screens add hyphens to show them.
+ */
 function phone(value) {
-  const text = String(value || '').trim();
-  const digits = text.replace(/[^\d]/g, '');
-  if (!digits) return '';
-  return (text.charAt(0) === '+' ? '+' : '') + digits;
+  return String(value || '').replace(/[^\d]/g, '');
+}
+
+/** A contact type whose value is a phone number, kept as digits. */
+function isPhone(type) {
+  return ['MOBILE', 'PHONE', 'SIM_CID'].indexOf(String(type || '').toUpperCase()) !== -1;
 }
 
 function email(value) {
@@ -61,6 +66,7 @@ function mask(value) {
 
 module.exports = {
   phone: phone,
+  isPhone: isPhone,
   email: email,
   normalise: normalise,
   searchForms: searchForms,

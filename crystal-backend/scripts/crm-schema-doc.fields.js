@@ -15,8 +15,8 @@ const conventions = [
   ['Who did it', '`*_manager_id` points at `managers.id`, the console user who did something. It is set to NULL if the manager is deleted, so history survives.'],
   ['History', '`valid_from` / `valid_to`: a row is current while `valid_to` is NULL (or in the future). Closing a row sets `valid_to` instead of deleting it.'],
   ['Source ids', '`source_*`, `external_*` and `crystal_*` fields keep the id a row had in the system it was imported from, so re-running an import updates rather than duplicates.'],
-  ['Account ids', 'In a project account, `external_login` is the id the customer signs in with (shown as "Account ID") and is the account\'s key: required, one active link per project + Account ID. `external_account_id` is the project\'s internal key (shown as "Account PK" in the console) and is optional.'],
-  ['Money and points', 'Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). Points are `numeric(14,3)`.']
+  ['Account ids', 'In a project account, `external_account_id` is the id the customer signs in with (shown as "Account ID") and is the account\'s key: required, one active link per project + Account ID. `external_account_pk` is the project\'s internal key (shown as "Account PK" in the console) and is optional.'],
+  ['Money and points', 'Money is `numeric(20,4)` with a `currency_code`; `reporting_*` amounts are converted to the reporting currency (`crm_currency.is_reporting`). CRM ledger points are `numeric(14,3)`; the reward points a business-system account holds (`crm_reward_points.points`) are `numeric(20,4)`.']
 ];
 
 const common = {
@@ -125,9 +125,9 @@ const groups = [
     intro: 'Sales, purchases, refunds and reversals from every project, with their lines and the customers involved.',
     tables: ['crm_transaction', 'crm_transaction_item', 'crm_transaction_party'] },
   { title: 'Memberships and points',
-    intro: 'Each customer membership and tier in each project, and the points ledger: one append-only ledger, one balance per point currency.',
+    intro: 'Each customer membership and tier in each project; the reward points each linked business-system account holds in its own system (crm_reward_points), weighted by project into a company-wide score that is never stored (v_crm_party_company_points); and the CRM\'s own points ledger (one append-only ledger, one balance per point currency), which is not part of that score and whose screens are hidden for now.',
     tables: ['crm_membership', 'crm_membership_tier_history', 'crm_point_type', 'crm_point_account', 'crm_point_event',
-      'crm_point_event_type', 'crm_point_rule', 'v_crm_point_account_drift'] },
+      'crm_point_event_type', 'crm_point_rule', 'v_crm_point_account_drift', 'crm_reward_points', 'v_crm_party_company_points'] },
   { title: 'Service cases',
     intro: 'A summary of every service contact (repair, complaint, enquiry) from any project, with its status and classification.',
     tables: ['crm_service_case', 'crm_service_case_type', 'crm_service_status', 'crm_service_status_map', 'crm_service_priority',
@@ -165,7 +165,8 @@ const tables = {
       source_system_code: 'Which technical system feeds this project (VENDOR_ORACLE, ESHOP_API, ...). Informational only.',
       legal_entity_code: 'Legal entity that operates the project, for reporting.',
       status: 'INACTIVE projects stay in history but are not offered for new data.',
-      identity_role: 'ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_id is the same person). At most one project per role; set in Settings > Projects.'
+      identity_role: 'ESHOP: the project of the Excel import’s E-shop PK / ID columns. USER_MANAGEMENT: the project of its User PK / User ID columns (the same user_id is the same person). At most one project per role; set in Settings > Projects.',
+      point_weight: 'Company-wide points one of this project\'s reward points is worth (Settings > Projects). NULL = its points (crm_reward_points) are shown but not counted in the company-wide score.'
     }
   },
   crm_project_api_key: {
@@ -393,8 +394,8 @@ const tables = {
       project_account_id: 'Account link key.',
       party_pk: 'Customer the account belongs to.',
       project_id: 'Project that issued the account.',
-      external_account_id: 'The account\'s internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional.',
-      external_login: 'The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account\'s key: required, and only one active link per project + Account ID.',
+      external_account_pk: 'The account\'s internal key in that project (e-shop: eshop_pk; Crystal: users.id). Shown as "Account PK" in the console. Optional.',
+      external_account_id: 'The id the customer signs in with in that project (e-shop: eshop_id). Shown as "Account ID" in the console. The account\'s key: required, and only one active link per project + Account ID.',
       external_account_type: 'Kind of account in the project (MEMBER, PID, ESHOP_CUSTOMER, ...).',
       crystal_user_id: 'For Crystal accounts, the Crystal user row (→ users).',
       account_status: 'Status reported by the project.',
@@ -411,7 +412,7 @@ const tables = {
     fields: {
       intake_id: 'Intake key; departments receive it for QUEUED registrations.',
       source_project_id: 'Project the registration came from.',
-      source_record_id: 'The record\'s id in the source (the account\'s Account ID `external_login`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake.',
+      source_record_id: 'The record\'s id in the source (the account\'s Account ID `external_account_id`, `excel:<file hash>:<row>` - shown as "Excel row N" -, an e-shop or user ID). Unique with project and category, so retries reuse the intake.',
       category: 'PERSON = who is this person; ESHOP = which customer does this identifier (e-shop or user management) belong to - an account assignment.',
       status: 'PENDING until decided; then CREATED, MERGED (person) or ASSIGNED, REJECTED (account assignment).',
       payload: 'What was submitted: `party` (person data, with every phone in `contacts`), `account` (project account to link once resolved), `unverified_accounts` (the spreadsheet\'s e-shop and user identifiers, staged for review once the person is resolved).',
@@ -427,7 +428,7 @@ const tables = {
     fields: {
       resolution_id: 'Result key; the department acknowledges by this id.',
       intake_id: 'The intake that was resolved (one result per intake).',
-      source_record_id: 'The department\'s own record id (the Account ID, `external_login`, it registered), so it can update the right record.',
+      source_record_id: 'The department\'s own record id (the Account ID, `external_account_id`, it registered), so it can update the right record.',
       party_pk: 'Customer key to store. Updated if the customer is later merged.',
       outcome: 'CREATED, MERGED or ASSIGNED.',
       acknowledged_at: 'When the department confirmed it saved the key; acknowledged results leave the feed.'
@@ -639,7 +640,7 @@ const tables = {
     usedBy: 'Memberships screen; Customer 360 > Accounts; vendor import.',
     fields: {
       external_member_id: 'Member/card number in the project.', current_tier_id: 'Current tier (→ crm_project_tier).',
-      tier_value: 'Value the tier is based on.', available_reward_points: 'Points available as reported by the project.',
+      tier_value: 'Value the tier is based on.', available_reward_points: 'Unused: nothing writes it (the Memberships list still shows it). Superseded by the per-account rows in crm_reward_points.',
       membership_status: 'ACTIVE, INACTIVE, SUSPENDED or LEFT.', source_payload: 'Raw data received from the project.',
       joined_at: 'When the customer joined.', left_at: 'When they left.', synced_at: 'Last sync from the project.'
     }
@@ -652,7 +653,8 @@ const tables = {
     }
   },
   crm_point_type: {
-    usedBy: 'Points screen; Settings > Point types; point rules; events (ranking and cost).',
+    purpose: 'A point currency of the CRM\'s own ledger. Currencies are not interchangeable (karaoke points cannot buy an app). Seeded: ACTIVITY, SOFT, REGISTER, MEMBER; each needs an owner project before points can be posted to it.',
+    usedBy: 'Points screen (ledger tabs, hidden for now); Settings > Point types; point rules; events (ranking and cost). Not part of company-wide points.',
     fields: {
       point_type_code: 'Stable code.', point_type_name: 'Name shown in the console.', owner_project_id: 'Project that owns the currency.',
       is_dream_managed: 'Balance is kept by the CRM ledger (not only mirrored from a project).', expires_after_days: 'Points expire this many days after earning; NULL = never.'
@@ -694,6 +696,24 @@ const tables = {
     purpose: 'View: point accounts whose cached balance differs from the sum of their ledger. Should be empty.',
     usedBy: 'Health checks.',
     fields: { point_account_id: 'Account.', balance: 'Cached balance.', ledger_balance: 'Sum of the ledger.' }
+  },
+  crm_reward_points: {
+    usedBy: 'Customer 360 > Accounts (Reward points card: add, edit, remove); Points page; Integration API POST /reward-points; Excel import.',
+    fields: {
+      reward_points_id: 'Row key.',
+      project_account_id: 'The business-system account the points are held on; one row per account. The customer and the system come from it, so the row follows the account on merge and unmerge, is not shown or counted while the account is unlinked, and is deleted with it.',
+      note: 'Where the figure came from, for whoever checks it later. Changed only when one is sent.',
+      updated_by_manager_id: 'Console manager who last entered or imported the figure; NULL when the business system sent it.',
+      updated_at: 'When the CRM last stored a figure for this account.'
+    }
+  },
+  v_crm_party_company_points: {
+    usedBy: 'Customer 360 header and Reward points card; Points page; analysis metric POINTS_BALANCE ("Company-wide points").',
+    fields: {
+      company_points: 'Each linked account\'s points times its project\'s point_weight, summed and rounded to 4 decimals. For ranking only; nothing is spent from it.',
+      counted_systems: 'Rows (business-system accounts) included in company_points.',
+      uncounted_systems: 'Rows left out because their project has no weight.'
+    }
   },
 
   /* ---------------------------------------------------------------- service */

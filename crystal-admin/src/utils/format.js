@@ -194,3 +194,17 @@ export function labelOf(map, value) {
 const format = { money, number, percent, trend, date, dateTime, dateMinute, since, labelOf };
 
 export default format;
+
+/**
+ * A phone number as people read it. Numbers are stored as digits only; a
+ * ten-digit number is shown XXX-XXX-XXXX, anything else (an international or
+ * short number) as its digits. A value with letters in it is shown as it is.
+ */
+export function formatPhone(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const text = String(value);
+  if (/[a-z]/i.test(text)) return text;
+  const digits = text.replace(/\D/g, '');
+  if (digits.length === 10) return digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6);
+  return digits || text;
+}

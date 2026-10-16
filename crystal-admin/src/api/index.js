@@ -397,6 +397,8 @@ export const crm = {
     distribution: () => client.get(CRM + '/memberships/distribution'),
     history: (id) => client.get(CRM + '/memberships/' + id + '/history'),
     setTier: (id, tierId, reason) => client.post(CRM + '/memberships/' + id + '/tier', { tier_id: tierId, reason: reason }),
+    /* A tier given by hand to one of a customer's accounts: { party_pk, project_account_id, tier_id, reason?, joined_at?, external_member_id? }. */
+    add: (payload) => client.post(CRM + '/memberships', payload),
     setStatus: (id, status) => client.post(CRM + '/memberships/' + id + '/status', { membership_status: status })
   },
 
@@ -478,6 +480,22 @@ export const crm = {
     linkAccount: (id, payload) => client.post(CRM + '/parties/' + id + '/accounts', payload),
     /* Account ID, PK, type, and is_primary (making one primary unsets the others in that project). */
     updateAccount: (id, accountId, payload) => client.put(CRM + '/parties/' + id + '/accounts/' + accountId, payload),
+    /* A tier given by hand to one of this customer's accounts (see memberships.add). */
+    addTier: (id, payload) => client.post(CRM + '/parties/' + id + '/memberships', payload),
+    /* The customer's e-shop orders, read live from the e-shop: { project_account_id } one account, 'ALL' every one; and one order's lines. */
+    eshopOrders: (id, params) => client.get(CRM + '/parties/' + id + '/eshop-orders', { params }),
+    eshopOrder: (id, orderId, accountId) => client.get(CRM + '/parties/' + id + '/eshop-orders/' + encodeURIComponent(orderId), { params: { project_account_id: accountId } }),
+    /* The customer's Appstore purchases, read live from the Appstore (same params, plus from, to, q); and one purchase's licence (audited). */
+    /* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs. */
+    /* What the projects' own systems say about the customer: header figures, Service summary, Recent activity. */
+    projectSummary: (id) => client.get(CRM + '/parties/' + id + '/project-summary'),
+    smartphoneDevices: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/devices'),
+    /* The service history of those devices in SMARTPHONE_OFFLINE, by the same Account IDs. */
+    smartphoneServices: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/services'),
+    /* The privileges of the customer's devices in SMARTPHONE_OFFLINE (the Privileges tab). */
+    smartphonePrivileges: (id) => client.get(CRM + '/parties/' + id + '/smartphone-offline/privileges'),
+    appstorePurchases: (id, params) => client.get(CRM + '/parties/' + id + '/appstore-purchases', { params }),
+    appstoreLicence: (id, purchaseId, accountId) => client.get(CRM + '/parties/' + id + '/appstore-purchases/' + encodeURIComponent(purchaseId) + '/licence', { params: { project_account_id: accountId } }),
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     /* Look this customer's phone numbers up in the SMARTPHONE_OFFLINE system and link what it finds. */
     autoLinkSmartphoneOffline: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/link'),
@@ -493,9 +511,11 @@ export const crm = {
     /* Rows of a customer import that failed the file check, kept until dismissed. */
     importErrors: (params) => client.get(CRM + '/import-errors', { params }),
     dismissImportError: (id) => client.post(CRM + '/import-errors/' + id + '/dismiss'),
-    /* action: LINK or REJECT, for one { project_id, external_login } listed there. */
+    /* action: LINK or REJECT, for one { project_id, external_account_id } listed there. */
     decideUnverified: (id, payload) => client.post(CRM + '/parties/' + id + '/unverified-accounts/decide', payload),
     duplicates: (params) => client.get(CRM + '/duplicates', { params }),
+    /* Numbers more than one customer has, from before a number could belong to one customer only. */
+    sharedPhones: () => client.get(CRM + '/duplicates/shared-phones'),
     scanDuplicates: () => client.post(CRM + '/duplicates/scan'),
     acceptDuplicate: (id) => client.post(CRM + '/duplicates/' + id + '/accept'),
     rejectDuplicate: (id) => client.post(CRM + '/duplicates/' + id + '/reject')
@@ -533,6 +553,20 @@ export const crm = {
     events: (params) => client.get(CRM + '/point-events', { params }),
     drift: () => client.get(CRM + '/point-drift'),
     adjust: (payload) => client.post(CRM + '/point-adjustments', payload)
+  },
+  /* Reward points per business system: one figure per linked account, weighted into a company-wide score. */
+  rewardPoints: {
+    customers: (params) => client.get(CRM + '/reward-points', { params }),
+    ofParty: (id) => client.get(CRM + '/parties/' + id + '/reward-points'),
+    add: (id, payload) => client.post(CRM + '/parties/' + id + '/reward-points', payload),
+    update: (id, rowId, payload) => client.put(CRM + '/parties/' + id + '/reward-points/' + rowId, payload),
+    remove: (id, rowId) => client.delete(CRM + '/parties/' + id + '/reward-points/' + rowId),
+    importSheet: (file) => {
+      const form = new FormData();
+      form.append('file', file);
+      return client.post(CRM + '/reward-points/import', form, { headers: { 'Content-Type': undefined }, timeout: 120000 });
+    },
+    template: () => client.get(CRM + '/reward-points/import/template', { responseType: 'blob' })
   },
   pointRules: createResource(CRM + '/point-rules'),
 

@@ -64,9 +64,11 @@ const CONDITIONS = {
   tier: {
     params: ['project', 'tier'],
     sql: function (condition) {
-      return [`EXISTS (SELECT 1 FROM crm_membership membership JOIN crm_project project ON project.project_id = membership.project_id
+      return [`EXISTS (SELECT 1 FROM crm_membership membership
+                JOIN crm_project_account account ON account.project_account_id = membership.project_account_id AND account.unlinked_at IS NULL
+                JOIN crm_project project ON project.project_id = account.project_id
                 JOIN crm_project_tier tier ON tier.project_tier_id = membership.current_tier_id
-                WHERE membership.party_pk = party.party_pk AND membership.membership_status = 'ACTIVE' AND project.project_code = ? AND tier.tier_code = ?)`,
+                WHERE account.party_pk = party.party_pk AND membership.membership_status = 'ACTIVE' AND project.project_code = ? AND tier.tier_code = ?)`,
       [condition.project, condition.tier]];
     }
   },

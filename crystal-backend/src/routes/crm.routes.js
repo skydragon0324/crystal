@@ -102,6 +102,11 @@ router.get('/memberships/distribution', read(PAGES.MEMBERSHIPS), crmController.m
 router.get('/memberships/:id/history', read(PAGES.MEMBERSHIPS), crmController.memberships.history);
 router.post('/memberships/:id/tier', write(PAGES.MEMBERSHIPS), crmController.memberships.setTier);
 router.post('/memberships/:id/status', write(PAGES.MEMBERSHIPS), crmController.memberships.setStatus);
+/* A tier given by hand to one of a customer's accounts: on the Memberships page (customer in the body) and on the customer. */
+router.post('/memberships', write(PAGES.MEMBERSHIPS), async (req, res) =>
+  response.ok(res, await require('../services/crm/memberships.service').addTier((req.body || {}).party_pk, req.body, req.actor), 'common.updated'));
+router.post('/parties/:id/memberships', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await require('../services/crm/memberships.service').addTier(req.params.id, req.body, req.actor), 'common.updated'));
 
 /* ---- internal departments ---- */
 router.get('/departments/staff', read(PAGES.SETTINGS), crmController.departments.staff);
@@ -135,6 +140,8 @@ router.get('/import-errors', read(PAGES.CUSTOMERS), async (req, res) => {
 });
 router.post('/import-errors/:id/dismiss', write(PAGES.CUSTOMERS), async (req, res) => require('../utils/response').ok(res, await personImport.dismissImportError(req.params.id, req.actor)));
 router.get('/duplicates', read(PAGES.CUSTOMERS), crmController.parties.duplicates);
+/* Numbers more than one customer has, from before one number could belong to one customer only. */
+router.get('/duplicates/shared-phones', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await require('../services/crm/phoneOwners').shared()));
 router.post('/duplicates/scan', write(PAGES.CUSTOMERS), crmController.parties.scanDuplicates);
 router.post('/duplicates/:id/accept', write(PAGES.CUSTOMERS), crmController.parties.acceptDuplicate);
 router.post('/duplicates/:id/reject', write(PAGES.CUSTOMERS), crmController.parties.rejectDuplicate);
@@ -181,6 +188,18 @@ router.post('/parties/:id/accounts/:accountId/unlink', write(PAGES.CUSTOMERS), c
  * numbers from the Customers page (a background run the page polls).
  */
 router.get('/smartphone-offline', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await smartphoneOffline.status()));
+/* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs (master ids). */
+router.get('/parties/:id/smartphone-offline/devices', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.devicesOfParty(req.params.id)));
+/* What the projects' own systems say about the customer, in one answer: the header figures, the Service summary, Recent activity. */
+router.get('/parties/:id/project-summary', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await require('../services/crm/projectSummary.service').summary(req.params.id)));
+/* The service history of the customer's devices in SMARTPHONE_OFFLINE, by the same Account IDs. */
+router.get('/parties/:id/smartphone-offline/services', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.servicesOfParty(req.params.id)));
+/* The privileges of the customer's devices in SMARTPHONE_OFFLINE (the Privileges tab). */
+router.get('/parties/:id/smartphone-offline/privileges', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.privilegesOfParty(req.params.id)));
 router.post('/parties/:id/smartphone-offline/link', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.linkParty(req.params.id, req.actor)));
 router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>
@@ -268,6 +287,52 @@ router.get('/point-accounts', read(PAGES.POINTS), crmController.points.accounts)
 router.get('/point-events', read(PAGES.POINTS), crmController.points.events);
 router.get('/point-drift', read(PAGES.POINTS), crmController.points.drift);
 router.post('/point-adjustments', write(PAGES.POINTS), crmController.points.adjust);
+
+/*
+ * Reward points per business system (crm_reward_points): the points each
+ * linked account holds in its own system, weighted into a company-wide score
+ * that is worked out, never stored. Entered by hand on the customer; a system
+ * can send them (/api/integration/crm/reward-points) and a sheet can load them.
+ */
+const rewardPoints = require('../services/crm/rewardPoints.service');
+const { readPaging } = require('../utils/query');
+router.get('/reward-points', read(PAGES.POINTS), async (req, res) => {
+  const paging = readPaging(Object.assign({ dir: 'desc' }, req.query), ['company_points', 'display_name'], 'company_points');
+  return response.page(res, await rewardPoints.searchCustomers(req.query, paging), paging);
+});
+router.get('/reward-points/import/template', read(PAGES.POINTS), async (req, res) => {
+  const buffer = await rewardPoints.template();
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="crm-reward-points-template.xlsx"');
+  return res.send(Buffer.from(buffer));
+});
+router.post('/reward-points/import', write(PAGES.POINTS), sheetUpload.single('file'), async (req, res) => {
+  if (!req.file) throw new HttpError(400, 'crm.common.thisIsNotAnExcelFile');
+  return response.ok(res, rewardPoints.translated(await rewardPoints.importSheet(req.file.buffer, req.actor), req.locale), 'excel.imported');
+});
+router.get('/parties/:id/reward-points', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await rewardPoints.ofParty(req.params.id)));
+/* The customer's e-shop orders, read live from the e-shop by each linked account's PK; ?project_account_id= one account, or ALL. */
+const eshopOrders = require('../services/crm/eshopOrders.service');
+router.get('/parties/:id/eshop-orders', read(PAGES.CUSTOMERS), async (req, res) => {
+  const paging = readPaging(Object.assign({ limit: 20 }, req.query), [], 'at');
+  return response.page(res, await eshopOrders.list(req.params.id, req.query, paging), paging);
+});
+router.get('/parties/:id/eshop-orders/:orderId', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await eshopOrders.detail(req.params.id, req.query.project_account_id, req.params.orderId)));
+/* The customer's Appstore purchases, read live from the Appstore by each linked account's PK; and one purchase's licence (audited). */
+const appstorePurchases = require('../services/crm/appstorePurchases.service');
+router.get('/parties/:id/appstore-purchases', read(PAGES.CUSTOMERS), async (req, res) => {
+  const paging = readPaging(Object.assign({ limit: 20 }, req.query), [], 'at');
+  return response.page(res, await appstorePurchases.list(req.params.id, req.query, paging), paging);
+});
+router.get('/parties/:id/appstore-purchases/:purchaseId/licence', read(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await appstorePurchases.licence(req.params.id, req.query.project_account_id, req.params.purchaseId, req.actor)));
+router.post('/parties/:id/reward-points', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await rewardPoints.create(req.params.id, req.body, req.actor), 'common.created'));
+router.put('/parties/:id/reward-points/:rewardPointsId', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await rewardPoints.update(req.params.id, req.params.rewardPointsId, req.body, req.actor), 'common.updated'));
+router.delete('/parties/:id/reward-points/:rewardPointsId', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await rewardPoints.remove(req.params.id, req.params.rewardPointsId, req.actor), 'common.deleted'));
 
 /* ---- activity events ---- */
 router.get('/events', read(PAGES.EVENTS), crmController.events.list);
@@ -418,11 +483,14 @@ function guardInUse(table, primaryKey, codeColumn) {
  */
 const VOCABULARIES = [
   { path: 'projects', table: 'crm_project', pk: 'project_id', code: 'project_code',
-    columns: ['project_code', 'project_name', 'project_type_code', 'source_system_code', 'legal_entity_code', 'status', 'identity_role'],
+    columns: ['project_code', 'project_name', 'project_type_code', 'source_system_code', 'legal_entity_code', 'status', 'identity_role', 'point_weight'],
     guardInUse: true },
   { path: 'product-classes', table: 'crm_product_class', pk: 'product_class_id', code: 'class_code',
     columns: ['class_code', 'class_name', 'parent_product_class_id', 'product_domain', 'rank_no', 'legacy_column', 'description', 'is_active'],
     system: ['SMARTPHONE', 'EPRODUCT', 'SOFTWARE', 'STB', 'PC', 'CAMERA', 'KARAOKE_LICENCE', 'MEDIA_LICENCE'] },
+  /* The kinds of tier ladder (level, grade, ...); a tier is of one kind, a member holds one tier per kind. */
+  { path: 'tier-kinds', table: 'crm_tier_kind', pk: 'tier_kind_id', code: 'kind_code',
+    columns: ['kind_code', 'kind_name', 'sort_no', 'is_active'] },
   { path: 'project-tiers', table: 'crm_project_tier', pk: 'project_tier_id', code: 'tier_code', filterable: ['project_id'],
     columns: ['project_id', 'tier_code', 'tier_name', 'rank_no', 'tier_kind', 'source_code', 'min_value', 'is_active'] },
   { path: 'point-types', table: 'crm_point_type', pk: 'point_type_id', code: 'point_type_code',

@@ -228,18 +228,19 @@ async function addCustomers(project) {
     if (eshop) accounts.push([project.ESHOP, 'E' + (500000 + index), 'ESHOP_CUSTOMER']);
     for (const [projectId, externalId, type] of accounts) {
       // eslint-disable-next-line no-await-in-loop
-      await db('crm_project_account').insert({
-        party_pk: party.party_pk, project_id: projectId, external_account_id: externalId, external_login: externalId.toLowerCase(),
+      const [linked] = await db('crm_project_account').insert({
+        party_pk: party.party_pk, project_id: projectId, external_account_pk: externalId, external_account_id: externalId.toLowerCase(),
         external_account_type: type, account_status: 'ACTIVE', is_primary: projectId === project.UID, link_method: 'IMPORT',
         link_confidence: 1, linked_at: joined, source_created_at: joined
-      });
+      }).returning('project_account_id');
       // eslint-disable-next-line no-await-in-loop
       const tier = projectId === project.ESHOP
         ? await db('crm_project_tier').where({ project_id: project.ESHOP, tier_code: 'LV' + between(1, 5) }).first('project_tier_id') : null;
       // eslint-disable-next-line no-await-in-loop
-      await db('crm_membership').insert({
-        party_pk: party.party_pk, project_id: projectId, external_member_id: externalId, membership_status: 'ACTIVE',
-        current_tier_id: tier ? tier.project_tier_id : null, joined_at: joined, synced_at: daysAgo(between(0, 1))
+      // A membership is a tier held by an account: only where the project gave the account one.
+      if (tier) await db('crm_membership').insert({
+        project_account_id: linked.project_account_id, tier_kind: 'LEVEL', external_member_id: externalId, membership_status: 'ACTIVE',
+        current_tier_id: tier.project_tier_id, joined_at: joined, synced_at: daysAgo(between(0, 1))
       });
     }
     people.push({ party_pk: party.party_pk, joined: joined, eshop: eshop });

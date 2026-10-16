@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const db = require('../../config/db');
 const config = require('../../config');
-const remote = require('../../repositories/remote/smartphoneOffline');
+const remote = require('../../repositories/remote/smartphoneOffline.api');
 const audit = require('../audit.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
@@ -57,7 +57,7 @@ function phonesOf(partyPk) {
 async function attach(partyPk, projectId, phone, user, summary, actor) {
   try {
     await transaction(async function (trx) {
-      const active = await trx('crm_project_account').where({ project_id: projectId, external_login: user.user_id }).whereNull('unlinked_at').forUpdate().first();
+      const active = await trx('crm_project_account').where({ project_id: projectId, external_account_id: user.user_id }).whereNull('unlinked_at').forUpdate().first();
       if (active) {
         if (String(active.party_pk) !== String(partyPk)) {
           if (summary.conflicts.length < KEEP) summary.conflicts.push({ party_pk: String(partyPk), phone: phone, user_id: user.user_id, linked_party_pk: String(active.party_pk) });
@@ -66,16 +66,16 @@ async function attach(partyPk, projectId, phone, user, summary, actor) {
         }
         const fill = {};
         if (!active.matched_phone) fill.matched_phone = phone;
-        if (!active.external_account_id && user.user_pk) fill.external_account_id = user.user_pk;
+        if (!active.external_account_pk && user.user_pk) fill.external_account_pk = user.user_pk;
         if (Object.keys(fill).length) await trx('crm_project_account').where('project_account_id', active.project_account_id).update(fill);
         summary.existing += 1;
         return;
       }
-      const dropped = await trx('crm_project_account').where({ project_id: projectId, external_login: user.user_id, party_pk: partyPk }).whereNotNull('unlinked_at').first();
+      const dropped = await trx('crm_project_account').where({ project_id: projectId, external_account_id: user.user_id, party_pk: partyPk }).whereNotNull('unlinked_at').first();
       if (dropped) { summary.unlinked_before += 1; return; }
       const primary = await trx('crm_project_account').where({ party_pk: partyPk, project_id: projectId }).whereNull('unlinked_at').first();
       const [row] = await trx('crm_project_account').insert({
-        party_pk: partyPk, project_id: projectId, external_login: user.user_id, external_account_id: user.user_pk,
+        party_pk: partyPk, project_id: projectId, external_account_id: user.user_id, external_account_pk: user.user_pk,
         external_account_type: 'MOBILE_USER', matched_phone: phone, is_primary: !primary,
         link_method: 'EXACT', link_confidence: 1
       }).returning('*');
@@ -217,4 +217,62 @@ async function status() {
   return { mode: remote.mode(), project: row || null, project_code: config.smartphoneOffline.projectCode, max_run: MAX_RUN, running: current ? publicRun(current) : null };
 }
 
-module.exports = { linkParty, startRun, getRun, status, MAX_RUN };
+/**
+ * The mobile devices registered to a customer in SMARTPHONE_OFFLINE: every
+ * linked SMARTPHONE_OFFLINE Account ID of theirs is a master id, and the
+ * system is asked for all of them at once. The Products tab shows these;
+ * the CRM keeps none of it.
+ */
+async function devicesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.devices(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+/**
+ * The service history of the customer's devices in SMARTPHONE_OFFLINE - asked,
+ * like the devices, by every linked SMARTPHONE_OFFLINE Account ID at once.
+ * The Service tab shows it; the CRM keeps none of it.
+ */
+async function servicesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.services(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+/**
+ * The privileges of the customer's devices in SMARTPHONE_OFFLINE - asked, like
+ * the devices and the service history, by every linked SMARTPHONE_OFFLINE
+ * Account ID at once. The Privileges tab shows them; the CRM keeps none.
+ */
+async function privilegesOfParty(partyPk) {
+  const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_code', 'project_name');
+  if (!row) return { project: null, accounts: [], items: [] };
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: row.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id', 'external_account_pk');
+  if (!accounts.length) return { project: row, accounts: [], items: [] };
+  try {
+    const found = await remote.privileges(accounts.map(function (account) { return account.external_account_id; }));
+    return { project: row, accounts: accounts, items: found.items };
+  } catch (error) {
+    return { project: row, accounts: accounts, items: [], failed: error.message };
+  }
+}
+
+module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, privilegesOfParty, MAX_RUN };

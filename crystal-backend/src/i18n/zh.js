@@ -259,6 +259,9 @@ module.exports = {
       unknownChannel: '未知渠道'
     },
     customers: {
+      accountLinkedToAnother: '该账号已关联到 {customer}，未再次关联',
+      thisCustomerAlreadyHasThatAccount: '该客户已拥有账号 {account}',
+      phoneBelongsToAnother: '该电话号码已属于 {customer}；一个号码只能属于一个客户',
       contactIsInUse: '该联系方式已被使用（同意记录、营销活动或互动），不能删除：请将状态改为“已停用”或“无效”',
       onlyAnActiveContactCanBePrimary: '只有有效的联系方式才能设为主要联系方式',
       aCustomerCannotBeRelatedToThemselves: '客户不能与自己建立关系',
@@ -359,6 +362,10 @@ module.exports = {
       unknownPointType: '未知的积分类型'
     },
     memberships: {
+      thatTierIsOfAnotherKind: '该等级与此会员资格的类型不同，请选择同类型的等级',
+      chooseAnAccount: '请选择该客户已关联的账号',
+      chooseATier: '请选择等级',
+      aReasonForTheChange: '该账号已有此类型的等级，请填写变更原因',
       alreadyOnThatTier: '该会员已处于此等级',
       thatTierBelongsToAnotherProject: '该等级属于其他项目'
     },
@@ -496,6 +503,8 @@ module.exports = {
       same_user_id: '用户 ID 相同'
     },
     registrations: {
+      phoneBelongsToSomeoneElse: '其电话号码属于 {customer}：请合并到该客户，或创建不含此号码的新客户',
+      phoneBelongsToThem: '电话号码相同',
       chooseAPerson: '请选择个人客户',
       chooseLinkOrReject: '请选择关联或拒绝',
       chooseMergeNewOrAssign: '请选择合并、登记为新客户或分配',
@@ -503,9 +512,23 @@ module.exports = {
       resolveTheMatchingPendingFirst: '请先处理匹配的待审核登记',
       unverifiedProjectAssignment: '未核实的项目分配'
     },
+    rewardPoints: {
+      pointsAreRequired: '积分为必填项',
+      pointsMustBeANumber: '积分必须是数字（最多 4 位小数）',
+      asOfIsNotATime: '“截至时间”不是有效的日期或时间',
+      asOfIsInTheFuture: '“截至时间”不能是将来的时间',
+      accountIdIsRequired: '账号 ID 为必填项',
+      chooseAnAccount: '请选择该客户已关联的账号',
+      noSuchAccount: '该项目中没有以此账号 ID 关联的账号',
+      noSuchProject: '没有此代码的项目',
+      olderThanStored: '早于已保存的积分，已忽略',
+      accountAlreadyHasPoints: '该账号已有积分，请改为编辑',
+      nothingSent: '未发送任何数据',
+      tooManyRows: '每次最多 {max} 行'
+    },
     smartphoneOffline: {
       noProject: '没有代码为 {code} 的项目；请在 设置 > 项目 中添加',
-      notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（SMARTPHONE_OFFLINE_BASE_URL）',
+      notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（PHONE_SERVER_URL）',
       chooseARange: '请输入起始和结束客户编号',
       rangeIsBackwards: '起始客户编号不能大于结束客户编号',
       noCustomersInRange: '该范围内没有带电话号码的客户',
@@ -514,8 +537,8 @@ module.exports = {
     },
     integration: {
       aValidApiKeyIsRequired: '需要有效的部门 API 密钥',
-      externalLoginIsRequired: '必须提供 external_login（账号 ID，最多 {max} 个字符）',
-      externalAccountIdIsTooLong: 'external_account_id 超过 {max} 个字符',
+      externalAccountIdIsRequired: '必须提供 external_account_id（账号 ID，最多 {max} 个字符）',
+      externalAccountPkIsTooLong: 'external_account_pk 超过 {max} 个字符',
       fullNameIsRequired: '必须提供 party.full_name',
       thisProjectIsInactive: '该项目已停用'
     }

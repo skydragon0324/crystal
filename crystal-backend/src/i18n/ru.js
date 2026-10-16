@@ -259,6 +259,9 @@ module.exports = {
       unknownChannel: 'неизвестный канал'
     },
     customers: {
+      accountLinkedToAnother: 'этот аккаунт уже привязан к клиенту {customer}; повторная привязка не выполнена',
+      thisCustomerAlreadyHasThatAccount: 'у этого клиента уже есть аккаунт {account}',
+      phoneBelongsToAnother: 'этот номер телефона уже принадлежит клиенту {customer}; один номер может принадлежать только одному клиенту',
       contactIsInUse: 'этот контакт уже использовался (согласие, кампания или взаимодействие), удалить его нельзя: установите статус «Выведено» или «Недействителен»',
       onlyAnActiveContactCanBePrimary: 'основным может быть только действующий контакт',
       aCustomerCannotBeRelatedToThemselves: 'клиент не может быть связан сам с собой',
@@ -359,6 +362,10 @@ module.exports = {
       unknownPointType: 'неизвестный тип баллов'
     },
     memberships: {
+      thatTierIsOfAnotherKind: 'этот уровень другого типа, чем членство; выберите уровень того же типа',
+      chooseAnAccount: 'выберите один из привязанных аккаунтов клиента',
+      chooseATier: 'выберите уровень',
+      aReasonForTheChange: 'у этого аккаунта уже есть уровень этого типа; укажите причину изменения',
       alreadyOnThatTier: 'участник уже на этом уровне',
       thatTierBelongsToAnotherProject: 'этот уровень принадлежит другому проекту'
     },
@@ -496,6 +503,8 @@ module.exports = {
       same_user_id: 'тот же User ID'
     },
     registrations: {
+      phoneBelongsToSomeoneElse: 'его номер телефона принадлежит клиенту {customer}: объедините с этим клиентом или создайте нового клиента без этого номера',
+      phoneBelongsToThem: 'тот же номер телефона',
       chooseAPerson: 'выберите человека',
       chooseLinkOrReject: 'выберите: привязать или отклонить',
       chooseMergeNewOrAssign: 'выберите: объединить, зарегистрировать как нового или назначить',
@@ -503,9 +512,23 @@ module.exports = {
       resolveTheMatchingPendingFirst: 'сначала разберите совпадающую ожидающую регистрацию',
       unverifiedProjectAssignment: 'непроверенная привязка из проекта'
     },
+    rewardPoints: {
+      pointsAreRequired: 'укажите баллы',
+      pointsMustBeANumber: 'баллы должны быть числом (не более 4 знаков после запятой)',
+      asOfIsNotATime: '«на дату» — не дата и не время',
+      asOfIsInTheFuture: '«на дату» указывает на будущее',
+      accountIdIsRequired: 'укажите ID аккаунта',
+      chooseAnAccount: 'выберите один из привязанных аккаунтов клиента',
+      noSuchAccount: 'в этом проекте нет привязанного аккаунта с таким ID',
+      noSuchProject: 'нет проекта с таким кодом',
+      olderThanStored: 'старее уже сохранённых баллов; пропущено',
+      accountAlreadyHasPoints: 'у этого аккаунта уже есть баллы; измените их',
+      nothingSent: 'ничего не передано',
+      tooManyRows: 'не более {max} строк за раз'
+    },
     smartphoneOffline: {
       noProject: 'нет проекта с кодом {code}; добавьте его в Настройки > Проекты',
-      notConfigured: 'система SMARTPHONE_OFFLINE не настроена (SMARTPHONE_OFFLINE_BASE_URL)',
+      notConfigured: 'система SMARTPHONE_OFFLINE не настроена (PHONE_SERVER_URL)',
       chooseARange: 'укажите первый и последний номер клиента',
       rangeIsBackwards: 'первый номер клиента не может быть больше последнего',
       noCustomersInRange: 'в этом диапазоне нет клиентов с номером телефона',
@@ -514,8 +537,8 @@ module.exports = {
     },
     integration: {
       aValidApiKeyIsRequired: 'нужен действующий API-ключ отдела',
-      externalLoginIsRequired: 'нужен external_login — ID аккаунта (не более {max} символов)',
-      externalAccountIdIsTooLong: 'external_account_id длиннее {max} символов',
+      externalAccountIdIsRequired: 'нужен external_account_id — ID аккаунта (не более {max} символов)',
+      externalAccountPkIsTooLong: 'external_account_pk длиннее {max} символов',
       fullNameIsRequired: 'нужно указать party.full_name',
       thisProjectIsInactive: 'этот проект не активен'
     }

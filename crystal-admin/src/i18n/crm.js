@@ -16,7 +16,7 @@
  *   a column label, a code turned into a word, a name that arrives as data.
  *   They become `vocabulary.crm`, grouped the same way: one group per screen,
  *   `common` for words several screens use, `codes` for the words
- *   pages/crm/shared.jsx WORDS turns codes into, and `data` for names that
+ *   pages/crm/shared/shared.jsx WORDS turns codes into, and `data` for names that
  *   arrive from the API or the basic data and appear in no file.
  *
  * ADDING A STRING: put it in the section of the screen that shows it, in all
@@ -127,6 +127,8 @@ const en = {
   },
   /* Customers.jsx */
   customers: {
+    sharedPhonesTitle: '{n} phone numbers belong to more than one customer',
+    sharedPhonesExplained: 'A number can belong to one customer only. These are from before that rule: merge the customers if they are the same person, or retire the number on the customer it does not belong to.',
     allCustomers: 'All customers',
     duplicatesIntro: 'Review pairs that were already registered. New uncertain registrations wait in the Pending registrations tab.',
     duplicatesTab: 'Existing duplicate records',
@@ -145,8 +147,8 @@ const en = {
     soFailed: 'Stopped: {error}',
     soConflicts: 'Already linked to another customer',
     soFailures: 'Could not be looked up',
-    soMock: 'Development mode: lookups are simulated (no SMARTPHONE_OFFLINE_BASE_URL).',
-    soOff: 'The SMARTPHONE_OFFLINE system is not configured (SMARTPHONE_OFFLINE_BASE_URL).',
+    soMock: 'Development mode: lookups are simulated (no PHONE_SERVER_URL).',
+    soOff: 'The SMARTPHONE_OFFLINE system is not configured (PHONE_SERVER_URL).',
     soNoProject: 'There is no project with the code {code}. Add it in Settings > Projects first.',
     soFigureLinked: 'Linked',
     soFigureExisting: 'Already linked',
@@ -208,6 +210,9 @@ const en = {
   },
   /* RegistrationReview.jsx */
   registrationReview: {
+    hasThisPhone: 'Has this phone number',
+    phoneTaken: "This registration's phone number already belongs to {customer}. One number can belong to one customer only: merge it into that customer, or register it as new - the new customer is created without that number.",
+    phonesLeftOut: 'Created without {phones}: the number already belongs to another customer.',
     assignIdentifier: 'Assign identifier',
     bestScore: 'Best score',
     candidates: 'Candidates ({n})',
@@ -362,6 +367,7 @@ const en = {
     tabProducts: 'Products',
     tabRelated: 'Related parties',
     tabService: 'Service',
+    tabPrivileges: 'Privileges',
     tagAdded: 'Tag added',
     tagRemoved: 'Tag removed',
     totalN: 'Total: {n}',
@@ -423,7 +429,9 @@ const en = {
     organizationTypes: 'Organization types',
     peopleHere: 'People at this organization',
     pin: 'Pin to top',
-    pointBalances: 'Point balances',
+    pointBalances: 'Points kept by the CRM',
+    projectOrders: '{project} orders',
+    ordersNotConnected: "The orders of {project} are not connected yet. They will be read from its own system, like the e-shop's.",
     preferred: 'Preferred',
     recentActivity: 'Recent activity',
     recentPoints: 'Recent point movements',
@@ -462,6 +470,8 @@ const en = {
   },
   /* the customer record's overview cards: c360Cards.jsx, ui360.jsx */
   customer360Cards: {
+    membershipSummary: 'Membership summary',
+    noTiersYet: 'No tiers yet. Add one under Membership on the Accounts tab.',
     activeProducts: 'Active products',
     activeProjects: 'Active projects',
     address: 'Address',
@@ -528,7 +538,119 @@ const en = {
     refunds: 'Refunds'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: 'E-shop order {number}',
+    appstorePurchase: 'Appstore · {name}',
+    deviceRegistered: 'Device registered · {device}',
+    serviceVisit: 'Service · {reason}',
+    open: 'Open',
+    done: 'Done',
+    serviceVisits: 'Service visits',
+    pointsEarned: 'Points earned',
+    lastVisit: 'Last visit',
+    agencies: 'Agencies',
+    topReason: 'Most common reason',
+    recentVisits: 'Recent service visits',
+    ordersSplit: 'E-shop {eshop} · Appstore {appstore}'
+  },
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: 'Privileges',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their privileges.',
+    noRecords: 'No privileges'
+  },
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: 'Smartphone service history',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their service history.',
+    noServices: 'No service history',
+    opened: 'Opened {date}',
+    updated: 'Updated {date}',
+    points: '{n} points'
+  },
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: 'Smartphones',
+    noProject: 'There is no SMARTPHONE_OFFLINE project (Settings > Projects).',
+    noAccounts: 'This customer has no linked SMARTPHONE_OFFLINE account. Link one on the Accounts tab to see their devices.',
+    unreachable: 'The SMARTPHONE_OFFLINE system could not be reached.',
+    noDevices: 'No devices registered'
+  },
+  /* AppstorePurchases.jsx */
+  appstore: {
+    title: 'Appstore purchases',
+    search: 'Device',
+    from: 'From',
+    to: 'To',
+    allDates: 'All dates',
+    noProject: 'There is no project with the code APPSTORE (Settings > Projects).',
+    noAccounts: 'This customer has no linked Appstore account.',
+    noPk: 'Not asked - no Account PK to ask the Appstore by: {accounts}. Add the PK on the Accounts tab.',
+    unreachable: 'The Appstore could not be reached for {accounts}.',
+    noPurchases: 'No purchases in the Appstore',
+    kindAPP: 'App',
+    kindDIAMOND: 'Diamonds',
+    kindAVATAR: 'Avatar',
+    kindEVENT_ITEM: 'Event item',
+    kindNICKNAME: 'Nickname',
+    purseCOMPANY: 'Company coins',
+    purseIMMATERIAL: 'Immaterial',
+    purseFOREIGN: 'Foreign',
+    statusPURCHASED: 'Purchased',
+    statusPURCHASING: 'Purchasing',
+    statusFAILED: 'Purchase failed',
+    licenceSUCCESS: 'Success',
+    licenceUNUSED: 'Unused',
+    licenceUSED: 'Used',
+    licenceFAIL: 'Failed',
+    licenceREFUND: 'Refunded',
+    licencePENDING: 'Pending',
+    licenceACCEPT_PENDING: 'Awaiting acceptance',
+    showKey: 'Show the licence key',
+    licenceTitle: 'Licence',
+    key: 'Licence key',
+    noKey: 'The Appstore has no key for this purchase.',
+    downloadFile: 'Download the licence file',
+    audited: 'Looking at a licence key is recorded in the audit log.'
+  },
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: 'E-shop orders',
+    primary: 'primary',
+    allAccounts: 'All {n} accounts',
+    items: '{n} items',
+    viewLines: 'Order lines',
+    points: 'Points',
+    byTheCustomer: 'Cancelled by the customer',
+    byTheShop: 'Cancelled by the shop',
+    noEshopProject: 'No project has the E-shop role yet (Settings > Projects), so there is no e-shop to ask.',
+    noAccounts: 'This customer has no linked e-shop account.',
+    noPk: 'Not asked - no Account PK to ask the e-shop by: {accounts}. Add the PK on the Accounts tab.',
+    unreachable: 'The e-shop could not be reached for {accounts}.',
+    capped: 'Showing the latest orders of each account only: {accounts}. Choose one account to page through all of its orders.',
+    noOrders: 'No orders in the e-shop',
+    unreachableShort: 'The e-shop could not be reached.',
+    headerSub: 'E-shop, all accounts',
+    order: 'Order',
+    deliverTo: 'Deliver to',
+    payType: 'Paid by {type}',
+    lines: 'Items',
+    noLines: 'The e-shop sent no lines for this order.',
+    statusPENDING: 'Pending',
+    statusACCEPTED: 'Accepted',
+    statusDELIVERING: 'Delivering',
+    statusDELIVERED: 'Delivered',
+    statusFINISHED: 'Finished',
+    statusCANCEL_PENDING: 'Cancelling',
+    statusCANCELLED: 'Cancelled',
+    statusREFUND_PENDING: 'Refund requested',
+    statusREFUND_ACCEPTED: 'Refund accepted',
+    statusREFUNDED: 'Refunded'
+  },
   memberships: {
+    addTier: 'Add tier',
+    tierSaved: 'Tier saved',
     changeTier: 'Change tier',
     ladder: 'tiers',
     noTiersYet: 'No memberships with a tier yet. They arrive with each project\'s data.',
@@ -623,8 +745,30 @@ const en = {
   /* Points.jsx */
   points: {
     adjust: 'Adjust points',
+    addPoints: 'Add points',
+    companyWide: 'Company-wide points',
+    editPoints: 'Edit points',
+    everyAccountHasPoints: 'Every linked account already has points; edit them instead',
+    fromNSystems: 'from {n} business systems',
+    hideDetails: 'Hide the {n} systems',
+    importPoints: 'Import points',
+    importResult: '{received} rows: {updated} saved, {unchanged} unchanged, {stale} older than stored, {unknown} unknown accounts, {invalid} not valid',
+    noPointsAnywhere: 'No customer has reward points yet',
+    noPointsYet: 'No points entered yet',
+    noWeight: 'No weight',
+    noWeightExplained: 'This project has no point weight yet, so its points are not counted in the company-wide score. Set it in Settings > Projects.',
+    notCountedN: '{n} business systems not counted (no weight)',
+    pointsSaved: 'Points saved',
+    removePoints: 'Remove these points',
+    removePointsExplained: 'The points of this account are taken out of the company-wide score. The account itself stays linked.',
+    reportedAsOf: 'As of {date} · {source}',
+    rewardPoints: 'Reward points',
+    rowN: 'Row {n}',
+    searchCustomerOrAccount: 'Customer, number or Account ID',
+    showDetails: 'Show the {n} systems',
+    template: 'Template',
     adjusted: 'Points adjusted',
-    balances: 'Balances',
+    balances: 'CRM points',
     drifted: '{n} point balances no longer equal their ledger. This should never happen - report it.',
     earningRules: 'Earning rules',
     ledger: 'Ledger',
@@ -813,6 +957,7 @@ const en = {
     statusMap: 'Status map',
     statusMapHint: 'How each project\'s own status codes read as CRM statuses, so its cases can be compared with everyone else\'s.',
     tagsHint: 'Labels staff put on customers from the record - High value, Early adopter. The colour is how the label is drawn.',
+    tierKindsHint: 'The kinds of ladder a project can rank its customers on - a level, a grade, a card class. Each tier is of one kind, and each account holds one tier of each kind.',
     tiersHint: 'Levels a project calculates for its members. A rank only means something inside its project.'
   },
   /* Terminology.jsx */
@@ -926,6 +1071,8 @@ const zh = {
   },
   /* Customers.jsx */
   customers: {
+    sharedPhonesTitle: '{n} 个电话号码属于多个客户',
+    sharedPhonesExplained: '一个号码只能属于一个客户。以下为规则实施前的数据：如为同一人请合并客户，否则请在不属于该号码的客户上停用该号码。',
     allCustomers: '全部客户',
     duplicatesIntro: '审核已登记客户之间的疑似重复。新的不确定登记在“待处理登记”中等待。',
     duplicatesTab: '已有的重复记录',
@@ -944,8 +1091,8 @@ const zh = {
     soFailed: '已中止：{error}',
     soConflicts: '已关联到其他客户',
     soFailures: '无法查询',
-    soMock: '开发模式：查询为模拟结果（未设置 SMARTPHONE_OFFLINE_BASE_URL）。',
-    soOff: '未配置 SMARTPHONE_OFFLINE 系统（SMARTPHONE_OFFLINE_BASE_URL）。',
+    soMock: '开发模式：查询为模拟结果（未设置 PHONE_SERVER_URL）。',
+    soOff: '未配置 SMARTPHONE_OFFLINE 系统（PHONE_SERVER_URL）。',
     soNoProject: '没有代码为 {code} 的项目。请先在 设置 > 项目 中添加。',
     soFigureLinked: '新关联',
     soFigureExisting: '已关联',
@@ -1007,6 +1154,9 @@ const zh = {
   },
   /* RegistrationReview.jsx */
   registrationReview: {
+    hasThisPhone: '拥有此电话号码',
+    phoneTaken: '该登记的电话号码已属于 {customer}。一个号码只能属于一个客户：请合并到该客户，或登记为新客户——新客户将不含此号码。',
+    phonesLeftOut: '已创建，但不含 {phones}：该号码已属于其他客户。',
     assignIdentifier: '分配标识',
     bestScore: '最高分',
     candidates: '候选（{n}）',
@@ -1161,6 +1311,7 @@ const zh = {
     tabProducts: '产品',
     tabRelated: '关联方',
     tabService: '服务',
+    tabPrivileges: '权益',
     tagAdded: '标签已添加',
     tagRemoved: '标签已移除',
     totalN: '共 {n}',
@@ -1222,7 +1373,9 @@ const zh = {
     organizationTypes: '组织类型',
     peopleHere: '该组织的联系人',
     pin: '置顶',
-    pointBalances: '积分余额',
+    pointBalances: 'CRM 自有积分',
+    projectOrders: '{project} 订单',
+    ordersNotConnected: '{project} 的订单尚未接入。接入后将像电商订单一样从其系统读取。',
     preferred: '首选',
     recentActivity: '最近动态',
     recentPoints: '最近积分变动',
@@ -1261,6 +1414,8 @@ const zh = {
   },
   /* the customer record's overview cards: c360Cards.jsx, ui360.jsx */
   customer360Cards: {
+    membershipSummary: '会员概览',
+    noTiersYet: '暂无等级。可在“账号”页的“会员”中添加。',
     activeProducts: '在用产品',
     activeProjects: '活跃项目',
     address: '地址',
@@ -1327,7 +1482,119 @@ const zh = {
     refunds: '退款'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: '电商订单 {number}',
+    appstorePurchase: '应用商店 · {name}',
+    deviceRegistered: '设备登记 · {device}',
+    serviceVisit: '维修服务 · {reason}',
+    open: '处理中',
+    done: '已完成',
+    serviceVisits: '服务次数',
+    pointsEarned: '获得积分',
+    lastVisit: '最近一次',
+    agencies: '服务网点',
+    topReason: '最常见原因',
+    recentVisits: '最近服务',
+    ordersSplit: '电商 {eshop} · 应用商店 {appstore}'
+  },
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: '权益',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其权益。',
+    noRecords: '暂无权益'
+  },
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: '手机维修服务记录',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其服务记录。',
+    noServices: '暂无服务记录',
+    opened: '受理 {date}',
+    updated: '更新 {date}',
+    points: '{n} 积分'
+  },
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: '智能手机',
+    noProject: '没有 SMARTPHONE_OFFLINE 项目（设置 > 项目）。',
+    noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号。请在“账号”页关联后查看其设备。',
+    unreachable: '无法连接 SMARTPHONE_OFFLINE 系统。',
+    noDevices: '暂无已登记设备'
+  },
+  /* AppstorePurchases.jsx */
+  appstore: {
+    title: '应用商店购买',
+    search: '名称或设备',
+    from: '从',
+    to: '至',
+    allDates: '全部日期',
+    noProject: '没有代码为 APPSTORE 的项目（设置 > 项目）。',
+    noAccounts: '该客户没有已关联的应用商店账号。',
+    noPk: '未查询——以下账号没有可用于查询应用商店的账号 PK：{accounts}。请在“账号”页补充 PK。',
+    unreachable: '无法连接应用商店查询：{accounts}。',
+    noPurchases: '应用商店中暂无购买记录',
+    kindAPP: '应用',
+    kindDIAMOND: '钻石',
+    kindAVATAR: '头像',
+    kindEVENT_ITEM: '活动道具',
+    kindNICKNAME: '昵称',
+    purseCOMPANY: '公司币',
+    purseIMMATERIAL: '非现金',
+    purseFOREIGN: '外币',
+    statusPURCHASED: '已购买',
+    statusPURCHASING: '购买中',
+    statusFAILED: '购买失败',
+    licenceSUCCESS: '成功',
+    licenceUNUSED: '未使用',
+    licenceUSED: '已使用',
+    licenceFAIL: '失败',
+    licenceREFUND: '已退款',
+    licencePENDING: '处理中',
+    licenceACCEPT_PENDING: '待受理',
+    showKey: '查看许可证密钥',
+    licenceTitle: '许可证',
+    key: '许可证密钥',
+    noKey: '应用商店没有此购买的密钥。',
+    downloadFile: '下载许可证文件',
+    audited: '查看许可证密钥会记录在审计日志中。'
+  },
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: '电商订单',
+    primary: '主账号',
+    allAccounts: '全部 {n} 个账号',
+    items: '{n} 件',
+    viewLines: '订单明细',
+    points: '积分',
+    byTheCustomer: '客户取消',
+    byTheShop: '商城取消',
+    noEshopProject: '尚无项目设置为电商角色（设置 > 项目），无法查询电商。',
+    noAccounts: '该客户没有已关联的电商账号。',
+    noPk: '未查询——以下账号没有可用于查询电商的账号 PK：{accounts}。请在“账号”页补充 PK。',
+    unreachable: '无法连接电商查询：{accounts}。',
+    capped: '仅显示每个账号最新的订单：{accounts}。选择单个账号可分页查看其全部订单。',
+    noOrders: '电商中暂无订单',
+    unreachableShort: '无法连接电商。',
+    headerSub: '电商，全部账号',
+    order: '订单',
+    deliverTo: '收货信息',
+    payType: '支付方式：{type}',
+    lines: '商品',
+    noLines: '电商未返回该订单的明细。',
+    statusPENDING: '待处理',
+    statusACCEPTED: '已接单',
+    statusDELIVERING: '配送中',
+    statusDELIVERED: '已送达',
+    statusFINISHED: '已完成',
+    statusCANCEL_PENDING: '取消中',
+    statusCANCELLED: '已取消',
+    statusREFUND_PENDING: '申请退款',
+    statusREFUND_ACCEPTED: '退款已受理',
+    statusREFUNDED: '已退款'
+  },
   memberships: {
+    addTier: '添加等级',
+    tierSaved: '等级已保存',
     changeTier: '变更等级',
     ladder: '等级分布',
     noTiersYet: '尚无带等级的会员。等级随各项目数据导入。',
@@ -1422,8 +1689,30 @@ const zh = {
   /* Points.jsx */
   points: {
     adjust: '调整积分',
+    addPoints: '添加积分',
+    companyWide: '集团积分',
+    editPoints: '编辑积分',
+    everyAccountHasPoints: '所有已关联账号都已有积分，请改为编辑',
+    fromNSystems: '来自 {n} 个业务系统',
+    hideDetails: '收起 {n} 个系统',
+    importPoints: '导入积分',
+    importResult: '共 {received} 行：已保存 {updated}，未变化 {unchanged}，早于已存 {stale}，未知账号 {unknown}，无效 {invalid}',
+    noPointsAnywhere: '尚无客户有奖励积分',
+    noPointsYet: '尚未录入积分',
+    noWeight: '未设权重',
+    noWeightExplained: '该项目尚未设置积分权重，其积分不计入集团积分。请在 设置 > 项目 中设置。',
+    notCountedN: '{n} 个业务系统未计入（无权重）',
+    pointsSaved: '积分已保存',
+    removePoints: '移除这些积分',
+    removePointsExplained: '该账号的积分将从集团积分中移除，账号本身仍保持关联。',
+    reportedAsOf: '截至 {date} · {source}',
+    rewardPoints: '奖励积分',
+    rowN: '第 {n} 行',
+    searchCustomerOrAccount: '客户、编号或账号 ID',
+    showDetails: '展开 {n} 个系统',
+    template: '模板',
     adjusted: '积分已调整',
-    balances: '余额',
+    balances: 'CRM 积分',
     drifted: '{n} 个积分余额与流水不一致。这不应发生，请上报。',
     earningRules: '获取规则',
     ledger: '流水',
@@ -1612,6 +1901,7 @@ const zh = {
     statusMap: '状态映射',
     statusMapHint: '各项目自有状态码对应的 CRM 状态，以便与其他项目的工单比较。',
     tagsHint: '员工可在客户档案中添加的标签，如高价值、尝鲜用户。颜色决定标签的显示样式。',
+    tierKindsHint: '项目对客户分级的阶梯类型——如等级、级别、卡类。每个等级属于一种类型，每个账号在每种类型中各持有一个等级。',
     tiersHint: '各项目为会员计算的等级。排名只在本项目内有意义。'
   },
   /* Terminology.jsx */
@@ -1725,6 +2015,8 @@ const ru = {
   },
   /* Customers.jsx */
   customers: {
+    sharedPhonesTitle: 'Номеров телефона у нескольких клиентов: {n}',
+    sharedPhonesExplained: 'Один номер может принадлежать только одному клиенту. Это данные до введения правила: объедините клиентов, если это один человек, или выведите номер из употребления у клиента, которому он не принадлежит.',
     allCustomers: 'Все клиенты',
     duplicatesIntro: 'Проверка пар среди уже зарегистрированных клиентов. Новые неясные регистрации ждут на вкладке «Ожидающие регистрации».',
     duplicatesTab: 'Существующие дубликаты',
@@ -1743,8 +2035,8 @@ const ru = {
     soFailed: 'Остановлено: {error}',
     soConflicts: 'Уже привязаны к другому клиенту',
     soFailures: 'Не удалось проверить',
-    soMock: 'Режим разработки: поиск имитируется (SMARTPHONE_OFFLINE_BASE_URL не задан).',
-    soOff: 'Система SMARTPHONE_OFFLINE не настроена (SMARTPHONE_OFFLINE_BASE_URL).',
+    soMock: 'Режим разработки: поиск имитируется (PHONE_SERVER_URL не задан).',
+    soOff: 'Система SMARTPHONE_OFFLINE не настроена (PHONE_SERVER_URL).',
     soNoProject: 'Нет проекта с кодом {code}. Сначала добавьте его в Настройки > Проекты.',
     soFigureLinked: 'Привязано',
     soFigureExisting: 'Уже привязано',
@@ -1806,6 +2098,9 @@ const ru = {
   },
   /* RegistrationReview.jsx */
   registrationReview: {
+    hasThisPhone: 'Владеет этим номером',
+    phoneTaken: 'Номер телефона этой регистрации уже принадлежит клиенту {customer}. Один номер может принадлежать только одному клиенту: объедините с этим клиентом или зарегистрируйте как нового — новый клиент будет создан без этого номера.',
+    phonesLeftOut: 'Создан без номера {phones}: этот номер уже принадлежит другому клиенту.',
     assignIdentifier: 'Назначить идентификатор',
     bestScore: 'Лучший балл',
     candidates: 'Кандидаты ({n})',
@@ -1960,6 +2255,7 @@ const ru = {
     tabProducts: 'Товары',
     tabRelated: 'Связанные стороны',
     tabService: 'Сервис',
+    tabPrivileges: 'Привилегии',
     tagAdded: 'Метка добавлена',
     tagRemoved: 'Метка удалена',
     totalN: 'Всего: {n}',
@@ -2021,7 +2317,9 @@ const ru = {
     organizationTypes: 'Типы организации',
     peopleHere: 'Сотрудники организации',
     pin: 'Закрепить',
-    pointBalances: 'Остатки баллов',
+    pointBalances: 'Баллы, которые ведёт CRM',
+    projectOrders: 'Заказы: {project}',
+    ordersNotConnected: 'Заказы проекта {project} ещё не подключены. Они будут читаться из его собственной системы, как заказы интернет-магазина.',
     preferred: 'Предпочтительный',
     recentActivity: 'Недавние события',
     recentPoints: 'Последние движения баллов',
@@ -2060,6 +2358,8 @@ const ru = {
   },
   /* the customer record's overview cards: c360Cards.jsx, ui360.jsx */
   customer360Cards: {
+    membershipSummary: 'Сводка по членству',
+    noTiersYet: 'Уровней пока нет. Добавьте их в разделе «Членство» на вкладке «Аккаунты».',
     activeProducts: 'Активные товары',
     activeProjects: 'Активные проекты',
     address: 'Адрес',
@@ -2126,7 +2426,119 @@ const ru = {
     refunds: 'Возвраты'
   },
   /* Memberships.jsx */
+  /* ProjectSummary.jsx */
+  projectSummary: {
+    eshopOrder: 'Заказ интернет-магазина {number}',
+    appstorePurchase: 'Appstore · {name}',
+    deviceRegistered: 'Устройство зарегистрировано · {device}',
+    serviceVisit: 'Обслуживание · {reason}',
+    open: 'Открыто',
+    done: 'Завершено',
+    serviceVisits: 'Обращения в сервис',
+    pointsEarned: 'Начислено баллов',
+    lastVisit: 'Последнее обращение',
+    agencies: 'Сервисные центры',
+    topReason: 'Частая причина',
+    recentVisits: 'Последние обращения',
+    ordersSplit: 'Магазин {eshop} · Appstore {appstore}'
+  },
+  /* SmartphonePrivileges.jsx */
+  smartphonePrivileges: {
+    title: 'Привилегии',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть его привилегии.',
+    noRecords: 'Нет привилегий'
+  },
+  /* SmartphoneServices.jsx */
+  smartphoneServices: {
+    title: 'История обслуживания смартфонов',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть историю обслуживания.',
+    noServices: 'Нет истории обслуживания',
+    opened: 'Открыто {date}',
+    updated: 'Обновлено {date}',
+    points: '{n} баллов'
+  },
+  /* SmartphoneDevices.jsx */
+  smartphoneDevices: {
+    title: 'Смартфоны',
+    noProject: 'Нет проекта SMARTPHONE_OFFLINE (Настройки > Проекты).',
+    noAccounts: 'У клиента нет привязанного аккаунта SMARTPHONE_OFFLINE. Привяжите его на вкладке «Аккаунты», чтобы увидеть устройства.',
+    unreachable: 'Система SMARTPHONE_OFFLINE недоступна.',
+    noDevices: 'Нет зарегистрированных устройств'
+  },
+  /* AppstorePurchases.jsx */
+  appstore: {
+    title: 'Покупки в Appstore',
+    search: 'Название или устройство',
+    from: 'С',
+    to: 'По',
+    allDates: 'Все даты',
+    noProject: 'Нет проекта с кодом APPSTORE (Настройки > Проекты).',
+    noAccounts: 'У клиента нет привязанного аккаунта Appstore.',
+    noPk: 'Не запрошено — нет PK аккаунта для запроса Appstore: {accounts}. Добавьте PK на вкладке «Аккаунты».',
+    unreachable: 'Appstore недоступен для: {accounts}.',
+    noPurchases: 'В Appstore нет покупок',
+    kindAPP: 'Приложение',
+    kindDIAMOND: 'Алмазы',
+    kindAVATAR: 'Аватар',
+    kindEVENT_ITEM: 'Предмет события',
+    kindNICKNAME: 'Никнейм',
+    purseCOMPANY: 'Монеты компании',
+    purseIMMATERIAL: 'Нематериальный',
+    purseFOREIGN: 'Иностранная',
+    statusPURCHASED: 'Куплено',
+    statusPURCHASING: 'Покупается',
+    statusFAILED: 'Покупка не удалась',
+    licenceSUCCESS: 'Успешно',
+    licenceUNUSED: 'Не использована',
+    licenceUSED: 'Использована',
+    licenceFAIL: 'Ошибка',
+    licenceREFUND: 'Возврат',
+    licencePENDING: 'Ожидает',
+    licenceACCEPT_PENDING: 'Ожидает принятия',
+    showKey: 'Показать лицензионный ключ',
+    licenceTitle: 'Лицензия',
+    key: 'Лицензионный ключ',
+    noKey: 'У Appstore нет ключа для этой покупки.',
+    downloadFile: 'Скачать файл лицензии',
+    audited: 'Просмотр лицензионного ключа записывается в журнал аудита.'
+  },
+  /* EshopOrders.jsx */
+  eshopOrders: {
+    title: 'Заказы интернет-магазина',
+    primary: 'основной',
+    allAccounts: 'Все аккаунты ({n})',
+    items: 'товаров: {n}',
+    viewLines: 'Состав заказа',
+    points: 'Баллы',
+    byTheCustomer: 'Отменён клиентом',
+    byTheShop: 'Отменён магазином',
+    noEshopProject: 'Ни одному проекту не назначена роль интернет-магазина (Настройки > Проекты), запрашивать некого.',
+    noAccounts: 'У клиента нет привязанного аккаунта интернет-магазина.',
+    noPk: 'Не запрошено — нет PK аккаунта для запроса: {accounts}. Добавьте PK на вкладке «Аккаунты».',
+    unreachable: 'Интернет-магазин недоступен для: {accounts}.',
+    capped: 'Показаны только последние заказы каждого аккаунта: {accounts}. Выберите один аккаунт, чтобы листать все его заказы.',
+    noOrders: 'В интернет-магазине нет заказов',
+    unreachableShort: 'Интернет-магазин недоступен.',
+    headerSub: 'Интернет-магазин, все аккаунты',
+    order: 'Заказ',
+    deliverTo: 'Доставка',
+    payType: 'Оплата: {type}',
+    lines: 'Товары',
+    noLines: 'Магазин не прислал состав этого заказа.',
+    statusPENDING: 'Ожидает',
+    statusACCEPTED: 'Принят',
+    statusDELIVERING: 'Доставляется',
+    statusDELIVERED: 'Доставлен',
+    statusFINISHED: 'Завершён',
+    statusCANCEL_PENDING: 'Отменяется',
+    statusCANCELLED: 'Отменён',
+    statusREFUND_PENDING: 'Запрошен возврат',
+    statusREFUND_ACCEPTED: 'Возврат принят',
+    statusREFUNDED: 'Возвращён'
+  },
   memberships: {
+    addTier: 'Добавить уровень',
+    tierSaved: 'Уровень сохранён',
     changeTier: 'Изменить уровень',
     ladder: 'уровни',
     noTiersYet: 'Пока нет членств с уровнем. Они приходят с данными проектов.',
@@ -2221,8 +2633,30 @@ const ru = {
   /* Points.jsx */
   points: {
     adjust: 'Скорректировать баллы',
+    addPoints: 'Добавить баллы',
+    companyWide: 'Баллы компании',
+    editPoints: 'Изменить баллы',
+    everyAccountHasPoints: 'У всех привязанных аккаунтов уже есть баллы; измените их',
+    fromNSystems: 'из бизнес-систем: {n}',
+    hideDetails: 'Скрыть системы ({n})',
+    importPoints: 'Импорт баллов',
+    importResult: 'Строк {received}: сохранено {updated}, без изменений {unchanged}, старее сохранённых {stale}, неизвестных аккаунтов {unknown}, ошибочных {invalid}',
+    noPointsAnywhere: 'Ни у одного клиента пока нет бонусных баллов',
+    noPointsYet: 'Баллы ещё не введены',
+    noWeight: 'Нет веса',
+    noWeightExplained: 'У проекта не задан вес баллов, поэтому его баллы не входят в баллы компании. Задайте его в Настройки > Проекты.',
+    notCountedN: 'не учтено бизнес-систем: {n} (нет веса)',
+    pointsSaved: 'Баллы сохранены',
+    removePoints: 'Удалить эти баллы',
+    removePointsExplained: 'Баллы этого аккаунта будут исключены из баллов компании. Сам аккаунт останется привязан.',
+    reportedAsOf: 'На {date} · {source}',
+    rewardPoints: 'Бонусные баллы',
+    rowN: 'Строка {n}',
+    searchCustomerOrAccount: 'Клиент, номер или ID аккаунта',
+    showDetails: 'Показать системы ({n})',
+    template: 'Шаблон',
     adjusted: 'Баллы скорректированы',
-    balances: 'Балансы',
+    balances: 'Баллы CRM',
     drifted: 'Балансов, не совпадающих с журналом: {n}. Такого быть не должно — сообщите об этом.',
     earningRules: 'Правила начисления',
     ledger: 'Журнал',
@@ -2411,6 +2845,7 @@ const ru = {
     statusMap: 'Соответствие статусов',
     statusMapHint: 'Как собственные коды статусов проекта читаются в CRM, чтобы сравнивать обращения разных проектов.',
     tagsHint: 'Метки, которые сотрудники ставят клиентам в карточке: «Высокая ценность», «Ранний последователь». Цвет задаёт вид метки.',
+    tierKindsHint: 'Виды лестниц, по которым проект ранжирует клиентов: уровень, грейд, класс карты. Каждый уровень относится к одному виду, и у каждого аккаунта по одному уровню каждого вида.',
     tiersHint: 'Уровни, которые проект присваивает участникам. Ранг имеет смысл только внутри проекта.'
   },
   /* Terminology.jsx */
@@ -2424,6 +2859,41 @@ const ru = {
 
 const words = {
   en: {
+    /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: 'Phone Number',
+      deviceColor: 'Device Color',
+      serviceSummary: 'Service Summary'
+    },
+    smartphoneServices: {
+      customerInfo: 'Customer Info',
+      deviceType: 'Device Type',
+      agency: 'Agency',
+      serviceType: 'Service Type',
+      serviceReason: 'Service Reason'
+    },
+    smartphoneDevices: {
+      color: 'Color',
+      imei: 'IMEI'
+    },
+    eshopOrders: {
+      ordered: 'Ordered',
+      totalPrice: 'Total price'
+    },
+    tiers: {
+      tierKinds: 'Tier kinds',
+      level: 'Level',
+      grade: 'Grade',
+      cardClass: 'Card class',
+      kindCodeHelp: 'A short code, such as LEVEL or GRADE. Changing it later changes it on every tier and membership of this kind.',
+      tierKindHelp: 'The ladder this tier is on. A member holds one tier of each kind; add kinds under Tier kinds.',
+      ownProjectAndKind: "Only the tiers of this membership's own project and kind.",
+      noAccountYet: "This customer has no linked account yet. Link one on the customer's Accounts tab first.",
+      accountHoldsTier: 'The account the tier is held by.',
+      noTiersYet: 'This project has no tiers yet. Add them under Settings > Project tiers.',
+      kindAndTier: 'Kind · tier. The account holds one tier of each kind; choosing a kind it already has changes that tier.',
+      reasonWhenChanging: 'Needed when the account already has a tier of this kind.'
+    },
     /* used by more than one CRM screen */
     common: {
       about: 'About',
@@ -2643,6 +3113,20 @@ const words = {
     /* Points.jsx */
     points: {
       aClassAlsoCoversEvery: 'A class also covers every class under it. A rule for one product beats a rule for its class.',
+      businessSystem: 'Business system',
+      businessSystems: 'Business systems',
+      businessSystemAccount: 'Business system account',
+      projectPointWeightHelp: "Company-wide points one of this project's reward points is worth. Leave empty to show its points without counting them in the company-wide score.",
+      rewardAccountHelp: "One of the customer's linked accounts. Link the account first on this tab if it is not listed.",
+      rewardPointsHelp: 'The points this account holds in its business system now.',
+      rewardAsOfHelp: 'When the figure was true. Empty means now.',
+      rewardNoteHelp: 'Where the figure came from, for whoever checks it later.',
+      companyWidePoints: 'Company-wide points',
+      pointWeight: 'Point weight',
+      asOf: 'As of',
+      sentByTheProject: 'Sent by the project',
+      enteredByHand: 'Entered by hand',
+      excelImport: 'Excel import',
       atMostThisManyTimes: 'At most this many times a day',
       forOneProduct: 'For one product',
       forProduct: 'For product',
@@ -2849,7 +3333,7 @@ const words = {
       waysToHoldAProduct: 'Ways to hold a product',
       whatEachProjectMaySend: 'What each project may send'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: 'Accepted',
       accountManager: 'Account manager',
@@ -3204,6 +3688,41 @@ const words = {
     }
   },
   zh: {
+    /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: '电话号码',
+      deviceColor: '设备颜色',
+      serviceSummary: '服务摘要'
+    },
+    smartphoneServices: {
+      customerInfo: '客户信息',
+      deviceType: '设备型号',
+      agency: '服务网点',
+      serviceType: '服务类型',
+      serviceReason: '服务原因'
+    },
+    smartphoneDevices: {
+      color: '颜色',
+      imei: 'IMEI'
+    },
+    eshopOrders: {
+      ordered: '下单时间',
+      totalPrice: '总价'
+    },
+    tiers: {
+      tierKinds: '等级类型',
+      level: '等级',
+      grade: '级别',
+      cardClass: '卡类',
+      kindCodeHelp: '简短代码，如 LEVEL 或 GRADE。之后修改会同步到此类型的所有等级和会员资格。',
+      tierKindHelp: '此等级所在的阶梯。会员在每种类型中持有一个等级；可在“等级类型”中添加类型。',
+      ownProjectAndKind: '仅限本会员资格所属项目和类型的等级。',
+      noAccountYet: '该客户尚无已关联账号。请先在客户的“账号”页关联账号。',
+      accountHoldsTier: '持有该等级的账号。',
+      noTiersYet: '该项目尚无等级。请在 设置 > 项目等级 中添加。',
+      kindAndTier: '类型 · 等级。账号在每种类型中持有一个等级；选择已有的类型将变更该等级。',
+      reasonWhenChanging: '当账号已有此类型的等级时必填。'
+    },
     /* used by more than one CRM screen */
     common: {
       about: '内容',
@@ -3423,6 +3942,20 @@ const words = {
     /* Points.jsx */
     points: {
       aClassAlsoCoversEvery: '上级分类包含其下所有分类。针对单个产品的规则优先于针对其分类的规则。',
+      businessSystem: '业务系统',
+      businessSystems: '业务系统',
+      businessSystemAccount: '业务系统账号',
+      projectPointWeightHelp: '该项目的 1 奖励积分折合多少集团积分。留空则显示其积分但不计入集团积分。',
+      rewardAccountHelp: '该客户已关联的账号之一。如未列出，请先在本页关联该账号。',
+      rewardPointsHelp: '该账号当前在其业务系统中的积分。',
+      rewardAsOfHelp: '该数字成立的时间。留空表示现在。',
+      rewardNoteHelp: '数字的来源，便于日后核对。',
+      companyWidePoints: '集团积分',
+      pointWeight: '积分权重',
+      asOf: '截至',
+      sentByTheProject: '项目推送',
+      enteredByHand: '手工录入',
+      excelImport: 'Excel 导入',
       atMostThisManyTimes: '每天最多次数',
       forOneProduct: '适用产品',
       forProduct: '适用产品',
@@ -3629,7 +4162,7 @@ const words = {
       waysToHoldAProduct: '产品持有关系',
       whatEachProjectMaySend: '各项目可发送的内容'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: '已接受',
       accountManager: '客户经理',
@@ -3984,6 +4517,41 @@ const words = {
     }
   },
   ru: {
+    /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
+    smartphonePrivileges: {
+      phoneNumber: 'Номер телефона',
+      deviceColor: 'Цвет устройства',
+      serviceSummary: 'Краткое описание'
+    },
+    smartphoneServices: {
+      customerInfo: 'Данные клиента',
+      deviceType: 'Устройство',
+      agency: 'Сервисный центр',
+      serviceType: 'Вид обслуживания',
+      serviceReason: 'Причина обращения'
+    },
+    smartphoneDevices: {
+      color: 'Цвет',
+      imei: 'IMEI'
+    },
+    eshopOrders: {
+      ordered: 'Оформлен',
+      totalPrice: 'Итого'
+    },
+    tiers: {
+      tierKinds: 'Виды уровней',
+      level: 'Уровень',
+      grade: 'Грейд',
+      cardClass: 'Класс карты',
+      kindCodeHelp: 'Короткий код, например LEVEL или GRADE. Изменение кода изменит его у всех уровней и членств этого вида.',
+      tierKindHelp: 'Лестница, к которой относится уровень. У участника по одному уровню каждого вида; виды добавляются в «Виды уровней».',
+      ownProjectAndKind: 'Только уровни проекта и вида этого членства.',
+      noAccountYet: 'У клиента ещё нет привязанного аккаунта. Сначала привяжите его на вкладке «Аккаунты» клиента.',
+      accountHoldsTier: 'Аккаунт, которому принадлежит уровень.',
+      noTiersYet: 'У проекта ещё нет уровней. Добавьте их в Настройки > Уровни проектов.',
+      kindAndTier: 'Вид · уровень. У аккаунта по одному уровню каждого вида; выбор уже имеющегося вида меняет этот уровень.',
+      reasonWhenChanging: 'Обязательно, если у аккаунта уже есть уровень этого вида.'
+    },
     /* used by more than one CRM screen */
     common: {
       about: 'Тема',
@@ -4203,6 +4771,20 @@ const words = {
     /* Points.jsx */
     points: {
       aClassAlsoCoversEvery: 'Класс включает все вложенные классы. Правило для товара важнее правила для его класса.',
+      businessSystem: 'Бизнес-система',
+      businessSystems: 'Бизнес-системы',
+      businessSystemAccount: 'Аккаунт бизнес-системы',
+      projectPointWeightHelp: 'Сколько баллов компании стоит один бонусный балл этого проекта. Оставьте пустым, чтобы показывать его баллы, не включая их в баллы компании.',
+      rewardAccountHelp: 'Один из привязанных аккаунтов клиента. Если его нет в списке, сначала привяжите аккаунт на этой вкладке.',
+      rewardPointsHelp: 'Сколько баллов у этого аккаунта в его бизнес-системе сейчас.',
+      rewardAsOfHelp: 'На какой момент верна цифра. Пусто — сейчас.',
+      rewardNoteHelp: 'Откуда взята цифра — для того, кто будет проверять.',
+      companyWidePoints: 'Баллы компании',
+      pointWeight: 'Вес баллов',
+      asOf: 'На дату',
+      sentByTheProject: 'Передан проектом',
+      enteredByHand: 'Введён вручную',
+      excelImport: 'Импорт Excel',
       atMostThisManyTimes: 'Не чаще раз в день',
       forOneProduct: 'Для одного товара',
       forProduct: 'Для товара',
@@ -4409,7 +4991,7 @@ const words = {
       waysToHoldAProduct: 'Способы владения товаром',
       whatEachProjectMaySend: 'Что может отправлять проект'
     },
-    /* codes turned into words by pages/crm/shared.jsx WORDS (statuses, kinds, channels...) */
+    /* codes turned into words by pages/crm/shared/shared.jsx WORDS (statuses, kinds, channels...) */
     codes: {
       accepted: 'Принято',
       accountManager: 'Менеджер клиента',
