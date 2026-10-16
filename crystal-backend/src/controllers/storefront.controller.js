@@ -143,6 +143,12 @@ async function supportHome(req, res) {
 async function faqs(req, res) {
   const filters = {
     category: req.query.category,
+    /*
+     * The family of categories, for the storefront's first row of chips:
+     * products, or Crystal's own services. Narrowing to one category inside
+     * it sends `category` as well, which is the stricter of the two.
+     */
+    group: req.query.group,
     q: req.query.q
   };
 

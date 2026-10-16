@@ -28,6 +28,31 @@ export const FAQ_CATEGORIES = [
 ];
 
 /**
+ * THE TWO FAMILIES THE EIGHT FALL INTO, as the chips above the FAQ read them.
+ *
+ * Five of the eight are product kinds, which is a lot of chips for a reader to
+ * scan - so the first row is the family and the second row, drawn only once a
+ * family is chosen, is the categories inside it. It is the shape the forum's
+ * shelves already use.
+ *
+ * WHICH CATEGORY IS IN WHICH FAMILY IS NOT DECIDED HERE. The API answers
+ * `group` on every category it counts (crystal-backend
+ * src/utils/faqCategories.js), so this file holds only the words - the same
+ * division of labour as the labels above, where "CAMERA" is the code and
+ * "Secure Camera" is what the range is called.
+ */
+export const FAQ_GROUPS = [
+  { value: 'PRODUCTS', label: 'support.faq.groupProducts' },
+  { value: 'SERVICES', label: 'support.faq.groupServices' }
+];
+
+/** The address of the words for a family, or null for a category outside both. */
+export function faqGroupLabel(code) {
+  const found = FAQ_GROUPS.filter((entry) => entry.value === code)[0];
+  return found ? found.label : null;
+}
+
+/**
  * The words for a category code.
  *
  * A code with no entry is TIDIED rather than dropped: a database restored from

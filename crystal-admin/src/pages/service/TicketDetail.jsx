@@ -13,6 +13,7 @@ import StatusBadge from '../../components/StatusBadge';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
+import useMeta from '../../hooks/useMeta';
 import useOptions from '../../hooks/useOptions';
 import usePermission from '../../hooks/usePermission';
 import { parts, servicePrices, technicians, tickets } from '../../api';
@@ -46,8 +47,12 @@ export default function TicketDetail() {
   const removeLine = useDisclosure();
   const [target, setTarget] = useState(null);
 
-  const { options: meta } = useOptions(() => tickets.meta(), []);
-  const codes = Array.isArray(meta) ? {} : (meta || {});
+  /*
+   * A dictionary, not a list - see hooks/useMeta.js. The FLOW comes from here
+   * too, so reading it through useOptions left this screen with no status
+   * words and no transitions to offer at all.
+   */
+  const { meta: codes } = useMeta(() => tickets.meta(), []);
   const statusMap = codes.status || {};
   const flow = codes.flow || {};
 

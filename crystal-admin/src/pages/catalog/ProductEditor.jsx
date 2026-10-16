@@ -115,6 +115,32 @@ export default function ProductEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  /*
+   * A DIFFERENT PRODUCT MEANS FORGETTING THE LAST ONE, FIRST.
+   *
+   * This route keeps the same component mounted when `:id` changes - browser
+   * Back and Forward between two editors, or any push of another id - so
+   * `detail` went on holding the PREVIOUS product while the new one was in
+   * flight. The screen drew that product's pictures under the new product's
+   * URL, which is one half of the bug; the other half is worse.
+   *
+   * `<Gallery productId={product.id}>` reads its id from that same stale
+   * detail, so an upload during the gap was attached to the product somebody
+   * had just navigated AWAY from. That is how a picture added to a C9 ended
+   * up on a C7 - and, because one product is shown wherever it appears, on
+   * every account holding one.
+   *
+   * Declared BEFORE the load effect so React runs it first on the same
+   * change: the detail is cleared, the spinner comes back, and nothing of the
+   * old product can be read or written in between.
+   */
+  useEffect(() => {
+    detailRef.current = null;
+    setDetail(null);
+    setValues({});
+    setLoading(true);
+  }, [id]);
+
   useEffect(() => { load(); }, [load]);
 
   const run = async (action) => {
@@ -132,7 +158,20 @@ export default function ProductEditor() {
     }
   };
 
-  if (loading) return <Center py={20}><Spinner size="lg" thickness="3px" color="brand.500" /></Center>;
+  /*
+   * AND A REPLY FOR THE WRONG PRODUCT IS NOT DRAWN AT ALL.
+   *
+   * The effect above clears the detail on an id change, which covers the
+   * ordinary case; this covers the one it cannot - two fetches in flight and
+   * the FIRST one landing last, which leaves `detail` holding a product the
+   * URL no longer names. Drawing it would put the same wrong pictures on
+   * screen, and an upload would again write to the wrong product.
+   */
+  const stale = detail && String(detail.product.id) !== String(id);
+
+  if (loading || stale) {
+    return <Center py={20}><Spinner size="lg" thickness="3px" color="brand.500" /></Center>;
+  }
   if (!detail) return <Card><Text fontSize="sm">{t('editor.notFound')}</Text></Card>;
 
   const product = detail.product;

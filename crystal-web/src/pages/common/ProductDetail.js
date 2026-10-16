@@ -299,7 +299,13 @@ export default function ProductDetail({ sectionPath, sectionTitle }) {
                   <Box
                     key={item.key || 'overview'}
                     as={RouterLink}
-                    to={tabHref(item.key)}
+                    /*
+                     * `keepScroll` so the chrome does not scroll to the top:
+                     * these four addresses are one page's tabs, and a reader
+                     * part way down the specifications who opens the gallery
+                     * is not arriving anywhere new. See components/layout/Layout.js.
+                     */
+                    to={{ pathname: tabHref(item.key), state: { keepScroll: true } }}
                     h="100%"
                     display="flex"
                     alignItems="center"

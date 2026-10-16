@@ -22,12 +22,57 @@
  */
 const FAQ_CATEGORIES = ['SMARTPHONE', 'TV', 'STB', 'COMPUTER', 'CAMERA', 'CRYSTAL_APP', 'ESHOP', 'APPSTORE'];
 
+/**
+ * THE TWO FAMILIES THE EIGHT FALL INTO - a thing in the visitor's hands, or a
+ * Crystal service.
+ *
+ * It is the split the list above is already ordered by, and the storefront
+ * draws it as a second row of chips under the first: pick Products, then pick
+ * which product. The forum's shelves work the same way, and it is what makes
+ * eight chips - of which five are product kinds - readable at a glance.
+ *
+ * MEMBERSHIP IS DECIDED HERE, not in the website. The reading order already
+ * lives in this file for the four places that need it; a second copy of which
+ * category is a product would be a fifth, and the one that drifts.
+ */
+const FAQ_GROUPS = [
+  { key: 'PRODUCTS', categories: ['SMARTPHONE', 'TV', 'STB', 'COMPUTER', 'CAMERA'] },
+  { key: 'SERVICES', categories: ['CRYSTAL_APP', 'ESHOP', 'APPSTORE'] }
+];
+
 /** Where a category sits in the reading order; -1 for anything not in the list. */
 function rankOf(code) {
   return FAQ_CATEGORIES.indexOf(String(code || '').toUpperCase());
 }
 
+/** Which family a category belongs to, or null for one outside the vocabulary. */
+function groupOf(code) {
+  const wanted = String(code || '').toUpperCase();
+  const found = FAQ_GROUPS.filter(function (group) {
+    return group.categories.indexOf(wanted) !== -1;
+  })[0];
+
+  return found ? found.key : null;
+}
+
+/**
+ * The categories a group covers, or an empty list for an unknown group.
+ *
+ * Empty is deliberately NOT "all of them": a request for `group=PRODCUTS`
+ * should answer nothing and be noticed, rather than quietly answering the
+ * whole FAQ as though the filter had been applied.
+ */
+function categoriesInGroup(key) {
+  const wanted = String(key || '').toUpperCase();
+  const found = FAQ_GROUPS.filter(function (group) { return group.key === wanted; })[0];
+
+  return found ? found.categories.slice() : [];
+}
+
 module.exports = {
   FAQ_CATEGORIES: FAQ_CATEGORIES,
-  rankOf: rankOf
+  FAQ_GROUPS: FAQ_GROUPS,
+  rankOf: rankOf,
+  groupOf: groupOf,
+  categoriesInGroup: categoriesInGroup
 };

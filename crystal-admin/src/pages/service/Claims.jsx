@@ -14,6 +14,7 @@ import StatTile from '../../components/StatTile';
 import StatusBadge from '../../components/StatusBadge';
 
 import useList from '../../hooks/useList';
+import useMeta from '../../hooks/useMeta';
 import useOptions from '../../hooks/useOptions';
 import usePermission from '../../hooks/usePermission';
 import { agencies, claims } from '../../api';
@@ -50,8 +51,18 @@ export default function Claims() {
   const [target, setTarget] = useState(null);
 
   const { options: centres } = useOptions(() => agencies.options(), []);
-  const { options: meta } = useOptions(() => claims.meta(), []);
-  const statusMap = (Array.isArray(meta) ? {} : (meta || {})).status || {};
+  /*
+   * A DICTIONARY, NOT A LIST - see hooks/useMeta.js.
+   *
+   * This read the status words through `useOptions`, which coerces whatever
+   * it is given into an array. `/claims/meta` answers
+   * `{ status: { 0: 'Draft', 1: 'Submitted', ... } }`: not an array, no
+   * `rows`, so it became `[]` and every word on this screen fell back to its
+   * raw code - the "Move to" menu offered "1", "2", "3", "9", and the status
+   * column showed a number where a word belongs.
+   */
+  const { meta } = useMeta(() => claims.meta(), []);
+  const statusMap = meta.status || {};
 
   const list = useList(
     (params) => claims.list(params),

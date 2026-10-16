@@ -27,7 +27,7 @@ import {
 } from '@/components/common';
 import { IntegrityMessage } from '@/components/security/IntegrityState';
 import VerifiedFAQ from '@/components/security/VerifiedFAQ';
-import { faqCategoryLabel } from '@/components/support/faqCategories';
+import { FAQ_GROUPS, faqCategoryLabel, faqGroupLabel } from '@/components/support/faqCategories';
 import api from '@/api';
 import { useApi, useDebounced, useList } from '@/hooks/useApi';
 import { useSurface } from '@/theme/tokens';
@@ -71,6 +71,28 @@ export default function Faq() {
     ? list.rows.findIndex((faq) => String(faq.id) === String(openId))
     : -1;
 
+  /*
+   * THE TWO ROWS OF CHIPS, BUILT FROM THE COUNTS THE API SENT.
+   *
+   * Every category arrives with the family it belongs to, so the families are
+   * derived rather than listed here: a family is offered only when something
+   * in it is published, its count is the sum of its categories', and a
+   * category outside both families (a database restored from before the
+   * vocabulary was fixed) still gets a chip of its own in the second row.
+   */
+  const counted = categories.data || [];
+
+  const families = FAQ_GROUPS
+    .map((family) => Object.assign({}, family, {
+      count: counted
+        .filter((row) => row.group === family.value)
+        .reduce((sum, row) => sum + Number(row.count || 0), 0)
+    }))
+    .filter((family) => family.count > 0);
+
+  const group = list.params.group || null;
+  const siblings = counted.filter((row) => row.group === group);
+
   return (
     <Section py={{ base: 6, md: 10 }}>
       <Breadcrumbs items={[{ label: 'Support' }, { label: 'FAQ' }]} />
@@ -106,29 +128,74 @@ export default function Faq() {
         made somebody holding a set-top box read through the televisions. The
         category is now the product in their hands, which is what they came
         looking for, and the label is written rather than derived.
+
+        TWO ROWS, LIKE THE FORUM'S SHELVES. Eight chips of which five are
+        product kinds is a row nobody scans; the family comes first and the
+        categories inside it appear underneath, indented behind a rule, once
+        one is chosen. The counts are the API's - each category's own, and a
+        family's is the sum of its categories, so the number on a chip always
+        matches what clicking it lists.
       */}
-      <Flex gap="2" data-gap="8" data-gap-wrap wrap="wrap" mb="8">
-        <Button
-          size="sm"
-          variant={!list.params.category ? 'brand' : 'quiet'}
-          onClick={() => list.setFilter({ category: undefined })}
-        >
-          {t('support.faq.allTopics')}
-        </Button>
-        {(categories.data || []).map((row) => (
+      <Box mb="8">
+        <Flex gap="2" data-gap="8" data-gap-wrap wrap="wrap">
           <Button
-            key={row.category}
             size="sm"
-            variant={list.params.category === row.category ? 'brand' : 'quiet'}
-            onClick={() => list.setFilter({ category: row.category })}
+            variant={!group ? 'brand' : 'quiet'}
+            onClick={() => list.setFilter({ group: undefined, category: undefined })}
           >
-            {t(faqCategoryLabel(row.category))}
-            <Text as="span" ml="1.5" fontSize="xs" opacity={0.7}>
-              {row.count}
-            </Text>
+            {t('support.faq.allTopics')}
           </Button>
-        ))}
-      </Flex>
+          {families.map((family) => (
+            <Button
+              key={family.value}
+              size="sm"
+              variant={group === family.value ? 'brand' : 'quiet'}
+              /* A family is chosen afresh, so the category inside the last one
+                 does not survive into it and show an empty list. */
+              onClick={() => list.setFilter({ group: family.value, category: undefined })}
+            >
+              {t(family.label)}
+              <Text as="span" ml="1.5" fontSize="xs" opacity={0.7}>
+                {family.count}
+              </Text>
+            </Button>
+          ))}
+        </Flex>
+
+        {group && siblings.length > 0 && (
+          <Flex
+            gap="2"
+            data-gap="8"
+            data-gap-wrap
+            wrap="wrap"
+            mt="3"
+            pl="3"
+            borderLeft="2px solid"
+            borderColor={surface.border}
+          >
+            <Button
+              size="sm"
+              variant={!list.params.category ? 'brand' : 'quiet'}
+              onClick={() => list.setFilter({ category: undefined })}
+            >
+              {t('support.faq.allIn', { group: t(faqGroupLabel(group)) })}
+            </Button>
+            {siblings.map((row) => (
+              <Button
+                key={row.category}
+                size="sm"
+                variant={list.params.category === row.category ? 'brand' : 'quiet'}
+                onClick={() => list.setFilter({ category: row.category })}
+              >
+                {t(faqCategoryLabel(row.category))}
+                <Text as="span" ml="1.5" fontSize="xs" opacity={0.7}>
+                  {row.count}
+                </Text>
+              </Button>
+            ))}
+          </Flex>
+        )}
+      </Box>
 
       {list.loading && <Loading variant="list" count={8} height="60px" />}
 
@@ -208,23 +275,36 @@ export default function Faq() {
                       <AccordionIcon color={surface.muted} />
                     </AccordionButton>
                     {/*
-                      * The answer starts clear of the question. Chakra's panel
-                      * opens with `pt: 2` and this page used to zero it, which
-                      * left the answer sitting directly under the question with
-                      * only the button's own padding between them - two blocks
-                      * of text with no seam. A hairline above it separates the
-                      * two without drawing a second box.
+                      * THE ANSWER STARTS WELL CLEAR OF THE QUESTION.
+                      *
+                      * Chakra's panel opens with `pt: 2`, and this page first
+                      * zeroed it - the answer then sat directly under the
+                      * question with only the button's padding between them,
+                      * two blocks of text and no seam. A hairline was added,
+                      * with a 4-unit top padding and a 1-unit MARGIN above it.
+                      *
+                      * That margin was the remaining problem: it is inside the
+                      * box Chakra animates the height of, so the separation it
+                      * was meant to add reads as the rule being drawn over the
+                      * text rather than above it - the answer looks cut off
+                      * rather than spaced. The gap is now padding on both
+                      * sides of the rule, which cannot be clipped, and there
+                      * is more of it.
+                      *
+                      * The answer's own line height is raised too: these are
+                      * paragraphs somebody reads, not table cells, and
+                      * `pre-wrap` means the author's line breaks are kept as
+                      * well.
                       */}
                     <AccordionPanel
                       px="5"
-                      pb="5"
-                      pt="4"
-                      mt="1"
+                      pt="5"
+                      pb="6"
                       borderTop="1px solid"
                       borderColor={surface.border}
                     >
                       {faq ? (
-                        <Text color={surface.strong} whiteSpace="pre-wrap">
+                        <Text color={surface.strong} whiteSpace="pre-wrap" lineHeight="1.75">
                           {faq.answer}
                         </Text>
                       ) : (

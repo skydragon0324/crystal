@@ -17,10 +17,21 @@ const BALANCE = 'v_part_balance';
 
 const SEARCHABLE = ['b.part_no', 'b.part_name', 'b.agency_name', 'b.bin'];
 
-function applyFilters(qb, filters) {
+/**
+ * WHICH SHELVES ARE IN SCOPE: a centre, a part, a component, a search term.
+ *
+ * Kept apart from the state filter below, because the two answer different
+ * questions and the summary needs only this one - see `search`.
+ */
+function applyScope(qb, filters) {
   if (filters.agency_id) qb.where('b.agency_id', filters.agency_id);
   if (filters.part_id) qb.where('b.part_id', filters.part_id);
   if (filters.component) qb.where('b.component', filters.component);
+  return qb;
+}
+
+/** Which of those shelves to list: one state, or everything worth ordering. */
+function applyState(qb, filters) {
   if (filters.state) qb.where('b.stock_state', filters.state);
   // "Anything I should be ordering" is two states, and asking for it as two
   // separate filters is how a stock desk misses half its shortages.
@@ -28,17 +39,41 @@ function applyFilters(qb, filters) {
   return qb;
 }
 
+function applyFilters(qb, filters) {
+  return applyState(applyScope(qb, filters), filters);
+}
+
+/**
+ * THE SUMMARY IS THE SCOPE'S, NOT THE SELECTION'S.
+ *
+ * The four cards above this table count what is out, what is low, how many
+ * units are short and what the stock is worth. They were computed from the
+ * SAME query as the rows, state filter included - so clicking "Out of stock"
+ * narrowed the rows to OUT and then counted the LOW ones among them, which is
+ * none. The card a stock keeper had just clicked reported the other card as
+ * zero, and the shortfall and the value collapsed with it.
+ *
+ * So the summary applies the scope - this centre, this part, this search -
+ * and never the state. Selecting a card narrows the LIST; the cards go on
+ * saying what is on the shelves.
+ */
 async function search(filters, paging) {
-  const qb = applyFilters(applySearch(db(BALANCE + ' as b'), SEARCHABLE, filters.q), filters);
+  const scoped = applyScope(
+    applySearch(db(BALANCE + ' as b'), SEARCHABLE, filters.q),
+    filters
+  );
 
-  const countRow = await qb.clone().clearSelect().count({ c: '*' }).first();
-
-  const sumRow = await qb.clone().clearSelect().first(
+  const sumRow = await scoped.clone().clearSelect().first(
     db.raw("COUNT(*) FILTER (WHERE b.stock_state = 'OUT') AS out_cnt"),
     db.raw("COUNT(*) FILTER (WHERE b.stock_state = 'LOW') AS low_cnt"),
     db.raw('COALESCE(SUM(b.stock_value), 0) AS stock_value'),
     db.raw('COALESCE(SUM(b.shortfall), 0) AS shortfall')
   );
+
+  /* The rows, which do honour the card that is selected. */
+  const qb = applyState(scoped.clone(), filters);
+
+  const countRow = await qb.clone().clearSelect().count({ c: '*' }).first();
 
   const rows = await qb.select('b.*')
     .orderBy('b.' + paging.sort, paging.dir)

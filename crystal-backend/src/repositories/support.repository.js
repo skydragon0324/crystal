@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const { applySearch } = require('../utils/query');
-const { rankOf } = require('../utils/faqCategories');
+const { rankOf, categoriesInGroup } = require('../utils/faqCategories');
 
 const FAQS = 'faqs';
 const PRICES = 'service_prices';
@@ -36,6 +36,23 @@ function faqFilters(qb, filters) {
     if (rankOf(filters.category) === -1) qb.whereRaw('false');
     else qb.where('f.category', String(filters.category).toUpperCase());
   }
+
+  /*
+   * A FAMILY OF CATEGORIES - products, or Crystal's services.
+   *
+   * The storefront's first row of chips picks one of the two and the second
+   * row narrows to a category inside it, so this is a `whereIn` over the
+   * group's members rather than a column of its own: the grouping is a reading
+   * order, not something an answer is filed under.
+   *
+   * An unknown group matches NOTHING, deliberately - see categoriesInGroup. A
+   * mistyped group that quietly answered the whole FAQ would look like a
+   * working filter that had found everything.
+   */
+  if (filters.group) {
+    qb.whereIn('f.category', categoriesInGroup(filters.group));
+  }
+
   if (filters.status) qb.where('f.status', filters.status);
   return qb;
 }

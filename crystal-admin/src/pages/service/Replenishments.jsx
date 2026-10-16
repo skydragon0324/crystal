@@ -4,6 +4,7 @@ import { ChevronDownIcon } from '@chakra-ui/icons';
 
 import CrudPage from '../../components/CrudPage';
 import StatusBadge from '../../components/StatusBadge';
+import useMeta from '../../hooks/useMeta';
 import useOptions from '../../hooks/useOptions';
 import usePermission from '../../hooks/usePermission';
 import { agencies, replenishments } from '../../api';
@@ -34,8 +35,9 @@ export default function Replenishments() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const { options: centres } = useOptions(() => agencies.options(), []);
-  const { options: meta } = useOptions(() => replenishments.meta(), []);
-  const statusMap = (Array.isArray(meta) ? {} : (meta || {})).status || {};
+  /* A dictionary, not a list - see hooks/useMeta.js. */
+  const { meta } = useMeta(() => replenishments.meta(), []);
+  const statusMap = meta.status || {};
 
   const move = async (row, status) => {
     setBusy(true);

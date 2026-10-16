@@ -1122,6 +1122,9 @@ const en = {
     },
     faq: {
       allTopics: 'All topics',
+      groupProducts: 'Products',
+      groupServices: 'Crystal services',
+      allIn: 'All {group}',
       answers: '{count} answers',
       categorySecureCamera: 'Secure Camera',
       categoryStb: 'STB',
@@ -2339,6 +2342,9 @@ const zh = {
     },
     faq: {
       allTopics: '全部主题',
+      groupProducts: '产品',
+      groupServices: 'Crystal 服务',
+      allIn: '全部{group}',
       answers: '{count} 条答案',
       categorySecureCamera: '安防摄像头',
       categoryStb: '机顶盒',
@@ -3568,6 +3574,9 @@ const ru = {
     },
     faq: {
       allTopics: 'Все темы',
+      groupProducts: 'Продукты',
+      groupServices: 'Сервисы Crystal',
+      allIn: 'Все: {group}',
       answers: 'ответов: {count}',
       categorySecureCamera: 'Камеры видеонаблюдения',
       categoryStb: 'ТВ-приставки',

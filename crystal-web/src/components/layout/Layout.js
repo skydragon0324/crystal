@@ -20,11 +20,29 @@ export default function Layout({ children }) {
   const surface = useSurface();
   const location = useLocation();
 
-  // A router push keeps the scroll position, which lands a visitor halfway
-  // down a page they have not seen.
+  /*
+   * A router push keeps the scroll position, which lands a visitor halfway
+   * down a page they have not seen - so every navigation starts at the top.
+   *
+   * EXCEPT A MOVE WITHIN ONE PAGE. Some pages put their tabs on routes of
+   * their own, so that a tab can be linked to and bookmarked: a product's
+   * specification, gallery, pricing and software history are four addresses
+   * of one product page. Those are navigations to the router and tab clicks
+   * to the reader, and scrolling to the top on one threw somebody who had
+   * read half way down the specifications back to the hero image every time
+   * they looked at another tab.
+   *
+   * A navigation says which it is by carrying `keepScroll` in its state -
+   * see pages/common/ProductDetail.js. It is read off `location.state`, so
+   * going BACK to such a tab does not jump either: the flag belongs to the
+   * history entry, not to the click.
+   */
+  const keepScroll = !!(location.state && location.state.keepScroll);
+
   useEffect(() => {
+    if (keepScroll) return;
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [location.pathname, keepScroll]);
 
   return (
     <Flex direction="column" minH="100vh" bg={surface.page}>

@@ -9,7 +9,7 @@ const support = require('../repositories/support.repository');
 const agencies = require('../repositories/agencies.repository');
 const integrity = require('./integrity.service');
 const { HttpError } = require('../utils/response');
-const { FAQ_CATEGORIES, rankOf } = require('../utils/faqCategories');
+const { FAQ_CATEGORIES, rankOf, groupOf } = require('../utils/faqCategories');
 
 /**
  * Everything the customer website reads.
@@ -546,9 +546,18 @@ function faqCategories() {
       counts[row.category] = (counts[row.category] || 0) + 1;
     });
 
+    /*
+     * EACH CATEGORY SAYS WHICH FAMILY IT IS IN, so the website can draw the
+     * two rows of chips without keeping its own copy of the membership. The
+     * words for a family are the website's (it writes "Secure Camera" where
+     * this is "CAMERA"); which family a category belongs to is decided in
+     * utils/faqCategories.js and travels with the count.
+     */
     const known = FAQ_CATEGORIES
       .filter(function (code) { return counts[code]; })
-      .map(function (code) { return { category: code, count: counts[code] }; });
+      .map(function (code) {
+        return { category: code, count: counts[code], group: groupOf(code) };
+      });
 
     /*
      * Anything outside the vocabulary still gets a chip, after the eight. The
@@ -559,7 +568,7 @@ function faqCategories() {
     const strays = Object.keys(counts)
       .filter(function (code) { return rankOf(code) === -1; })
       .sort()
-      .map(function (code) { return { category: code, count: counts[code] }; });
+      .map(function (code) { return { category: code, count: counts[code], group: null }; });
 
     return known.concat(strays);
   });

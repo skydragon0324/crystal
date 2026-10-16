@@ -142,6 +142,15 @@ export default function Home() {
             interval={7000}
             /* A phone is sent the tall crops, so its box is tall too. */
             ratio={ADVERT_RATIO}
+            /*
+             * CONTAIN, NOT COVER. The box follows the crop the API sends -
+             * 1080x1350 to a phone, 1920x760 to a desktop - so artwork made
+             * to those sizes fills it either way. Artwork made to any other
+             * size was being CROPPED to fit, which on an advert cuts off the
+             * edges of the thing somebody paid to have read. Letterboxing it
+             * against the slide background shows all of it instead.
+             */
+            objectFit="contain"
             ariaLabel="Crystal"
           />
         )}

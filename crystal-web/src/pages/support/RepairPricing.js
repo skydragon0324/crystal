@@ -13,7 +13,7 @@ import {
   SelectField
 } from '@/components/common';
 import api from '@/api';
-import { useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useApi } from '@/hooks/useApi';
 import { formatPrice, useSurface } from '@/theme/tokens';
 import { useT } from '@/i18n';
@@ -30,7 +30,7 @@ export default function RepairPricing() {
   const t = useT();
 
   const surface = useSurface();
-  const [slug, setSlug] = useState(null);
+  const history = useHistory();
 
   /*
    * SCOPED TO A SECTION when one is asked for.
@@ -40,8 +40,33 @@ export default function RepairPricing() {
    * their own. Without it the picker offers a television to somebody who
    * arrived from the smartphone page.
    */
-  const search = new URLSearchParams(useLocation().search);
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
   const section = String(search.get('section') || '').toUpperCase();
+
+  /*
+   * THE CHOSEN PRODUCT IS IN THE ADDRESS, like the section beside it.
+   *
+   * It was local state, so this page could not be linked to at a product: a
+   * customer asking support about a price had no address to send, and a
+   * refresh went back to "pick a product". The product page's own pricing tab
+   * has always been linkable; this is the same list and should be too.
+   *
+   * `replace`, not `push`: trying three models is choosing one thing three
+   * times, not three pages to walk back through.
+   */
+  const [slug, setSlug] = useState(search.get('product') || null);
+
+  const choose = (next) => {
+    setSlug(next || null);
+
+    const params = new URLSearchParams(location.search);
+    if (next) params.set('product', next);
+    else params.delete('product');
+
+    const query = params.toString();
+    history.replace({ pathname: location.pathname, search: query ? '?' + query : '' });
+  };
   const isPhones = section === 'SMARTPHONE';
   const scoped = !!section;
 
@@ -57,7 +82,13 @@ export default function RepairPricing() {
 
   const pricing = useApi(
     () => (slug
-      ? api.catalog.servicePricing(slug, { limit: 200 })
+      /*
+       * 50 is the endpoint's own ceiling, not a guess: it clamps `limit` to
+       * 50 (controllers/storefront.controller.js), so asking for 200 got 50
+       * and claimed to have asked for everything. A product with more price
+       * lines than that is read on its own page, which pages properly.
+       */
+      ? api.catalog.servicePricing(slug, { limit: 50 })
       : Promise.resolve({ data: [] })),
     [slug]
   );
@@ -73,13 +104,25 @@ export default function RepairPricing() {
   /** Part plus labour. The API sends the two halves, not the sum. */
   const totalOf = (row) => Number(row.part_price || 0) + Number(row.service_price || 0);
 
+  /*
+   * THE COLUMNS THE ENDPOINT ACTUALLY ANSWERS - the same five the product
+   * page's own tab draws (pages/common/product/ServicePricingTab.js), because
+   * it is the same list from the same endpoint and a customer who checked a
+   * price here and again there must not see two different tables.
+   *
+   * They were `name`, `limit_quantity` and a per-row `currency`, and a price
+   * line has none of those: it has `part_name`, `part_price`, `service_price`
+   * and `approval_no`. So the first column was blank, the last read
+   * "undefined per repair", and the money was formatted against an undefined
+   * currency.
+   */
   const columns = [
     {
-      key: 'name',
+      key: 'part_name',
       label: 'Part or service',
       render: (row) => (
         <Text fontWeight="600" color={surface.text}>
-          {row.name}
+          {row.part_name}
         </Text>
       )
     },
@@ -87,13 +130,13 @@ export default function RepairPricing() {
       key: 'part_price',
       label: 'Part',
       align: 'right',
-      render: (row) => (row.part_price ? formatPrice(row.part_price, row.currency) : '—')
+      render: (row) => (Number(row.part_price) ? formatPrice(row.part_price) : '—')
     },
     {
       key: 'service_price',
       label: 'Labour',
       align: 'right',
-      render: (row) => (row.service_price ? formatPrice(row.service_price, row.currency) : '—')
+      render: (row) => (Number(row.service_price) ? formatPrice(row.service_price) : '—')
     },
     {
       key: 'total',
@@ -101,15 +144,18 @@ export default function RepairPricing() {
       align: 'right',
       render: (row) => (
         <Text fontWeight="700" color="brand.500">
-          {formatPrice(totalOf(row), row.currency)}
+          {formatPrice(totalOf(row))}
         </Text>
       )
     },
     {
-      key: 'limit_quantity',
-      label: 'Covered',
-      align: 'right',
-      render: (row) => `${row.limit_quantity} per repair`
+      key: 'approval_no',
+      // A string, never arithmetic: the format differs by market, so it is
+      // shown exactly as it was approved.
+      label: 'Approval number',
+      render: (row) => (row.approval_no
+        ? <Text fontSize="sm" color={surface.strong} whiteSpace="nowrap">{row.approval_no}</Text>
+        : <Text color={surface.muted}>—</Text>)
     }
   ];
 
@@ -131,7 +177,7 @@ export default function RepairPricing() {
           <SelectField
             label={t('support.repairpricing.chooseYourProduct')}
             value={slug}
-            onChange={setSlug}
+            onChange={choose}
             options={options}
             placeholder={t('support.repairpricing.searchForYourModel')}
           />
@@ -169,7 +215,17 @@ export default function RepairPricing() {
           ) : (
             <DataTable
               columns={columns}
-              rows={pricing.data || []}
+              /*
+               * THE ROWS, OUT OF THE PAGED REPLY.
+               *
+               * This endpoint answers `{ rows, total, page, limit }` - it
+               * takes a page and a limit - and this passed the whole object
+               * where the table wanted the array. DataTable maps over what it
+               * is given, so choosing a product threw `rows.map is not a
+               * function` and took the page down with it, which is the error
+               * reported from this screen.
+               */
+              rows={(pricing.data && pricing.data.rows) || []}
               loading={pricing.loading}
               emptyTitle={t('support.repairpricing.noRepairPricesPublishedFor')}
               emptyHint={t('support.repairpricing.askAnyServiceCentreFor')}

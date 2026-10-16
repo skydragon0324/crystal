@@ -12,6 +12,7 @@ import StatTile from '../../components/StatTile';
 import StatusBadge from '../../components/StatusBadge';
 
 import useList from '../../hooks/useList';
+import useMeta from '../../hooks/useMeta';
 import useOptions from '../../hooks/useOptions';
 import usePermission from '../../hooks/usePermission';
 import { agencies, symptoms, tickets } from '../../api';
@@ -37,18 +38,18 @@ export default function Tickets() {
   const intake = useDisclosure();
   const [saving, setSaving] = useState(false);
 
-  const { options: meta } = useOptions(() => tickets.meta(), []);
+  /* A dictionary, not a list - see hooks/useMeta.js. */
+  const { meta } = useMeta(() => tickets.meta(), []);
   const { options: centres } = useOptions(() => agencies.options(), []);
   const { options: faults } = useOptions(() => symptoms.list({ limit: 200 }), []);
 
   /*
-   * meta answers an object rather than a list, and useOptions hands back []
-   * for that - so both of these are memoised on `meta` itself.  Without it
-   * they are a new object on every render, and the useMemo below that depends
-   * on statusMap would recompute for ever.
+   * Memoised on `meta` itself: without it `statusMap` is a new object on
+   * every render and the useMemo below that depends on it recomputes for
+   * ever.
    */
-  const codes = useMemo(() => (Array.isArray(meta) ? {} : (meta || {})), [meta]);
-  const statusMap = useMemo(() => codes.status || {}, [codes]);
+  const codes = meta;
+  const statusMap = useMemo(() => meta.status || {}, [meta]);
 
   const list = useList(
     (params) => tickets.list(params),
