@@ -21,8 +21,8 @@ import { useT } from '../../i18n';
 import { vizPalette, vizTooltip } from '../../theme/viz';
 import { useSurface } from '../../theme/tokens';
 import { date, dateTime, number } from '../../utils/format';
-import { localInput } from './shared';
-import { Kpi, KpiStrip, Panel } from './ui';
+import { localInput } from './shared/shared';
+import { Kpi, KpiStrip, Panel } from './shared/ui';
 
 export const PAGE = '/admin/crm/lifecycle';
 
