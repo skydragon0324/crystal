@@ -228,18 +228,52 @@ async function addCustomers(project) {
     if (eshop) accounts.push([project.ESHOP, 'E' + (500000 + index), 'ESHOP_CUSTOMER']);
     for (const [projectId, externalId, type] of accounts) {
       // eslint-disable-next-line no-await-in-loop
-      const [linked] = await db('crm_project_account').insert({
+      const [returned] = await db('crm_project_account').insert({
         party_pk: party.party_pk, project_id: projectId, external_account_pk: externalId, external_account_id: externalId.toLowerCase(),
         external_account_type: type, account_status: 'ACTIVE', is_primary: projectId === project.UID, link_method: 'IMPORT',
         link_confidence: 1, linked_at: joined, source_created_at: joined
       }).returning('project_account_id');
+
+      /*
+       * ONE COLUMN BACK IS A VALUE, NOT A ROW.
+       *
+       * knex 0.21 answers `returning('project_account_id')` with `['123']` -
+       * the bare value, as a string for a bigint - and only `returning('*')`
+       * gives objects. This read `.project_account_id` off that value, got
+       * undefined, and inserted the membership below with no account at all.
+       *
+       * It was invisible until now: project_account_id was nullable, so the
+       * membership simply had none, and delta 065 - which makes it NOT NULL -
+       * removes exactly those rows on its way past. On a new database the
+       * column is NOT NULL from the start and the seed stops dead with
+       * "null value in column project_account_id".
+       *
+       * Written to take either shape, which is what demo-crm.js already does
+       * for crm_job_title.
+       */
+      const linked = typeof returned === 'object' && returned !== null
+        ? returned.project_account_id
+        : returned;
       // eslint-disable-next-line no-await-in-loop
       const tier = projectId === project.ESHOP
-        ? await db('crm_project_tier').where({ project_id: project.ESHOP, tier_code: 'LV' + between(1, 5) }).first('project_tier_id') : null;
+        ? await db('crm_project_tier').where({ project_id: project.ESHOP, tier_code: 'LV' + between(1, 5) })
+          /* The KIND comes back with the tier - see below. */
+          .first('project_tier_id', 'tier_kind')
+        : null;
       // eslint-disable-next-line no-await-in-loop
       // A membership is a tier held by an account: only where the project gave the account one.
+      /*
+       * THE KIND IS THE TIER'S OWN, not a guess.
+       *
+       * This said 'LEVEL' while the Eshop card levels above are created as
+       * CARD_CLASS, and a membership's tier is keyed by BOTH - delta 065's
+       * fk_crm_membership_tier is (current_tier_id, tier_kind) into
+       * crm_project_tier. So the pair never matched and a new database stops
+       * on the foreign key. Reading the kind off the row that was found
+       * cannot disagree with it.
+       */
       if (tier) await db('crm_membership').insert({
-        project_account_id: linked.project_account_id, tier_kind: 'LEVEL', external_member_id: externalId, membership_status: 'ACTIVE',
+        project_account_id: linked, tier_kind: tier.tier_kind, external_member_id: externalId, membership_status: 'ACTIVE',
         current_tier_id: tier.project_tier_id, joined_at: joined, synced_at: daysAgo(between(0, 1))
       });
     }

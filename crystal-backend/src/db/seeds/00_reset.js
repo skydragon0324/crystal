@@ -125,6 +125,15 @@ const CRM_RECORDS = [
   'crm_event_service_center', 'crm_event_tier', 'crm_event',
   'crm_segment_membership', 'crm_segment_version', 'crm_segment',
   'crm_party_product_class_stat', 'crm_party_metric_value', 'crm_party_analysis_snapshot',
+  /*
+   * `crm_reward_points` is here because it REFERENCES crm_project_account,
+   * which this list truncates. TRUNCATE refuses to empty a table that
+   * something outside the statement points at, so a referencing table left
+   * off this list does not merely survive the reset - it makes the whole
+   * reset, and therefore `npm run seed` and `npm run db:reset`, fail on a
+   * database that has it. It arrived with delta 059.
+   */
+  'crm_reward_points',
   'crm_point_event', 'crm_point_account', 'crm_point_rule',
   'crm_membership_tier_history', 'crm_membership',
   'crm_service_case_classification', 'crm_service_case', 'crm_fault_category',
