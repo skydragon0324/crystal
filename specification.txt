@@ -6732,3 +6732,12 @@ Also some of strings have no translation such as 'New', 'Active', 'Dormant', 'Ch
 - On crystal-admin, kpi status stock tab is showing none, its showing lifecycle.nHistoryHasBeenBuilt.
 Also on Job Health tab, lifecycle_poll is faield, and rows is not defined.
 How to fix it on production?
+
+---------------------------------------------------
+
+- lifecycle_poll is representing error
+'rows is not defined' on production,
+'select "table_pk", "user_pk", "action_at" from "ora_pid"."user_login_log" where "table_pk" > $1 order by "table_pk" asc limit $2 - relation "ora_pid.user_login_log" does not exist' on dev, because ora_pid is converted to bs_prhnid.
+- On job health tab, What these numbers can promise section should have padding.
+- On lifecycle KPI page, I'd like to set sub route so when F5, the selected tab should not be changed.
+- On backfill_logins for job durations, I see -86215.672s for last run, I think its because of timezone difference?
