@@ -72,7 +72,16 @@ async function withLock(name, work) {
  * node_modules is skipped for the same reason.
  */
 function describe(err) {
-  const message = (err && err.message) || String(err);
+  /*
+   * THE KIND OF FAILURE, FIRST. "rows is not defined" and
+   * "relation does not exist" are two completely different problems - one is
+   * a bug in this codebase, the other is a database that is not shaped the
+   * way the configuration says - and the message alone does not say which.
+   * The name does: ReferenceError against DatabaseError. An Error with no
+   * more specific name adds nothing, so it is left off.
+   */
+  const name = err && err.name && err.name !== 'Error' ? err.name + ': ' : '';
+  const message = name + ((err && err.message) || String(err));
   const stack = (err && err.stack) || '';
 
   const frame = stack.split('\n')

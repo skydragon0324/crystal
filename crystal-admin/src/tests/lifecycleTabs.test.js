@@ -21,7 +21,7 @@ import ReactDOM from 'react-dom';
 import { act } from 'react-dom/test-utils';
 import { ChakraProvider } from '@chakra-ui/react';
 import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route } from 'react-router-dom';
 
 import theme from '../theme';
 import { I18nProvider } from '../i18n';
@@ -427,7 +427,16 @@ describe('the lifecycle screen', () => {
           <I18nProvider>
             <Provider store={store}>
               <MemoryRouter initialEntries={[PAGE]}>
-                <ConfirmProvider><Lifecycle /></ConfirmProvider>
+                {/*
+                  * THE ROUTE, NOT JUST THE COMPONENT. The open tab is read
+                  * from the address now (TAB_PATHS), so without a Route to
+                  * supply the :tab param every tab click would change the URL
+                  * and nothing else - which is exactly what this would then
+                  * fail to notice.
+                  */}
+                <Route path={PAGE + '/:tab?'}>
+                  <ConfirmProvider><Lifecycle /></ConfirmProvider>
+                </Route>
               </MemoryRouter>
             </Provider>
           </I18nProvider>
@@ -613,6 +622,42 @@ describe('the lifecycle screen', () => {
     /* And the caveat the server sends, which must not be dropped. */
     expect(text).toContain('correlation');
     expect(text).not.toMatch(/NaN|undefined/);
+  });
+
+  test('a tab is an address, so a reload keeps it', async () => {
+    /*
+     * WHAT A RELOAD DOES. The open tab was state, so F5 came back on Status
+     * stock however far into another tab somebody had read. It is the address
+     * now - and this asserts both directions: opening a tab writes it, and
+     * mounting at it opens that tab rather than the first.
+     */
+    await open(3);
+    expect(host.textContent).toMatch(/1,?041,?989|1 041 989/);
+
+    /* Drawn afresh at the address a reload would ask for. */
+    act(() => { ReactDOM.unmountComponentAtNode(host); });
+
+    await act(async () => {
+      ReactDOM.render(
+        <ChakraProvider theme={theme}>
+          <I18nProvider>
+            <Provider store={store}>
+              <MemoryRouter initialEntries={[PAGE + '/health']}>
+                <Route path={PAGE + '/:tab?'}>
+                  <ConfirmProvider><Lifecycle /></ConfirmProvider>
+                </Route>
+              </MemoryRouter>
+            </Provider>
+          </I18nProvider>
+        </ChakraProvider>,
+        host
+      );
+    });
+    await settle();
+
+    /* The job health numbers, without anybody having clicked a tab. */
+    expect(host.textContent).toMatch(/lifecycle_poll/);
+    expect(host.textContent).toMatch(/0 \/ 10/);
   });
 
   test('the job health tab opens and draws the operations numbers', async () => {

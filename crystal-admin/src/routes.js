@@ -247,6 +247,16 @@ const routes = [
   { path: '/admin/crm/campaigns', component: CrmCampaigns },
   { path: '/admin/crm/settings', component: CrmSettings },
   { path: '/admin/crm/terminology', component: Terminology },
+  /*
+   * THE LIFECYCLE TABS ARE ADDRESSES.
+   *
+   * `/admin/crm/lifecycle/transitions` and its three siblings, so that a
+   * reload keeps the tab somebody was reading and a tab can be linked to.
+   * The permission is the list's: permissionOf matches the longest registered
+   * prefix, so all four resolve against `/admin/crm/lifecycle` - see
+   * Guarded in App.js.
+   */
+  { path: '/admin/crm/lifecycle/:tab', component: Lifecycle },
   { path: '/admin/crm/lifecycle', component: Lifecycle }
 ];
 

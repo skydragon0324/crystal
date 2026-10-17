@@ -8,6 +8,8 @@ import {
   Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts';
 
+import { useHistory, useParams } from 'react-router-dom';
+
 import Card from '../../components/Card';
 import DataTable from '../../components/DataTable';
 import ExcelActions from '../../components/ExcelActions';
@@ -59,6 +61,15 @@ export const PAGE = '/admin/crm/lifecycle';
  */
 
 const STATUSES = ['NEW', 'ACTIVE', 'DORMANT', 'CHURNED'];
+
+/**
+ * The four panels, as the four addresses under this page.
+ *
+ * The order is the TabList's order, because that is what `<Tabs index>`
+ * counts. The first is reached at the bare page url too, so a link to
+ * /admin/crm/lifecycle still opens the stock.
+ */
+const TAB_PATHS = ['stock', 'transitions', 'events', 'health'];
 
 /**
  * THE FOUR STATUSES ALWAYS IN THIS ORDER AND ALWAYS THE SAME COLOUR, taken
@@ -114,6 +125,15 @@ export default function Lifecycle() {
   const { colorMode } = useColorMode();
   const palette = vizPalette(colorMode);
   const may = usePermission(PAGE);
+
+  /*
+   * Which panel is open, read off the address - see TAB_PATHS. An unknown tab
+   * name opens the first rather than refusing: a link somebody mistyped, or
+   * one from before a tab was renamed, should still land on the page.
+   */
+  const history = useHistory();
+  const { tab } = useParams();
+  const openTab = Math.max(0, TAB_PATHS.indexOf(String(tab || TAB_PATHS[0])));
 
   /* 'Last 30 days', weekly: what an operator opens this page to see. */
   const [span, setSpan] = useState('30');
@@ -264,7 +284,26 @@ export default function Lifecycle() {
         </KpiStrip>
       </Box>
 
-      <Tabs variant="soft-rounded" colorScheme="brand" isLazy>
+      {/*
+        THE OPEN TAB IS THE ADDRESS, not state.
+
+        Held in state, a reload came back on Status stock however far into the
+        transition explorer somebody was - and a tab could not be linked to at
+        all. The URL is the single source of truth now: TAB_PATHS maps the four
+        panels to the four addresses, and an unknown or absent tab is the first
+        one.
+
+        `replace` rather than `push`: clicking through four tabs is reading one
+        page four ways, not visiting four pages, and Back should leave the
+        screen rather than walk the tabs.
+      */}
+      <Tabs
+        variant="soft-rounded"
+        colorScheme="brand"
+        isLazy
+        index={openTab}
+        onChange={(next) => history.replace(PAGE + '/' + TAB_PATHS[next])}
+      >
         <TabList mb="1rem">
           <Tab>{t('Status stock')}</Tab>
           <Tab>{t('Transition explorer')}</Tab>
@@ -1668,27 +1707,35 @@ function HealthTab({ may, toast, surface, t }) {
         ingestion method can and cannot promise.
       */}
       <Panel title={t('What these numbers can promise')}>
-        <Stack spacing="0.5rem" fontSize="xs" color={surface.muted}>
-          <Text>{data.completeness.note}</Text>
-          <Text>
-            {t('lifecycle.theOverlapWindowIs', { rows: number(data.completeness.overlapWindow) })}
-          </Text>
-          <Text>
-            {t('Last reconciled')}:{' '}
-            {data.lastReconciledAt ? dateTime(data.lastReconciledAt) : t('common.never')}
-          </Text>
-        </Stack>
-
-        {may.canWrite && (
-          <Box mt="0.75rem">
-            <Button size="sm" onClick={reconcile} isLoading={running}>
-              {t('Reconcile now')}
-            </Button>
-            <Text fontSize="xs" color={surface.muted} mt="0.375rem">
-              {t('lifecycle.thisReadsEverySourceKey')}
+        {/*
+          PANEL DOES NOT PAD ITS BODY - it renders children in a box with
+          `p={0}` unless it is drawing an empty state, so each caller sets its
+          own. This one did not, and the paragraph sat against the panel's
+          left edge and its bottom border.
+        */}
+        <Box px="1rem" py="0.75rem">
+          <Stack spacing="0.5rem" fontSize="xs" color={surface.muted}>
+            <Text>{data.completeness.note}</Text>
+            <Text>
+              {t('lifecycle.theOverlapWindowIs', { rows: number(data.completeness.overlapWindow) })}
             </Text>
-          </Box>
-        )}
+            <Text>
+              {t('Last reconciled')}:{' '}
+              {data.lastReconciledAt ? dateTime(data.lastReconciledAt) : t('common.never')}
+            </Text>
+          </Stack>
+
+          {may.canWrite && (
+            <Box mt="0.75rem">
+              <Button size="sm" onClick={reconcile} isLoading={running}>
+                {t('Reconcile now')}
+              </Button>
+              <Text fontSize="xs" color={surface.muted} mt="0.375rem">
+                {t('lifecycle.thisReadsEverySourceKey')}
+              </Text>
+            </Box>
+          )}
+        </Box>
       </Panel>
 
       <Card>

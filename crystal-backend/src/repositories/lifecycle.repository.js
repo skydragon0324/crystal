@@ -465,10 +465,24 @@ async function startRun(job, requestedBy) {
   return Array.isArray(rows) ? Number(rows[0].id === undefined ? rows[0] : rows[0].id) : Number(rows);
 }
 
+/**
+ * ONE CLOCK AT BOTH ENDS OF A RUN.
+ *
+ * `started_at` is the column's own `DEFAULT now()` - the database's clock -
+ * and this stamped `finished_at` from Node's. A duration measured across two
+ * clocks is not a duration: job health reported a last run of -86,215s for
+ * the login backfill, which is a day out, because the two machines did not
+ * agree on the date. Whole-minute timezone differences never show here
+ * (timestamptz is an instant either way); a drifting or differently-set
+ * system clock does, and it did.
+ *
+ * So the database stamps both, and a duration is the difference between two
+ * readings of one clock.
+ */
 function finishRun(id, status, totals) {
   return db(JOB).where('id', id).update({
     status: status,
-    finished_at: new Date(),
+    finished_at: db.fn.now(),
     rows_read: (totals && totals.rowsRead) || 0,
     rows_written: (totals && totals.rowsWritten) || 0,
     customers_rebuilt: (totals && totals.customersRebuilt) || 0,
@@ -571,6 +585,15 @@ async function runStats(limit) {
               row_number() OVER (PARTITION BY job ORDER BY started_at DESC) AS rank
          FROM ${JOB}
         WHERE finished_at IS NOT NULL
+          /*
+           * A RUN CANNOT END BEFORE IT BEGAN, and one that says so is not a
+           * measurement. Rows written before finishRun took both timestamps
+           * from the database can be a whole day out - job health showed a
+           * last run of -86,215s - and such a row would otherwise sit in the
+           * average and the slowest for ever. It is left out rather than
+           * shown as a negative duration nobody can read.
+           */
+          AND finished_at >= started_at
      )
      SELECT job,
             COUNT(*)::bigint                                       AS runs,
