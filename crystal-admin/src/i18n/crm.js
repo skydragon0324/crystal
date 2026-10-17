@@ -968,7 +968,6 @@ const en = {
   },
   /* Terminology.jsx */
   terminology: {
-    allLanguages: 'All languages',
     descriptionHelp: 'Where the term is used, what it does not mean, examples.',
     oneWordForOneThing: 'One word for one thing in every workflow. A term is defined once per language, with what it means.',
     searchTerms: 'Search terms'
@@ -1918,7 +1917,6 @@ const zh = {
   },
   /* Terminology.jsx */
   terminology: {
-    allLanguages: '全部语言',
     descriptionHelp: '术语的使用场景、不表示的含义、示例。',
     oneWordForOneThing: '所有业务流程中一词一义。每个术语在每种语言中只定义一次，并写明其含义。',
     searchTerms: '搜索术语'
@@ -2868,7 +2866,6 @@ const ru = {
   },
   /* Terminology.jsx */
   terminology: {
-    allLanguages: 'Все языки',
     descriptionHelp: 'Где используется термин, что он не означает, примеры.',
     oneWordForOneThing: 'Одно слово для одного понятия во всех процессах. Термин определяется один раз для каждого языка, вместе с его значением.',
     searchTerms: 'Поиск терминов'

@@ -229,7 +229,7 @@ function decode(row) {
      */
     is_featured: Number(row.gold_recom_num || 0) > 0,
 
-    published_at: row.publish_at || null,
+    published_at: row.ryongsan_at || null,
     is_deleted: codes.articleStatusFromState(row.state) === 'ARCHIVED',
     created_at: row.create_at || null,
     updated_at: row.modify_at || null
@@ -385,7 +385,7 @@ function decodePublic(row, tail) {
   out.last_reply = tail ? {
     id: Number(tail.id),
     author: tail.user_userid || null,
-    at: tail.publish_at || tail.create_at || null
+    at: tail.ryongsan_at || tail.create_at || null
   } : null;
   out.last_activity_at = later(out.published_at, out.last_reply ? out.last_reply.at : null);
 
@@ -411,7 +411,7 @@ function decodeReply(row, inQuestion) {
     parent_id: Number(row.parent),
     author: row.user_userid || null,
     content: row.content || '',
-    published_at: row.publish_at || row.create_at || null,
+    published_at: row.ryongsan_at || row.create_at || null,
     updated_at: row.modify_at || null,
     view_count: Number(row.visited_num || 0),
     is_accepted: !!inQuestion
@@ -435,7 +435,7 @@ function encode(data) {
   if (data.category !== undefined) article.subject_id = codes.topicToSubject(data.category);
   if (data.status !== undefined) article.state = codes.articleStatusToState(data.status);
   if (data.is_featured !== undefined) info.gold_recom_num = data.is_featured ? 1 : 0;
-  if (data.published_at !== undefined) article.publish_at = data.published_at;
+  if (data.published_at !== undefined) article.ryongsan_at = data.published_at;
 
   /*
    * THE SHELF ITSELF, for a caller that knows which one it means.
@@ -494,7 +494,7 @@ function encode(data) {
 /* ------------------------------------------------------------------ */
 
 const LIST_COLUMNS = ['a.id', 'a.title', 'a.summary', 'a.image_url', 'a.user_userid',
-  'a.subject_id', 'a.state', 'a.publish_at', 'a.create_at', 'a.modify_at',
+  'a.subject_id', 'a.state', 'a.ryongsan_at', 'a.create_at', 'a.modify_at',
   'i.visited_num', 'i.gold_recom_num'];
 
 function applyFilters(qb, filters) {
@@ -554,7 +554,7 @@ const SORTS = {
   title: 'a.title',
   category: 'a.subject_id',
   status: 'a.state',
-  published_at: 'a.publish_at',
+  published_at: 'a.ryongsan_at',
   view_count: 'i.visited_num',
   created_at: 'a.create_at'
 };
@@ -599,7 +599,7 @@ async function findById(id, deleted) {
  *
  * Keyed on `user_userid` - the login, not a number - because that is what this
  * schema records an author by. The member's login is the same string sign-in
- * checks against ora_pid.users, which is why it can be trusted here.
+ * checks against bs_prhnid.users, which is why it can be trusted here.
  *
  * Unlike the public list this does NOT hide drafts or refusals: it is the
  * author's own view, and an article they submitted and had refused is exactly
@@ -703,7 +703,7 @@ const PUBLIC_COLUMNS = LIST_COLUMNS.concat([
   'ps.id as subject_parent_ref', 'ps.name as subject_parent_name'
 ]);
 
-const REPLY_COLUMNS = ['r.id', 'r.parent', 'r.user_userid', 'r.state', 'r.publish_at',
+const REPLY_COLUMNS = ['r.id', 'r.parent', 'r.user_userid', 'r.state', 'r.ryongsan_at',
   'r.create_at', 'r.modify_at', 'i.visited_num', 'i.is_help_request', 'i.help_status',
   'i.gold_recom_num', 'i.silber_recom_num', 'i.recommended_num', 'l.content', 'l.approval_num'];
 
@@ -762,7 +762,7 @@ function replyStats() {
 /**
  * The reader's four orders - the vendor's four, by name rather than by column.
  *
- *   latest       publish_at, newest first (the vendor's default)
+ *   latest       ryongsan_at, newest first (the vendor's default)
  *   replies      most published replies first
  *   views        most read first
  *   recommended  gold minus the third grade, then newest - the vendor's
@@ -777,14 +777,14 @@ function applyPublicSort(qb, sort) {
   if (sort === 'replies') {
     qb.leftJoin(replyStats(), 'r.parent', 'a.id')
       .orderByRaw('COALESCE(r.reply_cnt, 0) DESC')
-      .orderBy('a.publish_at', 'desc');
+      .orderBy('a.ryongsan_at', 'desc');
   } else if (sort === 'views') {
-    qb.orderByRaw('COALESCE(i.visited_num, 0) DESC').orderBy('a.publish_at', 'desc');
+    qb.orderByRaw('COALESCE(i.visited_num, 0) DESC').orderBy('a.ryongsan_at', 'desc');
   } else if (sort === 'recommended') {
     qb.orderByRaw('COALESCE(i.gold_recom_num, 0) - COALESCE(i.recommended_num, 0) DESC')
       .orderBy('a.create_at', 'desc');
   } else {
-    qb.orderBy('a.publish_at', 'desc');
+    qb.orderBy('a.ryongsan_at', 'desc');
   }
 
   return qb.orderBy('a.id', 'desc');
@@ -810,7 +810,7 @@ async function threadTails(ids) {
     .leftJoin(legacy.blog(INFOS) + ' as ti', 'ti.id', 't.id')
     .whereIn('t.parent', ids)
     .where('t.state', PUBLIC)
-    .select('t.id', 't.parent', 't.user_userid', 't.publish_at', 't.create_at')
+    .select('t.id', 't.parent', 't.user_userid', 't.ryongsan_at', 't.create_at')
     .select(raw('ROW_NUMBER() OVER (PARTITION BY t.parent ORDER BY t.modify_at DESC, t.id DESC) AS rn'))
     .select(raw('COUNT(*) OVER (PARTITION BY t.parent) AS reply_cnt'))
     .select(raw(
@@ -1268,7 +1268,7 @@ function transaction(handler) {
 }
 
 module.exports = {
-  TABLE: 'ora_blog.' + ARTICLES,
+  TABLE: 'bs_blog.' + ARTICLES,
   PK: 'id',
   PUBLIC_SORTS: PUBLIC_SORTS,
 

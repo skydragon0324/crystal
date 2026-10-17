@@ -22,7 +22,7 @@ CREATE TABLE crm_project (
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE crm_project IS 'Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BMEDIA.';
+COMMENT ON TABLE crm_project IS 'Registry of Dream projects. Each project is one operational source system and therefore the source boundary for external ids. Seeded with PLATFORM, CRYSTAL, EPRODUCT, ESHOP, APPSTORE, KARAOKE, BSMEDIA.';
 
 CREATE TABLE crm_currency (
     currency_code                      varchar(3)     PRIMARY KEY,
@@ -1722,7 +1722,7 @@ INSERT INTO crm_project (project_code, project_name, project_type_code, source_s
  ('ESHOP',     'Eshop',                       'COMMERCE', 'ESHOP_API'),
  ('APPSTORE',  'Appstore',                    'SOFTWARE', 'APPSTORE_API'),
  ('KARAOKE',   'Karaoke licence service',     'SOFTWARE', 'LICENSE_DB'),
- ('BMEDIA',    'Broadcast media licences',    'CONTENT',  'MEDIA_DB');
+ ('BSMEDIA',    'Broadcast media licences',    'CONTENT',  'MEDIA_DB');
 
 INSERT INTO crm_currency (currency_code, currency_name, is_reporting) VALUES ('USD', 'US dollar', true);
 

@@ -14,11 +14,11 @@ const config = require('./index');
  *   deploy       LEGACY_DRIVER=oracle    a real oracledb pool
  *   development  LEGACY_DRIVER=postgres  the same PostgreSQL server Crystal
  *                                        already uses, where sql/legacy/
- *                                        creates ora_pid and ora_blog as
+ *                                        creates bs_prhnid and bs_blog as
  *                                        ordinary schemas
  *
  * That works because EVERY table name in repositories/legacy/ is written
- * schema-qualified - `ora_pid.feedback_threads`, never `feedback_threads`.
+ * schema-qualified - `bs_prhnid.feedback_threads`, never `feedback_threads`.
  * Oracle resolves that to a schema owned by another user; PostgreSQL resolves
  * it to a schema in the same database. Neither needs to know about the other,
  * and no query has to be written twice. It is the pattern vendor_backend uses
@@ -173,7 +173,7 @@ function ping() {
 /**
  * THE NEXT VALUE OF A SEQUENCE, which is the other thing that is not portable.
  *
- * ora_blog.blog_article has no identity, no default and no insert trigger -
+ * bs_blog.blog_article has no identity, no default and no insert trigger -
  * the vendor allocates the id in the application - so a new article has to ask
  * for one. Oracle spells that `seq.NEXTVAL FROM DUAL` and PostgreSQL spells it
  * `nextval(name)`; there is no third spelling both accept.

@@ -153,7 +153,7 @@ A party is anyone the CRM knows: a person or an organization. Every other custom
 | [crm_organization](#crm_organization) | table | Organization-only attributes: agencies and service-centre operators, media providers, business customers, suppliers. |
 | [crm_contact_point](#crm_contact_point) | table | Reusable contact values of a party. Replaces comma-joined phone columns in the vendor CRM. |
 | [crm_job_title](#crm_job_title) | table | The job titles a person can be given. Seeded from the vendor JOBS list; edited at /admin/crm/settings. |
-| [crm_location](#crm_location) | table | The vendor location list (ora_pid.locations), same columns and keys. Province = parent_code NULL or 0. |
+| [crm_location](#crm_location) | table | The vendor location list (bs_prhnid.locations), same columns and keys. Province = parent_code NULL or 0. |
 | [crm_party_note](#crm_party_note) | table | Notes staff write on a customer record (Customer 360 > Notes and files). |
 | [crm_party_file](#crm_party_file) | table | A document kept with a customer. The bytes live in the private CRM file folder, never under the public uploads; storage_key is the name there. |
 | [crm_party_tag](#crm_party_tag) | table | Which tags are on which customer. |
@@ -297,7 +297,7 @@ The job titles a person can be given. Seeded from the vendor JOBS list; edited a
 
 ### crm_location
 
-The vendor location list (ora_pid.locations), same columns and keys. Province = parent_code NULL or 0.
+The vendor location list (bs_prhnid.locations), same columns and keys. Province = parent_code NULL or 0.
 
 | About | |
 |---|---|

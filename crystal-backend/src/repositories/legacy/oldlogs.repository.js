@@ -97,7 +97,7 @@ async function limitFor(userId, login) {
    * user_id as fixed_id"), so after a merge the two are the same string.
    *
    * Crystal used to send the user_pk instead - it read `user_merge_ids` by
-   * `pvendor_pk` and used that row's `fixed_id`. Two things were wrong with
+   * `prhn_pk` and used that row's `fixed_id`. Two things were wrong with
    * it and both fail the same silent way, with no cap and a member seeing
    * history that is already on their ordinary pages: the identity bridge
    * writes the storefront keys and leaves `fixed_id` NULL, so the lookup

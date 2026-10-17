@@ -5,7 +5,7 @@
  *
  * Feedback and the blog are read and written in the vendor's Oracle instance
  * (see src/config/legacy.js). There is no Oracle on a development machine, so
- * the same two schemas - `ora_pid` and `ora_blog` - are ordinary schemas in
+ * the same two schemas - `bs_prhnid` and `bs_blog` - are ordinary schemas in
  * the PostgreSQL database Crystal already uses, and this fills them.
  *
  *   npm run legacy:install        (run it AFTER `npm run seed`)
@@ -13,7 +13,7 @@
  * IT IS ADDITIVE AND IT NEVER TRUNCATES.
  *
  * On the machine this was written against, both schemas already existed and
- * ora_blog.blog_article already held 48 articles - the vendor's own converted
+ * bs_blog.blog_article already held 48 articles - the vendor's own converted
  * data, which is exactly what production will look like. Wiping that to make
  * room for Crystal's demo content would have destroyed the only realistic
  * fixture in the database. So this ADDS Crystal's rows alongside, and removes
@@ -37,8 +37,8 @@
  *
  * THE IDENTITY BRIDGE IS MADE TRUE HERE.
  *
- * feedback_threads.user_pk has a foreign key to ora_pid.users, and
- * session_by one to ora_pid.managers. Crystal's members are ids 1160-1220 and
+ * feedback_threads.user_pk has a foreign key to bs_prhnid.users, and
+ * session_by one to bs_prhnid.managers. Crystal's members are ids 1160-1220 and
  * the vendor's stand-in users table had four rows, none of them matching - so
  * every insert failed. In PRODUCTION this is not a problem, because Crystal's
  * members ARE the vendor's users; the bridge that repositories/legacy/ relies
@@ -90,7 +90,7 @@ async function insertMissing(table, key, rows) {
  *
  * `npm run seed` clears Crystal's users and renumbers them from 1, and the
  * platform schema keeps whatever the previous run mirrored - so after a reseed
- * ora_pid holds rows for members nobody has any more, and their logins collide
+ * bs_prhnid holds rows for members nobody has any more, and their logins collide
  * with the new ones on the unique index. The installer put them there, so the
  * installer takes them away.
  *
@@ -105,11 +105,11 @@ const MIRROR_ESHOP_BASE = 800000000;
 async function pruneStaleMirror() {
   const live = await db('users').pluck('id');
 
-  const stale = await db('ora_pid.user_merge_ids')
+  const stale = await db('bs_prhnid.user_merge_ids')
     .where('eshop_pk', '>=', MIRROR_ESHOP_BASE)
     .where('eshop_pk', '<', MIRROR_ESHOP_BASE + 1000000)
-    .whereNotIn('pvendor_pk', live.length ? live : [-1])
-    .pluck('pvendor_pk');
+    .whereNotIn('prhn_pk', live.length ? live : [-1])
+    .pluck('prhn_pk');
 
   if (!stale.length) return 0;
 
@@ -118,26 +118,26 @@ async function pruneStaleMirror() {
    * mirrored member, and every one of them has a foreign key to the user row
    * that has to go last.
    */
-  const threads = await db('ora_pid.feedback_threads').whereIn('user_pk', stale).pluck('thread_pk');
+  const threads = await db('bs_prhnid.feedback_threads').whereIn('user_pk', stale).pluck('thread_pk');
   if (threads.length) {
-    await db('ora_pid.feedback_messages').whereIn('thread_pk', threads).del();
-    await db('ora_pid.feedback_threads').whereIn('thread_pk', threads).del();
+    await db('bs_prhnid.feedback_messages').whereIn('thread_pk', threads).del();
+    await db('bs_prhnid.feedback_threads').whereIn('thread_pk', threads).del();
   }
 
   const ledgers = ['soft', 'appstore', 'karaoke', 'bmedia', 'activity'];
   for (let i = 0; i < ledgers.length; i += 1) {
     /* eslint-disable no-await-in-loop */
-    await db('ora_pid.' + ledgers[i] + '_point_log').whereIn('user_pk', stale).del();
-    await db('ora_pid.' + ledgers[i] + '_point_stats').whereIn('user_pk', stale).del();
+    await db('bs_prhnid.' + ledgers[i] + '_point_log').whereIn('user_pk', stale).del();
+    await db('bs_prhnid.' + ledgers[i] + '_point_stats').whereIn('user_pk', stale).del();
     /* eslint-enable no-await-in-loop */
   }
 
   /* Written by mirrorRegistrations below, and keyed to the user row the same way. */
-  await db('ora_pid.register_point_log').whereIn('user_pk', stale).del();
-  await db('ora_pid.user_phone_numbers').whereIn('user_pk', stale).del();
+  await db('bs_prhnid.register_point_log').whereIn('user_pk', stale).del();
+  await db('bs_prhnid.user_phone_numbers').whereIn('user_pk', stale).del();
 
-  await db('ora_pid.user_merge_ids').whereIn('pvendor_pk', stale).del();
-  await db('ora_pid.users').whereIn('user_pk', stale).del();
+  await db('bs_prhnid.user_merge_ids').whereIn('prhn_pk', stale).del();
+  await db('bs_prhnid.users').whereIn('user_pk', stale).del();
 
   return stale.length;
 }
@@ -149,7 +149,7 @@ async function pruneStaleMirror() {
 async function pruneStaleManagers() {
   const live = await db('managers').pluck('id');
 
-  return db('ora_pid.managers')
+  return db('bs_prhnid.managers')
     .where('password', 'not-a-credential')
     .whereNotIn('manager_pk', live.length ? live : [-1])
     .del();
@@ -167,7 +167,7 @@ async function bridgeIdentities() {
    * The logins already in use on the platform, so a Crystal member is never
    * handed one that belongs to somebody else.
    */
-  const existing = await db('ora_pid.users')
+  const existing = await db('bs_prhnid.users')
     .whereNotIn('user_pk', members.map(function (row) { return row.id; }))
     .pluck('user_id');
 
@@ -180,14 +180,14 @@ async function bridgeIdentities() {
     taken[logins[row.id]] = true;
   });
 
-  const users = await insertMissing('ora_pid.users', 'user_pk', members.map(function (row) {
+  const users = await insertMissing('bs_prhnid.users', 'user_pk', members.map(function (row) {
     return {
       user_pk: row.id,
       user_id: logins[row.id],
       /*
        * A REAL, USABLE CREDENTIAL - because sign-in now checks THIS row.
        *
-       * ora_pid.users is the platform's user table and Crystal authenticates
+       * bs_prhnid.users is the platform's user table and Crystal authenticates
        * against it, so a placeholder here is a member who cannot log in. The
        * platform stores an unsalted MD5 (see repositories/legacy/
        * members.repository.js for why Crystal cannot change that), and this is
@@ -199,7 +199,7 @@ async function bridgeIdentities() {
     };
   }));
 
-  const managers = await insertMissing('ora_pid.managers', 'manager_pk', managerRows.map(function (row) {
+  const managers = await insertMissing('bs_prhnid.managers', 'manager_pk', managerRows.map(function (row) {
     return {
       manager_pk: row.id,
       manager_id: row.username || ('crystal' + row.id),
@@ -221,15 +221,15 @@ async function bridgeIdentities() {
    * The mock derives its data from these keys, so a member with a merge row
    * gets a consistent set of orders and purchases of their own.
    */
-  const merges = await insertMissing('ora_pid.user_merge_ids', 'pvendor_pk', members.map(function (row) {
+  const merges = await insertMissing('bs_prhnid.user_merge_ids', 'prhn_pk', members.map(function (row) {
     /* The SAME login the users row got - computed once, above, with the
        collision map. Recomputing it here with an empty map produced a
        different name and collided on the merge table unique index. */
     const login = logins[row.id];
 
     return {
-      pvendor_pk: row.id,
-      pvendor_id: login,
+      prhn_pk: row.id,
+      prhn_id: login,
       eshop_pk: 800000000 + row.id,
       eshop_id: login,
       appstore_pk: 'as-' + row.id,
@@ -240,7 +240,7 @@ async function bridgeIdentities() {
   /*
    * AND CRYSTAL'S MIRROR OF THE LOGIN IS BROUGHT BACK INTO STEP.
    *
-   * users.login is a copy of ora_pid.users.user_id, refreshed at sign-in - so
+   * users.login is a copy of bs_prhnid.users.user_id, refreshed at sign-in - so
    * a member who has not signed in since a login changed still carries the old
    * one, and anything reading it (the blog's author, the storefront identity
    * fallback) looks at the wrong person or at nobody. The installer owns both
@@ -249,7 +249,7 @@ async function bridgeIdentities() {
   const synced = await db.raw(`
     UPDATE users u
        SET login = p.user_id
-      FROM ora_pid.users p
+      FROM bs_prhnid.users p
      WHERE p.user_pk = u.id
        AND u.login IS DISTINCT FROM p.user_id
   `);
@@ -275,10 +275,10 @@ async function mirrorFeedback() {
   const ids = threads.map(function (row) { return row.id; });
 
   /* Only what a previous run of this script put there. */
-  await db('ora_pid.feedback_messages').whereIn('thread_pk', ids).del();
-  await db('ora_pid.feedback_threads').whereIn('thread_pk', ids).del();
+  await db('bs_prhnid.feedback_messages').whereIn('thread_pk', ids).del();
+  await db('bs_prhnid.feedback_threads').whereIn('thread_pk', ids).del();
 
-  await db('ora_pid.feedback_threads').insert(threads.map(function (row) {
+  await db('bs_prhnid.feedback_threads').insert(threads.map(function (row) {
     return {
       thread_pk: row.id,
       user_pk: row.user_id,
@@ -303,7 +303,7 @@ async function mirrorFeedback() {
     };
   }));
 
-  await db('ora_pid.feedback_messages').insert(messages.map(function (row) {
+  await db('bs_prhnid.feedback_messages').insert(messages.map(function (row) {
     return {
       message_pk: row.id,
       thread_pk: row.thread_id,
@@ -314,8 +314,8 @@ async function mirrorFeedback() {
     };
   }));
 
-  await bump('ora_pid.feedback_threads_s', 'ora_pid.feedback_threads', 'thread_pk');
-  await bump('ora_pid.feedback_messages_s', 'ora_pid.feedback_messages', 'message_pk');
+  await bump('bs_prhnid.feedback_threads_s', 'bs_prhnid.feedback_threads', 'thread_pk');
+  await bump('bs_prhnid.feedback_messages_s', 'bs_prhnid.feedback_messages', 'message_pk');
 
   return { threads: threads.length, messages: messages.length };
 }
@@ -344,7 +344,7 @@ const POINT_TABLES = [
   { log: 'soft_point_log', stats: 'soft_point_stats' },
   { log: 'appstore_point_log', stats: 'appstore_point_stats' },
   { log: 'karaoke_point_log', stats: 'karaoke_point_stats' },
-  { log: 'bmedia_point_log', stats: 'bmedia_point_stats' }
+  { log: 'bsmedia_point_log', stats: 'bsmedia_point_stats' }
 ];
 
 /* The pk space this script writes in, kept clear of the vendor's 9000010xxxxx. */
@@ -361,11 +361,11 @@ async function mirrorPoints() {
     const table = POINT_TABLES[t];
 
     /* eslint-disable no-await-in-loop */
-    const template = await db('ora_pid.' + table.log).orderBy('table_pk').limit(8);
+    const template = await db('bs_prhnid.' + table.log).orderBy('table_pk').limit(8);
     if (!template.length) continue;
 
-    await db('ora_pid.' + table.log).where('table_pk', '>=', FIXTURE_BASE).del();
-    await db('ora_pid.' + table.stats).where('table_pk', '>=', FIXTURE_BASE).del();
+    await db('bs_prhnid.' + table.log).where('table_pk', '>=', FIXTURE_BASE).del();
+    await db('bs_prhnid.' + table.stats).where('table_pk', '>=', FIXTURE_BASE).del();
 
     const rows = [];
     const totals = {};
@@ -385,8 +385,8 @@ async function mirrorPoints() {
       });
     });
 
-    await db('ora_pid.' + table.log).insert(rows);
-    await db('ora_pid.' + table.stats).insert(ids.map(function (userId, m) {
+    await db('bs_prhnid.' + table.log).insert(rows);
+    await db('bs_prhnid.' + table.stats).insert(ids.map(function (userId, m) {
       return {
         table_pk: FIXTURE_BASE + (t * 1000000) + 900000 + m,
         user_pk: userId,
@@ -406,11 +406,11 @@ async function mirrorPoints() {
 
 /** Activity is the fifth system and the one with a different shape. */
 async function mirrorActivityPoints(ids) {
-  const template = await db('ora_pid.activity_point_log').orderBy('table_pk').limit(6);
+  const template = await db('bs_prhnid.activity_point_log').orderBy('table_pk').limit(6);
   if (!template.length) return 0;
 
-  await db('ora_pid.activity_point_log').where('table_pk', '>=', FIXTURE_BASE).del();
-  await db('ora_pid.activity_point_stats').where('table_pk', '>=', FIXTURE_BASE).del();
+  await db('bs_prhnid.activity_point_log').where('table_pk', '>=', FIXTURE_BASE).del();
+  await db('bs_prhnid.activity_point_stats').where('table_pk', '>=', FIXTURE_BASE).del();
 
   const rows = [];
   const totals = {};
@@ -426,8 +426,8 @@ async function mirrorActivityPoints(ids) {
     });
   });
 
-  await db('ora_pid.activity_point_log').insert(rows);
-  await db('ora_pid.activity_point_stats').insert(ids.map(function (userId, m) {
+  await db('bs_prhnid.activity_point_log').insert(rows);
+  await db('bs_prhnid.activity_point_stats').insert(ids.map(function (userId, m) {
     return {
       table_pk: FIXTURE_BASE + 5900000 + m,
       user_pk: userId,
@@ -483,14 +483,14 @@ async function mirrorRegistrations() {
   if (!members.length) return { registrations: 0, phones: 0 };
 
   const ids = members.map(function (row) { return row.id; });
-  const handsets = await db('ora_pid.products').orderBy('product_pk').limit(4)
+  const handsets = await db('bs_prhnid.products').orderBy('product_pk').limit(4)
     .select('product_pk', 'product_name');
 
-  await db('ora_pid.register_point_log')
+  await db('bs_prhnid.register_point_log')
     .where('table_pk', '>=', REGISTER_FIXTURE_BASE)
     .where('table_pk', '<', REGISTER_FIXTURE_BASE + 1000000)
     .del();
-  await db('ora_pid.user_phone_numbers')
+  await db('bs_prhnid.user_phone_numbers')
     .where('phone_pk', '>=', PHONE_FIXTURE_BASE)
     .where('phone_pk', '<', PHONE_FIXTURE_BASE + 1000000)
     .del();
@@ -538,11 +538,11 @@ async function mirrorRegistrations() {
     });
   });
 
-  await db('ora_pid.register_point_log').insert(registrations);
-  await db('ora_pid.user_phone_numbers').insert(phones);
+  await db('bs_prhnid.register_point_log').insert(registrations);
+  await db('bs_prhnid.user_phone_numbers').insert(phones);
 
-  await db('ora_pid.users').where('user_pk', ids[0]).whereNull('gender').update({ gender: 'F' });
-  await db('ora_pid.users').where('user_pk', ids[0]).whereNull('birthday').update({ birthday: '1992-03-18' });
+  await db('bs_prhnid.users').where('user_pk', ids[0]).whereNull('gender').update({ gender: 'F' });
+  await db('bs_prhnid.users').where('user_pk', ids[0]).whereNull('birthday').update({ birthday: '1992-03-18' });
 
   return { registrations: registrations.length, phones: phones.length };
 }
@@ -601,10 +601,10 @@ async function mirrorOldLogs() {
    */
   const memberIds = await db('users').pluck('id');
 
-  const members = await db('ora_pid.user_merge_ids')
-    .whereIn('pvendor_pk', memberIds.length ? memberIds : [-1])
-    .select('pvendor_pk', 'pvendor_id', 'fixed_id', 'eshop_pk')
-    .orderBy('pvendor_pk');
+  const members = await db('bs_prhnid.user_merge_ids')
+    .whereIn('prhn_pk', memberIds.length ? memberIds : [-1])
+    .select('prhn_pk', 'prhn_id', 'fixed_id', 'eshop_pk')
+    .orderBy('prhn_pk');
 
   if (!members.length) return { karaoke: 0, media: 0, prizes: 0, merged: 0 };
 
@@ -618,12 +618,12 @@ async function mirrorOldLogs() {
    * never be run against a converted instance, and a delete like
    * `id LIKE 'KOLD%'` is not even a legal comparison there.
    */
-  await db('ora_license.tbl_error_list').where('id', '>=', OLD_BASE).del();
-  await db('ora_license.tbl_licgen').where('id', '>=', OLD_BASE).del();
-  await db('ora_media.tbl_licenses').where('id', '>=', OLD_BASE).del();
-  await db('ora_media.tbl_old_license_score').where('id', '>=', OLD_BASE).del();
-  await db('ora_old_db.customer_prize_log').where('id', '>=', OLD_BASE).del();
-  await db('ora_pid.user_merge_log').where('table_pk', '>=', OLD_BASE).del();
+  await db('bs_license.tbl_error_list').where('id', '>=', OLD_BASE).del();
+  await db('bs_license.tbl_licgen').where('id', '>=', OLD_BASE).del();
+  await db('bs_media.tbl_licenses').where('id', '>=', OLD_BASE).del();
+  await db('bs_media.tbl_old_license_score').where('id', '>=', OLD_BASE).del();
+  await db('bs_phurunhanul.customer_prize_log').where('id', '>=', OLD_BASE).del();
+  await db('bs_prhnid.user_merge_log').where('table_pk', '>=', OLD_BASE).del();
 
   const karaoke = [];
   const errors = [];
@@ -638,10 +638,10 @@ async function mirrorOldLogs() {
     { id: 2, short_name: 'KCT', full_name: 'Korea Central TV' },
     { id: 3, short_name: 'RGN', full_name: 'Ryugyong Network' }
   ];
-  await insertMissing('ora_media.tbl_media_providers', 'id', providers);
+  await insertMissing('bs_media.tbl_media_providers', 'id', providers);
 
   members.forEach(function (member, m) {
-    const login = member.pvendor_id;
+    const login = member.prhn_id;
 
     for (let i = 0; i < 9; i += 1) {
       const id = OLD_BASE + KARAOKE_BAND + (m * 100) + i;
@@ -746,21 +746,21 @@ async function mirrorOldLogs() {
      * any member and `limitFor` is dead code that always answers null.
      */
     if (m === 0) {
-      const fixedId = member.fixed_id || (member.pvendor_id + '_fx');
+      const fixedId = member.fixed_id || (member.prhn_id + '_fx');
 
-      if (!member.fixed_id) fixedIds.push({ pvendor_pk: member.pvendor_pk, fixed_id: fixedId });
+      if (!member.fixed_id) fixedIds.push({ prhn_pk: member.prhn_pk, fixed_id: fixedId });
 
       merges.push({
         table_pk: OLD_BASE + 1,
-        pvendor_pk: Number(member.pvendor_pk),
-        pvendor_id: member.pvendor_id,
+        prhn_pk: Number(member.prhn_pk),
+        prhn_id: member.prhn_id,
         id_type: 0,
         merge_id: fixedId,
         merge_type: 0,
         action_at: daysAgo(40),
         /* Both are NOT NULL on the real table; the merge was self-service. */
         action_type: 0,
-        action_by: Number(member.pvendor_pk)
+        action_by: Number(member.prhn_pk)
       });
     }
   });
@@ -770,29 +770,29 @@ async function mirrorOldLogs() {
    * member has no merge row. It has never existed in the stand-in, so that
    * path has always failed silently here.
    */
-  await insertMissing('ora_old_db.customers', 'user_pk', members.map(function (member) {
+  await insertMissing('bs_phurunhanul.customers', 'user_pk', members.map(function (member) {
     return {
       user_pk: Number(member.eshop_pk),
-      user_userid: member.pvendor_id,
-      user_name: member.pvendor_id
+      user_userid: member.prhn_id,
+      user_name: member.prhn_id
     };
   }));
 
-  await db('ora_license.tbl_licgen').insert(karaoke);
-  if (errors.length) await db('ora_license.tbl_error_list').insert(errors);
-  await db('ora_media.tbl_licenses').insert(media);
-  await db('ora_media.tbl_old_license_score').insert(scores);
-  await db('ora_old_db.customer_prize_log').insert(prizes);
+  await db('bs_license.tbl_licgen').insert(karaoke);
+  if (errors.length) await db('bs_license.tbl_error_list').insert(errors);
+  await db('bs_media.tbl_licenses').insert(media);
+  await db('bs_media.tbl_old_license_score').insert(scores);
+  await db('bs_phurunhanul.customer_prize_log').insert(prizes);
   /* The merge log is keyed by the fixed id, so it has to exist first. */
   for (let f = 0; f < fixedIds.length; f += 1) {
     /* eslint-disable no-await-in-loop */
-    await db('ora_pid.user_merge_ids')
-      .where('pvendor_pk', fixedIds[f].pvendor_pk)
+    await db('bs_prhnid.user_merge_ids')
+      .where('prhn_pk', fixedIds[f].prhn_pk)
       .update({ fixed_id: fixedIds[f].fixed_id });
     /* eslint-enable no-await-in-loop */
   }
 
-  if (merges.length) await db('ora_pid.user_merge_log').insert(merges);
+  if (merges.length) await db('bs_prhnid.user_merge_log').insert(merges);
 
   return {
     karaoke: karaoke.length,
@@ -820,13 +820,13 @@ async function mirrorBlog() {
 
   const ids = articles.map(function (row) { return row.id; });
 
-  const kept = await db('ora_blog.blog_article').whereNotIn('id', ids).count({ c: '*' }).first();
+  const kept = await db('bs_blog.blog_article').whereNotIn('id', ids).count({ c: '*' }).first();
 
-  await db('ora_blog.blog_article_lob').whereIn('id', ids).del();
-  await db('ora_blog.blog_article_info').whereIn('id', ids).del();
-  await db('ora_blog.blog_article').whereIn('id', ids).del();
+  await db('bs_blog.blog_article_lob').whereIn('id', ids).del();
+  await db('bs_blog.blog_article_info').whereIn('id', ids).del();
+  await db('bs_blog.blog_article').whereIn('id', ids).del();
 
-  await db('ora_blog.blog_article').insert(articles.map(function (row) {
+  await db('bs_blog.blog_article').insert(articles.map(function (row) {
     return {
       id: row.id,
       /*
@@ -848,11 +848,11 @@ async function mirrorBlog() {
       type: 2,
       create_at: row.created_at,
       modify_at: row.updated_at,
-      publish_at: row.published_at
+      ryongsan_at: row.published_at
     };
   }));
 
-  await db('ora_blog.blog_article_info').insert(articles.map(function (row) {
+  await db('bs_blog.blog_article_info').insert(articles.map(function (row) {
     return {
       id: row.id,
       visited_num: row.view_count || 0,
@@ -862,11 +862,11 @@ async function mirrorBlog() {
     };
   }));
 
-  await db('ora_blog.blog_article_lob').insert(articles.map(function (row) {
+  await db('bs_blog.blog_article_lob').insert(articles.map(function (row) {
     return { id: row.id, content: row.content };
   }));
 
-  await bump('ora_blog.blog_article_s', 'ora_blog.blog_article', 'id');
+  await bump('bs_blog.blog_article_s', 'bs_blog.blog_article', 'id');
 
   return { added: articles.length, kept: Number(kept.c) };
 }
@@ -901,9 +901,9 @@ async function mirrorMemberArticles() {
     MEMBER_ARTICLES.forEach(function (article, i) { ids.push(base + (m * 100) + i); });
   });
 
-  await db('ora_blog.blog_article_lob').whereIn('id', ids).del();
-  await db('ora_blog.blog_article_info').whereIn('id', ids).del();
-  await db('ora_blog.blog_article').whereIn('id', ids).del();
+  await db('bs_blog.blog_article_lob').whereIn('id', ids).del();
+  await db('bs_blog.blog_article_info').whereIn('id', ids).del();
+  await db('bs_blog.blog_article').whereIn('id', ids).del();
 
   const rows = [];
   const infos = [];
@@ -926,7 +926,7 @@ async function mirrorMemberArticles() {
         type: 2,
         create_at: at,
         modify_at: at,
-        publish_at: article.state === 'PUBLISHED' ? at : null
+        ryongsan_at: article.state === 'PUBLISHED' ? at : null
       });
 
       infos.push({ id: id, visited_num: (i + 1) * 37, reply_num: i });
@@ -934,9 +934,9 @@ async function mirrorMemberArticles() {
     });
   });
 
-  await db('ora_blog.blog_article').insert(rows);
-  await db('ora_blog.blog_article_info').insert(infos);
-  await db('ora_blog.blog_article_lob').insert(lobs);
+  await db('bs_blog.blog_article').insert(rows);
+  await db('bs_blog.blog_article_info').insert(infos);
+  await db('bs_blog.blog_article_lob').insert(lobs);
 
   return rows.length;
 }
@@ -947,7 +947,7 @@ async function mirrorMemberArticles() {
  * blog_subject is the vendor's reference data, not Crystal's, and on a machine
  * that already has the vendor's converted schemas it is there and is left
  * exactly as it is. The one case this writes is a stand-in whose table
- * sql/legacy/ora_blog.sql has just created EMPTY - nobody's rows to disturb,
+ * sql/legacy/bs_blog.sql has just created EMPTY - nobody's rows to disturb,
  * and without shelves the storefront's index has nothing to navigate by.
  *
  * The ids are the vendor's own, from BLOG_OLD_CATEGORIES in vendor_client's
@@ -972,10 +972,10 @@ const SUBJECT_HELP = 6;
 const SUBJECT_MOBILE = 21;
 
 async function seedSubjects() {
-  const have = await db('ora_blog.blog_subject').count({ c: '*' }).first();
+  const have = await db('bs_blog.blog_subject').count({ c: '*' }).first();
   if (Number(have.c) > 0) return 0;
 
-  await db('ora_blog.blog_subject').insert(VENDOR_SUBJECTS.map(function (row) {
+  await db('bs_blog.blog_subject').insert(VENDOR_SUBJECTS.map(function (row) {
     return Object.assign({ state: 0 }, row);
   }));
 
@@ -1055,9 +1055,9 @@ async function mirrorThreads() {
     .orderBy('published_at', 'desc')
     .limit(2);
 
-  await db('ora_blog.blog_article_lob').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
-  await db('ora_blog.blog_article_info').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
-  await db('ora_blog.blog_article').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
+  await db('bs_blog.blog_article_lob').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
+  await db('bs_blog.blog_article_info').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
+  await db('bs_blog.blog_article').where('id', '>=', THREAD_BASE).where('id', '<', THREAD_BASE + THREAD_BAND).del();
 
   if (!members.length) return { replies: 0, questions: 0 };
 
@@ -1091,7 +1091,7 @@ async function mirrorThreads() {
       type: 2,
       create_at: at,
       modify_at: at,
-      publish_at: published ? at : null
+      ryongsan_at: published ? at : null
     });
 
     infos.push({
@@ -1165,7 +1165,7 @@ async function mirrorThreads() {
 
   /* ---- replies under a member's own article ---- */
   const ownArticle = FIXTURE_BASE + 700000;
-  const owned = await db('ora_blog.blog_article').where('id', ownArticle).first('id', 'title', 'subject_id');
+  const owned = await db('bs_blog.blog_article').where('id', ownArticle).first('id', 'title', 'subject_id');
   if (owned) {
     write({
       parent: owned.id, subject: owned.subject_id, author: login(1), title: 'Re: ' + owned.title,
@@ -1236,9 +1236,9 @@ async function mirrorThreads() {
     visits: 41
   });
 
-  await db('ora_blog.blog_article').insert(rows);
-  await db('ora_blog.blog_article_info').insert(infos);
-  await db('ora_blog.blog_article_lob').insert(lobs);
+  await db('bs_blog.blog_article').insert(rows);
+  await db('bs_blog.blog_article_info').insert(infos);
+  await db('bs_blog.blog_article_lob').insert(lobs);
 
   /*
    * THE PARENTS' reply_num, corrected - on rows this script owns, and only
@@ -1258,7 +1258,7 @@ async function mirrorThreads() {
 
   for (let i = 0; i < ownIds.length; i += 1) {
     /* eslint-disable no-await-in-loop */
-    await db('ora_blog.blog_article_info').where('id', ownIds[i]).update({ reply_num: parents[ownIds[i]] });
+    await db('bs_blog.blog_article_info').where('id', ownIds[i]).update({ reply_num: parents[ownIds[i]] });
     /* eslint-enable no-await-in-loop */
   }
 
@@ -1277,7 +1277,7 @@ function loginish(name) {
 /**
  * AN EMAIL AS A PLATFORM LOGIN, and the local part is the whole answer.
  *
- * ora_pid.users is keyed by `user_id`, and sign-in now checks that table - so
+ * bs_prhnid.users is keyed by `user_id`, and sign-in now checks that table - so
  * this is the name a member actually types. Flattening the whole address gave
  * "democrystalexample", which nobody would guess and which does not match the
  * email fallback the login service tries.
@@ -1330,9 +1330,9 @@ async function main() {
    * schemas are already present - which is the normal case - this changes
    * nothing and the real tables are used as they stand.
    */
-  await run('ora_pid.sql');
-  await run('ora_blog.sql');
-  await run('ora_satellite.sql');
+  await run('bs_prhnid.sql');
+  await run('bs_blog.sql');
+  await run('bs_satellite.sql');
   console.log('schemas ' + config.legacy.pidSchema + ', ' + config.legacy.blogSchema
     + ' and the three satellites are in place');
 

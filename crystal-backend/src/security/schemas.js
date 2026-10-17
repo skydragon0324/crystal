@@ -47,7 +47,7 @@
  *                          a join, owned by another table. originId is
  *                          signed; the label drawn beside it is not.
  *   feedback               threads and their messages, staff replies
- *                          included. They live in the vendor's ora_pid
+ *                          included. They live in the vendor's bs_prhnid
  *                          schema - the vendor's database, which Crystal
  *                          reads and writes but does not own - so they are
  *                          not a signed type at all, and render as they

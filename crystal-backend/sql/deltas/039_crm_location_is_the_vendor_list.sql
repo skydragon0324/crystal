@@ -7,7 +7,7 @@
 -- the same time):
 --
 --   PART 1  the new table, beside the old one
---   (js)    copy ora_pid.locations into it; move every *_location_id from the
+--   (js)    copy bs_prhnid.locations into it; move every *_location_id from the
 --           old location_id to the vendor location_pk of the same name
 --   PART 2  the old table goes, the new one takes its name, the keys return
 -- =====================================================================
@@ -28,7 +28,7 @@ DROP TABLE crm_location CASCADE;
 ALTER TABLE crm_location_next RENAME TO crm_location;
 ALTER INDEX crm_location_next_pkey RENAME TO crm_location_pkey;
 ALTER INDEX crm_location_next_location_code_key RENAME TO crm_location_location_code_key;
-COMMENT ON TABLE crm_location IS 'The vendor location list (ora_pid.locations), same columns and keys. Province = parent_code NULL or 0.';
+COMMENT ON TABLE crm_location IS 'The vendor location list (bs_prhnid.locations), same columns and keys. Province = parent_code NULL or 0.';
 COMMENT ON COLUMN crm_location.parent_code IS 'Parent location_code; NULL or 0 for a province.';
 CREATE INDEX idx_crm_location_parent ON crm_location(parent_code, position);
 CREATE TRIGGER trg_crm_location_updated BEFORE UPDATE ON crm_location

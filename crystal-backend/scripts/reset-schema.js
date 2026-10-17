@@ -21,7 +21,7 @@
  * WHAT IT DROPS: the schema in PG_SCHEMA (crystal_v1), with everything in it -
  * tables, enum types, functions, and knex's own migration bookkeeping, which
  * lives there too (src/db/knexfile.js). WHAT IT LEAVES: the legacy schemas
- * (ora_pid, ora_blog and the satellites), which hold the vendor's own data and
+ * (bs_prhnid, bs_blog and the satellites), which hold the vendor's own data and
  * which `npm run legacy:install` only ever adds to; the upload directory; and
  * the content-signing keys.
  *

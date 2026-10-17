@@ -9,6 +9,7 @@ const jobs = require('../services/lifecycle/jobs.service');
 const snapshots = require('../services/lifecycle/snapshots.service');
 const rules = require('../services/lifecycle/rules');
 const config = require('../config');
+const i18n = require('../i18n');
 
 /**
  * THE LIFECYCLE REPORTS' HTTP HALF: query string in, the envelope out.
@@ -37,6 +38,21 @@ const config = require('../config');
 
 /** The longest window a single chart request may cover. */
 const MAX_RANGE_DAYS = 1100;
+
+/**
+ * The five sentences the definitions popover shows, in reading order.
+ *
+ * Addresses rather than text: the wording lives in src/i18n, so the notes
+ * answer in the language the request asked for. The ORDER is here, because it
+ * is the order they are read in and not a property of any one of them.
+ */
+const NOTE_KEYS = [
+  'lifecycle.newTakesPrecedence',
+  'lifecycle.neverLoggedInIsMeasured',
+  'lifecycle.theBoundariesAreExact',
+  'lifecycle.basedOnLoginsOnly',
+  'lifecycle.theAccountStatusIsSeparate'
+];
 
 const GROUPINGS = ['DAY', 'WEEK', 'CUSTOM'];
 
@@ -292,20 +308,20 @@ async function definitions(req, res) {
       measuredAs: 'ELAPSED_HOURS'
     },
     statuses: reports.STATUSES,
-    notes: [
-      'NEW takes precedence: for the first 30 days after registering, a'
-        + ' customer is NEW however often they log in.',
-      'A customer who has never logged in is measured from their'
-        + ' registration, so they become DORMANT and then CHURNED with no'
-        + ' login records at all.',
-      'The boundaries are exact: at 30 elapsed days a customer is no longer'
-        + ' ACTIVE, and at 90 they are CHURNED.',
-      'This classification is based on LOGINS only. It does not measure'
-        + ' purchases, support contact or any other engagement.',
-      'The account status held in the platform (USERS.STATUS) is an'
-        + ' operational flag and is reported separately. It is not a'
-        + ' lifecycle status.'
-    ]
+
+    /*
+     * THE NOTES, IN THE READER'S LANGUAGE.
+     *
+     * They are served rather than written into the console so that the
+     * explanation cannot drift from the engine - and they were served in
+     * English whatever language the console was in, which is the one thing
+     * worse than an unexplained metric: an explanation the reader cannot
+     * read. They are catalogue entries now (src/i18n), translated against
+     * the request's locale like every other message this API sends.
+     */
+    notes: NOTE_KEYS.map(function (key) {
+      return i18n.translate(req.locale, key);
+    })
   });
 }
 

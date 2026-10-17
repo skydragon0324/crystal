@@ -1,7 +1,7 @@
 -- 027  Points are not whole numbers
 
 -- Crystal's own point ledger was declared in integers, and the four systems
--- it sits beside were not.  ora_pid.activity_point_log.points is
+-- it sits beside were not.  bs_prhnid.activity_point_log.points is
 -- NUMERIC(8,1) and the soft-point family's pay_points/soft_points are
 -- NUMERIC(10,3) and NUMERIC(8,3) - so a member's points screen showed four
 -- exact figures and one that had been rounded on the way in.

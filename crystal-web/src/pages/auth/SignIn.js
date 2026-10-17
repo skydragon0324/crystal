@@ -232,7 +232,7 @@ export default function SignIn() {
                   <Input
                     inputMode="numeric"
                     autoComplete="off"
-                    /* The width the platform stores a cid in (ora_pid.user_login_log). */
+                    /* The width the platform stores a cid in (bs_prhnid.user_login_log). */
                     maxLength={12}
                     value={cid}
                     onChange={edited(setCid)}

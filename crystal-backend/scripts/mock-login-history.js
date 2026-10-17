@@ -8,7 +8,7 @@
  * three customers, which is enough to prove a query runs and nothing at all
  * about whether a backfill finishes, whether the sweep-line snapshot builder
  * beats a per-day reclassification, or which index the transition list
- * actually uses. So this fills ora_pid.user_login_log with a realistic
+ * actually uses. So this fills bs_prhnid.user_login_log with a realistic
  * history for the 551 customers already there.
  *
  *   node scripts/mock-login-history.js            generate (default 1,050,000)
@@ -25,10 +25,10 @@
  *
  * So it appends customers whose registrations are spread across the whole
  * window. APPEND, NEVER MODIFY: no existing registration date is rewritten,
- * so every other feature reading ora_pid.users sees what it saw before.
+ * so every other feature reading bs_prhnid.users sees what it saw before.
  *
  * ONLY EVER THE DEVELOPMENT SCHEMA. It writes through config/legacy, which in
- * development is `ora_pid` in the same PostgreSQL server and in deployment is
+ * development is `bs_prhnid` in the same PostgreSQL server and in deployment is
  * the vendor's real Oracle. It refuses to run against the Oracle driver: this
  * is mock data, and the vendor's login log is not Crystal's to write
  * speculative rows into.
@@ -266,7 +266,7 @@ async function main() {
       .select('user_pk', 'created_at')
       .orderBy('user_pk');
 
-    if (!users.length) throw new Error('no customers in ora_pid.users to generate for');
+    if (!users.length) throw new Error('no customers in bs_prhnid.users to generate for');
 
     const already = await conn(table).where('phone_brand', MARKER).count('* as n').first();
     if (Number(already.n) > 0) {

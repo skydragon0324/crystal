@@ -112,7 +112,7 @@ async function activityStats(userId) {
 }
 
 /**
- * WHO THE MEMBER IS, as the platform records it - ora_pid.users and the
+ * WHO THE MEMBER IS, as the platform records it - bs_prhnid.users and the
  * member's own phone numbers.
  *
  * The BIRTHDAY IS TEXT, 'YYYY-MM-DD', formatted by the database: the column

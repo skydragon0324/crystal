@@ -103,7 +103,7 @@ build, set the same variable in the build environment - see
 | `image` | a file under the upload directory: storage key (`/uploads/...`), MIME type from its bytes, size, SHA-256 | anything about which row points at it |
 
 **Feedback is not signed.** Threads and their messages - staff replies
-included - live in the vendor's `ora_pid` schema: the vendor's database, which
+included - live in the vendor's `bs_prhnid` schema: the vendor's database, which
 Crystal reads and writes but does not own. The storefront renders them as it
 always has, and neither the audit nor the backfill looks at them.
 

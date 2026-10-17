@@ -115,8 +115,9 @@ export default function Lifecycle() {
   const palette = vizPalette(colorMode);
   const may = usePermission(PAGE);
 
-  const [span, setSpan] = useState('90');
-  const [grouping, setGrouping] = useState('DAY');
+  /* 'Last 30 days', weekly: what an operator opens this page to see. */
+  const [span, setSpan] = useState('30');
+  const [grouping, setGrouping] = useState('WEEK');
 
   const [overview, setOverview] = useState(null);
   const [trend, setTrend] = useState(null);
@@ -429,6 +430,15 @@ function StockTab({ trend, window, group, loading, palette, surface, t }) {
     };
   });
 
+  /*
+   * A bucket with no snapshot behind it has null for every status, and a
+   * chart of nulls is an empty chart that looks like a broken one. This is
+   * the buckets that actually hold a measurement.
+   */
+  const drawable = chart.filter(function (point) {
+    return STATUSES.some(function (status) { return point[status] !== null; });
+  });
+
   return (
     <Stack spacing="1rem">
       <Panel title={t('Status at the end of each bucket')}>
@@ -442,14 +452,31 @@ function StockTab({ trend, window, group, loading, palette, surface, t }) {
         </Text>
         {loading ? (
           <Flex justify="center" py="3rem"><Spinner /></Flex>
-        ) : !chart.length ? (
-          <Flex justify="center" py="3rem">
-            <Text fontSize="sm" color={surface.muted}>{t('Nothing in this range')}</Text>
-          </Flex>
+        ) : !drawable.length ? (
+          /*
+           * TWO DIFFERENT EMPTY STATES, because they need two different
+           * answers. A range with no buckets is a range to widen. A range
+           * full of buckets with nothing IN them means the daily snapshots
+           * have not been built - which is what a new installation looks
+           * like, and what sent somebody looking for a bug on a screen that
+           * was working. It says which, and what to do about it.
+           */
+          <Stack spacing="0.5rem" align="center" py="3rem" px="1rem">
+            <Text fontSize="sm" color={surface.muted}>
+              {chart.length
+                ? t('lifecycle.noHistoryHasBeenBuilt')
+                : t('Nothing in this range')}
+            </Text>
+            {chart.length > 0 && (
+              <Text fontSize="xs" color={surface.muted} textAlign="center">
+                {t('lifecycle.runTheBackfillToBuild')}
+              </Text>
+            )}
+          </Stack>
         ) : (
           <Box h="20rem">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chart} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <AreaChart data={drawable} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={palette.grid} vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke={palette.axis} />
                 <YAxis tick={{ fontSize: 11 }} stroke={palette.axis} />
@@ -461,6 +488,13 @@ function StockTab({ trend, window, group, loading, palette, surface, t }) {
                       key={status}
                       type="monotone"
                       dataKey={status}
+                      /*
+                       * The legend and the tooltip print `name` when it is
+                       * given and the dataKey when it is not - so without
+                       * this the chart's own legend read NEW, ACTIVE,
+                       * DORMANT, CHURNED in every language.
+                       */
+                      name={t(STATUS_LABEL[status])}
                       /*
                        * STACKED, because the four are mutually exclusive and
                        * exhaustive: the stack's height IS the registered
@@ -745,6 +779,8 @@ function TransitionsTab({ window, group, palette, surface, t }) {
  * same vocabulary without the current one competing for attention.
  */
 function StatusTag({ status, palette, muted }) {
+  const t = useT();
+
   if (!status) return <Text fontSize="xs">—</Text>;
 
   const colour = statusColour(palette, status);
@@ -753,11 +789,22 @@ function StatusTag({ status, palette, muted }) {
     <Badge
       fontSize="0.625rem"
       variant={muted ? 'outline' : 'subtle'}
+      /*
+       * THE WORD, NOT THE CODE. These badges drew `NEW`, `DORMANT` and the
+       * rest straight from the database - in the matrix, the transition list,
+       * the timeline and the comparison - so four of the words on this screen
+       * stayed English on every Chinese and Russian page. They go through the
+       * same lookup the cards above use.
+       *
+       * And no uppercasing: Chakra's Badge uppercases by default, which does
+       * nothing to Chinese and shouts in Russian.
+       */
+      textTransform="none"
       style={muted
         ? { color: colour, borderColor: colour }
         : { background: colour + '22', color: colour }}
     >
-      {status}
+      {t(STATUS_LABEL[status] || status)}
     </Badge>
   );
 }
@@ -1530,6 +1577,25 @@ function HealthTab({ may, toast, surface, t }) {
     <Stack spacing="1rem">
       <KpiStrip>
         <Kpi label='Logins imported' value={number(data.journalRows)} />
+        {/*
+          CUSTOMERS SYNCED, BESIDE THE LOGINS, because the pair is the
+          diagnosis. A journal of millions with no profiles is an empty
+          screen - a status cannot be computed without a registration date -
+          and before these two sat together nothing said so.
+        */}
+        <Kpi
+          label='Customers synced'
+          value={number(data.customerProfiles)}
+          tone={data.journalRows > 0 && !data.customerProfiles ? 'bad' : undefined}
+          hint={data.journalRows > 0 && !data.customerProfiles
+            ? t('lifecycle.theProfileSyncHasNot')
+            : undefined}
+        />
+        <Kpi
+          label='Status periods'
+          value={number(data.statusPeriods)}
+          tone={data.customerProfiles > 0 && !data.statusPeriods ? 'warn' : undefined}
+        />
         <Kpi label='Daily snapshots' value={number(data.snapshotDays)} />
         <Kpi
           label='Open exceptions'

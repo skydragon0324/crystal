@@ -2045,7 +2045,7 @@ async function main() {
     if (offered.allowed.indexOf('password') === -1) return 'password is not offered on a desktop';
 
     /*
-     * The credential lives in ora_pid.users, not in Crystal's own table - one
+     * The credential lives in bs_prhnid.users, not in Crystal's own table - one
      * person, one password, shared with the Eshop and the Appstore. The field
      * is a USER ID: that table has no email column, so an email is not offered
      * and is not accepted.
@@ -2057,7 +2057,7 @@ async function main() {
 
     /*
      * And the local mirror is guaranteed by signing in: the session's id is
-     * ora_pid.users.user_pk, and every Crystal table keyed on users.id has to
+     * bs_prhnid.users.user_pk, and every Crystal table keyed on users.id has to
      * be able to find that person.
      */
     return Number(opened.user.id) > 0 || 'the session carries no member id';
@@ -2089,7 +2089,7 @@ async function main() {
 
   await check('an email address is not a sign-in credential', async function () {
     /*
-     * ora_pid.users has no email column. An earlier build tried an email's
+     * bs_prhnid.users has no email column. An earlier build tried an email's
      * local part as the login, which is a guess: two people holding
      * ming@a.com and ming@b.com would both have resolved to one account.
      */
@@ -2131,7 +2131,7 @@ async function main() {
       if (err.response.status !== 400) return 'expected 400 without a cid, got ' + err.response.status;
     }
 
-    /* Twelve characters at most - the width of ora_pid.user_login_log.cid. */
+    /* Twelve characters at most - the width of bs_prhnid.user_login_log.cid. */
     const cid = 'C' + String(Date.now()).slice(-10);
     const opened = data(await phone.post('/auth/login', { user_id: demoLogin, password: 'crystal1234', cid: cid }));
     if (!opened.token) return 'a phone with a cid got no session';
@@ -2143,11 +2143,11 @@ async function main() {
      */
     const legacyDb = require('../src/config/db');
     const logged = await legacyDb.raw(
-      'SELECT user_pk, cid, phone_imei FROM ora_pid.user_login_log WHERE cid = ? ORDER BY table_pk DESC LIMIT 1',
+      'SELECT user_pk, cid, phone_imei FROM bs_prhnid.user_login_log WHERE cid = ? ORDER BY table_pk DESC LIMIT 1',
       [cid]
     );
     const row = logged.rows[0];
-    if (!row) return 'the cid was not written to ora_pid.user_login_log';
+    if (!row) return 'the cid was not written to bs_prhnid.user_login_log';
     if (Number(row.user_pk) !== Number(opened.user.id)) return 'the login log names the wrong member';
 
     /* A different cid on the next sign-in is not refused. */
@@ -2298,7 +2298,7 @@ async function main() {
   await check('a session says which user ID signed in', async function () {
     /*
      * `users.login` is the platform id - the same string as
-     * ora_pid.users.user_id - and it is the one identifier the member typed,
+     * bs_prhnid.users.user_id - and it is the one identifier the member typed,
      * the one the account sidebar shows them, and the one the eshop, the
      * appstore and the eproduct site all key them by. `id` beside it is
      * Crystal's row number, which means nothing to anybody reading it.
@@ -2810,7 +2810,7 @@ async function main() {
     /*
      * The vendor's own rows have ids far above anything a Crystal serial
      * column produces. One of them in the list is proof the storefront is
-     * reading ora_blog rather than the PostgreSQL `articles` table, which
+     * reading bs_blog rather than the PostgreSQL `articles` table, which
      * holds none of them.
      */
     const foreign = list.rows.filter(function (row) { return Number(row.id) > 2147483647; });
@@ -3543,7 +3543,7 @@ async function main() {
      * THE ASSUMPTION THE WHOLE ACCOUNT AREA NOW RESTS ON.
      *
      * Crystal reads a member's threads, points and articles out of the
-     * vendor's database keyed on users.id === ora_pid.users.user_pk. If those
+     * vendor's database keyed on users.id === bs_prhnid.users.user_pk. If those
      * two ever name different people nothing errors: the member simply sees
      * somebody else's history, or an empty one. That is the worst failure mode
      * available here, so it is asserted rather than trusted.
@@ -3855,7 +3855,7 @@ async function main() {
     const [appstore, karaoke, media, minus, phone, everyRegistration, stats] = await Promise.all([
       summedOver(own('appstore_point_log'), 'soft_points'),
       summedOver(own('karaoke_point_log'), 'soft_points'),
-      summedOver(own('bmedia_point_log'), 'soft_points'),
+      summedOver(own('bsmedia_point_log'), 'soft_points'),
       summedOver(own('soft_point_log').where('point_type', 3), 'soft_points'),
       summedOver(pointsConn(pointsDb.pid('register_point_log')).where({ user_pk: userPk, point_type: 0 }), 'points'),
       summedOver(pointsConn(pointsDb.pid('register_point_log')).where({ user_pk: userPk }), 'points'),
@@ -4880,7 +4880,7 @@ async function main() {
     try {
       const link = data(await member.get('/eproduct/keygen/karaoke/' + issued.id + '/license'));
       if (!link.url || !link.filename) return 'the download link is incomplete';
-      if (link.url.indexOf('/ora_licenses/keygen.php') === -1) {
+      if (link.url.indexOf('/bs_licenses/keygen.php') === -1) {
         return 'karaoke licences are fetched from ' + link.url;
       }
     } catch (err) {
@@ -5512,10 +5512,10 @@ async function main() {
   }
 
   /* Somebody else with an Appstore wallet, to be the receiver. */
-  const receiverRow = await require('../src/config/legacy').connection()('ora_pid.user_merge_ids as m')
-    .join('ora_pid.users as u', 'u.user_pk', 'm.pvendor_pk')
+  const receiverRow = await require('../src/config/legacy').connection()('bs_prhnid.user_merge_ids as m')
+    .join('bs_prhnid.users as u', 'u.user_pk', 'm.prhn_pk')
     .whereNotNull('m.appstore_pk')
-    .whereNot('m.pvendor_pk', memberSession.user.id)
+    .whereNot('m.prhn_pk', memberSession.user.id)
     .where('u.status', 1)
     .where('u.locked', 0)
     .select('u.user_id')
@@ -5862,7 +5862,7 @@ async function main() {
 
   await check('registering creates a PLATFORM account, not a local one', async function () {
     /*
-     * Sign-in checks ora_pid.users, so an account that exists only in
+     * Sign-in checks bs_prhnid.users, so an account that exists only in
      * Crystal is an account nobody can sign in to. The proof is end to end:
      * register, then sign in with the same credential.
      */

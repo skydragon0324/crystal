@@ -27,7 +27,7 @@ async function login(req, res) {
   /*
    * THE USER ID. `login` and `username` are accepted as names for the same
    * field because clients spell it differently; an EMAIL is not, because
-   * ora_pid.users has no email column and accepting one would only ever be a
+   * bs_prhnid.users has no email column and accepting one would only ever be a
    * guess at which account was meant.
    */
   const session = await service.loginWithPassword(

@@ -25,7 +25,7 @@ exactly one place to look when a number is wrong.
 
 ```
   the platform (vendor, read-only)
-  ora_pid.users            ora_pid.user_login_log
+  bs_prhnid.users            bs_prhnid.user_login_log
         |                          |
         | profiles job             | poll job
         | (02:50 daily)            | (every 10 min)
@@ -73,7 +73,7 @@ Measured on the development database, with real numbers from a real sign-in.
 **T+0 — the sign-in itself.** The member signs in at the storefront. Every
 sign-in path funnels through `afterLogin` in
 `services/memberAuth.service.js`, which writes a row into the platform's own
-login log, `ora_pid.user_login_log`:
+login log, `bs_prhnid.user_login_log`:
 
 ```
 table_pk  3162048
@@ -143,7 +143,7 @@ beside it.
 ## Who writes the login log — and does the vendor project need changing?
 
 **No. The vendor project needs no change, and never did.**
-`ora_pid.user_login_log` is the platform's own record of who signed in, the
+`bs_prhnid.user_login_log` is the platform's own record of who signed in, the
 vendor's apps already write to it when their users sign in, and this feature
 only ever reads it. That is the whole integration: one table, read-only, no
 callback, no notification, nothing to deploy on their side.
@@ -251,7 +251,7 @@ which it is, and the screen keeps them on separate tabs for that reason.
 
 | You want | What has to be true |
 |---|---|
-| A new sign-in to count | The sign-in wrote a row to `ora_pid.user_login_log` (any path, now), and the poll has run — within 10 minutes |
+| A new sign-in to count | The sign-in wrote a row to `bs_prhnid.user_login_log` (any path, now), and the poll has run — within 10 minutes |
 | A brand-new customer to appear | The profiles job has run (02:50 daily), or `npm run lifecycle:backfill -- --step profiles` |
 | A status to decay without a login | The deadline job has run — within the hour |
 | Today's chart to include the last hour | The poll or the deadline job has repaired today's snapshot; both do it automatically for the days they touch |

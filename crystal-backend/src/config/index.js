@@ -126,8 +126,8 @@ const config = {
      * configurable because a deployment whose Oracle user OWNS these tables
      * addresses them unqualified - set both to an empty string for that.
      */
-    pidSchema: str('LEGACY_PID_SCHEMA', 'ora_pid'),
-    blogSchema: str('LEGACY_BLOG_SCHEMA', 'ora_blog'),
+    pidSchema: str('LEGACY_PRHN_SCHEMA', 'bs_prhnid'),
+    blogSchema: str('LEGACY_BLOG_SCHEMA', 'bs_blog'),
 
     /*
      * THE THREE SATELLITES, read by the 'old log' pages and nothing else.
@@ -135,9 +135,9 @@ const config = {
      * keygen service, the media service, and the customer database - and
      * Crystal reads history out of them and writes nothing at all.
      */
-    licenseSchema: str('LEGACY_LICENSE_SCHEMA', 'ora_license'),
-    mediaSchema: str('LEGACY_MEDIA_SCHEMA', 'ora_media'),
-    oldSchema: str('LEGACY_OLD_SCHEMA', 'ora_old_db'),
+    licenseSchema: str('LEGACY_LICENSE_SCHEMA', 'bs_license'),
+    mediaSchema: str('LEGACY_MEDIA_SCHEMA', 'bs_media'),
+    oldSchema: str('LEGACY_OLD_SCHEMA', 'bs_phurunhanul'),
 
     /* Used by the oracle driver only; the postgres one reuses config.db. */
     user: str('LEGACY_ORACLE_USER', str('ORACLE_USER', 'crystal')),
@@ -362,7 +362,7 @@ const config = {
    * THE TWO TIME ZONES ARE THE PART TO GET RIGHT, and they are two because
    * they answer different questions:
    *
-   *   sourceTimezone  what ora_pid's naked DATE columns MEAN. Oracle DATE
+   *   sourceTimezone  what bs_prhnid's naked DATE columns MEAN. Oracle DATE
    *                   carries no zone, so 2026-05-04 00:00 is only an instant
    *                   once somebody says which midnight it was. Getting this
    *                   wrong shifts every threshold by the offset.
@@ -407,7 +407,7 @@ const config = {
     /*
      * WHETHER A STOREFRONT SIGN-IN IS WRITTEN TO THE PLATFORM'S LOGIN LOG.
      *
-     * The lifecycle reads `ora_pid.user_login_log` and nothing else, because
+     * The lifecycle reads `bs_prhnid.user_login_log` and nothing else, because
      * that is the platform's record of who signed in - so a sign-in that does
      * not land there is a sign-in these metrics cannot see, and a member using
      * this site every day would drift to DORMANT and then CHURNED while doing

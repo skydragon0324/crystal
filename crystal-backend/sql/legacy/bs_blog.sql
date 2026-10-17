@@ -1,5 +1,5 @@
 -- =====================================================================
--- ora_blog - THE VENDOR'S LEGACY BLOG, as a development stand-in.
+-- bs_blog - THE VENDOR'S LEGACY BLOG, as a development stand-in.
 --
 -- Three tables, one article split across them, and the split is the whole
 -- reason the schema looks like this (plus blog_subject, the shelves they are
@@ -17,7 +17,7 @@
 -- two; a detail read joins all three. That is what repositories/legacy/
 -- does, and it is what vendor_backend/models/blogModel.js does.
 --
--- Like sql/legacy/ora_pid.sql this is a TRANSCRIPTION, not a design. The
+-- Like sql/legacy/bs_prhnid.sql this is a TRANSCRIPTION, not a design. The
 -- columns and types are the ones the vendor's Oracle instance has and the
 -- ones vendor_backend queries; Crystal must not add to them. Anything Crystal
 -- wants that is not here has to be derived at read time - which is why an
@@ -28,9 +28,9 @@
 -- Re-runnable: everything is IF NOT EXISTS.
 -- =====================================================================
 
-CREATE SCHEMA IF NOT EXISTS ora_blog;
+CREATE SCHEMA IF NOT EXISTS bs_blog;
 
-CREATE SEQUENCE IF NOT EXISTS ora_blog.blog_article_s START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS bs_blog.blog_article_s START WITH 1 INCREMENT BY 1;
 
 
 /*
@@ -43,7 +43,7 @@ CREATE SEQUENCE IF NOT EXISTS ora_blog.blog_article_s START WITH 1 INCREMENT BY 
  * its own seed writes 1 on every row, and its reader never looks. See THE
  * THREAD MODEL in repositories/legacy/articles.repository.js.
  */
-CREATE TABLE IF NOT EXISTS ora_blog.blog_subject (
+CREATE TABLE IF NOT EXISTS bs_blog.blog_subject (
     id          bigint        PRIMARY KEY,
     name        varchar(255)  NULL,
     parent      bigint        DEFAULT 0,
@@ -54,13 +54,13 @@ CREATE TABLE IF NOT EXISTS ora_blog.blog_subject (
 );
 
 
-CREATE TABLE IF NOT EXISTS ora_blog.blog_article (
-    id              bigint        PRIMARY KEY DEFAULT nextval('ora_blog.blog_article_s'),
+CREATE TABLE IF NOT EXISTS bs_blog.blog_article (
+    id              bigint        PRIMARY KEY DEFAULT nextval('bs_blog.blog_article_s'),
 
     /*
      * THE AUTHOR IS A LOGIN NAME, not a number - this schema predates the
      * user table Crystal joins to, and the vendor's own code resolves it by
-     * joining ora_old_db.customers on the same string. Crystal shows it as
+     * joining bs_phurunhanul.customers on the same string. Crystal shows it as
      * the byline and does not try to resolve it, because the customer
      * database is a third instance that is not part of this integration.
      */
@@ -94,18 +94,18 @@ CREATE TABLE IF NOT EXISTS ora_blog.blog_article (
 
     create_at       timestamp(0)  DEFAULT CURRENT_TIMESTAMP,
     modify_at       timestamp(0)  DEFAULT CURRENT_TIMESTAMP,
-    publish_at      timestamp(0)  NULL,
+    ryongsan_at      timestamp(0)  NULL,
     notice_at       timestamp(0)  NULL
 );
 
-CREATE INDEX IF NOT EXISTS ix_blog_article_userid ON ora_blog.blog_article (user_userid);
-CREATE INDEX IF NOT EXISTS ix_blog_article_parent ON ora_blog.blog_article (parent);
-CREATE INDEX IF NOT EXISTS ix_blog_article_state  ON ora_blog.blog_article (state, publish_at DESC);
+CREATE INDEX IF NOT EXISTS ix_blog_article_userid ON bs_blog.blog_article (user_userid);
+CREATE INDEX IF NOT EXISTS ix_blog_article_parent ON bs_blog.blog_article (parent);
+CREATE INDEX IF NOT EXISTS ix_blog_article_state  ON bs_blog.blog_article (state, ryongsan_at DESC);
 
 
-CREATE TABLE IF NOT EXISTS ora_blog.blog_article_info (
+CREATE TABLE IF NOT EXISTS bs_blog.blog_article_info (
     id               bigint   PRIMARY KEY
-                              REFERENCES ora_blog.blog_article (id) ON DELETE CASCADE,
+                              REFERENCES bs_blog.blog_article (id) ON DELETE CASCADE,
     is_help_request  smallint DEFAULT 0,
     help_status      smallint DEFAULT 0,
 
@@ -124,9 +124,9 @@ CREATE TABLE IF NOT EXISTS ora_blog.blog_article_info (
 );
 
 
-CREATE TABLE IF NOT EXISTS ora_blog.blog_article_lob (
+CREATE TABLE IF NOT EXISTS bs_blog.blog_article_lob (
     id           bigint       PRIMARY KEY
-                              REFERENCES ora_blog.blog_article (id) ON DELETE CASCADE,
+                              REFERENCES bs_blog.blog_article (id) ON DELETE CASCADE,
 
     /* CLOB in Oracle. The article body, as HTML. */
     content      text         NULL,
@@ -162,16 +162,16 @@ CREATE TABLE IF NOT EXISTS ora_blog.blog_article_lob (
  * The id comes from blog_article_recommend_s, the sequence the vendor's model
  * names (`${T_OLD_RECOMMENDS}_S.nextval`); there is no default on the column.
  */
-CREATE SEQUENCE IF NOT EXISTS ora_blog.blog_article_recommend_s START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS bs_blog.blog_article_recommend_s START WITH 1 INCREMENT BY 1;
 
-CREATE TABLE IF NOT EXISTS ora_blog.blog_article_recommend (
+CREATE TABLE IF NOT EXISTS bs_blog.blog_article_recommend (
     id                     bigint       PRIMARY KEY,
-    article_id             bigint       REFERENCES ora_blog.blog_article (id) ON DELETE CASCADE,
+    article_id             bigint       REFERENCES bs_blog.blog_article (id) ON DELETE CASCADE,
     recommend_user_userid  varchar(50)  NULL,
     reg_date               timestamp    DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS ix_blog_recommend_article ON ora_blog.blog_article_recommend (article_id);
+CREATE INDEX IF NOT EXISTS ix_blog_recommend_article ON bs_blog.blog_article_recommend (article_id);
 
-ALTER TABLE ora_blog.blog_article_recommend ADD COLUMN IF NOT EXISTS recommend_type smallint NULL;
-ALTER TABLE ora_blog.blog_article_recommend ADD COLUMN IF NOT EXISTS ip varchar(64) NULL;
+ALTER TABLE bs_blog.blog_article_recommend ADD COLUMN IF NOT EXISTS recommend_type smallint NULL;
+ALTER TABLE bs_blog.blog_article_recommend ADD COLUMN IF NOT EXISTS ip varchar(64) NULL;

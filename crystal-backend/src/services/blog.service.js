@@ -947,7 +947,7 @@ async function dependents(id) {
   const found = [];
   if (images) found.push({ table: 'media_assets', count: images, on_delete: 'CASCADE' });
   /* Readers' thumbs go with the article - purge removes the ledger rows first. */
-  if (ratings) found.push({ table: 'ora_blog.blog_article_recommend', count: ratings, on_delete: 'CASCADE' });
+  if (ratings) found.push({ table: 'bs_blog.blog_article_recommend', count: ratings, on_delete: 'CASCADE' });
 
   return {
     dependents: found,

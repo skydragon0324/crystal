@@ -4,7 +4,7 @@ const legacy = require('../../config/legacy');
 /**
  * THE VENDOR'S LOCATION LIST, READ ONE WAY.
  *
- * crm_location is ora_pid.locations copied as it is: location_pk is the key,
+ * crm_location is bs_prhnid.locations copied as it is: location_pk is the key,
  * and the hierarchy runs on codes - a row's parent_code is its parent's
  * location_code, and a province has parent_code NULL or '0'. The vendor goes
  * at most three levels deep (province > city > district).
@@ -63,7 +63,7 @@ async function all(trx) {
 
 /**
  * THE VENDOR'S LOCATION LIST, copied as it is: same columns, same keys
- * (crm_location.location_pk = ora_pid.locations.location_pk). Read through the
+ * (crm_location.location_pk = bs_prhnid.locations.location_pk). Read through the
  * legacy handle, so it works whether the vendor runs on PostgreSQL or Oracle.
  * A row already here is updated; nothing is deleted - a location a customer
  * points at stays even if the vendor removes it.

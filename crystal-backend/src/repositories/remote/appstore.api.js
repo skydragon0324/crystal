@@ -607,7 +607,7 @@ const MOVE_LIMIT = 99999999;
  * The vendor's reading of the reply, kept: `errors` is a failure of the call,
  * `code === 0` with a token is a yes, and any other code is a no with the
  * wallet's own `msg`. `user_userid` is the PLATFORM login - the same id
- * change_password is addressed by (`pvendor_id`), because that endpoint is
+ * change_password is addressed by (`prhn_id`), because that endpoint is
  * how the vendor writes this password in the first place.
  */
 async function verifyWalletPassword(login, password) {
@@ -635,7 +635,7 @@ async function verifyWalletPassword(login, password) {
  */
 async function setWalletPassword(login, password) {
   const data = await remote.post(STORE, '/api/maininfo/change_password', {
-    pvendor_id: login,
+    prhn_id: login,
     prhn_pwd: password
   });
 

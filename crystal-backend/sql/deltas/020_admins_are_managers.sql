@@ -5,7 +5,7 @@
 -- always called them managers, and the two words have been sitting next to
 -- each other in this codebase since the feedback integration landed:
 --
---   crystal_v1.managers.id      ==  ora_pid.managers.manager_pk
+--   crystal_v1.managers.id      ==  bs_prhnid.managers.manager_pk
 --
 -- A thread's `session_by` is one of these numbers, and which word you use
 -- depends only on which side of the join you are reading. That is the kind of
@@ -57,7 +57,7 @@
  * The obvious guard is `to_regclass('managers') IS NULL`, and it is wrong
  * here: to_regclass resolves an unqualified name through the SEARCH PATH, and
  * this database has a `managers` table in `public` belonging to another
- * project - as well as the vendor's in ora_pid. The guard saw one of those,
+ * project - as well as the vendor's in bs_prhnid. The guard saw one of those,
  * concluded the rename had already happened, and silently did nothing while
  * every other section of this file ran. The result was a table called
  * `admins` with an index called `managers_pkey`.
@@ -240,7 +240,7 @@ END $$;
 COMMENT ON TABLE managers IS
   'the people who run the console. Called managers rather than admins because
    that is what the platform Crystal shares its members with calls them, and
-   managers.id is the same number as ora_pid.managers.manager_pk - a feedback
+   managers.id is the same number as bs_prhnid.managers.manager_pk - a feedback
    thread''s session_by is one of these either way.';
 
 COMMENT ON COLUMN audit_log.manager_id IS

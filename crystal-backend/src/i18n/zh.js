@@ -180,6 +180,11 @@ module.exports = {
     thatIsNotACustomer: '这不是有效的客户主键',
     noSuchCustomer: '尚未同步该主键对应的客户',
     aReconciliationIsAlready: '核对任务正在运行，本次请求未重复启动',
+    newTakesPrecedence: '“新客”优先：注册后的前 30 天内，无论登录多少次，客户都算新客。',
+    neverLoggedInIsMeasured: '从未登录过的客户从注册时间起算，因此即使没有任何登录记录，也会先变为沉睡、再变为流失。',
+    theBoundariesAreExact: '边界是精确的：已过 30 天即不再是活跃，已过 90 天即为流失。',
+    basedOnLoginsOnly: '该分类只依据登录行为，不衡量购买、客服联系或其他互动。',
+    theAccountStatusIsSeparate: '平台中的账号状态（USERS.STATUS）是运营标志，单独展示，不是生命周期状态。',
     reconciliationFinished: '核对完成',
     thatIsNotAnInstant: '{name} 必须是日期和时间',
     aWindowIsBetween: '对比窗口每侧需在 1 至 {days} 天之间',

@@ -73,6 +73,72 @@ function settings() {
  * It is still incremental in the sense that matters: pages are bounded, the
  * cursor is recorded, and an interrupted run resumes where it stopped.
  */
+/**
+ * The customers of a page that can actually be classified.
+ *
+ * A CUSTOMER WITH NO REGISTRATION INSTANT CANNOT BE. The rules return no
+ * status without one, so storing the row would put a customer in the
+ * population who can never appear in any bucket - and the stock counts would
+ * stop summing to the total. It goes to the exception channel instead.
+ *
+ * Shared by the sweep below and the poll's targeted sync, so both keep a
+ * customer out of the population for the same reason and say so the same way.
+ */
+async function classifiable(page) {
+  const usable = [];
+
+  for (let i = 0; i < page.length; i += 1) {
+    if (!page[i].registeredAt) {
+      /* eslint-disable no-await-in-loop */
+      await repo.noteException({
+        kind: 'PROFILE_NO_REGISTRATION',
+        userPk: page[i].userPk,
+        detail: 'users.created_at is null, so no lifecycle status can be computed'
+      });
+      /* eslint-enable no-await-in-loop */
+    } else {
+      usable.push(page[i]);
+    }
+  }
+
+  return usable;
+}
+
+/**
+ * THE PROFILES FOR CUSTOMERS WHOSE LOGINS HAVE JUST ARRIVED.
+ *
+ * The sweep below walks the whole customer table and runs once a day. That is
+ * the right shape for catching changed details, and the wrong shape for a new
+ * installation: the login poll runs every ten minutes, a rebuild needs the
+ * customer's registration instant, and without a profile it builds nothing
+ * and records a REBUILD_NO_PROFILE exception. So a journal filling all
+ * afternoon produced no periods, no current status and no snapshots - an
+ * empty screen behind a full table - until the next morning, and one
+ * exception per customer per poll while it waited.
+ *
+ * This asks for exactly the customers that are missing one, in the batch the
+ * poll has already read. Bounded twice over: by the import batch, and by how
+ * many of those are new.
+ */
+async function syncProfilesByKeys(userPks) {
+  const missing = await repo.profilesMissing(userPks);
+  if (!missing.length) return { read: 0, written: 0, missing: 0 };
+
+  const page = await source.customersByKeys(missing);
+  const usable = await classifiable(page);
+
+  return {
+    read: page.length,
+    written: await repo.saveProfiles(usable),
+    /*
+     * Customers the source did not return at all - a login whose customer has
+     * been deleted there. The journal keeps the row (requirement 8 forbids
+     * discarding it); this says how many there were.
+     */
+    missing: missing.length - page.length
+  };
+}
+
 async function syncProfiles(options) {
   const limit = (options && options.batch) || settings().importBatch;
   const resume = options && options.resume;
@@ -96,18 +162,7 @@ async function syncProfiles(options) {
      * counts would stop summing to the total. It goes to the exception
      * channel instead.
      */
-    const usable = [];
-    for (let i = 0; i < page.length; i += 1) {
-      if (!page[i].registeredAt) {
-        await repo.noteException({
-          kind: 'PROFILE_NO_REGISTRATION',
-          userPk: page[i].userPk,
-          detail: 'users.created_at is null, so no lifecycle status can be computed'
-        });
-      } else {
-        usable.push(page[i]);
-      }
-    }
+    const usable = await classifiable(page);
 
     written += await repo.saveProfiles(usable);
     cursor = Number(page[page.length - 1].userPk);
@@ -300,6 +355,7 @@ module.exports = {
   PROFILE_STREAM: PROFILE_STREAM,
   RECONCILE_STREAM: RECONCILE_STREAM,
   syncProfiles: syncProfiles,
+  syncProfilesByKeys: syncProfilesByKeys,
   importLogins: importLogins,
   reconcileLogins: reconcileLogins
 };

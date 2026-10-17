@@ -5,7 +5,7 @@
 -- comment said why: "an account with neither an email nor a phone could never
 -- sign in again."
 --
--- That reason expired when sign-in moved to ora_pid.users. A member signs in
+-- That reason expired when sign-in moved to bs_prhnid.users. A member signs in
 -- with a USER ID now; the email is for contacting them and plenty of platform
 -- accounts have never had one. The constraint was refusing exactly the row
 -- registration is supposed to create - a member with a login, no email and no
@@ -28,4 +28,4 @@ ALTER TABLE users
 COMMENT ON CONSTRAINT chk_user_has_a_handle ON users IS
   'an account has to carry at least one way of identifying the person behind it.
    `login` leads because it is the one sign-in actually uses - it mirrors
-   ora_pid.users.user_id; the other two are for reaching somebody.';
+   bs_prhnid.users.user_id; the other two are for reaching somebody.';

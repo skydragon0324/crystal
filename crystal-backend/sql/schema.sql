@@ -376,7 +376,7 @@ CREATE TABLE users (
     email                 varchar(190) NULL UNIQUE,
 
     /*
-     * THE PLATFORM LOGIN, mirrored from ora_pid.users.user_id.
+     * THE PLATFORM LOGIN, mirrored from bs_prhnid.users.user_id.
      *
      * Sign-in checks the platform's table, which is keyed by user_id - so this
      * is the name the member actually types, refreshed at every sign-in. NOT
@@ -399,7 +399,7 @@ COMMENT ON COLUMN users.last_login_award_on IS 'guards the once-a-day LOGIN poin
 COMMENT ON CONSTRAINT chk_user_has_a_handle ON users IS
   'an account has to carry at least one way of identifying the person behind it.
    `login` leads because it is the one sign-in actually uses - it mirrors
-   ora_pid.users.user_id; the other two are for reaching somebody.';
+   bs_prhnid.users.user_id; the other two are for reaching somebody.';
 
 CREATE INDEX idx_users_status ON users(status);
 
@@ -675,7 +675,7 @@ CREATE TABLE media_assets (
     /*
      * BIGINT, and the width is the point: one of the tables owner_type names
      * is not Crystal's. An ARTICLE owner is a row in the vendor's
-     * ora_blog.blog_article (src/config/legacy.js), whose ids are Oracle
+     * bs_blog.blog_article (src/config/legacy.js), whose ids are Oracle
      * NUMBERs starting well past what 32 bits holds.
      */
     owner_id    bigint       NOT NULL,
@@ -2860,7 +2860,7 @@ COMMENT ON TABLE crm_currency IS 'Currencies used by transactions, costs, reward
 CREATE UNIQUE INDEX uq_crm_currency_reporting ON crm_currency(is_reporting) WHERE is_reporting;
 
 /*
- * THE VENDOR'S LOCATION LIST, copied as it is (ora_pid.locations).
+ * THE VENDOR'S LOCATION LIST, copied as it is (bs_prhnid.locations).
  *
  * Same columns, same keys: location_pk is the vendor's own number, so a vendor
  * user's users.location_pk points at the same row here. The hierarchy runs on
@@ -2878,7 +2878,7 @@ CREATE TABLE crm_location (
     created_at                         timestamptz    NOT NULL DEFAULT now(),
     updated_at                         timestamptz    NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE crm_location IS 'The vendor location list (ora_pid.locations), same columns and keys. Province = parent_code NULL or 0.';
+COMMENT ON TABLE crm_location IS 'The vendor location list (bs_prhnid.locations), same columns and keys. Province = parent_code NULL or 0.';
 COMMENT ON COLUMN crm_location.parent_code IS 'Parent location_code; NULL or 0 for a province.';
 CREATE INDEX idx_crm_location_parent ON crm_location(parent_code, position);
 

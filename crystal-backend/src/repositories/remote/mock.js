@@ -32,7 +32,7 @@
  * The delivery ADDRESSES are the exception, and are Chinese. They are not
  * prose in a language, they are places the shop delivers to - see the note
  * where they are written. So is the B-MEDIA library, whose providers and
- * titles are Chinese because the service is - see BMEDIA_PROVIDERS.
+ * titles are Chinese because the service is - see BSMEDIA_PROVIDERS.
  *
  * The words AROUND the data - the column headers, the tender names, the fill
  * types - ARE Crystal's own and are translated in the frontend catalogues.
@@ -652,11 +652,11 @@ function walletLogin(params) {
 
 /** A transcription of the reply appstoreApi.changePassword reads. */
 function walletChangePassword(params) {
-  if (!params.pvendor_id || !params.prhn_pwd) {
+  if (!params.prhn_id || !params.prhn_pwd) {
     return { status: 'error', error: { code: 1010, description: 'bad request' } };
   }
 
-  WALLET_PASSWORDS[params.pvendor_id] = String(params.prhn_pwd);
+  WALLET_PASSWORDS[params.prhn_id] = String(params.prhn_pwd);
   return { status: 'success', data: {} };
 }
 
@@ -1091,7 +1091,7 @@ function keygenLog(params, system) {
        * labels it never draws are the ones nobody has looked at.
        */
       error_status: String(pick(key, slot + ':fb', 0, 5) % 4),
-      licensefilepath: failed ? '' : '/var/www/html/ora_licenses/' + pick(key, slot + ':f', 1000, 9999) + '.lic',
+      licensefilepath: failed ? '' : '/var/www/html/bs_licenses/' + pick(key, slot + ':f', 1000, 9999) + '.lic',
       updated_at: stamp(i * 4 + 2, 9 + (i % 9))
     });
   }
@@ -1145,7 +1145,7 @@ function manbangKeygenLog(params) {
  * Chinese films, because a catalogue a Chinese reader recognises is what makes
  * the detail read like the real thing.
  */
-const BMEDIA_PROVIDERS = [
+const BSMEDIA_PROVIDERS = [
   {
     short_name: '华影',
     name: '华影数字传媒',
@@ -1169,7 +1169,7 @@ const BMEDIA_PROVIDERS = [
 ];
 
 function providerOf(licenceId) {
-  return choose(String(licenceId), 'provider', BMEDIA_PROVIDERS);
+  return choose(String(licenceId), 'provider', BSMEDIA_PROVIDERS);
 }
 
 function bmediaKeygenLog(params) {
@@ -1478,10 +1478,10 @@ function phonePrivileges(params) {
 /* ------------------------------------------------------------------ */
 
 const ROUTES = {
-  '/www/backend/others/pid_apis/fetch_card_info': eshopCardInfo,
-  '/www/backend/others/pid_apis/get_transactions': eshopTransactions,
-  '/www/backend/others/pid_apis/getUserOrderLists': eshopOrders,
-  '/www/backend/others/pid_apis/getOrderDetail': eshopOrderDetail,
+  '/www/backend/others/prhn_apis/fetch_card_info': eshopCardInfo,
+  '/www/backend/others/prhn_apis/get_transactions': eshopTransactions,
+  '/www/backend/others/prhn_apis/getUserOrderLists': eshopOrders,
+  '/www/backend/others/prhn_apis/getOrderDetail': eshopOrderDetail,
   '/api/v2/maininfo/remainingCoins': appstoreBalance,
   '/api/v3/histories': appstoreHistories,
   '/api/maininfo/getPurchaseTableData': appstorePurchases,

@@ -214,6 +214,11 @@ module.exports = {
     thatIsNotACustomer: 'that is not a customer key',
     noSuchCustomer: 'no customer with that key has been synchronised',
     aReconciliationIsAlready: 'a reconciliation is already running; this request was not started again',
+    newTakesPrecedence: 'NEW takes precedence: for the first 30 days after registering, a customer is NEW however often they log in.',
+    neverLoggedInIsMeasured: 'A customer who has never logged in is measured from their registration, so they become DORMANT and then CHURNED with no login records at all.',
+    theBoundariesAreExact: 'The boundaries are exact: at 30 elapsed days a customer is no longer ACTIVE, and at 90 they are CHURNED.',
+    basedOnLoginsOnly: 'This classification is based on LOGINS only. It does not measure purchases, support contact or any other engagement.',
+    theAccountStatusIsSeparate: 'The account status held in the platform (USERS.STATUS) is an operational flag and is reported separately. It is not a lifecycle status.',
     reconciliationFinished: 'reconciliation finished',
     thatIsNotAnInstant: '{name} must be a date and time',
     aWindowIsBetween: 'a comparison window is between 1 and {days} days on each side',

@@ -129,6 +129,36 @@ function saveProfiles(rows, trx) {
   );
 }
 
+/**
+ * WHICH OF THESE CUSTOMERS HAVE NO PROFILE YET.
+ *
+ * Asked by the login poll about the customers whose logins it has just
+ * imported: a rebuild without a profile builds nothing, so the ones missing
+ * one are fetched from the source before the rebuild rather than waiting for
+ * the daily sweep. Answered with one query over the batch rather than a
+ * lookup per customer.
+ */
+async function profilesMissing(userPks) {
+  const wanted = (userPks || [])
+    .map(Number)
+    .filter(function (key) { return Number.isFinite(key) && key > 0; });
+
+  if (!wanted.length) return [];
+
+  const known = {};
+  const CHUNK = 20000;
+
+  for (let at = 0; at < wanted.length; at += CHUNK) {
+    const slice = wanted.slice(at, at + CHUNK);
+    /* eslint-disable no-await-in-loop */
+    const rows = await db(PROFILE).whereIn('user_pk', slice).pluck('user_pk');
+    /* eslint-enable no-await-in-loop */
+    rows.forEach(function (key) { known[Number(key)] = true; });
+  }
+
+  return wanted.filter(function (key) { return !known[key]; });
+}
+
 function profileOf(userPk) {
   return db(PROFILE).where('user_pk', userPk).first();
 }
@@ -594,6 +624,7 @@ module.exports = {
 
   saveProfiles: saveProfiles,
   profileOf: profileOf,
+  profilesMissing: profilesMissing,
   countProfiles: countProfiles,
 
   saveLogins: saveLogins,

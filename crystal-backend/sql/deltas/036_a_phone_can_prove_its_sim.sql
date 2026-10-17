@@ -13,9 +13,9 @@
 --
 -- WHY A TABLE OF DEVICES RATHER THAN A COLUMN ON users.
 --
--- ora_pid.users.cid is the vendor's, it belongs to the vendor's own mobile
+-- bs_prhnid.users.cid is the vendor's, it belongs to the vendor's own mobile
 -- application, and its meaning there is "the one SIM this account is locked
--- to" (ora_pid.users.locked is literally 'allow only registered cid for
+-- to" (bs_prhnid.users.locked is literally 'allow only registered cid for
 -- login').  The browser's cid is a different idea with the same name: it
 -- identifies a CARD, not an account, and one card may sign any member in -
 -- see the note in the service.  Putting the second idea in the first idea's
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS browser_device_identities (
     id               serial        PRIMARY KEY,
 
     /*
-     * TWELVE, NOT TEN. ora_pid.users.cid and ora_pid.devices.cid are both
+     * TWELVE, NOT TEN. bs_prhnid.users.cid and bs_prhnid.devices.cid are both
      * VARCHAR2(12), and memberAuth.service.js caps what it records at 12 for
      * that reason. A ten digit rule here would refuse cards the rest of the
      * platform accepts.
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS browser_device_identities (
 
 COMMENT ON TABLE browser_device_identities IS
   'A SIM card the customised mobile browser can sign with. Identifies a card, never an account - see sql/deltas/036';
-COMMENT ON COLUMN browser_device_identities.cid IS 'SIM CID, as ora_pid.users.cid and ora_pid.devices.cid hold it';
+COMMENT ON COLUMN browser_device_identities.cid IS 'SIM CID, as bs_prhnid.users.cid and bs_prhnid.devices.cid hold it';
 COMMENT ON COLUMN browser_device_identities.public_key IS 'PEM, read out of the certificate by the server';
 
 CREATE TABLE IF NOT EXISTS login_challenges (

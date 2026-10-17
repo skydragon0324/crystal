@@ -116,7 +116,7 @@ function update(id, data, trx) {
 /**
  * A member whose id is CHOSEN, not generated.
  *
- * Sign-in happens against ora_pid.users and this row mirrors it locally, so
+ * Sign-in happens against bs_prhnid.users and this row mirrors it locally, so
  * the id has to be that table's `user_pk` - it is what every user_id column in
  * Crystal's schema and every user_pk in the vendor's have in common, and what
  * lets a feedback thread written on one side be read from the other.

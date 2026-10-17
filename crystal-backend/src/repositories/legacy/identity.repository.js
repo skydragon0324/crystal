@@ -5,7 +5,7 @@ const legacy = require('../../config/legacy');
  *
  * One person has three identifiers that matter here, and only one is Crystal's:
  *
- *   users.id            Crystal, and ora_pid.users.user_pk - the same number
+ *   users.id            Crystal, and bs_prhnid.users.user_pk - the same number
  *   eshop_pk            the Eshop's own key
  *   appstore_pk         the Appstore's key - sent as the store's `customer_id`
  *                       AND as the wallet's `unique_id`, as the vendor does
@@ -13,7 +13,7 @@ const legacy = require('../../config/legacy');
  * (`appstore_id` is on the row too. It is the member's Appstore LOGIN, and it
  * is not a key any Appstore endpoint takes.)
  *
- * They live in `ora_pid.user_merge_ids`, one row per person, and every remote
+ * They live in `bs_prhnid.user_merge_ids`, one row per person, and every remote
  * call needs the right one. Passing the wrong key does not fail - the service
  * answers about whoever that key belongs to, which is somebody else's orders
  * shown to the wrong member. That is why this is its own file and why nothing
@@ -36,17 +36,17 @@ function conn() {
 /**
  * The merge row, or null.
  *
- * Keyed on `pvendor_pk`, which is the platform id - the same number as
+ * Keyed on `prhn_pk`, which is the platform id - the same number as
  * Crystal's users.id under the identity bridge.
  */
 function mergeRow(userId) {
-  return conn()(legacy.pid(MERGE)).where('pvendor_pk', userId).first();
+  return conn()(legacy.pid(MERGE)).where('prhn_pk', userId).first();
 }
 
 /**
  * The legacy customer record, by login name.
  *
- * `ora_old_db.customers` is a THIRD database and is not part of this
+ * `bs_phurunhanul.customers` is a THIRD database and is not part of this
  * integration - it is read here and nowhere else, only to resolve an id, and
  * only when the merge row is missing. A failure is swallowed rather than
  * raised: an unreachable legacy customer database means this member has no
@@ -96,7 +96,7 @@ async function keysOf(userId, login) {
    */
   const customer = merged && merged.eshop_pk
     ? null
-    : await customerByLogin(login || (merged && merged.pvendor_id));
+    : await customerByLogin(login || (merged && merged.prhn_id));
 
   const appstoreKey = (merged && merged.appstore_pk) || null;
 
@@ -107,7 +107,7 @@ async function keysOf(userId, login) {
     appstore_unique_id: appstoreKey,
     appstore_customer_id: appstoreKey,
     /* The eproduct site is keyed by the LOGIN, not by any of the pks. */
-    login: (merged && merged.pvendor_id) || login || (customer && customer.user_userid) || null,
+    login: (merged && merged.prhn_id) || login || (customer && customer.user_userid) || null,
     source: merged && (merged.eshop_pk || merged.appstore_pk) ? 'merge' : (customer ? 'customers' : 'none')
   };
 }

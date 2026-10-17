@@ -131,7 +131,7 @@ function eshopUrl(path, present) {
 
 /** The member's card: type, level, and the four values on it. */
 async function cardInfo(userPk) {
-  const data = await remote.post(SERVICE, '/www/backend/others/pid_apis/fetch_card_info', {
+  const data = await remote.post(SERVICE, '/www/backend/others/prhn_apis/fetch_card_info', {
     userPk: userPk
   });
 
@@ -179,7 +179,7 @@ async function transactions(userPk, offset, limit, filter) {
       ? WALLET_LOG_TYPE.COMMERCE_VALUE
       : WALLET_LOG_TYPE.TRANSACTION;
 
-  const data = await remote.post(SERVICE, '/www/backend/others/pid_apis/get_transactions', {
+  const data = await remote.post(SERVICE, '/www/backend/others/prhn_apis/get_transactions', {
     userPk: userPk,
     start: offset,
     length: limit,
@@ -251,7 +251,7 @@ function cancellation(row) {
 
 /** The member's orders, newest first as the service returns them. */
 async function orders(userPk, offset, limit) {
-  const data = await remote.post(SERVICE, '/www/backend/others/pid_apis/getUserOrderLists', {
+  const data = await remote.post(SERVICE, '/www/backend/others/prhn_apis/getUserOrderLists', {
     userPk: userPk,
     start: offset,
     length: limit
@@ -305,7 +305,7 @@ async function orders(userPk, offset, limit) {
  * a float comparison in JSX.
  */
 async function orderDetail(orderId) {
-  const data = await remote.post(SERVICE, '/www/backend/others/pid_apis/getOrderDetail', {
+  const data = await remote.post(SERVICE, '/www/backend/others/prhn_apis/getOrderDetail', {
     orderId: orderId
   });
 

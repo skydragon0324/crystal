@@ -99,7 +99,7 @@ function decodeMessage(row) {
  * Crystal's words back into the vendor's columns, for a write.
  *
  * `updated_at` is stamped HERE rather than by a trigger, because the Oracle
- * table has none - see the note at the end of sql/legacy/ora_pid.sql. It is
+ * table has none - see the note at the end of sql/legacy/bs_prhnid.sql. It is
  * stamped only when somebody WRITES in the thread: marking a thread read must
  * not move it, or the console's queue reorders itself under a manager the
  * moment they click a row. That rule used to live in a PostgreSQL trigger
@@ -491,8 +491,8 @@ function transaction(handler) {
 module.exports = {
   /* The audit log records the table a change was made to, and that is now a
      qualified name in somebody else's database. Saying so is the point. */
-  THREADS: 'ora_pid.' + THREADS,
-  MESSAGES: 'ora_pid.' + MESSAGES,
+  THREADS: 'bs_prhnid.' + THREADS,
+  MESSAGES: 'bs_prhnid.' + MESSAGES,
 
   search: search,
   findById: findById,

@@ -1,5 +1,5 @@
 -- =====================================================================
--- ora_pid - THE VENDOR'S FEEDBACK TABLES, as a development stand-in.
+-- bs_prhnid - THE VENDOR'S FEEDBACK TABLES, as a development stand-in.
 --
 -- These two tables are NOT Crystal's. They live in the vendor's Oracle
 -- instance, they are read and written by the vendor's own console as well as
@@ -28,8 +28,8 @@
 -- There is no Oracle instance on a development machine, so every feedback
 -- page would answer 500. This creates the same two tables as ordinary schemas
 -- in the PostgreSQL database Crystal already uses, under the same name the
--- Oracle schema has - `ora_pid` - so that repositories/legacy/ can address
--- them as `ora_pid.feedback_threads` and have that one string be correct on
+-- Oracle schema has - `bs_prhnid` - so that repositories/legacy/ can address
+-- them as `bs_prhnid.feedback_threads` and have that one string be correct on
 -- both drivers. See src/config/legacy.js.
 --
 -- It is a STAND-IN, not a migration target. Do not point knex at it and do
@@ -42,7 +42,7 @@
 -- Re-runnable: everything is IF NOT EXISTS.
 -- =====================================================================
 
-CREATE SCHEMA IF NOT EXISTS ora_pid;
+CREATE SCHEMA IF NOT EXISTS bs_prhnid;
 
 
 -- ---------------------------------------------------------------------
@@ -66,11 +66,11 @@ CREATE SCHEMA IF NOT EXISTS ora_pid;
 -- that supplies one also works on both. That is the behaviour being copied.
 -- ---------------------------------------------------------------------
 
-CREATE SEQUENCE IF NOT EXISTS ora_pid.feedback_threads_s START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE IF NOT EXISTS ora_pid.feedback_messages_s START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS bs_prhnid.feedback_threads_s START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS bs_prhnid.feedback_messages_s START WITH 1 INCREMENT BY 1;
 
-CREATE TABLE IF NOT EXISTS ora_pid.feedback_threads (
-    thread_pk     bigint        PRIMARY KEY DEFAULT nextval('ora_pid.feedback_threads_s'),
+CREATE TABLE IF NOT EXISTS bs_prhnid.feedback_threads (
+    thread_pk     bigint        PRIMARY KEY DEFAULT nextval('bs_prhnid.feedback_threads_s'),
 
     /*
      * users.user_pk IN ORACLE, which is a different database from the one
@@ -111,15 +111,15 @@ CREATE TABLE IF NOT EXISTS ora_pid.feedback_threads (
 );
 
 CREATE INDEX IF NOT EXISTS ix_feedback_threads_user
-    ON ora_pid.feedback_threads (user_pk, updated_at DESC);
+    ON bs_prhnid.feedback_threads (user_pk, updated_at DESC);
 CREATE INDEX IF NOT EXISTS ix_feedback_threads_state
-    ON ora_pid.feedback_threads (status, thread_source, updated_at DESC);
+    ON bs_prhnid.feedback_threads (status, thread_source, updated_at DESC);
 
 
-CREATE TABLE IF NOT EXISTS ora_pid.feedback_messages (
-    message_pk  bigint        PRIMARY KEY DEFAULT nextval('ora_pid.feedback_messages_s'),
+CREATE TABLE IF NOT EXISTS bs_prhnid.feedback_messages (
+    message_pk  bigint        PRIMARY KEY DEFAULT nextval('bs_prhnid.feedback_messages_s'),
     thread_pk   bigint        NOT NULL
-                              REFERENCES ora_pid.feedback_threads (thread_pk),
+                              REFERENCES bs_prhnid.feedback_threads (thread_pk),
 
     /*
      * VARCHAR2(4000), not a LOB - so a message has a hard 4000-BYTE ceiling in
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS ora_pid.feedback_messages (
 );
 
 CREATE INDEX IF NOT EXISTS ix_feedback_messages_thread
-    ON ora_pid.feedback_messages (thread_pk, action_at);
+    ON bs_prhnid.feedback_messages (thread_pk, action_at);
 
 
 /*
@@ -173,10 +173,10 @@ CREATE INDEX IF NOT EXISTS ix_feedback_messages_thread
  * account with no row here has never been merged, and its whole history
  * shows - which is the ordinary case and not an error.
  */
-CREATE TABLE IF NOT EXISTS ora_pid.user_merge_log (
+CREATE TABLE IF NOT EXISTS bs_prhnid.user_merge_log (
   table_pk    bigint       PRIMARY KEY,
-  pvendor_pk  bigint       NOT NULL,
-  pvendor_id  varchar(60)  NOT NULL,
+  prhn_pk  bigint       NOT NULL,
+  prhn_id  varchar(60)  NOT NULL,
   id_type     smallint     NOT NULL,
   merge_id    varchar(60)  NULL,
   merge_type  smallint     NOT NULL DEFAULT 0,
@@ -186,4 +186,4 @@ CREATE TABLE IF NOT EXISTS ora_pid.user_merge_log (
 );
 
 CREATE INDEX IF NOT EXISTS user_merge_log_lookup_idx
-  ON ora_pid.user_merge_log (id_type, merge_id, action_at DESC);
+  ON bs_prhnid.user_merge_log (id_type, merge_id, action_at DESC);

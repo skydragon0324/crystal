@@ -65,7 +65,7 @@ function publicUser(user) {
      * THE USER ID THEY TYPED, and it was the one thing missing here.
      *
      * `users.login` is the platform id - the same string as
-     * ora_pid.users.user_id - and it is what the member signs in with, what
+     * bs_prhnid.users.user_id - and it is what the member signs in with, what
      * the account sidebar shows them, and what the eshop, the appstore and
      * the eproduct site all key them by. The id below is Crystal's row
      * number, which is a fact about this database and means nothing to
@@ -126,7 +126,7 @@ function methods(device) {
 /**
  * REGISTERING CREATES A PLATFORM ACCOUNT, not a Crystal one.
  *
- * Sign-in checks ora_pid.users, so an account that exists only in Crystal is
+ * Sign-in checks bs_prhnid.users, so an account that exists only in Crystal is
  * an account whose owner can never sign in - which is exactly what this used
  * to build once the credential moved. It now writes the platform row first,
  * takes the id it allocates, and mirrors locally under that id, which is the
@@ -197,14 +197,14 @@ async function register(payload, device) {
 /* ------------------------------------------------------------------ */
 
 /**
- * SIGN IN AGAINST ora_pid.users, NOT AGAINST CRYSTAL'S OWN TABLE.
+ * SIGN IN AGAINST bs_prhnid.users, NOT AGAINST CRYSTAL'S OWN TABLE.
  *
  * Members are shared with the vendor's platform, the Eshop and the Appstore.
  * One person, one credential - so the password is checked where the platform
  * keeps it, and a password changed anywhere works everywhere.
  *
  * The form asks for a USER ID, because that is the only thing the platform
- * identifies a person by - ora_pid.users has no email column. Crystal's own
+ * identifies a person by - bs_prhnid.users has no email column. Crystal's own
  * users table still carries one, but nothing signs in with it.
  *
  * AND THE LOCAL MIRROR IS GUARANTEED HERE.
@@ -231,7 +231,7 @@ async function loginWithPassword(login, password, device, cid) {
   /*
    * THE USER ID, AND ONLY THE USER ID.
    *
-   * ora_pid.users has no email column at all - the platform identifies a
+   * bs_prhnid.users has no email column at all - the platform identifies a
    * person by `user_id` and nothing else. An earlier version of this also
    * tried an email's local part as a login, which was a guess dressed up as a
    * convenience: two different people can hold "ming@a.com" and "ming@b.com"
@@ -261,7 +261,7 @@ async function loginWithPassword(login, password, device, cid) {
  * THE SIGN-IN GOES IN THE PLATFORM'S LOGIN LOG - every sign-in, not only the
  * ones that carried a SIM card number.
  *
- * `ora_pid.user_login_log` is where the vendor's own apps record who signed
+ * `bs_prhnid.user_login_log` is where the vendor's own apps record who signed
  * in, and it is the ONLY thing the customer-lifecycle metrics read. So a
  * sign-in that does not land there is a sign-in those metrics cannot see:
  * before this recorded every path, a member signing in by certificate or by
@@ -283,7 +283,7 @@ async function loginWithPassword(login, password, device, cid) {
  * a row that was never written is not a row that was missed.
  */
 /*
- * The width of ora_pid.user_login_log.cid. A longer value is not cut down to
+ * The width of bs_prhnid.user_login_log.cid. A longer value is not cut down to
  * fit - a truncated cid is a DIFFERENT cid, recorded as if it were the real
  * one - it is left out, with a warning that says so. The sign-in form caps the
  * field at this length, so a member cannot type one.
@@ -774,11 +774,11 @@ async function bindPhone(userId, rawPhone, code) {
  * THE CARD IS NOT TIED TO THE ACCOUNT, and that is a decision somebody made
  * rather than something nobody got round to. A valid card may sign in ANY
  * account whose user ID and password are correct, including one whose stored
- * ora_pid.users.cid is a different card entirely. So what a MIK sign-in
+ * bs_prhnid.users.cid is a different card entirely. So what a MIK sign-in
  * proves is "a trusted SIM is present", not "this member's SIM is present":
  * one valid card can be used to attempt every account on the site, and the
  * card never objects. The vendor's own application takes the other view -
- * ora_pid.users.locked is literally 'allow only registered cid for login'.
+ * bs_prhnid.users.locked is literally 'allow only registered cid for login'.
  * If that rule is ever wanted here, it goes in `loginWithMik`, where the
  * comparison would be one line and the consequence is a member who changes
  * SIM being locked out until somebody clears the stored number.

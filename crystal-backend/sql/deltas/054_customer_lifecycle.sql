@@ -6,14 +6,14 @@
 -- keep it current. See CUSTOMER_LIFECYCLE_KPI_REQUIREMENTS.md section 7.
 --
 -- NOTHING HERE IS A SOURCE OF TRUTH. Oracle owns registrations and logins
--- (ora_pid.users, ora_pid.user_login_log); every table below is DERIVED and
+-- (bs_prhnid.users, bs_prhnid.user_login_log); every table below is DERIVED and
 -- may be rebuilt from Oracle plus lifecycle_login_event. That is the whole
 -- reason the journal exists: a rebuild must not mean re-reading a million
 -- Oracle rows.
 --
 -- NO FOREIGN KEY REACHES ORACLE. user_pk is the vendor's key, in another
 -- database, so it is carried as a plain bigint - the same arrangement
--- ora_pid.feedback_threads.user_pk already has, and for the same reason.
+-- bs_prhnid.feedback_threads.user_pk already has, and for the same reason.
 --
 -- WHAT IS DELIBERATELY NOT COPIED: passwords, id_card, cid, phone_imei,
 -- phone_brand and phone_model. None is needed to count statuses, and
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS lifecycle_customer_profile (
 
     /*
      * ONE DETERMINISTIC DISPLAY PHONE, chosen by the newest updated_at and
-     * then by phone_pk - ora_pid.user_phone_numbers has no primary flag, so
+     * then by phone_pk - bs_prhnid.user_phone_numbers has no primary flag, so
      * this is a presentation choice and must never be described to an
      * operator as a verified primary number. A report row joins to this one
      * column rather than to the phone table, which is what stops a customer
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS lifecycle_customer_profile (
      */
     display_phone         varchar(40)  NULL,
 
-    /* ora_pid.users.status (0/1) - the OPERATIONAL account flag, kept beside
+    /* bs_prhnid.users.status (0/1) - the OPERATIONAL account flag, kept beside
        the lifecycle status and never conflated with it. */
     oracle_account_status smallint     NULL,
 
@@ -54,13 +54,13 @@ CREATE TABLE IF NOT EXISTS lifecycle_customer_profile (
 );
 
 COMMENT ON TABLE lifecycle_customer_profile IS
-  'Reporting copy of ora_pid.users, minus everything a lifecycle count does not
+  'Reporting copy of bs_prhnid.users, minus everything a lifecycle count does not
    need. Derived: safe to rebuild from the source.';
 COMMENT ON COLUMN lifecycle_customer_profile.display_phone IS
   'One number for report rows, newest updated_at then phone_pk. NOT a verified
    primary - the source has no such flag.';
 COMMENT ON COLUMN lifecycle_customer_profile.oracle_account_status IS
-  'ora_pid.users.status, the operational account flag. Not a lifecycle status.';
+  'bs_prhnid.users.status, the operational account flag. Not a lifecycle status.';
 
 CREATE INDEX IF NOT EXISTS idx_lifecycle_profile_registered
     ON lifecycle_customer_profile(registered_at);
@@ -72,7 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_lifecycle_profile_user_id
 -- 7.2  the minimal login journal
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS lifecycle_login_event (
-    /* ora_pid.user_login_log.TABLE_PK - the key that makes an import
+    /* bs_prhnid.user_login_log.TABLE_PK - the key that makes an import
        idempotent however many times a batch is replayed. */
     source_table_pk bigint      PRIMARY KEY,
     user_pk         bigint      NOT NULL,

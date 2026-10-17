@@ -100,6 +100,19 @@ function poll() {
   return run('lifecycle_poll', async function () {
     const imported = await sync.importLogins({});
 
+    /*
+     * THE PROFILES FIRST, FOR WHOEVER IS NEW.
+     *
+     * A rebuild with no profile builds nothing - see timeline.rebuild - and
+     * the profile sweep runs once a day, so on a new installation this job
+     * imported logins all afternoon and produced an empty screen. Asking for
+     * the profiles of the customers whose logins just arrived costs one read
+     * of at most one batch, and only for the ones missing one.
+     */
+    const profiles = imported.customers.length
+      ? await sync.syncProfilesByKeys(imported.customers)
+      : { read: 0, written: 0, missing: 0 };
+
     const rebuilt = imported.customers.length
       ? await timeline.rebuildMany(imported.customers)
       : { rebuilt: 0, dirtyDays: [] };
@@ -110,7 +123,14 @@ function poll() {
 
     return {
       rowsRead: imported.read,
-      rowsWritten: imported.written,
+      /*
+       * The journal rows and the profiles this run added, counted together:
+       * the run row has one `rows_written` column and both are writes this
+       * job made. The profile count is named in the log line below so an
+       * operator can still tell them apart.
+       */
+      rowsWritten: imported.written + profiles.written,
+      profilesAdded: profiles.written,
       customersRebuilt: rebuilt.rebuilt,
       datesTouched: repaired.days
     };
@@ -239,6 +259,18 @@ async function health() {
   const latestSnapshot = await repo.latestDaily();
   const durations = await repo.runStats(50);
 
+  /*
+   * THE THREE COUNTS THAT SAY WHERE THE CHAIN STOPPED.
+   *
+   * A journal of eleven million logins and no profiles is an empty screen -
+   * a rebuild needs the customer's registration instant - and until these
+   * were on this tab there was nothing anywhere that said so: the reports
+   * answered zero, truthfully, and the operator was left guessing. Read
+   * beside journalRows they name the stage that has not run.
+   */
+  const profiles = await repo.countProfiles();
+  const periods = await repo.countPeriods();
+
   const byStream = {};
   checkpoints.forEach(function (row) { byStream[row.stream] = row; });
 
@@ -256,6 +288,10 @@ async function health() {
     journalRows: journal.rows,
     highestSourceKey: journal.maxSourcePk,
     latestLoginAt: journal.latestActionAt,
+
+    /* Customers synced, and the history built from them. See above. */
+    customerProfiles: profiles,
+    statusPeriods: periods,
 
     lastSynchronizedAt: lastSync,
     isStale: !lastSync || (Date.now() - lastSync.getTime()) > staleAfter,

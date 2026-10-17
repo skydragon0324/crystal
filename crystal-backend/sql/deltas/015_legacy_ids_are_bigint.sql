@@ -4,7 +4,7 @@
 -- Feedback and the blog moved to the vendor's database (src/config/legacy.js).
 -- Crystal keeps no copy of an article row any more, but it still keeps the
 -- ARTWORK: media_assets is polymorphic over (owner_type, owner_id), and
--- 'ARTICLE' rows now point at ora_blog.blog_article.
+-- 'ARTICLE' rows now point at bs_blog.blog_article.
 --
 -- Those ids are Oracle NUMBERs. The live ones on the development instance
 -- start at 900001009000, and `integer` stops at 2147483647 - so the first
@@ -50,5 +50,5 @@ END $$;
 COMMENT ON COLUMN media_assets.owner_id IS
   'the key of the owning row, in whichever table owner_type names. BIGINT rather
    than integer because one of those tables is not Crystal''s: an ARTICLE owner
-   is a row in the vendor''s ora_blog.blog_article, whose ids are Oracle NUMBERs
+   is a row in the vendor''s bs_blog.blog_article, whose ids are Oracle NUMBERs
    and do not fit in 32 bits.';

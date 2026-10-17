@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const legacy = require('../../config/legacy');
 
 /**
- * THE PLATFORM'S USER TABLE — `ora_pid.users`, and it is the one that decides
+ * THE PLATFORM'S USER TABLE — `bs_prhnid.users`, and it is the one that decides
  * who may sign in.
  *
  * Crystal does not own its members. It shares them with the vendor's platform,
@@ -20,7 +20,7 @@ const legacy = require('../../config/legacy');
  *
  * MD5, UNSALTED, AND THAT IS NOT A CHOICE MADE HERE.
  *
- * `ora_pid.users.password` holds an unsalted MD5 - the vendor's platform has
+ * `bs_prhnid.users.password` holds an unsalted MD5 - the vendor's platform has
  * hashed that way for years and the same hashes are checked by the Eshop, the
  * Appstore and the mobile app. Crystal cannot upgrade it unilaterally: a
  * bcrypt hash written here would be a password the rest of the platform could
@@ -206,7 +206,7 @@ const LOGIN_LOG = 'user_login_log';
 /**
  * A sign-in, written where the platform's own apps write theirs.
  *
- * `ora_pid.user_login_log` is the vendor's record of who signed in with which
+ * `bs_prhnid.user_login_log` is the vendor's record of who signed in with which
  * SIM, and the mobile /login asks for a `cid` so that a web sign-in lands in it
  * too. The phone columns are NOT NULL and a browser has no IMEI or handset
  * model to give, so they are empty strings - which is exactly what the
@@ -228,7 +228,7 @@ function recordLogin(userPk, cid) {
 }
 
 module.exports = {
-  USERS: 'ora_pid.' + USERS,
+  USERS: 'bs_prhnid.' + USERS,
   STATUS: STATUS,
   hash: hash,
   matches: matches,

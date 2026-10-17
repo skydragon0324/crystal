@@ -402,7 +402,7 @@ async function main() {
     /*
      * THE HINGE THE WHOLE FEATURE HANGS ON.
      *
-     * These metrics read `ora_pid.user_login_log` and nothing else, so a
+     * These metrics read `bs_prhnid.user_login_log` and nothing else, so a
      * sign-in that does not land there is a sign-in they cannot see. Until
      * this was fixed, only the two paths carrying a `cid` wrote to it: a
      * member signing in by certificate or by one-time code every day would

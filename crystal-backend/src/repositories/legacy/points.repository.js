@@ -23,7 +23,7 @@ const legacy = require('../../config/legacy');
  *   soft_point_log      point_type, status, reason, equ_num,
  *   appstore_point_log  pay_points, soft_points, related_pk,
  *   karaoke_point_log   is_agency, action_at
- *   bmedia_point_log
+ *   bsmedia_point_log
  *
  * Identical columns, four names. That is what makes a UNION possible and it is
  * the whole reason this collapses to one page rather than four.
@@ -37,17 +37,17 @@ const legacy = require('../../config/legacy');
 /**
  * WHAT A POINT SYSTEM IS, declared once.
  *
- * `log` and `stats` are table names in ora_pid; `label` is what the member
+ * `log` and `stats` are table names in bs_prhnid; `label` is what the member
  * sees. A system with no stats table has no balance to show and only a
  * history - which is true of nothing today, and is why the field is read
  * rather than assumed.
  */
 /**
  * WHAT `soft_point_log.point_type` MEANS - vendor_backend constants
- * SOFT_POINT_TYPES: APPSTORE 0, KARAOKE 1, BMEDIA 2, MANAGER 3.
+ * SOFT_POINT_TYPES: APPSTORE 0, KARAOKE 1, BSMEDIA 2, MANAGER 3.
  *
  * The first three name the systems that have ledgers of their own now
- * (appstore_point_log, karaoke_point_log, bmedia_point_log); soft_point_log is
+ * (appstore_point_log, karaoke_point_log, bsmedia_point_log); soft_point_log is
  * where they were written before those tables existed, and where a MANAGER
  * still writes the adjustments - overwhelmingly deductions - that the member
  * menu calls "Minus". The vendor reads the table with point_type 3 and nothing
@@ -56,7 +56,7 @@ const legacy = require('../../config/legacy');
  * overview's minus_point (findTotalSoftPointByFilter), and the recalculation
  * that keeps soft_point_stats (sumSoftPointStatsByUserPk).
  */
-const SOFT_POINT_TYPES = { APPSTORE: 0, KARAOKE: 1, BMEDIA: 2, MANAGER: 3 };
+const SOFT_POINT_TYPES = { APPSTORE: 0, KARAOKE: 1, BSMEDIA: 2, MANAGER: 3 };
 
 /**
  * `is_agency` on the four soft-family tables - vendor FLAG_USER 0, FLAG_AGENCY
@@ -86,7 +86,7 @@ const SYSTEMS = [
   },
   { key: 'APPSTORE', label: 'Appstore', log: 'appstore_point_log', stats: 'appstore_point_stats' },
   { key: 'KARAOKE', label: 'Karaoke', log: 'karaoke_point_log', stats: 'karaoke_point_stats' },
-  { key: 'MEDIA', label: 'Media', log: 'bmedia_point_log', stats: 'bmedia_point_stats' }
+  { key: 'MEDIA', label: 'Media', log: 'bsmedia_point_log', stats: 'bsmedia_point_stats' }
 ];
 
 /** The four that share a shape. ACTIVITY is deliberately not in this list. */
@@ -150,7 +150,7 @@ function categoryOf(typePk) {
  *
  * A recommendation made on the MOBILE app points at the recommendation row
  * instead, and the vendor walks one more table to reach the article. That
- * table is not in Crystal's legacy schema (sql/legacy/ora_blog.sql), so a
+ * table is not in Crystal's legacy schema (sql/legacy/bs_blog.sql), so a
  * query naming it would fail on a machine installed from Crystal alone - those
  * rows keep their reason without a title rather than taking the page down.
  */

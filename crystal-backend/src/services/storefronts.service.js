@@ -38,7 +38,7 @@ async function keysFor(userId) {
 
   /*
    * THE PLATFORM LOGIN - `users.login`, the member's user ID, refreshed from
-   * ora_pid.users on every sign-in. It is what the vendor looks the legacy
+   * bs_prhnid.users on every sign-in. It is what the vendor looks the legacy
    * customer up by (`CustomerModel.findCustomerById(user.user_id)`).
    *
    * This used to be the LOCAL PART OF THE EMAIL, from when members signed in
