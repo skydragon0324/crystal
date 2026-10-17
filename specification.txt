@@ -6741,3 +6741,9 @@ How to fix it on production?
 - On job health tab, What these numbers can promise section should have padding.
 - On lifecycle KPI page, I'd like to set sub route so when F5, the selected tab should not be changed.
 - On backfill_logins for job durations, I see -86215.672s for last run, I think its because of timezone difference?
+
+---------------------------------------------------
+
+- for production, lifecycle_poll is still failed, with the error "rows is not defined". I think its not related with the database, because npm run lifecycle:backfill is working well.
+I think its because some variable is not containing rows, while it SHOULD have it. Please check the code and fix it.
+
