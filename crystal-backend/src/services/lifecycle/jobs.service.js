@@ -6,6 +6,10 @@ const repo = require('../../repositories/lifecycle.repository');
 const sync = require('./sync.service');
 const timeline = require('./timeline.service');
 const snapshots = require('./snapshots.service');
+const failure = require('./failure');
+
+/** Shorthand: every job below names each of its stages. See failure.js. */
+const stage = failure.stage;
 
 /**
  * THE SCHEDULED WORK, AND THE LOCK THAT STOPS TWO OF IT.
@@ -64,42 +68,6 @@ async function withLock(name, work) {
   }
 }
 
-/**
- * A failure in one line: what it was, and the first place it happened.
- *
- * The stack's first frame is taken only when it names a file inside this
- * project - a driver's own frames say nothing an operator can act on - and
- * node_modules is skipped for the same reason.
- */
-function describe(err) {
-  /*
-   * THE KIND OF FAILURE, FIRST. "rows is not defined" and
-   * "relation does not exist" are two completely different problems - one is
-   * a bug in this codebase, the other is a database that is not shaped the
-   * way the configuration says - and the message alone does not say which.
-   * The name does: ReferenceError against DatabaseError. An Error with no
-   * more specific name adds nothing, so it is left off.
-   */
-  const name = err && err.name && err.name !== 'Error' ? err.name + ': ' : '';
-  const message = name + ((err && err.message) || String(err));
-  const stack = (err && err.stack) || '';
-
-  const frame = stack.split('\n')
-    .slice(1)
-    .map(function (line) { return line.trim(); })
-    .filter(function (line) {
-      return line.indexOf('node_modules') === -1 && /[\\/]src[\\/]/.test(line);
-    })[0];
-
-  if (!frame) return message;
-
-  /* `at fn (C:\...\src\services\x.js:12:34)` -> `src/services/x.js:12` */
-  const at = /([\\/]src[\\/][^):]+):(\d+)/.exec(frame);
-  if (!at) return message;
-
-  return message + ' [' + at[1].replace(/\\/g, '/').replace(/^\//, '') + ':' + at[2] + ']';
-}
-
 /** Runs `work` under the lock, recording a row in lifecycle_job_run. */
 async function run(name, work, requestedBy) {
   const id = await repo.startRun(name, requestedBy);
@@ -116,20 +84,19 @@ async function run(name, work, requestedBy) {
     return Object.assign({ job: name }, outcome || {});
   } catch (err) {
     /*
-     * THE MESSAGE AND WHERE IT CAME FROM.
+     * THE STAGE, THE KIND, THE MESSAGE AND THE PLACE - see failure.js, which
+     * exists because a production poll recorded "rows is not defined" and
+     * nothing else, run after run, and that sentence cannot be acted on.
      *
-     * `err.message` alone is what this recorded, and for a programming error
-     * that is a sentence with no address: "rows is not defined" says nothing
-     * about which file, and the job health screen is the only place anybody
-     * sees it - the process stderr on a deployed server usually is not
-     * anybody's to read. So the first frame of the stack goes with it, which
-     * is the file and line, and nothing more: a whole stack in a table cell
-     * is unreadable, and an SQL error's message is already the interesting
-     * part.
+     * The full stack goes to stderr as well. It is usually nobody's to read
+     * on a deployed server, which is the reason the one column has to be
+     * enough - but when somebody IS watching the process, the whole stack is
+     * what they want, and it costs nothing to print it.
      */
-    await repo.finishRun(id, 'FAILED', { error: describe(err) });
-    console.error('[lifecycle] ' + name + ' failed: ' + (err.stack || err.message));
-    return { job: name, failed: true, error: describe(err) };
+    await repo.finishRun(id, 'FAILED', { error: failure.describe(err) });
+    console.error('[lifecycle] ' + name + ' failed: ' +
+      ((err && err.stack) || failure.describe(err)));
+    return { job: name, failed: true, error: failure.describe(err) };
   }
 }
 
@@ -143,10 +110,18 @@ async function run(name, work, requestedBy) {
  * Import, rebuild, repair - in that order, because each needs the one before
  * it. The repair is scoped to the days the rebuilds actually touched, which
  * for an ordinary poll is today and yesterday rather than three years.
+ *
+ * EVERY STAGE IS NAMED, because all four are recorded against the one job
+ * name and they fail for entirely different reasons: the import reads the
+ * platform's Oracle, the profile heal reads it again by key, the rebuild and
+ * the repair touch nothing but this database. "lifecycle_poll failed" asks
+ * which of those; the stage answers it before anybody opens a file.
  */
 function poll() {
   return run('lifecycle_poll', async function () {
-    const imported = await sync.importLogins({});
+    const imported = await stage('importLogins', function () {
+      return sync.importLogins({});
+    });
 
     /*
      * THE PROFILES FIRST, FOR WHOEVER IS NEW.
@@ -158,15 +133,21 @@ function poll() {
      * of at most one batch, and only for the ones missing one.
      */
     const profiles = imported.customers.length
-      ? await sync.syncProfilesByKeys(imported.customers)
+      ? await stage('syncProfilesByKeys', function () {
+        return sync.syncProfilesByKeys(imported.customers);
+      })
       : { read: 0, written: 0, missing: 0 };
 
     const rebuilt = imported.customers.length
-      ? await timeline.rebuildMany(imported.customers)
+      ? await stage('rebuildMany', function () {
+        return timeline.rebuildMany(imported.customers);
+      })
       : { rebuilt: 0, dirtyDays: [] };
 
     const repaired = rebuilt.dirtyDays.length
-      ? await snapshots.repairDays(rebuilt.dirtyDays)
+      ? await stage('repairDays', function () {
+        return snapshots.repairDays(rebuilt.dirtyDays);
+      })
       : { days: 0 };
 
     return {
@@ -193,10 +174,14 @@ function poll() {
  */
 function deadlines() {
   return run('lifecycle_deadlines', async function () {
-    const processed = await timeline.processDeadlines({});
+    const processed = await stage('processDeadlines', function () {
+      return timeline.processDeadlines({});
+    });
 
     const repaired = processed.dirtyDays.length
-      ? await snapshots.repairDays(processed.dirtyDays)
+      ? await stage('repairDays', function () {
+        return snapshots.repairDays(processed.dirtyDays);
+      })
       : { days: 0 };
 
     return {
@@ -215,14 +200,20 @@ function deadlines() {
  */
 function reconcile(requestedBy) {
   return run('lifecycle_reconcile', async function () {
-    const found = await sync.reconcileLogins({});
+    const found = await stage('reconcileLogins', function () {
+      return sync.reconcileLogins({});
+    });
 
     const rebuilt = found.customers.length
-      ? await timeline.rebuildMany(found.customers)
+      ? await stage('rebuildMany', function () {
+        return timeline.rebuildMany(found.customers);
+      })
       : { rebuilt: 0, dirtyDays: [] };
 
     const repaired = rebuilt.dirtyDays.length
-      ? await snapshots.repairDays(rebuilt.dirtyDays)
+      ? await stage('repairDays', function () {
+        return snapshots.repairDays(rebuilt.dirtyDays);
+      })
       : { days: 0 };
 
     return {
@@ -244,7 +235,10 @@ function reconcile(requestedBy) {
  */
 function profiles() {
   return run('lifecycle_profiles', async function () {
-    const out = await sync.syncProfiles({});
+    const out = await stage('syncProfiles', function () {
+      return sync.syncProfiles({});
+    });
+
     return { rowsRead: out.read, rowsWritten: out.written };
   });
 }

@@ -467,11 +467,151 @@ same(
 wellFormed('coincident', COINCIDENT);
 
 
-console.log('');
-console.log('='.repeat(60));
-console.log(failures
-  ? failures + ' of ' + checks + ' checks FAILED'
-  : 'all ' + checks + ' checks passed');
-console.log('='.repeat(60));
+/*
+ * The totals, once everything has run. A function rather than the last lines
+ * of the file because the failure-line section below ends in one asynchronous
+ * check, and `process.exit` in the middle of a file would take the process
+ * before that check could report.
+ */
+function summarise() {
+  console.log('');
+  console.log('='.repeat(60));
+  console.log(failures
+    ? failures + ' of ' + checks + ' checks FAILED'
+    : 'all ' + checks + ' checks passed');
+  console.log('='.repeat(60));
 
-process.exit(failures ? 1 : 0);
+  process.exit(failures ? 1 : 0);
+}
+
+/* ------------------------------------------------------------------ */
+/*  the failure line (services/lifecycle/failure.js)                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A FAILED JOB HAS TO SAY WHAT KIND OF FAILURE IT WAS AND WHERE IT HAPPENED.
+ *
+ * Checked in this script because this is the one that needs no database, and
+ * failure.js needs nothing at all. It is also the module whose absence cost
+ * the most: a production poll recorded the bare sentence "rows is not
+ * defined", run after run, and that line named neither the stage, nor the
+ * kind of error, nor a file - so there was nothing to act on.
+ */
+
+const failure = require('../src/services/lifecycle/failure');
+
+/** A stack frame as V8 writes one on Windows, spelled without escapes. */
+function frame(fn, file, line) {
+  return '    at ' + fn + ' (' + file.replace(/\//g, '\\') + ':' + line + ':7)';
+}
+
+function referenceError(frames) {
+  const err = new Error('rows is not defined');
+  err.name = 'ReferenceError';
+  err.stack = ['ReferenceError: rows is not defined'].concat(frames).join('\n');
+  return err;
+}
+
+heading('the failure line');
+
+same(
+  'the kind of failure comes first, and this project\'s own frame is the address',
+  'ReferenceError: rows is not defined [src/services/lifecycle/sync.service.js:149]',
+  failure.describe(referenceError([
+    frame('importLogins', 'C:/srv/crystal/src/services/lifecycle/sync.service.js', 149),
+    frame('poll', 'C:/srv/crystal/src/services/lifecycle/jobs.service.js', 160)
+  ]))
+);
+
+/*
+ * THE CASE THE FIRST VERSION LOST. Every frame is inside a driver, so the old
+ * rule - keep a frame only when it names a file under src/ - threw the
+ * location away and recorded the sentence alone. That is the one failure
+ * nothing in src/ can explain, and so the one that most needs an address.
+ */
+same(
+  'a failure raised inside a driver still carries a place',
+  'ReferenceError: rows is not defined [node_modules/knex/lib/dialects/oracledb/index.js:88]',
+  failure.describe(referenceError([
+    frame('Oracledb_Client.processResponse', 'C:/srv/crystal/node_modules/knex/lib/dialects/oracledb/index.js', 88),
+    frame('Runner.query', 'C:/srv/crystal/node_modules/knex/lib/runner.js', 151)
+  ]))
+);
+
+same(
+  'a minified deployment says so, which answers which build rather than which line',
+  'ReferenceError: rows is not defined [dist/app.js:1]',
+  failure.describe(referenceError(['    at t (/opt/crystal-api/dist/app.js:1:84210)']))
+);
+
+same(
+  'a project frame is preferred over the driver frame above it',
+  'ReferenceError: rows is not defined [src/repositories/lifecycle.repository.js:82]',
+  failure.describe(referenceError([
+    frame('Runner.query', 'C:/srv/crystal/node_modules/knex/lib/runner.js', 151),
+    frame('upsertLoginEvents', 'C:/srv/crystal/src/repositories/lifecycle.repository.js', 82)
+  ]))
+);
+
+same(
+  'an error with nothing specific to add does not repeat the word Error',
+  'relation "bs_prhnid.user_login_log" does not exist',
+  failure.describe({ message: 'relation "bs_prhnid.user_login_log" does not exist' })
+);
+
+same('a thrown string is still described', 'boom', failure.describe('boom'));
+same('and so is nothing at all', 'undefined', failure.describe(undefined));
+
+/*
+ * THE STAGE: the only asynchronous check here, because `stage` wraps the work.
+ *
+ * All of a job's stages are recorded under the one job name, so this is the
+ * difference between "the poll failed" and "the poll failed reading the
+ * platform".
+ */
+(async function () {
+  const thrown = referenceError([
+    frame('readLogins', 'C:/srv/crystal/src/services/lifecycle/sync.service.js', 149)
+  ]);
+
+  let line = 'nothing was thrown';
+
+  try {
+    await failure.stage('importLogins', function () {
+      return failure.stage('readLogins', function () { throw thrown; });
+    });
+  } catch (err) {
+    line = failure.describe(err);
+  }
+
+  same(
+    'the innermost stage names the failure, and keeps that name on the way out',
+    'readLogins: ReferenceError: rows is not defined [src/services/lifecycle/sync.service.js:149]',
+    line
+  );
+
+  same(
+    'a stage that does not throw returns what the work returned',
+    'value',
+    await failure.stage('noop', function () { return 'value'; })
+  );
+
+  /* A frozen error cannot be written on, and must not be replaced either. */
+  let frozen = null;
+  try {
+    await failure.stage('importLogins', function () {
+      throw Object.freeze(referenceError([]));
+    });
+  } catch (err) {
+    frozen = failure.describe(err);
+  }
+
+  same(
+    'an error that will not take the stage name is still the error thrown',
+    'ReferenceError: rows is not defined',
+    frozen
+  );
+}()).then(summarise, function (err) {
+  bad('the failure checks themselves', 'to run', (err && err.stack) || String(err));
+  summarise();
+});
