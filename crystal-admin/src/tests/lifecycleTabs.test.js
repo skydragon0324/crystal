@@ -318,11 +318,17 @@ const TIMELINE = {
   reportTimezone: 'Asia/Shanghai'
 };
 
+/**
+ * The trend the next mount will be answered with, when a test wants one of
+ * its own - the all-null buckets a database with no snapshots returns.
+ */
+let trendNow = null;
+
 const ROUTES = [
   ['/customer-lifecycle/overview', () => OVERVIEW],
   ['/customer-lifecycle/customers/10082940/timeline', () => TIMELINE],
   ['/customer-lifecycle/trend/export', () => ''],
-  ['/customer-lifecycle/trend', () => TREND],
+  ['/customer-lifecycle/trend', () => trendNow || TREND],
   ['/customer-lifecycle/definitions', () => DEFINITIONS],
   ['/customer-lifecycle/transitions/summary', () => SUMMARY],
   ['/customer-lifecycle/transitions/export', () => ''],
@@ -473,6 +479,58 @@ describe('the lifecycle screen', () => {
     const text = host.textContent;
     expect(text).toMatch(grouped(30413));
     expect(text).not.toMatch(/NaN/);
+  });
+
+  test('says so, in words, when no history has been built', async () => {
+    /*
+     * WHAT A DATABASE WITH NO SNAPSHOTS ANSWERS: a bucket per day, every
+     * count null. The chart cannot draw that and the table has nothing to
+     * total, so the tab has to explain itself - and it has to explain itself
+     * in WORDS. It shipped once asking the catalogue for an address that was
+     * not in it yet, and a production screen read
+     * "lifecycle.noHistoryHasBeenBuilt" back to an operator.
+     *
+     * So this asserts both halves: the sentence is there, and no `lifecycle.`
+     * address leaked onto the page.
+     */
+    trendNow = Object.assign({}, TREND, {
+      buckets: TREND.buckets.map((bucket) => Object.assign({}, bucket, {
+        new: null, active: null, dormant: null, churned: null, total: null
+      }))
+    });
+
+    try {
+      /*
+       * UNMOUNTED FIRST, then drawn again. The harness mounted this host with
+       * the ordinary trend, and rendering the same element into the same root
+       * reuses the component - so its state, the trend it had already
+       * fetched, would survive and this would assert against the old data.
+       */
+      act(() => { ReactDOM.unmountComponentAtNode(host); });
+
+      await act(async () => {
+        ReactDOM.render(
+          <ChakraProvider theme={theme}>
+            <I18nProvider>
+              <Provider store={store}>
+                <MemoryRouter initialEntries={[PAGE]}>
+                  <ConfirmProvider><Lifecycle /></ConfirmProvider>
+                </MemoryRouter>
+              </Provider>
+            </I18nProvider>
+          </ChakraProvider>,
+          host
+        );
+      });
+      await settle();
+
+      const text = host.textContent;
+      expect(text).toContain('No status history has been built');
+      expect(text).toContain('npm run lifecycle:backfill');
+      expect(text).not.toMatch(/lifecycle\.[a-zA-Z]/);
+    } finally {
+      trendNow = null;
+    }
   });
 
   test('the transition explorer opens and draws the matrix and the rows', async () => {

@@ -64,6 +64,33 @@ async function withLock(name, work) {
   }
 }
 
+/**
+ * A failure in one line: what it was, and the first place it happened.
+ *
+ * The stack's first frame is taken only when it names a file inside this
+ * project - a driver's own frames say nothing an operator can act on - and
+ * node_modules is skipped for the same reason.
+ */
+function describe(err) {
+  const message = (err && err.message) || String(err);
+  const stack = (err && err.stack) || '';
+
+  const frame = stack.split('\n')
+    .slice(1)
+    .map(function (line) { return line.trim(); })
+    .filter(function (line) {
+      return line.indexOf('node_modules') === -1 && /[\\/]src[\\/]/.test(line);
+    })[0];
+
+  if (!frame) return message;
+
+  /* `at fn (C:\...\src\services\x.js:12:34)` -> `src/services/x.js:12` */
+  const at = /([\\/]src[\\/][^):]+):(\d+)/.exec(frame);
+  if (!at) return message;
+
+  return message + ' [' + at[1].replace(/\\/g, '/').replace(/^\//, '') + ':' + at[2] + ']';
+}
+
 /** Runs `work` under the lock, recording a row in lifecycle_job_run. */
 async function run(name, work, requestedBy) {
   const id = await repo.startRun(name, requestedBy);
@@ -79,9 +106,21 @@ async function run(name, work, requestedBy) {
     await repo.finishRun(id, 'SUCCEEDED', outcome || {});
     return Object.assign({ job: name }, outcome || {});
   } catch (err) {
-    await repo.finishRun(id, 'FAILED', { error: err.message });
-    console.error('[lifecycle] ' + name + ' failed: ' + err.message);
-    return { job: name, failed: true, error: err.message };
+    /*
+     * THE MESSAGE AND WHERE IT CAME FROM.
+     *
+     * `err.message` alone is what this recorded, and for a programming error
+     * that is a sentence with no address: "rows is not defined" says nothing
+     * about which file, and the job health screen is the only place anybody
+     * sees it - the process stderr on a deployed server usually is not
+     * anybody's to read. So the first frame of the stack goes with it, which
+     * is the file and line, and nothing more: a whole stack in a table cell
+     * is unreadable, and an SQL error's message is already the interesting
+     * part.
+     */
+    await repo.finishRun(id, 'FAILED', { error: describe(err) });
+    console.error('[lifecycle] ' + name + ' failed: ' + (err.stack || err.message));
+    return { job: name, failed: true, error: describe(err) };
   }
 }
 
