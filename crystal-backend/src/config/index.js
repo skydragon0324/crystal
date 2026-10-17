@@ -126,7 +126,7 @@ const config = {
      * configurable because a deployment whose Oracle user OWNS these tables
      * addresses them unqualified - set both to an empty string for that.
      */
-    pidSchema: str('LEGACY_PRHN_SCHEMA', 'bs_prhnid'),
+    pidSchema: str('LEGACY_PID_SCHEMA', 'bs_prhnid'),
     blogSchema: str('LEGACY_BLOG_SCHEMA', 'bs_blog'),
 
     /*

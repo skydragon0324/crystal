@@ -6699,3 +6699,36 @@ The challenge is that the `user_login_log` table contains over a million records
 What I need is a system that displays a table and chart showing customer counts by status—broken down by day or custom intervals (e.g., every 2–3 days or weekly)—based on a user-selected date range. I also need a detailed list of customers who meet specific transition criteria within that period (e.g., Dormant → Active, Dormant → Churned), including details such as name, date of birth, phone number, occupation, address, status during the period, and previous status.
 Finally, I would like advice on the optimal database architecture. If I were to create additional tables, could I utilize a PostgreSQL database for the new data while keeping the source data in Oracle? I think it would be a good idea to create a table tracking customer status changes based on the `user_login_log`—for instance, a customer transitioning from new (May 4) to active (June 5), then to dormant (Aug 20), churned (Oct 20), and back to active (Nov 6)—and to perform statistical analysis based on this table, which would be updated periodically. What do you think?
 Well, all of these request is to implement KPI, isn't it?
+
+---------------------------------------------------
+
+- For backend, oracle db schema have some changes, exactly table names. Also some field names are changed.
+According to these matching table, I'd like to update the legacy table, fields, and the code. Please pay attention to case-sensitive.
+publish_at -> ryongsan_at
+ora-pid -> bs_prhnid
+ora_old_db -> bs_phurunhanul
+ora_eproduct -> bs_pheproduct
+ora_phone -> bs_phphone
+ora_eshop -> bs_eshop
+ora_blog -> bs_blog
+ora_license -> bs_license
+ora_media -> bs_media
+BMEDIA -> BSMEDIA
+BMedia -> BSMedia
+pid -> prhn
+ocompany -> phurunhanul
+vendor -> bluesky
+PvendorPk -> PrhnPk
+pvendor_pk -> prhn_pk
+pvendor_id -> prhn_id
+
+- For Customer lifecycle KPIs page of admin, I can't find nothing on Status stock, while I already have 11M+ data on lifecycle_login_event table, but nothing on lifecycle_customer_profile, lifecycle_customer_period, lifecycle_customer_current, lifecycle_kpi_daily.
+Also as default, I'd like to set 'last 30 days' and 'Calendar weekly' as default.
+Also some of strings have no translation such as 'New', 'Active', 'Dormant', 'Churned' and description of 'How these are counted'.
+- For terminology page, there's no need to set language.
+
+---------------------------------------------------
+
+- On crystal-admin, kpi status stock tab is showing none, its showing lifecycle.nHistoryHasBeenBuilt.
+Also on Job Health tab, lifecycle_poll is faield, and rows is not defined.
+How to fix it on production?
