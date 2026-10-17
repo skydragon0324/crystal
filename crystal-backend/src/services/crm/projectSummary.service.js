@@ -147,12 +147,12 @@ async function summary(partyPk) {
     out.services.points += Number(service.point) || 0;
     if (opened && (!out.services.last_at || opened > out.services.last_at)) out.services.last_at = opened;
     if (opened) byMonth[opened.slice(0, 7)] = (byMonth[opened.slice(0, 7)] || 0) + 1;
-    if (service.reason_type_name) reasons[service.reason_type_name] = (reasons[service.reason_type_name] || 0) + 1;
+    if (service.reason) reasons[service.reason] = (reasons[service.reason] || 0) + 1;
     if (service.agent_name) agents[service.agent_name] = true;
     out.activity.push({
-      kind: 'CASE', id: 'service:' + service.master_id + ':' + service.created_at + ':' + (service.imei_1 || ''), at: opened,
-      system: 'SMARTPHONE_OFFLINE', title: service.reason_name, account: service.master_id, open: !service.updated_at,
-      model: service.model_name, agent: service.agent_name, reason: service.reason_type_name
+      kind: 'CASE', id: 'service:' + service.kind + ':' + service.master_id + ':' + service.created_at + ':' + (service.imei_1 || ''), at: opened, service_kind: service.kind,
+      system: 'SMARTPHONE_OFFLINE', title: service.title, account: service.master_id, open: !service.updated_at,
+      model: service.model_name, agent: service.agent_name, reason: service.reason
     });
   });
   out.services.total = services.length;

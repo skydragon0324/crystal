@@ -4,6 +4,8 @@ import * as Md from 'react-icons/md';
 
 import { crm } from '../../../../../api';
 import { useT } from '../../../../../i18n';
+import { useSurface } from '../../../../../theme/tokens';
+import { formatPhone } from '../../../../../utils/format';
 import { MiniTable } from '../c360Cards';
 import AccountPicker from '../../../shared/AccountPicker';
 import { Card360 } from '../../../shared/ui360';
@@ -62,8 +64,12 @@ function ColorChip({ name, rgb }) {
   );
 }
 
+/* The system's gender, as the CRM's codes (see smartphoneOffline.api.js). */
+const GENDER = { M: 'Male', F: 'Female' };
+
 export default function SmartphoneDevicesCard({ devices }) {
   const translate = useT();
+  const surface = useSurface();
   const state = devices.state;
   const project = state && state.project;
   const title = project ? translate(project.project_name) : translate('crm.smartphoneDevices.title');
@@ -84,6 +90,16 @@ export default function SmartphoneDevicesCard({ devices }) {
               empty="crm.smartphoneDevices.noDevices"
               columns={[
                 { key: 'master_id', label: 'Account ID' },
+                /* Who the device is registered to in the system: name, then gender and phone. */
+                { key: 'customer_name', label: 'Customer Info',
+                  render: (row) => (
+                    <Box minW={0}>
+                      <Text fontSize="sm" fontWeight="600" noOfLines={1}>{row.customer_name || '-'}</Text>
+                      <Text fontSize="xs" color={surface.muted} noOfLines={1}>
+                        {[GENDER[row.gender] ? translate(GENDER[row.gender]) : null, formatPhone(row.phone_number)].filter(Boolean).join('  ·  ') || null}
+                      </Text>
+                    </Box>
+                  ) },
                 { key: 'device', label: 'Device', render: (row) => <Text as="span" fontWeight="600">{row.device || '-'}</Text> },
                 { key: 'color', label: 'Color', render: (row) => <ColorChip name={row.color} rgb={row.rgb} /> },
                 { key: 'imei', label: 'IMEI', render: (row) => <Text as="span" fontFamily="mono" fontSize="sm">{row.imei || '-'}</Text> },

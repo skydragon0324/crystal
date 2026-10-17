@@ -172,13 +172,13 @@ const config = {
     /* The eproduct site: registrations, and the three keygen logs. */
     webServerUrl: str('WEB_SERVER_URL', ''),
     /* The vendor's phone server - SMARTPHONE_OFFLINE (repositories/remote/smartphoneOffline.api.js). */
-    phoneServerUrl: str('PHONE_SERVER_URL', '')
+    phoneServerUrl: str('SMARTPHONE_OFFLINE_SERVER_URL', '')
   },
 
   /*
    * THE SMARTPHONE_OFFLINE SYSTEM - the vendor's phone server, reached like
    * the other sub-projects through config/remote.js (remote.phoneServerUrl,
-   * PHONE_SERVER_URL) and answered by mock.js while REMOTE_MOCK is on. One
+   * SMARTPHONE_OFFLINE_SERVER_URL) and answered by mock.js while REMOTE_MOCK is on. One
    * user there is one mobile number; the CRM links them to customers
    * (services/crm/smartphoneOffline.service.js).
    */

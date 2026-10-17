@@ -567,7 +567,13 @@ const en = {
     noServices: 'No service history',
     opened: 'Opened {date}',
     updated: 'Updated {date}',
-    points: '{n} points'
+    points: '{n} points',
+    kindREPAIR: 'Repair',
+    kindOS: 'OS service',
+    kindREPLACE: 'Replacement',
+    serviceTotal: 'Service {amount}',
+    oldImei: 'Old IMEI',
+    newImei: 'New IMEI'
   },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
@@ -1511,7 +1517,13 @@ const zh = {
     noServices: '暂无服务记录',
     opened: '受理 {date}',
     updated: '更新 {date}',
-    points: '{n} 积分'
+    points: '{n} 积分',
+    kindREPAIR: '维修',
+    kindOS: '系统服务',
+    kindREPLACE: '换机',
+    serviceTotal: '服务费 {amount}',
+    oldImei: '旧 IMEI',
+    newImei: '新 IMEI'
   },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
@@ -2455,7 +2467,13 @@ const ru = {
     noServices: 'Нет истории обслуживания',
     opened: 'Открыто {date}',
     updated: 'Обновлено {date}',
-    points: '{n} баллов'
+    points: '{n} баллов',
+    kindREPAIR: 'Ремонт',
+    kindOS: 'Обслуживание ОС',
+    kindREPLACE: 'Замена',
+    serviceTotal: 'Работа {amount}',
+    oldImei: 'Старый IMEI',
+    newImei: 'Новый IMEI'
   },
   /* SmartphoneDevices.jsx */
   smartphoneDevices: {
@@ -2861,6 +2879,7 @@ const words = {
   en: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
     smartphonePrivileges: {
+      customerName: 'Customer Name',
       phoneNumber: 'Phone Number',
       deviceColor: 'Device Color',
       serviceSummary: 'Service Summary'
@@ -2870,7 +2889,9 @@ const words = {
       deviceType: 'Device Type',
       agency: 'Agency',
       serviceType: 'Service Type',
-      serviceReason: 'Service Reason'
+      serviceReason: 'Service Reason',
+      repairType: 'Repair Type',
+      replacedDevice: 'Replaced Device'
     },
     smartphoneDevices: {
       color: 'Color',
@@ -3690,6 +3711,7 @@ const words = {
   zh: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
     smartphonePrivileges: {
+      customerName: '客户姓名',
       phoneNumber: '电话号码',
       deviceColor: '设备颜色',
       serviceSummary: '服务摘要'
@@ -3699,7 +3721,9 @@ const words = {
       deviceType: '设备型号',
       agency: '服务网点',
       serviceType: '服务类型',
-      serviceReason: '服务原因'
+      serviceReason: '服务原因',
+      repairType: '维修类型',
+      replacedDevice: '更换设备'
     },
     smartphoneDevices: {
       color: '颜色',
@@ -4519,6 +4543,7 @@ const words = {
   ru: {
     /* Tier kinds and giving a tier by hand (MembershipTier.jsx, Settings.jsx) */
     smartphonePrivileges: {
+      customerName: 'Имя клиента',
       phoneNumber: 'Номер телефона',
       deviceColor: 'Цвет устройства',
       serviceSummary: 'Краткое описание'
@@ -4528,7 +4553,9 @@ const words = {
       deviceType: 'Устройство',
       agency: 'Сервисный центр',
       serviceType: 'Вид обслуживания',
-      serviceReason: 'Причина обращения'
+      serviceReason: 'Причина обращения',
+      repairType: 'Тип ремонта',
+      replacedDevice: 'Заменённое устройство'
     },
     smartphoneDevices: {
       color: 'Цвет',
