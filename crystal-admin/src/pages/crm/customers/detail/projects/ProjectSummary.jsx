@@ -74,7 +74,7 @@ export function activityItems(translate, summary) {
     }
     return { kind: 'CASE', id: item.id, at: item.at,
       title: translate('crm.projectSummary.serviceVisit', { reason: item.title || '' }) + (item.open ? '  ·  ' + translate('crm.projectSummary.open') : ''),
-      detail: [item.model, item.agent, item.reason, item.account].filter(Boolean).join('  ·  ') };
+      detail: [item.service_kind ? translate('crm.smartphoneServices.kind' + item.service_kind) : null, item.model, item.agent, item.reason, item.account].filter(Boolean).join('  ·  ') };
   });
 }
 

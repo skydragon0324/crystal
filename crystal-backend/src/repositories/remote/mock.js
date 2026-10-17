@@ -1284,6 +1284,8 @@ function phoneUserByPhone(params) {
   return { items: [{ user_id: 'so' + digits.slice(-11), user_pk: digits.slice(-8), phone: digits, province: null, city: null }] };
 }
 
+/* Who a master id's devices and service records are registered to - the same one for the id everywhere. */
+const PHONE_CUSTOMERS = ['Customer A', 'Customer B', 'Customer C', 'Customer D', 'Customer E'];
 const PHONE_MODELS = ['Crystal C9', 'Crystal C9 Pro', 'Crystal C7', 'Crystal C7 Plus', 'Crystal C5', 'Crystal C5 Lite', 'Crystal C3', 'Crystal Fold 2'];
 const PHONE_COLORS = ['Black', 'White', 'Blue', 'Gold', 'Green', 'Silver', 'Purple', 'Red'];
 /* Each colour as the server sends it beside the name: "#rrggbb". */
@@ -1304,6 +1306,9 @@ function phoneDevices(params) {
       const slot = 'device:' + i;
       items.push({
         master_id: id,
+        name: choose(id, 'name', PHONE_CUSTOMERS),
+        gender: choose(id, 'gender', ['1', '2']),
+        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
         device: choose(id, slot + ':model', PHONE_MODELS),
         color: choose(id, slot + ':color', PHONE_COLORS),
         rgb: PHONE_RGB[choose(id, slot + ':color', PHONE_COLORS)],
@@ -1316,52 +1321,122 @@ function phoneDevices(params) {
 }
 
 const PHONE_AGENTS = ['Central Service Agent', 'North Repair Point', 'East Phone Centre', 'West Service Agent', 'South Phone Repair'];
-const PHONE_SERVICE_REASONS = [
-  { reason_name: 'Screen replacement', reason_type_name: 'Broken screen', point: 300 },
-  { reason_name: 'Battery replacement', reason_type_name: 'Battery drains fast', point: 150 },
-  { reason_name: 'Software reinstall', reason_type_name: 'Does not start', point: 50 },
-  { reason_name: 'Charging port repair', reason_type_name: 'Does not charge', point: 120 },
-  { reason_name: 'Camera module', reason_type_name: 'Camera out of focus', point: 200 },
-  { reason_name: 'Inspection', reason_type_name: 'Warranty check', point: 0 }
+/* What a repair was for (details.desc), and the parts it can use - price is the part, service_price the labour. */
+const PHONE_REPAIRS = ['Screen replacement', 'Battery replacement', 'Charging port repair', 'Camera module repair', 'Speaker repair'];
+const PHONE_PARTS = [
+  { item_name: 'Display assembly', price: 85, service_price: 25 },
+  { item_name: 'Battery', price: 30, service_price: 10 },
+  { item_name: 'Charging port', price: 12, service_price: 15 },
+  { item_name: 'Rear camera', price: 45, service_price: 20 },
+  { item_name: 'Loudspeaker', price: 9, service_price: 8 },
+  { item_name: 'Back cover', price: 18, service_price: 5 }
 ];
+/* An OS service: what was done and why. */
+const PHONE_OS_REASONS = [
+  { reason_name: 'Software reinstall', reason_type_name: 'Does not start', point: 50 },
+  { reason_name: 'OS update', reason_type_name: 'Update failed', point: 30 },
+  { reason_name: 'Factory reset', reason_type_name: 'Phone is slow', point: 20 }
+];
+const PHONE_REPLACE_REASONS = ['Defective on arrival', 'No power', 'Repeated failure after repair', 'Water damage under warranty'];
+const PHONE_ADDRESSES = ['No. 12, Main Street', 'No. 48, Station Road', 'Block 3, River District', 'No. 7, Market Lane'];
+const PHONE_SERVICE_LIMITS = { repair: [1, 3], os: [0, 2], replace: [0, 1] };
+
+function phoneImei(id, slot) { return '35' + String(pick(id, slot + 'a', 1000000, 9999999)) + String(pick(id, slot + 'b', 100000, 999999)); }
 
 /**
- * The service history of some master ids' devices: one to three visits per
- * id, the same ones every time; the first visit of about half the ids is
- * still open (no updated_at). Each visit names the customer as the service
- * point wrote them down, the device (its model and both IMEIs), the agent
- * and when the job was opened and last updated, what was done and what it
- * earned in points, and why the customer came - the server's field names,
- * `modal_name` included.
+ * The service history of some master ids' devices, ONE item per id with its
+ * records in three lists, each in its own shape as the server sends it (see
+ * smartphoneOffline.api.js): up to three repairs, up to two OS services and at
+ * most one replacement per id, the same ones every time. The newest repair of
+ * about half the ids is still open (no updated_at). Repairs carry their
+ * customer in `details` and their parts in `items`; OS records use the
+ * server's `modal_name`; replacements name the old IMEI and the new one.
  */
 function phoneServices(params) {
   const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
-  const items = [];
-  ids.forEach(function (id) {
-    const count = pick(id, 'services', 1, 3);
-    for (let i = 0; i < count; i += 1) {
-      const slot = 'service:' + i;
-      const reason = choose(id, slot + ':reason', PHONE_SERVICE_REASONS);
-      const opened = pick(id, slot + ':at', 15, 700);
-      items.push({
-        master_id: id,
-        customer_name: choose(id, 'name', ['Customer A', 'Customer B', 'Customer C', 'Customer D', 'Customer E']),
-        phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
-        address: choose(id, slot + ':address', ['No. 12, Main Street', 'No. 48, Station Road', 'Block 3, River District', 'No. 7, Market Lane']),
-        imei_1: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei1b', 100000, 999999)),
-        imei_2: '35' + String(pick(id, slot + ':imei2', 1000000, 9999999)) + String(pick(id, slot + ':imei2b', 100000, 999999)),
-        modal_name: choose(id, slot + ':model', PHONE_MODELS),
-        agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
-        created_at: stamp(opened, 9),
-        /* The newest visit of some ids is still open: the system has not updated it, and sends no updated_at. */
-        updated_at: i === 0 && pick(id, 'open', 0, 1) === 0 ? null : stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16),
-        reason_name: reason.reason_name,
-        point: reason.point,
-        reason_type_name: reason.reason_type_name
-      });
-    }
-  });
-  return { items: items };
+  const count = function (id, kind) { return pick(id, 'services:' + kind, PHONE_SERVICE_LIMITS[kind][0], PHONE_SERVICE_LIMITS[kind][1]); };
+  const times = function (id, slot, open) {
+    const opened = pick(id, slot + ':at', 15, 700);
+    return { created_at: stamp(opened, 9), updated_at: open ? null : stamp(Math.max(0, opened - pick(id, slot + ':took', 0, 10)), 16) };
+  };
+  const name = function (id) { return choose(id, 'name', PHONE_CUSTOMERS); };
+  const phone = function (id) { return '191' + String(pick(id, 'phone', 1000000, 9999999)); };
+  const idCard = function (id) { return 'ID' + String(pick(id, 'idcard', 10000000, 99999999)); };
+
+  return {
+    items: ids.map(function (id) {
+      const repairs = [];
+      for (let i = 0; i < count(id, 'repair'); i += 1) {
+        const slot = 'repair:' + i;
+        const model = choose(id, slot + ':model', PHONE_MODELS);
+        const items = [];
+        for (let j = 0; j < pick(id, slot + ':parts', 1, 3); j += 1) {
+          const part = choose(id, slot + ':part:' + j, PHONE_PARTS);
+          items.push({ qty: pick(id, slot + ':qty:' + j, 1, 2), model_name: model, item_name: part.item_name, price: part.price, service_price: part.service_price });
+        }
+        const free = pick(id, slot + ':free', 0, 3) === 0;
+        repairs.push(Object.assign({
+          agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
+          details: {
+            desc: choose(id, slot + ':desc', PHONE_REPAIRS),
+            name: name(id),
+            phone: phone(id),
+            imei_1: phoneImei(id, slot + ':imei1'),
+            imei_2: phoneImei(id, slot + ':imei2'),
+            free: free,
+            total: free ? 0 : items.reduce(function (sum, item) { return sum + item.qty * item.price + item.service_price; }, 0),
+            qty: items.reduce(function (sum, item) { return sum + item.qty; }, 0)
+          },
+          items: items,
+          type: choose(id, slot + ':type', ['1', '2']),
+          status: '4',
+          step: '0',
+          imei: phoneImei(id, slot + ':imei1'),
+          point: pick(id, slot + ':point', 0, 30) * 10,
+          qty: items.length
+        }, times(id, slot, i === 0 && pick(id, 'open', 0, 1) === 0)));
+      }
+
+      const os = [];
+      for (let i = 0; i < count(id, 'os'); i += 1) {
+        const slot = 'os:' + i;
+        const reason = choose(id, slot + ':reason', PHONE_OS_REASONS);
+        os.push(Object.assign({
+          customer_name: name(id),
+          phone_number: phone(id),
+          address: choose(id, slot + ':address', PHONE_ADDRESSES),
+          imei_1: phoneImei(id, slot + ':imei1'),
+          imei_2: phoneImei(id, slot + ':imei2'),
+          id_card_no: idCard(id),
+          modal_name: choose(id, slot + ':model', PHONE_MODELS),
+          agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
+          reason_name: reason.reason_name,
+          point: reason.point,
+          reason_type_name: reason.reason_type_name
+        }, times(id, slot, false)));
+      }
+
+      const replaces = [];
+      for (let i = 0; i < count(id, 'replace'); i += 1) {
+        const slot = 'replace:' + i;
+        replaces.push(Object.assign({
+          agent_name: choose(id, slot + ':agent', PHONE_AGENTS),
+          model_name: choose(id, slot + ':model', PHONE_MODELS),
+          description: 'Replaced with a new device',
+          name: name(id),
+          phone_number: phone(id),
+          address: choose(id, slot + ':address', PHONE_ADDRESSES),
+          id_card_no: idCard(id),
+          imei_old: phoneImei(id, slot + ':old'),
+          imei_new: phoneImei(id, slot + ':new'),
+          reason: choose(id, slot + ':reason', PHONE_REPLACE_REASONS),
+          status: choose(id, slot + ':status', [1, 1, 2, 3])
+        }, times(id, slot, false)));
+      }
+
+      return { master_id: id, repair_histories: repairs, os_histories: os, replace_histories: replaces };
+    })
+  };
 }
 
 const PHONE_PRIVILEGE_TITLES = [
@@ -1385,6 +1460,7 @@ function phonePrivileges(params) {
       const slot = 'privilege:' + i;
       items.push({
         master_id: id,
+        name: choose(id, 'name', PHONE_CUSTOMERS),
         modal: choose(id, slot + ':model', PHONE_MODELS),
         imei: '35' + String(pick(id, slot + ':imei1', 1000000, 9999999)) + String(pick(id, slot + ':imei2', 100000, 999999)),
         phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
@@ -1428,9 +1504,9 @@ const ROUTES = {
 
   /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
   '/getUserByPhone': phoneUserByPhone,
-  '/phone_devices': phoneDevices,
-  '/phone_services': phoneServices,
-  '/phone_privileges': phonePrivileges
+  '/getPhoneInfo': phoneDevices,
+  '/getAfterInfo': phoneServices,
+  '/getEventInfo': phonePrivileges
 };
 
 /**

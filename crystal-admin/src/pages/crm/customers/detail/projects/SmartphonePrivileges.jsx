@@ -57,6 +57,7 @@ export default function PrivilegesTab({ record, act }) {
               maxH="36rem"
               columns={[
                 { key: 'master_id', label: 'Account ID' },
+                { key: 'customer_name', label: 'Customer Name', render: (row) => <Text as="span" fontWeight="600">{row.customer_name || '-'}</Text> },
                 { key: 'model', label: 'Device Type', render: (row) => <Text as="span" fontWeight="600">{row.model || '-'}</Text> },
                 { key: 'phone_number', label: 'Phone Number', render: (row) => formatPhone(row.phone_number) || '-' },
                 { key: 'imei', label: 'IMEI', render: (row) => <Text as="span" fontFamily="mono" fontSize="sm">{row.imei || '-'}</Text> },
