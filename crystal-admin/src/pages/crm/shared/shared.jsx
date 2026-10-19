@@ -217,6 +217,17 @@ export function optionsFrom(list, idKey, label) {
 
 /* ------------------------------------------------------------ pickers */
 
+/**
+ * One of a customer's project accounts, as a choice in a form: project · Account
+ * ID, and the phone number it was linked by when it has one. A SMARTPHONE_OFFLINE
+ * Account ID is a number the system assigned (00153760) and says nothing about
+ * whose it is; its user registered with a phone number, so the number names it.
+ */
+export function accountLabel(translate, account) {
+  const phone = account.matched_phone ? formatPhone(account.matched_phone) : '';
+  return translate(account.project_name || account.project_code || '') + '  ·  ' + account.external_account_id + (phone ? '  (' + phone + ')' : '');
+}
+
 /** Finding one registered customer: see PartyPicker.jsx. */
 export { default as PartyPicker } from './PartyPicker';
 

@@ -508,7 +508,6 @@ module.exports = {
       same_user_id: 'тот же User ID'
     },
     registrations: {
-      phoneBelongsToSomeoneElse: 'его номер телефона принадлежит клиенту {customer}: объедините с этим клиентом или создайте нового клиента без этого номера',
       phoneBelongsToThem: 'тот же номер телефона',
       chooseAPerson: 'выберите человека',
       chooseLinkOrReject: 'выберите: привязать или отклонить',
@@ -538,7 +537,9 @@ module.exports = {
       rangeIsBackwards: 'первый номер клиента не может быть больше последнего',
       noCustomersInRange: 'в этом диапазоне нет клиентов с номером телефона',
       rangeTooLarge: 'в диапазоне {count} клиентов; за один раз можно связать не более {max}',
-      runInProgress: 'связывание уже выполняется'
+      runInProgress: 'связывание уже выполняется',
+      noAccounts: 'у клиента нет привязанного аккаунта SMARTPHONE_OFFLINE',
+      couldNotAsk: 'не удалось обратиться к системе SMARTPHONE_OFFLINE: {error}'
     },
     integration: {
       aValidApiKeyIsRequired: 'нужен действующий API-ключ отдела',

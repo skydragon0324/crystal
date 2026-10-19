@@ -4,7 +4,7 @@ import { useToast } from '@chakra-ui/react';
 import FormModal from '../../../components/FormModal';
 import { crm } from '../../../api';
 import { useT } from '../../../i18n';
-import { PartyPicker, useCrmMeta } from '../shared/shared';
+import { PartyPicker, accountLabel, useCrmMeta } from '../shared/shared';
 
 /**
  * GIVING AN ACCOUNT A TIER, BY HAND.
@@ -89,7 +89,7 @@ export default function TierDialog({ isOpen, onClose, partyPk, accounts, members
     pickCustomer ? { name: 'party_pk', label: 'Customer', type: 'custom', required: true, colSpan: 'full',
       render: (current, set) => <PartyPicker value={current.party_pk} onChange={(value) => { set('party_pk', value); set('project_account_id', null); set('tier_id', null); }} /> } : null,
     { name: 'project_account_id', label: 'Account', type: 'select', required: true, colSpan: 'full',
-      options: liveAccounts.map((row) => ({ value: row.project_account_id, label: translate(row.project_name || row.project_code) + '  ·  ' + row.external_account_id })),
+      options: liveAccounts.map((row) => ({ value: row.project_account_id, label: accountLabel(translate, row) })),
       help: chosenParty && !liveAccounts.length ? 'This customer has no linked account yet. Link one on the customer\'s Accounts tab first.' : 'The account the tier is held by.' },
     { name: 'tier_id', label: 'Project tier', type: 'select', required: true, colSpan: 'full', options: tierOptions,
       help: account && !tiers.length ? 'This project has no tiers yet. Add them under Settings > Project tiers.' : 'Kind · tier. The account holds one tier of each kind; choosing a kind it already has changes that tier.' },

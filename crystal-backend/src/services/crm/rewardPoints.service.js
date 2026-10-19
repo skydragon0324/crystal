@@ -59,7 +59,7 @@ function rowsOf(partyPk) {
     .where('account.party_pk', partyPk).whereNull('account.unlinked_at')
     .orderBy([{ column: 'project.project_id' }, { column: 'account.external_account_id' }])
     .select('reward.reward_points_id', 'reward.project_account_id', 'project.project_id', 'project.project_code', 'project.project_name',
-      'account.external_account_id', 'account.external_account_pk', 'reward.points', 'reward.as_of', 'reward.source', 'reward.note', 'reward.updated_at',
+      'account.external_account_id', 'account.external_account_pk', 'account.matched_phone', 'reward.points', 'reward.as_of', 'reward.source', 'reward.note', 'reward.updated_at',
       'project.point_weight', db.raw('ROUND(reward.points * project.point_weight, 4) AS company_points'));
 }
 

@@ -74,6 +74,11 @@ function Tenders({ tenders }) {
   );
 }
 
+/** The order's number as the e-shop shows it: its `tx_id`, or the `order_no` from before the shop sent one. */
+function orderNumber(order) {
+  return (order && (order.tx_id || order.order_no)) || '';
+}
+
 function Status({ code }) {
   const translate = useT();
   return <Pill tone={STATUS_TONE[code] || 'gray'}>{translate('crm.eshopOrders.status' + code)}</Pill>;
@@ -98,7 +103,7 @@ export default function EshopOrdersSection({ partyPk }) {
     { key: 'at', label: 'Ordered', render: (row) => (
       <Box>
         <Text fontSize="sm">{dateTime(row.at)}</Text>
-        <Text fontSize="xs" color={surface.muted}>{row.order_no}</Text>
+        <Text fontSize="xs" color={surface.muted}>{orderNumber(row)}</Text>
       </Box>
     ) },
     { key: 'external_account_id', label: 'Account ID' },
@@ -192,7 +197,7 @@ function OrderDrawer({ partyPk, order, onClose }) {
         <DrawerCloseButton />
         <DrawerHeader borderBottomWidth="1px">
           <Text fontSize="sm" color={surface.muted}>{translate('crm.eshopOrders.order')}{order ? '  ·  ' + order.external_account_id : ''}</Text>
-          <Text>{order ? order.order_no : ''}</Text>
+          <Text>{orderNumber(order)}</Text>
         </DrawerHeader>
         <DrawerBody>
           {order ? (
@@ -281,8 +286,8 @@ export function RecentEshopOrdersCard({ partyPk, onViewAll }) {
           onRowClick={onViewAll ? () => onViewAll() : undefined}
           empty={empty}
           columns={[
-            { key: 'order_no', label: 'Order number', maxW: '10rem',
-              render: (row) => <Text as="span" color="brand.500" fontWeight="600" noOfLines={1}>{row.order_no}</Text> },
+            { key: 'tx_id', label: 'Order number', maxW: '10rem',
+              render: (row) => <Text as="span" color="brand.500" fontWeight="600" noOfLines={1}>{orderNumber(row)}</Text> },
             { key: 'at', label: 'Date', render: (row) => date(row.at) },
             { key: 'external_account_id', label: 'Account ID' },
             { key: 'status', label: 'Status', render: (row) => <Status code={row.status} /> },

@@ -542,7 +542,6 @@ module.exports = {
       same_user_id: 'same user ID'
     },
     registrations: {
-      phoneBelongsToSomeoneElse: 'its phone number belongs to {customer}: merge it into that customer, or create a new customer without the number',
       phoneBelongsToThem: 'has the same phone number',
       chooseAPerson: 'choose a person',
       chooseLinkOrReject: 'choose link or reject',
@@ -572,7 +571,9 @@ module.exports = {
       rangeIsBackwards: 'the first customer number must not be larger than the last',
       noCustomersInRange: 'no customer with a phone number in that range',
       rangeTooLarge: '{count} customers in that range; link at most {max} at a time',
-      runInProgress: 'a linking run is already in progress'
+      runInProgress: 'a linking run is already in progress',
+      noAccounts: 'this customer has no linked SMARTPHONE_OFFLINE account',
+      couldNotAsk: 'the SMARTPHONE_OFFLINE system could not be asked: {error}'
     },
     integration: {
       aValidApiKeyIsRequired: 'a valid department API key is required',

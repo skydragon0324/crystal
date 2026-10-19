@@ -442,6 +442,8 @@ function eshopOrders(params) {
       id: pick(key, slot + ':pk', 100000, 999999),
       order_id: orderId,
       order_no: 'ES-' + stamp(i * 5 + 2, 10).slice(0, 10).replace(/-/g, '') + '-' + (100 + i),
+      /* The shop's order number, converted from order_id on its side. */
+      tx_id: 'TX' + orderId.slice(2),
       status: status,
       /* The first line names the order; the rest are "and N more". */
       goods_name: lines[0].goods_name,
@@ -1473,6 +1475,24 @@ function phonePrivileges(params) {
   return { items: items };
 }
 
+/**
+ * getLevelInfo - each master id's two ranks and its points, one item per id:
+ * `loyal_level` and `purchase_level` from 1 to 5, as the system sends them.
+ */
+function phoneLevels(params) {
+  const ids = String(params.master_ids || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean);
+  return {
+    items: ids.map(function (id) {
+      return {
+        master_id: id,
+        loyal_level: pick(id, 'loyal', 1, 5),
+        purchase_level: pick(id, 'purchase', 1, 5),
+        reward_point: pick(id, 'reward', 0, 20000)
+      };
+    })
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  the switchboard                                                    */
 /* ------------------------------------------------------------------ */
@@ -1506,7 +1526,8 @@ const ROUTES = {
   '/getUserByPhone': phoneUserByPhone,
   '/getPhoneInfo': phoneDevices,
   '/getAfterInfo': phoneServices,
-  '/getEventInfo': phonePrivileges
+  '/getEventInfo': phonePrivileges,
+  '/getLevelInfo': phoneLevels
 };
 
 /**

@@ -211,8 +211,15 @@ const en = {
   /* RegistrationReview.jsx */
   registrationReview: {
     hasThisPhone: 'Has this phone number',
-    phoneTaken: "This registration's phone number already belongs to {customer}. One number can belong to one customer only: merge it into that customer, or register it as new - the new customer is created without that number.",
+    phoneTaken: "This registration's phone number already belongs to {customer}. One number belongs to one customer only: merged into another customer or registered as new, the registration goes without it and the number stays with {customer} - unless, merging, you choose to move it.",
     phonesLeftOut: 'Created without {phones}: the number already belongs to another customer.',
+    phonesKept: 'Merged without {phones}: the number stays with the customer who has it.',
+    phonesMoved: 'Moved to this customer: {phones}.',
+    otherCustomersNumbers: "Phone numbers of other customers",
+    phoneStays: '{phone} belongs to {customer}. It stays with them and is not added to the selected customer.',
+    phoneWillMove: '{phone} will be removed from {customer} and added to the selected customer.',
+    movePhones: 'Move the number to the selected customer',
+    movePhonesHint: 'Only when merging. Use it when the number now belongs to this person - the other customer keeps it in their history as retired.',
     assignIdentifier: 'Assign identifier',
     bestScore: 'Best score',
     candidates: 'Candidates ({n})',
@@ -583,6 +590,19 @@ const en = {
     unreachable: 'The SMARTPHONE_OFFLINE system could not be reached.',
     noDevices: 'No devices registered'
   },
+  /* SmartphoneSync.jsx */
+  smartphoneSync: {
+    syncLevels: 'Sync levels / grades',
+    syncLevelsExplained: 'Asks SMARTPHONE_OFFLINE for the level and grade of each linked account and puts it on those tiers.',
+    syncPoints: 'Sync points',
+    syncPointsExplained: 'Asks SMARTPHONE_OFFLINE for the reward points of each linked account and stores them.',
+    levelsResult: '{created} added, {changed} changed, {unchanged} unchanged.',
+    pointsResult: '{updated} updated, {unchanged} unchanged.',
+    notFound: 'Not known to SMARTPHONE_OFFLINE: {accounts}.',
+    noTier: 'No tier has this Code in the project: {values}. Add it under Settings > Project tiers.',
+    level: 'Level',
+    grade: 'Grade'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: 'Appstore purchases',
@@ -616,7 +636,20 @@ const en = {
     showKey: 'Show the licence key',
     licenceTitle: 'Licence',
     key: 'Licence key',
-    noKey: 'The Appstore has no key for this purchase.',
+    deviceNo: 'Device {no}',
+    stillIssuing: 'This licence is still being issued',
+    stillIssuingHint: 'The Appstore is still processing this purchase. Check back in a few minutes.',
+    noLicence: 'No licence on this purchase',
+    noLicenceHint: 'The Appstore has not issued a licence for this purchase.',
+    couldNotLoad: 'The licence could not be loaded',
+    qrAlt: 'QR code for this licence',
+    scanWithDevice: 'Scanned with the device, this code activates the app.',
+    saveQr: 'Save the QR image',
+    copyKey: 'Copy the key',
+    keyCopied: 'Copied to the clipboard',
+    nothingMatches: 'Nothing matches “{term}”',
+    nothingInPeriod: 'Nothing in this period',
+    clearFilters: 'Clear the filters',
     downloadFile: 'Download the licence file',
     audited: 'Looking at a licence key is recorded in the audit log.'
   },
@@ -1160,8 +1193,15 @@ const zh = {
   /* RegistrationReview.jsx */
   registrationReview: {
     hasThisPhone: '拥有此电话号码',
-    phoneTaken: '该登记的电话号码已属于 {customer}。一个号码只能属于一个客户：请合并到该客户，或登记为新客户——新客户将不含此号码。',
+    phoneTaken: '该登记的电话号码已属于 {customer}。一个号码只能属于一个客户：合并到其他客户或登记为新客户时，不带此号码，号码仍归 {customer}——除非在合并时选择转移该号码。',
     phonesLeftOut: '已创建，但不含 {phones}：该号码已属于其他客户。',
+    phonesKept: '已合并，但不含 {phones}：该号码仍归原客户所有。',
+    phonesMoved: '已转移到此客户：{phones}。',
+    otherCustomersNumbers: '其他客户的电话号码',
+    phoneStays: '{phone} 属于 {customer}。号码仍归其所有，不会添加到所选客户。',
+    phoneWillMove: '{phone} 将从 {customer} 移除，并添加到所选客户。',
+    movePhones: '将号码转移到所选客户',
+    movePhonesHint: '仅在合并时有效。当号码现在属于此人时使用——原客户的历史中会保留该号码，状态为已停用。',
     assignIdentifier: '分配标识',
     bestScore: '最高分',
     candidates: '候选（{n}）',
@@ -1532,6 +1572,19 @@ const zh = {
     unreachable: '无法连接 SMARTPHONE_OFFLINE 系统。',
     noDevices: '暂无已登记设备'
   },
+  /* SmartphoneSync.jsx */
+  smartphoneSync: {
+    syncLevels: '同步等级 / 级别',
+    syncLevelsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的等级和级别，并设为相应的层级。',
+    syncPoints: '同步积分',
+    syncPointsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的奖励积分并保存。',
+    levelsResult: '新增 {created}，变更 {changed}，未变 {unchanged}。',
+    pointsResult: '更新 {updated}，未变 {unchanged}。',
+    notFound: 'SMARTPHONE_OFFLINE 中没有以下账号：{accounts}。',
+    noTier: '没有“项目内代码”为以下值的等级：{values}。请在“设置 > 项目等级”中添加。',
+    level: '等级',
+    grade: '级别'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: '应用商店购买',
@@ -1565,7 +1618,20 @@ const zh = {
     showKey: '查看许可证密钥',
     licenceTitle: '许可证',
     key: '许可证密钥',
-    noKey: '应用商店没有此购买的密钥。',
+    deviceNo: '设备 {no}',
+    stillIssuing: '许可证仍在发放中',
+    stillIssuingHint: '应用商店仍在处理这笔购买，请几分钟后再查看。',
+    noLicence: '此次购买没有许可证',
+    noLicenceHint: '应用商店尚未为这笔购买发放许可证。',
+    couldNotLoad: '无法加载许可证',
+    qrAlt: '此许可证的二维码',
+    scanWithDevice: '用设备扫描此二维码即可激活应用。',
+    saveQr: '保存二维码图片',
+    copyKey: '复制密钥',
+    keyCopied: '已复制到剪贴板',
+    nothingMatches: '没有与“{term}”匹配的记录',
+    nothingInPeriod: '该时间段内没有记录',
+    clearFilters: '清除筛选条件',
     downloadFile: '下载许可证文件',
     audited: '查看许可证密钥会记录在审计日志中。'
   },
@@ -2109,8 +2175,15 @@ const ru = {
   /* RegistrationReview.jsx */
   registrationReview: {
     hasThisPhone: 'Владеет этим номером',
-    phoneTaken: 'Номер телефона этой регистрации уже принадлежит клиенту {customer}. Один номер может принадлежать только одному клиенту: объедините с этим клиентом или зарегистрируйте как нового — новый клиент будет создан без этого номера.',
+    phoneTaken: 'Номер телефона этой регистрации уже принадлежит клиенту {customer}. Один номер может принадлежать только одному клиенту: при объединении с другим клиентом или регистрации как нового регистрация переносится без него, и номер остаётся у {customer} — если только при объединении вы не решите перенести его.',
     phonesLeftOut: 'Создан без номера {phones}: этот номер уже принадлежит другому клиенту.',
+    phonesKept: 'Объединено без номера {phones}: номер остаётся у клиента, которому он принадлежит.',
+    phonesMoved: 'Перенесено этому клиенту: {phones}.',
+    otherCustomersNumbers: 'Номера телефонов других клиентов',
+    phoneStays: '{phone} принадлежит клиенту {customer}. Номер остаётся у него и не добавляется выбранному клиенту.',
+    phoneWillMove: '{phone} будет удалён у клиента {customer} и добавлен выбранному клиенту.',
+    movePhones: 'Перенести номер выбранному клиенту',
+    movePhonesHint: 'Только при объединении. Используйте, если номер теперь принадлежит этому человеку — у другого клиента он останется в истории как выведенный из использования.',
     assignIdentifier: 'Назначить идентификатор',
     bestScore: 'Лучший балл',
     candidates: 'Кандидаты ({n})',
@@ -2481,6 +2554,19 @@ const ru = {
     unreachable: 'Система SMARTPHONE_OFFLINE недоступна.',
     noDevices: 'Нет зарегистрированных устройств'
   },
+  /* SmartphoneSync.jsx */
+  smartphoneSync: {
+    syncLevels: 'Синхронизировать уровни / грейды',
+    syncLevelsExplained: 'Запрашивает у SMARTPHONE_OFFLINE уровень и грейд каждого привязанного аккаунта и присваивает их.',
+    syncPoints: 'Синхронизировать баллы',
+    syncPointsExplained: 'Запрашивает у SMARTPHONE_OFFLINE бонусные баллы каждого привязанного аккаунта и сохраняет их.',
+    levelsResult: 'Добавлено: {created}, изменено: {changed}, без изменений: {unchanged}.',
+    pointsResult: 'Обновлено: {updated}, без изменений: {unchanged}.',
+    notFound: 'Неизвестны SMARTPHONE_OFFLINE: {accounts}.',
+    noTier: 'Нет уровня с таким «Кодом в проекте»: {values}. Добавьте его в Настройки > Уровни проектов.',
+    level: 'Уровень',
+    grade: 'Грейд'
+  },
   /* AppstorePurchases.jsx */
   appstore: {
     title: 'Покупки в Appstore',
@@ -2514,7 +2600,20 @@ const ru = {
     showKey: 'Показать лицензионный ключ',
     licenceTitle: 'Лицензия',
     key: 'Лицензионный ключ',
-    noKey: 'У Appstore нет ключа для этой покупки.',
+    deviceNo: 'Устройство {no}',
+    stillIssuing: 'Лицензия ещё оформляется',
+    stillIssuingHint: 'Appstore ещё обрабатывает эту покупку. Загляните сюда через несколько минут.',
+    noLicence: 'К этой покупке лицензии нет',
+    noLicenceHint: 'Appstore не выдал лицензию по этой покупке.',
+    couldNotLoad: 'Не удалось загрузить лицензию',
+    qrAlt: 'QR-код этой лицензии',
+    scanWithDevice: 'Отсканируйте этот код устройством, чтобы активировать приложение.',
+    saveQr: 'Сохранить QR-код',
+    copyKey: 'Скопировать ключ',
+    keyCopied: 'Скопировано в буфер обмена',
+    nothingMatches: 'По запросу «{term}» ничего не найдено',
+    nothingInPeriod: 'За этот период ничего нет',
+    clearFilters: 'Сбросить фильтры',
     downloadFile: 'Скачать файл лицензии',
     audited: 'Просмотр лицензионного ключа записывается в журнал аудита.'
   },
@@ -3003,6 +3102,7 @@ const words = {
     customer360: {
       aboutServiceCase: 'About service case',
       accountPkInThatProject: 'Account PK in that project',
+      accountPhoneHelp: 'The number this user registered with in SMARTPHONE_OFFLINE. It is shown beside the Account ID wherever an account is chosen.',
       addressItToThisOrganization: 'Address it to this organization and its key contacts',
       agent: 'Agent',
       annualValue: 'Annual value',
@@ -3835,6 +3935,7 @@ const words = {
     customer360: {
       aboutServiceCase: '关联服务工单',
       accountPkInThatProject: '在该项目中的账号主键',
+      accountPhoneHelp: '该用户在 SMARTPHONE_OFFLINE 中注册时使用的号码。凡是选择账号的地方，都会显示在账号 ID 旁边。',
       addressItToThisOrganization: '发送给该组织及其关键联系人',
       agent: '处理人',
       annualValue: '年度金额',
@@ -4667,6 +4768,7 @@ const words = {
     customer360: {
       aboutServiceCase: 'Связанное обращение',
       accountPkInThatProject: 'Ключ аккаунта (PK) в проекте',
+      accountPhoneHelp: 'Номер, с которым этот пользователь зарегистрировался в SMARTPHONE_OFFLINE. Он показывается рядом с ID аккаунта везде, где выбирают аккаунт.',
       addressItToThisOrganization: 'Адресовать организации и её ключевым контактам',
       agent: 'Сотрудник',
       annualValue: 'Сумма в год',

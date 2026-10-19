@@ -349,6 +349,15 @@ async function assertAccountFree(trx, partyId, projectId, login, pk, exceptAccou
     params: { customer: (taken.display_name || '') + ' #' + taken.party_pk } }], { customer: (taken.display_name || '') + ' #' + taken.party_pk });
 }
 
+/*
+ * The phone an account's user registered with, entered by hand when it was not
+ * found by phone (SMARTPHONE_OFFLINE, whose Account IDs are numbers the system
+ * assigned): kept as digits, the way linking by phone keeps it.
+ */
+function phoneOfAccount(value) {
+  return contact.phone(value).slice(0, 50) || null;
+}
+
 async function linkAccount(partyId, body, actor) {
   const party = await repo.findParty(partyId);
   if (!party) throw new HttpError(404, 'common.notFound');
@@ -366,6 +375,7 @@ async function linkAccount(partyId, body, actor) {
     external_account_type: body.external_account_type || null,
     account_status: body.account_status || null,
     is_primary: !!body.is_primary,
+    matched_phone: phoneOfAccount(body.matched_phone),
     link_method: 'MANUAL'
   }).returning('*');
 
@@ -391,6 +401,7 @@ async function updateAccount(partyId, accountId, body, actor) {
   if (body.external_account_pk !== undefined) patch.external_account_pk = String(body.external_account_pk == null ? '' : body.external_account_pk).trim() || null;
   if (body.external_account_type !== undefined) patch.external_account_type = String(body.external_account_type == null ? '' : body.external_account_type).trim().slice(0, 50) || null;
   if (body.is_primary !== undefined) patch.is_primary = !!body.is_primary;
+  if (body.matched_phone !== undefined) patch.matched_phone = phoneOfAccount(body.matched_phone);
   if (!Object.keys(patch).length) return before;
   if (patch.external_account_id !== undefined || patch.external_account_pk) {
     await assertAccountFree(db, partyId, before.project_id, patch.external_account_id !== undefined ? patch.external_account_id : before.external_account_id,

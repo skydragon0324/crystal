@@ -200,6 +200,8 @@ async function list(filters) {
  return { rows, total: Number(count.total), page, limit };
 }
 async function decide(id, body, actor) {
+ // Numbers moved from another customer: audited once the decision is committed, not before.
+ let released = [];
  const result = await transaction(async trx => {
   await lock(trx);
   const intake = await trx('crm_registration_intake').where('intake_id', id).forUpdate().first();
@@ -211,6 +213,7 @@ async function decide(id, body, actor) {
   }
   let party;
   let leftOut = [];
+  let moved = [];
   if (body.action === 'NEW' && intake.category === 'PERSON') {
    // A new customer, without any number another customer already has: that number stays theirs.
    const cleaned = await phoneOwners.withoutTaken(trx, intake.payload.party || {});
@@ -227,11 +230,15 @@ async function decide(id, body, actor) {
    party = await trx('crm_party').where('party_pk', pk).whereIn('party_status',['ACTIVE','INACTIVE']).first();
    if (!party) throw new HttpError(404, 'common.notFound');
    if (party.party_type !== 'PERSON') throw new HttpError(400, 'crm.registrations.chooseAPerson');
-   // Its number may go only to the customer who has it already: merging it into anyone else is refused.
+   // A number another customer has stays theirs - merged without it (addEvidence skips it) - unless the
+   // administrator moves it: retired there first, so the merge adds it here. Never on two customers at once.
    if (intake.category === 'PERSON') {
     const owners = await phoneOwners.find(trx, phoneOwners.numbersOf(intake.payload.party || {}), party.party_pk);
-    if (owners.length) {
-     throw new HttpError(409, 'crm.registrations.phoneBelongsToSomeoneElse', null, { customer: (owners[0].display_name || '') + ' #' + owners[0].party_pk });
+    if (owners.length && body.action === 'MERGE' && body.move_phones) {
+     released = await phoneOwners.release(trx, owners);
+     moved = owners.map(owner => ({ phone: owner.phone, party_pk: String(owner.party_pk), display_name: owner.display_name }));
+    } else {
+     leftOut = Array.from(new Set(owners.map(owner => owner.phone)));
     }
    }
   } else throw new HttpError(400, 'crm.registrations.chooseMergeNewOrAssign');
@@ -244,8 +251,9 @@ async function decide(id, body, actor) {
     note: body.relationship.note || null
    }, actor, trx);
   }
-  return leftOut.length ? Object.assign({}, done, { phones_left_out: leftOut }) : done;
+  return Object.assign({}, done, leftOut.length ? { phones_left_out: leftOut } : {}, moved.length ? { phones_moved: moved } : {});
  });
+ released.forEach(change => audit.updated(actor, 'crm_contact_point', change.after.contact_point_id, change.before, change.after, PAGE));
  audit.updated(actor, 'crm_registration_intake', id, null, result, PAGE);
  return result;
 }
@@ -398,10 +406,16 @@ async function detail(id) {
   });
   incoming.person = filled;
  }
+ // Who has the registration's numbers now - one row per customer and number - so a merge can say which stay
+ // with whom, or offer to move them.
+ const owners = intake.category === 'PERSON' && intake.status === 'PENDING'
+  ? (await phoneOwners.find(db, phoneOwners.numbersOf((intake.payload || {}).party || {})))
+   .map(owner => ({ party_pk: String(owner.party_pk), display_name: owner.display_name, phone: owner.phone }))
+  : [];
  return {
   intake_id: intake.intake_id, category: intake.category, status: intake.status, created_at: intake.created_at,
   party_pk: intake.party_pk, source_project_name: projectName(intake.source_project_id), source_record_id: intake.source_record_id,
-  incoming: incoming, candidates: enriched
+  incoming: incoming, candidates: enriched, phone_owners: owners
  };
 }
 

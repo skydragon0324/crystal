@@ -499,6 +499,9 @@ export const crm = {
     unlinkAccount: (id, accountId) => client.post(CRM + '/parties/' + id + '/accounts/' + accountId + '/unlink'),
     /* Look this customer's phone numbers up in the SMARTPHONE_OFFLINE system and link what it finds. */
     autoLinkSmartphoneOffline: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/link'),
+    /* getLevelInfo for the customer's SMARTPHONE_OFFLINE accounts: their level and grade tiers, or their reward points. */
+    syncSmartphoneLevels: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/sync-levels'),
+    syncSmartphonePoints: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/sync-points'),
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
     merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_pk: mergedId, merge_reason: reason }),
     /* Separate a merge again; id is either customer of it. */

@@ -135,7 +135,12 @@ export default function FormModal({
   const bodyRef = useRef(null);
   useEffect(() => { if (isOpen) { setTouched(false); setRefused({}); } }, [isOpen]);
 
-  const list = fields || [];
+  /*
+   * A field with `showIf(values)` is in the form only while that says so - shown,
+   * checked and sent - so a field that applies to one choice of another (a
+   * project's own detail) is not asked for, or sent, on the rest.
+   */
+  const list = (fields || []).filter((f) => !f.showIf || f.showIf(current));
 
   const isBlank = (field) => {
     if (field.type === 'checkbox' || field.type === 'switch') return false;
@@ -303,7 +308,7 @@ export default function FormModal({
     const out = [];
     let current = { title: null, fields: [] };
 
-    fields.forEach((f) => {
+    list.forEach((f) => {
       if (f.type !== 'section') return current.fields.push(f);
       if (current.title || current.fields.length) out.push(current);
       current = { title: f.label, fields: [] };
@@ -311,7 +316,9 @@ export default function FormModal({
 
     if (current.title || current.fields.length) out.push(current);
     return out;
-  }, [fields]);
+    // `list` is `fields` less the fields `showIf` hides, which follow the values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, list.map((f) => f.name).join('|')]);
 
   /**
    * One field, changed.

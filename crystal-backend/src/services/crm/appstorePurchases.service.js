@@ -44,10 +44,14 @@ function tagged(rows, account) {
   });
 }
 
-/** The store's own filters: a date window (YYYY-MM-DD) and a search word. */
+/**
+ * The store's own filters: a date window (YYYY-MM-DD) and a search word. The
+ * word as the website's Purchases page sends it (storefronts.controller
+ * searchTerm): the store matches it as written, so runs of spaces are one.
+ */
 function filterOf(filters) {
   const date = function (value) { return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) ? String(value) : ''; };
-  return { from: date(filters.from), to: date(filters.to), keyword: String(filters.q || '').trim().slice(0, 100) };
+  return { from: date(filters.from), to: date(filters.to), keyword: String(filters.q || '').replace(/\s+/g, ' ').trim().slice(0, 100) };
 }
 
 async function list(partyPk, filters, paging) {

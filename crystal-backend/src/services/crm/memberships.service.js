@@ -100,6 +100,29 @@ async function moveTo(trx, membership, tier, reason) {
   return after;
 }
 
+/**
+ * An account put on a tier its project reported - a sync, not a manager: the
+ * account gets a place on the tier's kind of ladder, or moves to the tier
+ * there, or is already on it. CREATED, CHANGED or UNCHANGED, with the rows.
+ * The tier is the account's project's, checked by the caller.
+ */
+async function placeOn(trx, projectAccountId, tier, reason) {
+  const membership = await trx('crm_membership')
+    .where({ project_account_id: projectAccountId, tier_kind: tier.tier_kind }).forUpdate().first();
+  if (membership) {
+    if (String(membership.current_tier_id) === String(tier.project_tier_id)) return { status: 'UNCHANGED', after: membership };
+    return { status: 'CHANGED', before: membership, after: await moveTo(trx, membership, tier, reason) };
+  }
+  const [row] = await trx('crm_membership').insert({
+    project_account_id: projectAccountId, tier_kind: tier.tier_kind, current_tier_id: tier.project_tier_id,
+    membership_status: 'ACTIVE', joined_at: trx.fn.now()
+  }).returning('*');
+  await trx('crm_membership_tier_history').insert({
+    membership_id: row.membership_id, old_tier_id: null, new_tier_id: tier.project_tier_id, change_reason: reason || null
+  });
+  return { status: 'CREATED', after: row };
+}
+
 /** A manager's correction of a tier: within the membership's own project and kind. */
 async function setTier(membershipId, body, actor) {
   if (!body.reason || !String(body.reason).trim()) throw new HttpError(400, 'crm.common.aReasonIsRequired');
@@ -184,4 +207,4 @@ async function setStatus(membershipId, status, actor) {
   return after;
 }
 
-module.exports = { PAGE: PAGE, search: search, distribution: distribution, history: history, setTier: setTier, addTier: addTier, setStatus: setStatus };
+module.exports = { PAGE: PAGE, search: search, distribution: distribution, history: history, setTier: setTier, addTier: addTier, placeOn: placeOn, setStatus: setStatus };

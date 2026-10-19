@@ -106,7 +106,7 @@ async function summary(partyPk) {
     }
     out.activity.push({
       kind: 'TRANSACTION', id: 'eshop:' + order.order_id, at: order.at, system: 'ESHOP', status: order.status,
-      title: order.order_no, account: order.external_account_id, goods_count: order.goods_count || 0,
+      title: order.tx_id || order.order_no, account: order.external_account_id, goods_count: order.goods_count || 0,
       tenders: (order.tenders || []).map(function (tender) { return { unit: tender.kind === 'POINT' ? 'POINT' : (codeOf(tender.kind) || tender.kind), price: tender.price }; })
     });
   });

@@ -584,6 +584,8 @@ const MESSAGE_CHANNELS = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
 /** Every dialog the record can open, as FormModal configurations. */
 function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites, history, view }) {
   const projects = optionsFrom(meta.projects, 'project_id', 'project_name');
+  /* The project whose accounts carry a phone number (see accountLabel). */
+  const phoneProjectId = ((meta.projects || []).filter((project) => project.project_code === 'SMARTPHONE_OFFLINE')[0] || {}).project_id;
   return {
     profile: {
       title: translate(isPerson ? 'crm.customer360.editProfile' : 'crm.customer360.editOrganization'),
@@ -646,7 +648,10 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       fields: [
         { name: 'project_id', label: 'Project', type: 'select', required: true, options: projects },
         { name: 'external_account_id', label: 'Account ID', required: true },
-        { name: 'external_account_pk', label: 'Account PK in that project' }
+        { name: 'external_account_pk', label: 'Account PK in that project' },
+        /* SMARTPHONE_OFFLINE's Account ID is a number the system assigned; the phone its user registered with says whose it is. */
+        { name: 'matched_phone', label: 'Phone number', showIf: (values) => String(values.project_id || '') === String(phoneProjectId || '-'),
+          help: 'The number this user registered with in SMARTPHONE_OFFLINE. It is shown beside the Account ID wherever an account is chosen.' }
       ],
       submit: (values) => run(() => crm.parties.linkAccount(party.party_pk, values), 'Created')
     },
@@ -657,12 +662,14 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'external_account_id', label: 'Account ID', required: true },
         { name: 'external_account_pk', label: 'Account PK in that project' },
         { name: 'external_account_type', label: 'Type' },
+        { name: 'matched_phone', label: 'Phone number', showIf: () => !!(dialog && dialog.initial && String(dialog.initial.project_id) === String(phoneProjectId || '-')),
+          help: 'The number this user registered with in SMARTPHONE_OFFLINE. It is shown beside the Account ID wherever an account is chosen.' },
         { name: 'is_primary', label: 'Primary in this project', type: 'checkbox' }
       ],
-      submit: (values) => run(() => crm.parties.updateAccount(party.party_pk, dialog.initial.project_account_id, {
+      submit: (values) => run(() => crm.parties.updateAccount(party.party_pk, dialog.initial.project_account_id, Object.assign({
         external_account_id: values.external_account_id, external_account_pk: values.external_account_pk,
         external_account_type: values.external_account_type, is_primary: !!values.is_primary
-      }))
+      }, values.matched_phone !== undefined ? { matched_phone: values.matched_phone } : {})))
     },
     consent: {
       title: translate('crm.customer360.changeConsent'),

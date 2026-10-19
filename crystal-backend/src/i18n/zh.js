@@ -508,7 +508,6 @@ module.exports = {
       same_user_id: '用户 ID 相同'
     },
     registrations: {
-      phoneBelongsToSomeoneElse: '其电话号码属于 {customer}：请合并到该客户，或创建不含此号码的新客户',
       phoneBelongsToThem: '电话号码相同',
       chooseAPerson: '请选择个人客户',
       chooseLinkOrReject: '请选择关联或拒绝',
@@ -538,7 +537,9 @@ module.exports = {
       rangeIsBackwards: '起始客户编号不能大于结束客户编号',
       noCustomersInRange: '该范围内没有带电话号码的客户',
       rangeTooLarge: '该范围内有 {count} 个客户；每次最多关联 {max} 个',
-      runInProgress: '已有关联任务正在进行'
+      runInProgress: '已有关联任务正在进行',
+      noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号',
+      couldNotAsk: '无法查询 SMARTPHONE_OFFLINE 系统：{error}'
     },
     integration: {
       aValidApiKeyIsRequired: '需要有效的部门 API 密钥',

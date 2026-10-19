@@ -274,6 +274,8 @@ async function orders(userPk, offset, limit) {
         id: row.id || row.order_id,
         order_id: row.order_id || row.id,
         order_no: row.order_no,
+        /* The order's number as the shop shows it, converted from its order_id on the shop's side. */
+        tx_id: row.tx_id || null,
         status: statusName(row.status),
         status_code: Number(row.status),
         goods_name: row.goods_name,

@@ -202,6 +202,11 @@ router.get('/parties/:id/smartphone-offline/privileges', read(PAGES.CUSTOMERS), 
   response.ok(res, await smartphoneOffline.privilegesOfParty(req.params.id)));
 router.post('/parties/:id/smartphone-offline/link', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.linkParty(req.params.id, req.actor)));
+/* getLevelInfo for the customer's linked accounts: their LEVEL and GRADE tiers, or their reward points. */
+router.post('/parties/:id/smartphone-offline/sync-levels', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.syncLevels(req.params.id, req.actor)));
+router.post('/parties/:id/smartphone-offline/sync-points', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, rewardPoints.translated(await smartphoneOffline.syncPoints(req.params.id, req.actor), req.locale)));
 router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.startRun(req.body || {}, req.actor)));
 router.get('/smartphone-offline/runs/:runId', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, smartphoneOffline.getRun(req.params.runId)));

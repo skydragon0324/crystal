@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, AlertIcon, Badge, Box, Button, Flex, HStack, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
+  Alert, AlertIcon, Badge, Box, Button, Checkbox, Flex, HStack, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay,
   Radio, SimpleGrid, Spinner, Stack, Switch, Table, Tbody, Td, Text, Th, Thead, Tr, useToast
 } from '@chakra-ui/react';
 import DataTable from '../../../components/DataTable';
@@ -171,6 +171,8 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
   const [choosing, setChoosing] = useState(false);
   const [useIncoming, setUseIncoming] = useState([]);
   const [relationship, setRelationship] = useState('');
+  /* Merging into someone other than a number's owner: off, the number stays with its owner; on, it moves. */
+  const [movePhones, setMovePhones] = useState(false);
   const eshop = category === 'ESHOP';
   const reviewing = !resolved && canWrite;
 
@@ -186,9 +188,9 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const open = (row) => {
-    setSelected(row); setTarget(''); setManualPk(''); setChoosing(false); setUseIncoming([]); setRelationship('');
+    setSelected(row); setTarget(''); setManualPk(''); setChoosing(false); setUseIncoming([]); setRelationship(''); setMovePhones(false);
   };
-  const pick = (value) => { setTarget(value); setManualPk(''); setChoosing(false); setUseIncoming([]); setRelationship(''); };
+  const pick = (value) => { setTarget(value); setManualPk(''); setChoosing(false); setUseIncoming([]); setRelationship(''); setMovePhones(false); };
 
   const candidateKey = candidate => (candidate.party_pk ? 'party:' + candidate.party_pk : 'intake:' + candidate.intake_id);
   const candidateLabel = candidate => (candidate.party_pk
@@ -199,6 +201,9 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
   const phoneOwner = candidates.filter(candidate => candidate.phone_owner && candidate.party_pk)[0] || null;
   /* Only an existing customer can be merged into field by field, or related to. */
   const chosenCustomer = chosen && chosen.party_pk && chosen.person ? chosen : null;
+  /* The registration's numbers that belong to customers other than the one chosen to merge into. */
+  const elsewhere = !eshop && chosen && detail ? (detail.phone_owners || []).filter(owner => !chosen.party_pk || String(owner.party_pk) !== String(chosen.party_pk)) : [];
+  const ownerLabel = owner => (owner.display_name || translate('crm.registrationReview.customer')) + ' — ' + translate('crm.registrationReview.customerNumber', { id: owner.party_pk });
   const personTypes = (meta.party_relationship_types || []).filter((type) => type.applies_to === 'ANY' || type.applies_to === 'PERSON');
 
   const decide = async action => {
@@ -207,16 +212,25 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
       const [kind, id] = target.split(':');
       const payload = { action, party_pk: manualPk || (kind === 'party' ? id : undefined), candidate_intake_id: !manualPk && kind === 'intake' ? id : undefined };
       if (action === 'MERGE' && choosing) payload.use_incoming = useIncoming;
+      if (action === 'MERGE' && movePhones && elsewhere.length) payload.move_phones = true;
       if (action === 'NEW' && chosenCustomer && relationship) {
         payload.relationship = { related_party_pk: chosenCustomer.party_pk, relationship_type_code: relationship };
       }
       const { data } = await crm.parties.decideRegistration(selected.intake_id, payload);
       setSelected(null); list.reload();
       if (onDecided) onDecided();
-      /* Created as new while its number is someone else's: the number stayed with them. */
+      /* A number someone else has: it stayed with them (created or merged without it), or was moved here. */
       const leftOut = (data && data.phones_left_out) || [];
-      toast({ title: translate('crm.registrationReview.decisionSaved'), status: leftOut.length ? 'warning' : 'success', duration: leftOut.length ? 9000 : 3000, isClosable: true,
-        description: leftOut.length ? translate('crm.registrationReview.phonesLeftOut', { phones: leftOut.map(formatPhone).join(', ') }) : undefined });
+      const moved = (data && data.phones_moved) || [];
+      const notes = [];
+      if (leftOut.length) {
+        notes.push(translate(action === 'MERGE' ? 'crm.registrationReview.phonesKept' : 'crm.registrationReview.phonesLeftOut', { phones: leftOut.map(formatPhone).join(', ') }));
+      }
+      if (moved.length) {
+        notes.push(translate('crm.registrationReview.phonesMoved', { phones: moved.map(row => formatPhone(row.phone) + ' (' + ownerLabel(row) + ')').join(', ') }));
+      }
+      toast({ title: translate('crm.registrationReview.decisionSaved'), status: notes.length ? 'warning' : 'success', duration: notes.length ? 9000 : 3000, isClosable: true,
+        description: notes.length ? notes.join(' ') : undefined });
     } catch (error) { toast({ title: error.message, status: 'error', duration: 6000 }); }
     finally { setBusy(false); }
   };
@@ -306,6 +320,24 @@ export default function RegistrationReview({ category, resolved, onDecided }) {
                 )}
               </Box>
             </SimpleGrid>
+
+            {/* Merging into someone else than a number's owner: say the number stays with them, or move it. */}
+            {reviewing && elsewhere.length ? (
+              <Box borderWidth="1px" borderColor="orange.300" borderRadius="md" p={3} mb={3}>
+                <Text fontWeight="600" fontSize="sm" mb={1}>{translate('crm.registrationReview.otherCustomersNumbers')}</Text>
+                <Stack spacing={0} mb={2}>
+                  {elsewhere.map(owner => (
+                    <Text key={owner.party_pk + ':' + owner.phone} fontSize="sm">
+                      {translate(movePhones ? 'crm.registrationReview.phoneWillMove' : 'crm.registrationReview.phoneStays', { phone: formatPhone(owner.phone), customer: ownerLabel(owner) })}
+                    </Text>
+                  ))}
+                </Stack>
+                <Checkbox isChecked={movePhones} onChange={e => setMovePhones(e.target.checked)}>
+                  <Text fontSize="sm">{translate('crm.registrationReview.movePhones')}</Text>
+                </Checkbox>
+                <Text fontSize="xs" color="gray.500" mt={1}>{translate('crm.registrationReview.movePhonesHint')}</Text>
+              </Box>
+            ) : null}
 
             {reviewing && !eshop && chosenCustomer ? (
               <Box borderWidth="1px" borderRadius="md" p={3} mb={3}>

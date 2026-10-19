@@ -3,6 +3,8 @@ const db = require('../../config/db');
 const config = require('../../config');
 const remote = require('../../repositories/remote/smartphoneOffline.api');
 const audit = require('../audit.service');
+const memberships = require('./memberships.service');
+const rewardPoints = require('./rewardPoints.service');
 const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
 
@@ -275,4 +277,103 @@ async function privilegesOfParty(partyPk) {
   }
 }
 
-module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, privilegesOfParty, MAX_RUN };
+/* ------------------------------------------------------------ levels, grades and points (getLevelInfo) */
+
+/*
+ * The system ranks each user twice and keeps their points, and getLevelInfo
+ * says all three for a set of master ids. Two buttons on the Accounts tab
+ * read it for one customer's linked accounts:
+ *
+ *   Sync levels / grades   loyal_level -> LEVEL, purchase_level -> GRADE: each
+ *                          account is put on the project tier of that kind
+ *                          whose Code in the project (source_code) is the
+ *                          value sent, the step kept in the tier history
+ *   Sync points            reward_point -> the account's reward points, as a
+ *                          figure the project sent (crm_reward_points, API)
+ *
+ * A value with no tier is reported, never guessed: the tier is added in
+ * Settings > Project tiers with that value as its Code in the project.
+ */
+const RANKS = [{ field: 'loyal_level', kind: 'LEVEL' }, { field: 'purchase_level', kind: 'GRADE' }];
+const SYNC_REASON = 'Synced from SMARTPHONE_OFFLINE';
+
+/** A level as the system sends it and a tier's code, compared as numbers when both are ("03" is 3). */
+function sameCode(sent, code) {
+  const a = String(sent).trim();
+  const b = String(code === null || code === undefined ? '' : code).trim();
+  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return Number(a) === Number(b);
+  return a !== '' && a.toUpperCase() === b.toUpperCase();
+}
+
+/** The customer's live accounts in the system, and getLevelInfo's item for each by master id. */
+async function levelsOf(partyPk) {
+  available();
+  const target = await project();
+  const accounts = await db('crm_project_account').where({ party_pk: partyPk, project_id: target.project_id }).whereNull('unlinked_at')
+    .orderBy([{ column: 'is_primary', order: 'desc' }, { column: 'project_account_id' }]).select('project_account_id', 'external_account_id');
+  if (!accounts.length) throw new HttpError(409, 'crm.smartphoneOffline.noAccounts');
+  let found;
+  try {
+    found = await remote.levels(accounts.map(function (account) { return account.external_account_id; }));
+  } catch (error) {
+    throw new HttpError(502, 'crm.smartphoneOffline.couldNotAsk', null, { error: error.message });
+  }
+  const byId = {};
+  found.items.forEach(function (item) { byId[String(item.master_id)] = item; });
+  return { project: target, accounts: accounts, byId: byId };
+}
+
+/** Sync levels / grades: every linked account on the LEVEL and GRADE tiers the system reports. */
+async function syncLevels(partyPk, actor) {
+  const asked = await levelsOf(partyPk);
+  const tiers = await db('crm_project_tier').where({ project_id: asked.project.project_id, is_active: true })
+    .whereIn('tier_kind', RANKS.map(function (rank) { return rank.kind; })).whereNotNull('source_code');
+  const summary = { accounts: asked.accounts.length, created: 0, changed: 0, unchanged: 0, not_found: [], unknown: [] };
+
+  for (let index = 0; index < asked.accounts.length; index += 1) {
+    const account = asked.accounts[index];
+    const item = asked.byId[String(account.external_account_id)];
+    if (!item) { summary.not_found.push(account.external_account_id); continue; }
+    for (let step = 0; step < RANKS.length; step += 1) {
+      const rank = RANKS[step];
+      const value = item[rank.field];
+      if (value === null || value === undefined) continue;
+      const tier = tiers.filter(function (row) { return row.tier_kind === rank.kind && sameCode(value, row.source_code); })[0];
+      if (!tier) { summary.unknown.push({ external_account_id: account.external_account_id, tier_kind: rank.kind, value: value }); continue; }
+      // eslint-disable-next-line no-await-in-loop
+      const result = await transaction(function (trx) { return memberships.placeOn(trx, account.project_account_id, tier, SYNC_REASON); });
+      summary[result.status.toLowerCase()] += 1;
+      if (result.status === 'CREATED') audit.created(actor, 'crm_membership', result.after.membership_id, result.after, PAGE);
+      if (result.status === 'CHANGED') audit.updated(actor, 'crm_membership', result.after.membership_id, result.before, result.after, PAGE);
+    }
+  }
+  return summary;
+}
+
+/** Sync points: each linked account's reward points, as the system holds them now. */
+async function syncPoints(partyPk, actor) {
+  const asked = await levelsOf(partyPk);
+  /* A figure the system still holds is left alone: re-stamped "as of now" it would read as a change. */
+  const stored = {};
+  (await db('crm_reward_points').whereIn('project_account_id', asked.accounts.map(function (account) { return account.project_account_id; }))
+    .select('project_account_id', 'points')).forEach(function (row) { stored[String(row.project_account_id)] = Number(row.points); });
+  const notFound = [];
+  const items = [];
+  let same = 0;
+  asked.accounts.forEach(function (account) {
+    const item = asked.byId[String(account.external_account_id)];
+    if (!item) { notFound.push(account.external_account_id); return; }
+    if (item.reward_point === null || item.reward_point === undefined) return;
+    if (stored[String(account.project_account_id)] === Number(item.reward_point)) { same += 1; return; }
+    items.push({ row: items.length + 1, project_id: asked.project.project_id, external_account_id: account.external_account_id, points: item.reward_point, as_of: new Date() });
+  });
+  const summary = items.length ? await rewardPoints.storeMany(items, 'API', actor)
+    : { received: 0, updated: 0, unchanged: 0, stale: 0, unknown_accounts: 0, invalid: 0, problems: [] };
+  summary.received += same;
+  summary.unchanged += same;
+  // A project's own push is not audited row by row; a manager's sync is recorded once.
+  if (summary.updated) audit.created(actor, 'crm_reward_points_sync', String(partyPk), { project_code: asked.project.project_code, updated: summary.updated, unchanged: summary.unchanged }, PAGE);
+  return Object.assign(summary, { accounts: asked.accounts.length, not_found: notFound });
+}
+
+module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, privilegesOfParty, syncLevels, syncPoints, MAX_RUN };

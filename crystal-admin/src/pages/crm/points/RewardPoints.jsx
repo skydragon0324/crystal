@@ -8,10 +8,11 @@ import FormModal from '../../../components/FormModal';
 import { crm } from '../../../api';
 import { useT } from '../../../i18n';
 import { dateTime, number } from '../../../utils/format';
-import { amount } from '../shared/shared';
+import { accountLabel, amount } from '../shared/shared';
 import { MiniTable } from '../customers/detail/c360Cards';
 import { Card360 } from '../shared/ui360';
 import { ProjectTags } from '../shared/ui';
+import SmartphoneSyncButton from '../customers/detail/projects/SmartphoneSync';
 
 /**
  * REWARD POINTS PER BUSINESS SYSTEM.
@@ -116,11 +117,14 @@ export function RewardPointsCard({ record, view, act }) {
   return (
     <Card360 icon={Md.MdStars} title={translate('crm.points.rewardPoints')}
       action={act.editable ? (
-        <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} isDisabled={!free.length}
-          title={free.length ? undefined : translate('crm.points.everyAccountHasPoints')}
-          onClick={() => setEditing({ project_account_id: free.length === 1 ? free[0].project_account_id : null })}>
-          {translate('crm.points.addPoints')}
-        </Button>
+        <HStack spacing={2}>
+          <SmartphoneSyncButton kind="points" partyPk={partyPk} accounts={record.accounts} onDone={act.refresh} />
+          <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} isDisabled={!free.length}
+            title={free.length ? undefined : translate('crm.points.everyAccountHasPoints')}
+            onClick={() => setEditing({ project_account_id: free.length === 1 ? free[0].project_account_id : null })}>
+            {translate('crm.points.addPoints')}
+          </Button>
+        </HStack>
       ) : null}>
       <Flex as="button" type="button" w="100%" align="center" justify="space-between" textAlign="left" onClick={() => setOpen(!open)}
         aria-expanded={open} py={1}>
@@ -155,10 +159,10 @@ export function RewardPointsCard({ record, view, act }) {
         fields={[
           adding
             ? { name: 'project_account_id', label: 'Business system account', type: 'select', required: true, colSpan: 'full',
-              options: free.map((account) => ({ value: account.project_account_id, label: translate(account.project_name || account.project_code) + '  ·  ' + account.external_account_id })),
+              options: free.map((account) => ({ value: account.project_account_id, label: accountLabel(translate, account) })),
               help: 'One of the customer\'s linked accounts. Link the account first on this tab if it is not listed.' }
             : { name: 'account', label: 'Business system account', type: 'custom', colSpan: 'full',
-              render: () => <Text fontSize="sm" fontWeight="600">{editing ? translate(editing.project_name || editing.project_code) + '  ·  ' + editing.external_account_id : ''}</Text> },
+              render: () => <Text fontSize="sm" fontWeight="600">{editing ? accountLabel(translate, editing) : ''}</Text> },
           { name: 'points', label: 'Points', type: 'number', step: '0.0001', required: true,
             help: 'The points this account holds in its business system now.' },
           { name: 'as_of', label: 'As of', type: 'date', help: 'When the figure was true. Empty means now.' },

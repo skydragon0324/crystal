@@ -520,3 +520,45 @@ for example, for recent activity list of notes and files tab, it shows DB data r
 it should also reflect based api_result data
 same as for service summary of service tab
 ------------------------------------------------------
+1. How is pagination implemented for the order page within the user detail view, specifically for two separate e-store accounts?
+2. The connection to the software store during the ordering process is not functioning correctly.
+This should be implemented in the same way as it is handled on the `account/appstore/purchases` page in `crystal_web`.
+3. When adding a user tier or reward points, a user must be selected; however, the following issue arises:
+For users in `smartphone_offline`, the `account id` is a numeric value (e.g., `00153760`) rather than a user-defined identifier (consisting of alphanumeric characters). Consequently, it is impossible to determine which ID corresponds to which user.
+Since users registered using their phone numbers, the `account id` in `smartphone_offline` is a numeric value automatically assigned by the administrative system.
+Therefore, it would be highly beneficial to display the phone number alongside the `account id` when selecting users from `smartphone_offline`.
+4. We intend to implement a feature that automatically assigns a user's level and tier by utilizing `getLevelInfo` in conjunction with the `smartphone_offline` system.
+The response data is as follows:
+items: [
+    {
+        master_id: ,
+        loyal_level:,
+        purchase_level:, 
+        reward_point:
+    }
+]
+In our system, `loyal_level` corresponds to "level," while `purchase_level` corresponds to "grade."
+In other words, you must first add these "levels" and "grades" from the `smartphone_offline` business system into our CRM framework, and then populate them based on the values ​​returned by the corresponding API.
+5. Feature for automatic addition of reward points
+While the same API is used, the "sync points" button should be placed next to the "add point" button in the "reward points" section of the "Accounts" tab, and the "sync levels/grades" button should be placed next to the "add tier" button under "Memberships."
+This synchronization currently only interfaces with the `smartphone_offline` business system.
+6. Displaying order numbers from the e-shop in the "Orders" tab
+The backend will convert `order_id` to `tx_id` before sending it, and the frontend should display this `tx_id`.
+
+All these tasks pertain to the CRM framework within `crystal-admin`.
+Please do not make any unnecessary changes to areas unrelated to the CRM.
+------------------------
+Consider a scenario within the "pending-registration" tab: the system currently prohibits both automatic merging and new registrations when a phone number is already in use by a different user.
+Suppose there are three users: A, B, and C.
+User A uses the phone number 123456789.
+Users B and C both use the phone number 234567890.
+Users A and C are already registered in the system.
+The matching score between B and C is 60, while the score between A and B is 65.
+User B is currently in the "pending-registration" tab.
+An administrator reviews the data and decides to merge user B into user A.
+However, because B’s phone number is already associated with user C, the merge cannot proceed.
+To resolve this, the administrator must first remove the phone number from user C’s profile, then merge B into A.
+As a result, user A ends up with two phone numbers linked to their account.
+The administrator must then remove the phone number that was added to A during the merge and re-assign it to user C.
+This is how the system is currently implemented.
+The process is so complex that it would be difficult for anyone other than a developer—such as another administrator—to understand. Is there a way to make this process simpler and more intuitive?

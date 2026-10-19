@@ -11,8 +11,10 @@ const { HttpError } = require('../../utils/response');
  *   - a registration carrying a number someone already has is merged into
  *     that customer only when it is clearly them (same name, 70 or more) and
  *     otherwise waits for an administrator (registrationIntake.submit);
- *   - an administrator may merge it into the number's owner, or create a new
- *     customer WITHOUT that number - never give the number to someone else.
+ *   - an administrator may merge it into the number's owner, or into anyone
+ *     else or a new customer WITHOUT that number - it stays with its owner -
+ *     or, merging, MOVE the number: retired at its owner, added to the
+ *     customer merged into (release). It is never on two customers at once.
  *
  * Numbers are compared by their digits, the way they are stored.
  */
@@ -77,6 +79,26 @@ async function withoutTaken(trx, data, exceptPartyPk) {
 }
 
 /**
+ * Takes numbers off the customers who have them - `owners` as find() returns
+ * them - so they can be given to someone else: each number's contact is
+ * RETIRED there (no longer theirs, kept in their history), as when a manager
+ * retires it by hand. Returns the contacts before and after, for the audit.
+ */
+async function release(trx, owners) {
+  const changed = [];
+  for (const owner of owners || []) {
+    const rows = await trx('crm_contact_point').where({ party_pk: owner.party_pk, status: 'ACTIVE' }).whereIn('contact_type', PHONE_TYPES)
+      .whereRaw("regexp_replace(normalized_value, '[^0-9]', '', 'g') = ?", [owner.phone]).forUpdate();
+    for (const before of rows) {
+      const [after] = await trx('crm_contact_point').where('contact_point_id', before.contact_point_id)
+        .update({ status: 'RETIRED', is_primary: false, valid_to: before.valid_to || trx.fn.now() }).returning('*');
+      changed.push({ before: before, after: after });
+    }
+  }
+  return changed;
+}
+
+/**
  * Numbers more than one live customer has - left from before the rule, to be
  * merged or corrected by hand. One row per number, with its customers.
  */
@@ -97,4 +119,4 @@ async function shared() {
   return rows.rows;
 }
 
-module.exports = { PHONE_TYPES, digitsOf, numbersOf, find, assertFree, withoutTaken, shared };
+module.exports = { PHONE_TYPES, digitsOf, numbersOf, find, assertFree, withoutTaken, release, shared };

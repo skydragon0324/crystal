@@ -10,12 +10,13 @@ const config = require('../../config');
  * SMARTPHONE_OFFLINE accounts, and an account's Account ID is the user's
  * MASTER ID - the key the server is asked by.
  *
- * Four questions are asked of it:
+ * Five questions are asked of it:
  *
  *   USERS    which user has this phone number?            linking by phone
  *   DEVICES  which devices are registered to these ids?    the Products tab
  *   SERVICES what service have these ids' devices had?    the Service tab
  *   PRIVILEGES the privileges of these ids' devices         the Privileges tab
+ *   LEVELS   these ids' level, grade and points            Sync on the Accounts tab
  *
  * With REMOTE_MOCK on, mock.js answers both in the server's wire format.
  */
@@ -34,6 +35,7 @@ const DEVICES_PATH = '/getPhoneInfo';
 const SERVICES_PATH = '/getAfterInfo';
 /* Given as "/xxxx" too; named apart so the mock can route it. */
 const PRIVILEGES_PATH = '/getEventInfo';
+const LEVELS_PATH = '/getLevelInfo';
 
 /** 'live', 'mock', or 'off' (no URL and no mock): for the screens and /health. */
 function mode() {
@@ -281,15 +283,47 @@ async function privileges(masterIds) {
   };
 }
 
+/**
+ * THE LEVEL, GRADE AND POINTS OF SOME USERS, by their master ids - one call,
+ * the ids as one comma-separated string:
+ *
+ *   master_ids=s2342523, sd652342, ej234234
+ *   -> { items: [{ master_id, loyal_level, purchase_level, reward_point }] }
+ *
+ * `loyal_level` is the CRM's LEVEL and `purchase_level` its GRADE; both are
+ * passed on as text, the form a tier's "Code in the project" is matched in.
+ * `reward_point` is the points the user holds there. Each is null when not sent.
+ */
+async function levels(masterIds) {
+  const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
+  if (!ids.length) return { items: [] };
+
+  const data = await remote.post(PHONE, LEVELS_PATH, { master_ids: ids.join(', ') });
+  const rows = Array.isArray(data && data.items) ? data.items : [];
+
+  return {
+    items: rows.map(function (row) {
+      return {
+        master_id: text(row.master_id),
+        loyal_level: text(row.loyal_level),
+        purchase_level: text(row.purchase_level),
+        reward_point: amount(row.reward_point)
+      };
+    }).filter(function (row) { return row.master_id; })
+  };
+}
+
 module.exports = {
   USERS_PATH: USERS_PATH,
   DEVICES_PATH: DEVICES_PATH,
   SERVICES_PATH: SERVICES_PATH,
   PRIVILEGES_PATH: PRIVILEGES_PATH,
+  LEVELS_PATH: LEVELS_PATH,
   SERVICE_KINDS: SERVICE_KINDS,
   mode: mode,
   findByPhone: findByPhone,
   devices: devices,
   services: services,
-  privileges: privileges
+  privileges: privileges,
+  levels: levels
 };
