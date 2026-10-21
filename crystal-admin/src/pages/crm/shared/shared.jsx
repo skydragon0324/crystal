@@ -33,7 +33,7 @@ export const WORDS = {
   READY: 'Ready', DISPATCHED: 'Dispatched', DELIVERED: 'Delivered', PICKED_UP: 'Picked up', CREDITED: 'Credited',
   ENDED: 'Ended', SUSPENDED: 'Suspended', LEFT: 'Left',
   PLANNED: 'Planned', CONFIRMED: 'Confirmed', IN_PROGRESS: 'In progress', REVERSED: 'Reversed',
-  GRANTED: 'Granted', DENIED: 'Denied', WITHDRAWN: 'Withdrawn', NOT_REQUIRED: 'Not required',
+  GRANTED: 'Granted', DENIED: 'Denied', WITHDRAWN: 'Withdrawn', NOT_REQUIRED: 'Not required', NOT_ACCEPTED: 'Not accepted',
   SKIPPED: 'Skipped', QUEUED: 'Queued', SENT: 'Sent', RUNNING: 'Running', COMPLETE: 'Complete',
   PAUSED: 'Paused', ARCHIVED: 'Archived', LOST: 'Lost', STOLEN: 'Stolen', SCRAPPED: 'Scrapped',
   VOID: 'Void', INVALID: 'Invalid', RETIRED: 'Retired',

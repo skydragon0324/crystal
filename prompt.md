@@ -567,3 +567,36 @@ on privileges tab of customer details page, we recieve status as number, 0 and 1
 1 is for "accepted" and 2 is for "pending"
 so on frontend, we need to show with accepted and pending
 ---------------------------------------
+on segments page, when adding a new segment, what is for project select box?
+now, we have several projects on crm_projects table, 
+but, on adding segment modal, if I open that select dropdown box, there is no project 
+so, I can't understand what is for that project select box?
+-----------------------------------------------------
+As you know, the company "Crystal" encompasses several sub-projects, and a single user may hold multiple identifiers across different operational systems.
+We aim to build a system where each customer is assigned a unique identifier, which will be used for registration across all of the company’s operational systems.
+Please consider how we should implement this integration of unique identifiers.
+In one of our operational systems, a user had registered two separate accounts using two different phone numbers; however, our CRM system determined that these belonged to the same customer and merged them into a single profile.
+Now, as we move toward a registration model based on a unique identifier, should we require this customer to use that same unique identifier when registering—even for the accounts they had previously created as separate entities?
+
+don't change code now
+----------------------------------------------------------------
+There are levels and grades specific to each operational system.
+In addition, there are variables that indicate an entity's "active status."
+These statuses can vary—for example, active, inactive, departed, blocked, or dormant (asleep).
+These status values differ depending on the operational system.
+For each system, the time of the last activity is tracked; if there has been no activity for a certain duration, the active status is updated accordingly.
+How would you implement this within our system?
+Could you reflect this active status for linked accounts on the "Accounts" tab?
+and how would you address the issue of synchronization?
+
+don't change any code right now
+-------------------------------------------------
+I have no idea how to design this feature
+like if the sub system sends the last activity and decide the account's status on our system
+or wheather the sub system sends the account activity status like active, blocked, or sth else
+also, how to sync with the sub systems with these data?
+if sub systems send last_activity, how to sync this last activity date with sub systesm?
+updates everytime whenever a user takes an activity in the sub systems?
+or make a sync button on our side for each customer or for all customers, and take syncronization?
+
+I don't really know how to implement this

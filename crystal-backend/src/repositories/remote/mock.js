@@ -1468,7 +1468,7 @@ function phonePrivileges(params) {
         phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
         color: choose(id, slot + ':color', PHONE_COLORS),
         title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES),
-        /* A number, as the system sends it: 1 accepted, 0 pending. */
+        /* A number, as the system sends it: 1 accepted, 0 not accepted. */
         status: choose(id, slot + ':status', [1, 1, 0])
       });
     }
@@ -1525,7 +1525,7 @@ const ROUTES = {
 
   /* The phone server (SMARTPHONE_OFFLINE) - paths as smartphoneOffline.api.js names them. */
   '/getUserByPhone': phoneUserByPhone,
-  '/getPhoneInfo': phoneDevices,
+  '/getPhonesInfo': phoneDevices,
   '/getAfterInfo': phoneServices,
   '/getEventInfo': phonePrivileges,
   '/getLevelInfo': phoneLevels

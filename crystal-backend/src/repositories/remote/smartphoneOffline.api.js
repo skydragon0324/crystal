@@ -258,10 +258,10 @@ async function services(masterIds) {
  *
  * `modal` is the server's spelling of the device model and is `model` from
  * here on; `title` is the privilege's own one-line summary, passed through.
- * `status` arrives as a number - 1 accepted, 0 pending - and is the CRM's
- * ACCEPTED / PENDING from here on; a number outside those is passed through.
+ * `status` arrives as a number - 1 accepted, 0 not accepted - and is
+ * ACCEPTED / NOT_ACCEPTED from here on; a number outside those is passed through.
  */
-const PRIVILEGE_STATUS = { 1: 'ACCEPTED', 0: 'PENDING' };
+const PRIVILEGE_STATUS = { 1: 'ACCEPTED', 0: 'NOT_ACCEPTED' };
 
 function privilegeStatus(value) {
   const code = text(value);
