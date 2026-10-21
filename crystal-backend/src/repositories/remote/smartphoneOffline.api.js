@@ -30,7 +30,7 @@ const PHONE = 'phone';
  * so naming the real one is a change to this line and that route.
  */
 const USERS_PATH = '/getUserByPhone';
-const DEVICES_PATH = '/getPhoneInfo';
+const DEVICES_PATH = '/getPhonesInfo';
 /* Given as "/xxxx" like the devices path; named apart so the mock can route both. */
 const SERVICES_PATH = '/getAfterInfo';
 /* Given as "/xxxx" too; named apart so the mock can route it. */
@@ -257,9 +257,18 @@ async function services(masterIds) {
  *   -> { items: [{ master_id, modal, imei, phone_number, color, title, status }] }
  *
  * `modal` is the server's spelling of the device model and is `model` from
- * here on; `title` is the privilege's own one-line summary and `status` its
- * state as the system names it (ACTIVE, USED, EXPIRED, ...), both passed through.
+ * here on; `title` is the privilege's own one-line summary, passed through.
+ * `status` arrives as a number - 1 accepted, 0 pending - and is the CRM's
+ * ACCEPTED / PENDING from here on; a number outside those is passed through.
  */
+const PRIVILEGE_STATUS = { 1: 'ACCEPTED', 0: 'PENDING' };
+
+function privilegeStatus(value) {
+  const code = text(value);
+  if (code === null) return null;
+  return /^\d+$/.test(code) && PRIVILEGE_STATUS[Number(code)] ? PRIVILEGE_STATUS[Number(code)] : code;
+}
+
 async function privileges(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
@@ -277,7 +286,7 @@ async function privileges(masterIds) {
         phone_number: row.phone_number || null,
         color: row.color || null,
         title: row.title || null,
-        status: row.status == null || row.status === '' ? null : String(row.status)
+        status: privilegeStatus(row.status)
       };
     })
   };

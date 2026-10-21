@@ -634,7 +634,8 @@ export const crm = {
     list: (params) => client.get(CRM + '/segments', { params }),
     options: () => client.get(CRM + '/segments/options'),
     fields: () => client.get(CRM + '/segments/fields'),
-    preview: (rule) => client.post(CRM + '/segments/preview', { rule_expression: rule }),
+    /* `projectId`: a segment's project - the preview then counts only that project's customers, as evaluating it will. */
+    preview: (rule, projectId) => client.post(CRM + '/segments/preview', { rule_expression: rule, project_id: projectId || undefined }),
     get: (id) => client.get(CRM + '/segments/' + id),
     members: (id, params) => client.get(CRM + '/segments/' + id + '/members', { params }),
     create: (payload) => client.post(CRM + '/segments', payload),

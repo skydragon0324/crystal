@@ -562,3 +562,8 @@ As a result, user A ends up with two phone numbers linked to their account.
 The administrator must then remove the phone number that was added to A during the merge and re-assign it to user C.
 This is how the system is currently implemented.
 The process is so complex that it would be difficult for anyone other than a developer—such as another administrator—to understand. Is there a way to make this process simpler and more intuitive?
+------ 10 / 21 ---------------------------------
+on privileges tab of customer details page, we recieve status as number, 0 and 1
+1 is for "accepted" and 2 is for "pending"
+so on frontend, we need to show with accepted and pending
+---------------------------------------

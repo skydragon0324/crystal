@@ -1468,7 +1468,8 @@ function phonePrivileges(params) {
         phone_number: '191' + String(pick(id, 'phone', 1000000, 9999999)),
         color: choose(id, slot + ':color', PHONE_COLORS),
         title: choose(id, slot + ':title', PHONE_PRIVILEGE_TITLES),
-        status: choose(id, slot + ':status', ['ACTIVE', 'ACTIVE', 'USED', 'EXPIRED'])
+        /* A number, as the system sends it: 1 accepted, 0 pending. */
+        status: choose(id, slot + ':status', [1, 1, 0])
       });
     }
   });

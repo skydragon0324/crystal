@@ -256,11 +256,19 @@ function parseRule(value) {
   try { return JSON.parse(value); } catch (error) { throw new HttpError(400, 'crm.common.theRuleIsNotValidJson'); }
 }
 
-/** The party ids a rule matches today. */
-async function matchRule(rule, connection) {
+/**
+ * The party ids a rule matches today. With `projectId` - a segment's project -
+ * only customers with a live account in that project: the project is the
+ * segment's audience, and the rule picks within it. Without one, everyone.
+ */
+async function matchRule(rule, connection, projectId) {
   const compiled = compile(rule);
+  const inProject = /^[1-9][0-9]*$/.test(String(projectId || ''));
   const res = await (connection || db).raw(
-    `SELECT party.party_pk FROM crm_party party WHERE party.party_status = 'ACTIVE' AND ${compiled[0]}`, compiled[1]);
+    `SELECT party.party_pk FROM crm_party party WHERE party.party_status = 'ACTIVE' AND ${compiled[0]}`
+      + (inProject ? ` AND EXISTS (SELECT 1 FROM crm_project_account account
+                       WHERE account.party_pk = party.party_pk AND account.unlinked_at IS NULL AND account.project_id = ?)` : ''),
+    inProject ? compiled[1].concat([Number(projectId)]) : compiled[1]);
   return res.rows.map(function (row) { return row.party_pk; });
 }
 
@@ -398,7 +406,7 @@ async function evaluate(id, actor) {
     if (segment.status === 'ARCHIVED') throw new HttpError(409, 'crm.marketing.thisSegmentIsArchived');
 
     const version = await trx('crm_segment_version').where('segment_version_id', segment.current_version_id).first();
-    const matched = await matchRule(parseRule(version.rule_expression), trx);
+    const matched = await matchRule(parseRule(version.rule_expression), trx, segment.project_id);
 
     const current = await trx('crm_segment_membership').where('segment_id', id).whereNull('unmatched_at').select('party_pk');
     const had = {};
@@ -431,10 +439,10 @@ async function evaluate(id, actor) {
   return result;
 }
 
-/** How many a rule would match, without saving anything - for the editor's preview. */
+/** How many a rule would match, without saving anything - for the editor's preview; within `project_id` when given. */
 async function preview(body) {
   const rule = parseRule(body.rule_expression);
-  const ids = await matchRule(rule);
+  const ids = await matchRule(rule, null, body.project_id);
   return { members: ids.length };
 }
 

@@ -133,12 +133,13 @@ export default function Segments() {
         fields={[
           { name: 'segment_code', label: 'Code', required: true },
           { name: 'segment_name', label: 'Segment', required: true },
-          { name: 'project_id', label: 'Project', type: 'select', options: optionsFrom(meta.projects, 'project_id', 'project_name') },
+          { name: 'project_id', label: 'Project', type: 'select', options: optionsFrom(meta.projects, 'project_id', 'project_name'),
+            help: 'Optional. When set, only customers with an account in this project are in the segment, and the rule chooses among them. Leave it empty for a segment across projects.' },
           { name: 'calculation_frequency', label: 'Evaluated', type: 'select', isClearable: false,
             options: [{ value: 'ON_DEMAND', label: 'When asked' }, { value: 'DAILY', label: 'Daily' }, { value: 'WEEKLY', label: 'Weekly' }] },
           { name: 'segment_description', label: 'Description', type: 'textarea', colSpan: 'full' },
           { name: 'rule', label: 'Rule', type: 'custom', colSpan: 'full',
-            render: () => <RuleEditor value={rule} onChange={setRule} /> }
+            render: (current) => <RuleEditor value={rule} onChange={setRule} projectId={current.project_id} /> }
         ]}
       />
 
@@ -155,7 +156,7 @@ export default function Segments() {
  * the editor cannot build a rule the server would refuse for its shape. It
  * can still build one that matches nobody, which is what the preview is for.
  */
-export function RuleEditor({ value, onChange }) {
+export function RuleEditor({ value, onChange, projectId }) {
   const translate = useT();
   const meta = useCrmMeta();
   const [fields, setFields] = useState([]);
@@ -164,6 +165,8 @@ export function RuleEditor({ value, onChange }) {
   useEffect(() => {
     crm.segments.fields().then(({ data }) => setFields(rowsOf(data))).catch(() => setFields([]));
   }, []);
+  /* A segment's project narrows who the rule can match, so a count from before it changed is stale. */
+  useEffect(() => { setCount(null); }, [projectId]);
 
   const group = value && value.any ? 'any' : 'all';
   const conditions = (value && (value.all || value.any)) || [];
@@ -198,7 +201,7 @@ export function RuleEditor({ value, onChange }) {
 
   const preview = async () => {
     try {
-      const { data } = await crm.segments.preview(value);
+      const { data } = await crm.segments.preview(value, projectId);
       setCount((data || {}).members);
     } catch (error) {
       setCount(error.message);
@@ -328,7 +331,7 @@ function SegmentDetail({ id, onClose }) {
 
             <Box>
               <Text fontSize="sm" fontWeight="600" mb={2}>{translate('crm.segments.currentRule')}</Text>
-              {editing ? <RuleEditor value={rule} onChange={setRule} /> : (
+              {editing ? <RuleEditor value={rule} onChange={setRule} projectId={segment.project_id} /> : (
                 <Box as="pre" fontSize="xs" whiteSpace="pre-wrap" p={3} borderWidth="1px" borderRadius="md">
                   {current ? JSON.stringify(current.rule_expression, null, 2) : '-'}
                 </Box>

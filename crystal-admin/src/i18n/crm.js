@@ -3343,6 +3343,7 @@ const words = {
     },
     /* Segments.jsx */
     segments: {
+      projectHelp: 'Optional. When set, only customers with an account in this project are in the segment, and the rule chooses among them. Leave it empty for a segment across projects.',
       agreedToBeContacted: 'Agreed to be contacted',
       allOfThese: 'All of these',
       anyOfThese: 'Any of these',
@@ -4176,6 +4177,7 @@ const words = {
     },
     /* Segments.jsx */
     segments: {
+      projectHelp: '可选。设置后，只有在该项目中有账号的客户才会进入此分群，规则在这些客户中筛选。跨项目的分群请留空。',
       agreedToBeContacted: '同意被联系',
       allOfThese: '全部满足',
       anyOfThese: '任一满足',
@@ -5009,6 +5011,7 @@ const words = {
     },
     /* Segments.jsx */
     segments: {
+      projectHelp: 'Необязательно. Если указан, в сегмент попадают только клиенты с аккаунтом в этом проекте, а правило выбирает среди них. Для сегмента по нескольким проектам оставьте пустым.',
       agreedToBeContacted: 'Согласен на связь',
       allOfThese: 'Все условия',
       anyOfThese: 'Любое из условий',
