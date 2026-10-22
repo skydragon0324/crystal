@@ -473,8 +473,7 @@ export function OrganizationInfoCard({ view, onEdit }) {
     <Card360 icon={Md.MdBusiness} title={translate('crm.customer360Cards.organizationInformation')}
       action={onEdit ? <Button size="xs" variant="link" colorScheme="brand" fontWeight="600" onClick={onEdit}>{translate('common.edit')}</Button> : null}>
       <Facts360 rows={[
-        { label: 'Legal name', value: profile.legal_name },
-        { label: 'Local name', value: profile.local_name },
+        { label: 'Company name', value: profile.company_name },
         { label: 'Registration number', value: profile.registration_number },
         { label: 'Industry', value: industries.map((industry) => translate(industry.industry_name)).join(', ') },
         { label: 'Company size', value: companySize(profile.employee_count_band) },

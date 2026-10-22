@@ -235,25 +235,25 @@ async function run(options) {
     /* ---------------------------------------------------------------- organizations */
 
     const organizations = [
-      { legal_name: 'Harbor Electronics Trading Co., Ltd.', trading_name: 'Harbor Electronics', registration_number: 'BR-2018-00412',
+      { name: 'Harbor Electronics', registration_number: 'BR-2018-00412',
         website_url: 'https://harbor-electronics.example', founded_date: '2018-03-12', mobile: '+86 138 0000 4101', email: 'contact@harbor-electronics.example',
         origin: 'ESHOP', types: [['SALES_AGENCY', 'ESHOP'], ['BUSINESS_CUSTOMER', null]], industry: 'ELECTRONICS_RETAIL', roles: [['OWNER', 'Management'], ['SALES_STAFF', 'Sales floor']] },
-      { legal_name: 'City Repair Partners LLC', trading_name: 'City Repair Partners', registration_number: 'BR-2020-01877',
+      { name: 'City Repair Partners', registration_number: 'BR-2020-01877',
         website_url: 'https://cityrepair.example', founded_date: '2020-07-01', mobile: '+86 138 0000 4102', email: 'desk@cityrepair.example',
         origin: 'SMARTPHONE', types: [['SERVICE_CENTER_OPERATOR', 'SMARTPHONE']], industry: 'REPAIR_SERVICES', roles: [['MANAGER', 'Workshop'], ['TECHNICIAN', 'Workshop']] },
-      { legal_name: 'Northwind Logistics Group', trading_name: 'Northwind Logistics', registration_number: 'BR-2015-00093',
+      { name: 'Northwind Logistics', registration_number: 'BR-2015-00093',
         website_url: 'https://northwind.example', founded_date: '2015-01-20', mobile: '+86 138 0000 4103', email: 'ops@northwind.example',
         origin: 'ESHOP', types: [['LOGISTICS_PARTNER', 'ESHOP'], ['COLLECTION_POINT_OPERATOR', 'EPRODUCT']], industry: 'LOGISTICS', roles: [['FINANCE_CONTACT', 'Finance']] },
-      { legal_name: 'Bright Future International School', trading_name: 'Bright Future School', registration_number: 'ED-2011-00007',
+      { name: 'Bright Future School', registration_number: 'ED-2011-00007',
         website_url: 'https://brightfuture.example', founded_date: '2011-09-01', mobile: '+86 138 0000 4104', email: 'it@brightfuture.example',
         origin: 'APPSTORE', types: [['BUSINESS_CUSTOMER', null]], industry: 'EDUCATION', roles: [['PROCUREMENT_CONTACT', 'IT office']] }
     ];
     const createdOrganizations = [];
     for (const organization of organizations) {
       // eslint-disable-next-line no-await-in-loop
-      const party = await attempt('organization ' + organization.trading_name, async function () {
+      const party = await attempt('organization ' + organization.name, async function () {
         const created = data(await admin.post('/crm/parties', {
-          party_type: 'ORGANIZATION', origin_project_id: projectId(organization.origin), legal_name: organization.legal_name, trading_name: organization.trading_name,
+          party_type: 'ORGANIZATION', origin_project_id: projectId(organization.origin), display_name: organization.name,
           registration_number: organization.registration_number, website_url: organization.website_url,
           founded_date: organization.founded_date, organization_status: 'ACTIVE', mobile: organization.mobile, email: organization.email
         }));
@@ -994,13 +994,13 @@ async function customer360Demo(context, attempt) {
   const organizations = await db('crm_party as party').join('crm_organization as organization', 'organization.party_pk', 'party.party_pk')
     .where('party.party_status', 'ACTIVE').orderBy('party.party_pk').select('party.party_pk', 'party.display_name');
   const profileOf = {
-    'Harbor Electronics': { local_name: '海港电子贸易有限公司', employee_count_band: '201-1000', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
+    'Harbor Electronics': { employee_count_band: '201-1000', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
       description: 'Regional distributor and retailer of smartphones, set-top boxes and accessories, with eleven stores and an online shop. A Dream partner since 2018 and one of the largest resellers of Dream smartphones in the east.' },
-    'City Repair Partners': { local_name: '城市维修伙伴', employee_count_band: '51-200', headquarters_address: '220 Zhongshan Road, Guangzhou',
+    'City Repair Partners': { employee_count_band: '51-200', headquarters_address: '220 Zhongshan Road, Guangzhou',
       description: 'Independent repair network that runs authorised Dream service counters in shopping centres.' },
-    'Northwind Logistics': { local_name: '北风物流集团', employee_count_band: '1001-5000', headquarters_address: '9 Airport Logistics Park, Shenzhen',
+    'Northwind Logistics': { employee_count_band: '1001-5000', headquarters_address: '9 Airport Logistics Park, Shenzhen',
       description: 'Courier and warehousing group that delivers Eshop orders and runs collection points for repairs.' },
-    'Bright Future School': { local_name: '光明未来国际学校', employee_count_band: '201-1000', headquarters_address: '66 Garden Road, Hangzhou',
+    'Bright Future School': { employee_count_band: '201-1000', headquarters_address: '66 Garden Road, Hangzhou',
       description: 'International school that buys tablets and licences for its students and staff every school year.' }
   };
   for (const organization of organizations) {
@@ -1016,7 +1016,7 @@ async function customer360Demo(context, attempt) {
   /* A group: Harbor Holdings over Harbor Electronics and a new Harbor Online, Northwind an affiliate, City Repair a partner. */
   const holdings = await attempt('group company', async function () {
     return data(await admin.post('/crm/parties', {
-      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), legal_name: 'Harbor Holdings Group Co., Ltd.', trading_name: 'Harbor Holdings', local_name: '海港控股集团',
+      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), display_name: 'Harbor Holdings',
       registration_number: 'BR-2009-00051', employee_count_band: '5001+', website_url: 'https://harbor-holdings.example',
       founded_date: '2009-06-01', organization_status: 'ACTIVE', headquarters_address: '1 Harbour Road, Pudong, Shanghai',
       description: 'Holding company of the Harbor retail and online businesses.', mobile: '+86 21 5000 1000', email: 'office@harbor-holdings.example'
@@ -1024,7 +1024,7 @@ async function customer360Demo(context, attempt) {
   });
   const online = await attempt('subsidiary', async function () {
     return data(await admin.post('/crm/parties', {
-      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), legal_name: 'Harbor Online Commerce Co., Ltd.', trading_name: 'Harbor Online', local_name: '海港在线',
+      party_type: 'ORGANIZATION', origin_project_id: projectId('ESHOP'), display_name: 'Harbor Online',
       registration_number: 'BR-2021-00733', employee_count_band: '51-200', founded_date: '2021-02-15', organization_status: 'ACTIVE',
       description: 'The group\'s web shop; resells Eshop accessories.', email: 'shop@harbor-online.example'
     }));

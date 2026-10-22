@@ -89,10 +89,9 @@ async function check(values, mode, partyType, current) {
 
   /* the name */
   const nameField = details.display_name !== undefined ? 'display_name' : 'full_name';
-  if (mode === 'create' && !present(details.display_name) && !present(details.full_name)
-    && !present(details.legal_name) && !present(details.trading_name)) add('display_name', 'crm.problems.nameIsRequired');
+  if (mode === 'create' && !present(details.display_name) && !present(details.full_name)) add('display_name', 'crm.problems.nameIsRequired');
   if (mode === 'update' && details.display_name !== undefined && !present(details.display_name)) add('display_name', 'crm.problems.nameCannotBeBlank');
-  [nameField, 'full_name', 'legal_name', 'trading_name'].forEach(function (field) {
+  [nameField, 'full_name', 'company_name'].forEach(function (field) {
     if (present(details[field]) && String(details[field]).trim().length > 250) add(field, problem('crm.problems.nameIsTooLong', { max: 250 }));
   });
 

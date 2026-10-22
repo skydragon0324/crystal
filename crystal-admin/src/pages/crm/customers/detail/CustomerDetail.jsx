@@ -10,6 +10,7 @@ import * as Md from 'react-icons/md';
 
 import Card from '../../../../components/Card';
 import FormModal from '../../../../components/FormModal';
+import SelectField from '../../../../components/SelectField';
 import { useConfirm } from '../../../../components/ConfirmDialog';
 import usePermission from '../../../../hooks/usePermission';
 import { crm } from '../../../../api';
@@ -156,7 +157,15 @@ export default function CustomerDetail() {
   const verified = (record.contacts || []).some((contact) => contact.is_verified && contact.status === 'ACTIVE');
   const profile = facts.profile || {};
 
-  const open = (kind, initial) => { setDialog({ kind: kind, initial: initial || {} }); modal.onOpen(); };
+  /*
+   * The profile form always opens on what is saved - from the header's Edit and from the Organization
+   * tab's alike. It sends every field it has, so a field opened empty is saved empty.
+   */
+  const editInitial = Object.assign({}, person, org, { display_name: party.display_name });
+  const open = (kind, initial) => {
+    setDialog({ kind: kind, initial: initial || (kind === 'profile' ? editInitial : {}) });
+    modal.onOpen();
+  };
 
   const run = async (work, done) => {
     setSaving(true);
@@ -339,8 +348,6 @@ export default function CustomerDetail() {
       <KeySegments view={facts} />
     </Box>
   );
-
-  const editInitial = Object.assign({}, person, org, { display_name: party.display_name });
 
   return (
     <PeekProvider onChanged={load}>
@@ -612,9 +619,7 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
         { name: 'address_line', label: 'Address', colSpan: 'full' }
       ] : [
         { name: 'display_name', label: 'Name', required: true },
-        { name: 'legal_name', label: 'Legal name' },
-        { name: 'local_name', label: 'Local name' },
-        { name: 'trading_name', label: 'Trading name' },
+        { name: 'company_name', label: 'Company name' },
         { name: 'registration_number', label: 'Registration number' },
         { name: 'employee_count_band', label: 'Company size', type: 'select', options: BANDS.map((band) => ({ value: band, label: band })) },
         { name: 'founded_date', label: 'Established', type: 'date' },
@@ -721,13 +726,26 @@ function formsFor({ translate, record, party, isPerson, meta, dialog, run, sites
       ],
       submit: (values) => run(() => crm.organizations.assignType(party.party_pk, values), 'Created')
     },
+    /* Several industries at once - not the ones it has already - and, optionally, which of them is the primary one. */
     industry: {
       title: translate('crm.customer360.addIndustry'),
       fields: [
-        { name: 'industry_id', label: 'Industry', type: 'select', required: true, options: optionsFrom(meta.industries, 'industry_id', 'industry_name') },
-        { name: 'is_primary', label: 'Primary', type: 'checkbox' }
+        { name: 'industry_ids', label: 'Industries', type: 'multiselect', required: true, colSpan: 'full',
+          options: optionsFrom((meta.industries || []).filter((industry) => industry.is_active !== false
+            && !((record.organization_links || {}).industries || []).some((own) => String(own.industry_id) === String(industry.industry_id))), 'industry_id', 'industry_name') },
+        { name: 'primary_industry_id', label: 'Primary industry', type: 'custom', colSpan: 'full',
+          help: 'Optional. One of the industries chosen above.',
+          render: (values, set) => (
+            <SelectField size="md" value={values.primary_industry_id || null}
+              options={optionsFrom((meta.industries || []).filter((industry) => (values.industry_ids || []).map(String).indexOf(String(industry.industry_id)) !== -1), 'industry_id', 'industry_name')
+                .map((option) => Object.assign({}, option, { label: translate(option.label) }))}
+              onChange={(value) => set('primary_industry_id', value || null)} />
+          ) }
       ],
-      submit: (values) => run(() => crm.organizations.setIndustry(party.party_pk, values))
+      submit: (values) => run(() => crm.organizations.setIndustry(party.party_pk, {
+        industry_ids: values.industry_ids || [],
+        primary_industry_id: (values.industry_ids || []).map(String).indexOf(String(values.primary_industry_id)) !== -1 ? values.primary_industry_id : null
+      }))
     },
     person: {
       title: translate('crm.customer360.linkContact'),

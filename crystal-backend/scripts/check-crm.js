@@ -570,8 +570,8 @@ async function main() {
   });
 
   console.log('\ncustomer 360');
-  const parentOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', legal_name: RUN + ' Group', trading_name: RUN + ' Group' }));
-  const childOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', legal_name: RUN + ' Shop', trading_name: RUN + ' Shop' }));
+  const parentOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', display_name: RUN + ' Group' }));
+  const childOrg = data(await admin.post('/crm/parties', { origin_project_id: crystal.project_id, party_type: 'ORGANIZATION', display_name: RUN + ' Shop' }));
   await check('the record\'s figures answer for a person and an organization', async function () {
     const personView = data(await admin.get('/crm/parties/' + personAda.party_pk + '/360'));
     const orgView = data(await admin.get('/crm/parties/' + childOrg.party_pk + '/360'));

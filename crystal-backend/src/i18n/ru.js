@@ -530,6 +530,10 @@ module.exports = {
       nothingSent: 'ничего не передано',
       tooManyRows: 'не более {max} строк за раз'
     },
+    organizations: {
+      chooseAnIndustry: 'выберите одну или несколько отраслей',
+      primaryMustBeChosen: 'основная отрасль должна быть одной из выбранных'
+    },
     smartphoneOffline: {
       noProject: 'нет проекта с кодом {code}; добавьте его в Настройки > Проекты',
       notConfigured: 'система SMARTPHONE_OFFLINE не настроена (PHONE_SERVER_URL)',

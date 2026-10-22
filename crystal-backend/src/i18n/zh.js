@@ -530,6 +530,10 @@ module.exports = {
       nothingSent: '未发送任何数据',
       tooManyRows: '每次最多 {max} 行'
     },
+    organizations: {
+      chooseAnIndustry: '请选择一个或多个行业',
+      primaryMustBeChosen: '主要行业必须是所选行业之一'
+    },
     smartphoneOffline: {
       noProject: '没有代码为 {code} 的项目；请在 设置 > 项目 中添加',
       notConfigured: '未配置 SMARTPHONE_OFFLINE 系统（PHONE_SERVER_URL）',

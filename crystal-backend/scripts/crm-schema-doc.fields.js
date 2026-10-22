@@ -236,13 +236,11 @@ const tables = {
     usedBy: 'Customers (organizations), Group details, Sites (operators).',
     fields: {
       party_pk: 'The ORGANIZATION party these details belong to (also the primary key).',
-      legal_name: 'Registered legal name.',
-      trading_name: 'Name the organization trades under.',
+      company_name: 'The company name it is registered under, when it is not the Name (optional).',
       registration_number: 'Company registration number.',
       website_url: 'Website.',
       founded_date: 'Date founded.',
       organization_status: 'Status reported by the source (free text).',
-      local_name: 'Name in the local language.',
       employee_count_band: 'Size band by number of employees.',
       location_pk: 'Where the organization is (→ crm_location).',
       headquarters_address: 'Street address of the head office.'

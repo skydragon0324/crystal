@@ -17,9 +17,10 @@ const CONTACT_TYPES = ['EMAIL', 'MOBILE', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHAT
 const CONSENT = ['GRANTED', 'DENIED', 'WITHDRAWN', 'NOT_REQUIRED'];
 const PERSON_COLUMNS = ['full_name', 'gender_code', 'birth_date', 'birth_year', 'job_title_id',
   'home_location_pk', 'address_line'];
-const ORG_COLUMNS = ['legal_name', 'trading_name', 'registration_number', 'website_url',
-  'founded_date', 'organization_status', 'local_name', 'employee_count_band', 'description',
-  'location_id', 'headquarters_address'];
+/* An organization is known by its Name, the party's display_name; its company name, when it has another, is kept beside it. */
+const ORG_COLUMNS = ['company_name', 'registration_number', 'website_url',
+  'founded_date', 'organization_status', 'employee_count_band', 'description',
+  'location_pk', 'headquarters_address'];
 
 function pickFrom(body, columns) {
   const out = {};
@@ -49,7 +50,7 @@ async function insertParty(trx, data) {
   const type = data.party_type === 'ORGANIZATION' ? 'ORGANIZATION' : 'PERSON';
 
   const name = data.display_name
-    || (type === 'PERSON' ? data.full_name : (data.trading_name || data.legal_name))
+    || (type === 'PERSON' ? data.full_name : null)
     || null;
 
   const [party] = await trx('crm_party').insert({
@@ -69,7 +70,7 @@ async function insertParty(trx, data) {
   } else {
     await trx('crm_organization').insert(Object.assign(
       { party_pk: party.party_pk },
-      pickFrom(Object.assign({ trading_name: name }, data), ORG_COLUMNS)
+      pickFrom(data, ORG_COLUMNS)
     ));
   }
 

@@ -564,6 +564,10 @@ module.exports = {
       nothingSent: 'nothing was sent',
       tooManyRows: 'at most {max} rows at a time'
     },
+    organizations: {
+      chooseAnIndustry: 'choose one or more industries',
+      primaryMustBeChosen: 'the primary industry must be one of the industries chosen'
+    },
     smartphoneOffline: {
       noProject: 'there is no project with the code {code}; add it in Settings > Projects',
       notConfigured: 'the SMARTPHONE_OFFLINE system is not configured (PHONE_SERVER_URL)',

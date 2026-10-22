@@ -267,6 +267,7 @@ function CustomerList({ narrowedTo }) {
               options: optionsFrom((meta.job_titles || []).filter((job) => job.is_active), 'job_title_id', 'job_name') },
             { name: 'home_location_pk', label: 'Location', type: 'select', isSearchable: true, options: areas }
           ] : [
+            { name: 'company_name', label: 'Company name' },
             { name: 'location_pk', label: 'Location', type: 'select', isSearchable: true, options: areas }
           ]),
           { name: 'mobile', label: 'Mobile' },

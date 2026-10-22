@@ -74,21 +74,41 @@ async function endType(partyId, assignmentId, actor) {
   return row;
 }
 
+/**
+ * Industries added to an organization: several at once - `industry_ids` - or
+ * one, `industry_id`. `primary_industry_id` (one of them) becomes its primary
+ * industry and no other is; `is_primary` with a single id says the same. An
+ * industry it already has stays, and keeps being primary unless another is
+ * made primary here.
+ */
 async function setIndustry(partyId, body, actor) {
   await requireType(partyId, 'ORGANIZATION');
-  const row = await transaction(async function (trx) {
-    if (body.is_primary) {
-      await trx('crm_organization_industry').where('organization_party_pk', partyId).update({ is_primary: false });
+  const input = body || {};
+  const sent = Array.isArray(input.industry_ids) ? input.industry_ids : [input.industry_id];
+  const ids = Array.from(new Set(sent.map(String).filter(function (id) { return /^[1-9][0-9]*$/.test(id); })));
+  if (!ids.length) throw new HttpError(400, 'crm.common.checkTheDetails', [{ field: 'industry_ids', message: 'crm.organizations.chooseAnIndustry' }]);
+  const primary = input.primary_industry_id != null && input.primary_industry_id !== ''
+    ? String(input.primary_industry_id) : (input.is_primary && ids.length === 1 ? ids[0] : null);
+  if (primary && ids.indexOf(primary) === -1) {
+    throw new HttpError(400, 'crm.common.checkTheDetails', [{ field: 'primary_industry_id', message: 'crm.organizations.primaryMustBeChosen' }]);
+  }
+
+  const rows = await transaction(async function (trx) {
+    const known = await trx('crm_industry').whereIn('industry_id', ids).pluck('industry_id');
+    if (known.length !== ids.length) throw new HttpError(400, 'crm.common.checkTheDetails', [{ field: 'industry_ids', message: 'crm.organizations.chooseAnIndustry' }]);
+    if (primary) await trx('crm_organization_industry').where('organization_party_pk', partyId).update({ is_primary: false });
+    for (const id of ids) {
+      // eslint-disable-next-line no-await-in-loop
+      await trx.raw(`
+        INSERT INTO crm_organization_industry (organization_party_pk, industry_id, is_primary, valid_from)
+        VALUES (?, ?, ?, CURRENT_DATE)
+        ON CONFLICT (organization_party_pk, industry_id) DO UPDATE SET is_primary = crm_organization_industry.is_primary OR EXCLUDED.is_primary, valid_to = NULL`,
+      [partyId, id, id === primary]);
     }
-    await trx.raw(`
-      INSERT INTO crm_organization_industry (organization_party_pk, industry_id, is_primary, valid_from)
-      VALUES (?, ?, ?, CURRENT_DATE)
-      ON CONFLICT (organization_party_pk, industry_id) DO UPDATE SET is_primary = EXCLUDED.is_primary, valid_to = NULL`,
-    [partyId, body.industry_id, !!body.is_primary]);
-    return trx('crm_organization_industry').where({ organization_party_pk: partyId, industry_id: body.industry_id }).first();
+    return trx('crm_organization_industry').where('organization_party_pk', partyId).whereIn('industry_id', ids);
   });
-  audit.updated(actor, 'crm_organization_industry', partyId + ':' + body.industry_id, null, row, PAGE);
-  return row;
+  rows.forEach(function (row) { audit.updated(actor, 'crm_organization_industry', partyId + ':' + row.industry_id, null, row, PAGE); });
+  return rows;
 }
 
 async function removeIndustry(partyId, industryId, actor) {

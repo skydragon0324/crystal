@@ -600,3 +600,13 @@ updates everytime whenever a user takes an activity in the sub systems?
 or make a sync button on our side for each customer or for all customers, and take syncronization?
 
 I don't really know how to implement this
+---------------------------- 10 / 22 -----------------------------
+In our CRM system, there are two types of customers: individual customers and corporate customers.
+Corporate customers can take various forms, such as authorized dealerships, retail outlets, or after-sales service centers.
+Additionally, this category includes B2B clients.
+B2B clients engage in direct transactions with the company, and the relationship typically ends there.
+In contrast, corporate customers acting as dealerships purchase products from the company and may subsequently resell them to individual customers or other businesses.
+Furthermore, dealerships may receive various forms of support, such as handling inquiries, repairs, or special preferential services.
+B2B clients, however, do not receive any such services.
+
+Given this situation, is it appropriate to classify both these dealerships and B2B clients under the single category of "corporate customer"?
