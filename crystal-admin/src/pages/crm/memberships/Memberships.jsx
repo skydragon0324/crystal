@@ -11,7 +11,7 @@ import { crm } from '../../../api';
 import { useT } from '../../../i18n';
 import { useSurface } from '../../../theme/tokens';
 import { date, number } from '../../../utils/format';
-import { Status, amount, choices, filtersFor, optionsFrom, rowsOf, useCrmMeta, partyIdLabel, useOpenCustomer } from '../shared/shared';
+import { amount, filtersFor, optionsFrom, rowsOf, useCrmMeta, partyIdLabel, useOpenCustomer } from '../shared/shared';
 import { Panel, ProjectTags } from '../shared/ui';
 import TierDialog from './MembershipTier';
 
@@ -102,10 +102,8 @@ export default function Memberships() {
               options: (list.params.project_id ? tiersOf(list.params.project_id) : (meta.project_tiers || []))
                 .filter((tier) => !list.params.tier_kind || tier.tier_kind === list.params.tier_kind)
                 .map((tier) => ({ value: tier.project_tier_id, label: tier.tier_name })),
-              onChange: (value) => list.setFilter({ current_tier_id: value || undefined }) },
-            { key: 'membership_status', label: 'Status', value: list.params.membership_status,
-              options: choices(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT']),
-              onChange: (value) => list.setFilter({ membership_status: value || undefined }) }
+              onChange: (value) => list.setFilter({ current_tier_id: value || undefined }) }
+            /* A membership's status is not shown, or filtered on, until there is a way to change it. */
           ])}
           actions={canWrite ? (
             <Button size="sm" variant="brand" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => setAdding(true)}>{translate('crm.memberships.addTier')}</Button>
@@ -122,7 +120,6 @@ export default function Memberships() {
               { key: 'external_member_id', label: 'Member number' },
               { key: 'tier_value', label: 'Tier value', isNumeric: true, render: (row) => amount(row.tier_value, 2) },
               { key: 'change_cnt', label: 'Tier changes', isNumeric: true, render: (row) => number(row.change_cnt) },
-              { key: 'membership_status', label: 'Status', render: (row) => <Status value={row.membership_status} /> },
               { key: 'joined_at', label: 'Joined', render: (row) => date(row.joined_at) }
             ]}
             rows={list.rows}

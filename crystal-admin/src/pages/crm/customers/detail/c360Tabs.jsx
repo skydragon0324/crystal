@@ -188,7 +188,6 @@ export function AccountsTab({ record, view, act }) {
               { key: 'external_account_id', label: 'Account ID', render: (row) => row.external_account_id || '-' },
               { key: 'kind_name', label: 'Kind', filter: true, render: (row) => translate(row.kind_name || row.tier_kind || '-') },
               { key: 'tier_name', label: 'Project tier', render: (row) => translate(row.tier_name || '-') },
-              { key: 'membership_status', label: 'Status', render: (row) => <Pill code={row.membership_status} /> },
               { key: 'joined_at', label: 'Joined', render: (row) => date(row.joined_at) },
               { key: 'change', label: 'Actions', render: (row) => (act.editable ? (
                 <IconButton size="xs" variant="ghost" icon={<Icon as={Md.MdEdit} />} aria-label={translate('crm.memberships.changeTier')} title={translate('crm.memberships.changeTier')}
