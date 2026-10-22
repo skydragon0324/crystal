@@ -189,9 +189,9 @@ function CustomerList({ narrowedTo }) {
         ])}
         actions={canWrite ? (
           <HStack spacing={2}>
-            <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdPhoneIphone} />} onClick={mobileLink.onOpen}>
+            {/* <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdPhoneIphone} />} onClick={mobileLink.onOpen}>
               {translate('crm.customers.linkSmartphoneOffline')}
-            </Button>
+            </Button> */}
             <Button size="sm" variant="outline" leftIcon={<Icon as={Md.MdFileUpload} />} onClick={importer.onOpen}>
               {translate('crm.customers.importFromExcel')}
             </Button>
