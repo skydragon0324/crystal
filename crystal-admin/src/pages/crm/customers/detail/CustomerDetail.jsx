@@ -38,21 +38,31 @@ import PrivilegesTab from './projects/SmartphonePrivileges';
 const PAGE = '/admin/crm/customers';
 const CONTACT_TYPES = ['MOBILE', 'EMAIL', 'PHONE', 'SIM_CID', 'WECHAT_ID', 'WHATSAPP'];
 
+/*
+ * CAMPAIGNS AND ANALYTICS ARE NOT READY FOR USE: shown in development, hidden in production.
+ * The environment is REACT_APP_ENV in .env (development | production); without it, `npm start`
+ * is development and a build is production. A hidden tab is gone from the bar, the menu and
+ * every "View all", and ?tab= naming it opens the overview.
+ */
+const IN_DEVELOPMENT = (process.env.REACT_APP_ENV) === 'development';
+const DEVELOPMENT_ONLY_TABS = ['campaigns', 'analytics'];
+const shownTabs = (tabs) => (IN_DEVELOPMENT ? tabs : tabs.filter((tab) => DEVELOPMENT_ONLY_TABS.indexOf(tab[0]) === -1));
+
 /* The tabs of each kind of customer, in the order the record shows them. */
-const PERSON_TABS = [
+const PERSON_TABS = shownTabs([
   ['overview', 'crm.customer360.tabOverview'], ['accounts', 'crm.customer360.tabAccounts'], ['orders', 'crm.customer360.tabOrders'],
   ['products', 'crm.customer360.tabProducts'], ['service', 'crm.customer360.tabService'], ['privileges', 'crm.customer360.tabPrivileges'],
   ['campaigns', 'crm.customer360.tabCampaigns'],
   ['analytics', 'crm.customer360.tabAnalytics'], ['consent', 'crm.customer360.tabConsent'], ['related', 'crm.customer360.tabRelated'],
   ['notes', 'crm.customer360.tabNotes']
-];
-const ORGANIZATION_TABS = [
+]);
+const ORGANIZATION_TABS = shownTabs([
   ['overview', 'crm.customer360.tabOverview'], ['organization', 'crm.customer360.tabOrganization'], ['contacts', 'crm.customer360.tabContacts'],
   ['accounts', 'crm.customer360.tabAccountsProjects'], ['orders', 'crm.customer360.tabOrdersTransactions'], ['products', 'crm.customer360.tabProducts'],
   ['service', 'crm.customer360.tabService'], ['privileges', 'crm.customer360.tabPrivileges'], ['campaigns', 'crm.customer360.tabCampaigns'],
   ['analytics', 'crm.customer360.tabAnalytics'],
   ['consent', 'crm.customer360.tabConsent'], ['related', 'crm.customer360.tabRelated'], ['notes', 'crm.customer360.tabNotes']
-];
+]);
 
 /* Age is this year minus the year of birth, whether or not the birthday has come yet this year. */
 function ageOf(birthDate) {
@@ -415,7 +425,7 @@ export default function CustomerDetail() {
               <Portal><MenuList zIndex="dropdown" fontSize="sm">
                 <MenuItem icon={<Icon as={Md.MdContentCopy} />} onClick={copyNumber}>{translate('crm.customer360.copyNumber')}</MenuItem>
                 <MenuItem icon={<Icon as={Md.MdNote} />} onClick={() => goTab('notes')}>{translate('crm.customer360.notesAndHistory')}</MenuItem>
-                <MenuItem icon={<Icon as={Md.MdInsertChart} />} onClick={() => goTab('analytics')}>{translate('crm.customer360.tabAnalytics')}</MenuItem>
+                {IN_DEVELOPMENT ? <MenuItem icon={<Icon as={Md.MdInsertChart} />} onClick={() => goTab('analytics')}>{translate('crm.customer360.tabAnalytics')}</MenuItem> : null}
               </MenuList></Portal>
             </Menu>
           </HStack>
@@ -516,7 +526,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, s
           <AccountsCard view={view} onViewAll={() => goTab('accounts')} />
           <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />
           <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
-          <ValueMetricsCard view={view} onViewAll={() => goTab('analytics')} />
+          <ValueMetricsCard view={view} onViewAll={IN_DEVELOPMENT ? () => goTab('analytics') : null} />
         </Grid>
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
           <ContactPointsCard view={view} record={record} onManage={() => goTab('consent')} />
@@ -526,7 +536,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, s
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1.3fr 1fr 1fr' }} gridGap={4}>
           <InteractionsCard view={view} onViewAll={() => goTab('service')}
             onLog={act.editable ? () => act.open('interaction', { direction: 'INBOUND', channel_code: 'PHONE', outcome_code: 'ANSWERED' }) : null} />
-          <MarketingCard view={view} onViewAll={() => goTab('campaigns')} />
+          <MarketingCard view={view} onViewAll={IN_DEVELOPMENT ? () => goTab('campaigns') : null} />
           <Stack spacing={4}>
             <RelatedPartiesCard view={view} onViewAll={() => goTab('related')} />
             <NotesCard view={view} onViewAll={() => goTab('notes')} />
@@ -538,7 +548,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, s
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1.25fr 1fr' }} gridGap={4}>
           <OrganizationInfoCard view={view} onEdit={act.editable ? () => goTab('organization') : null} />
           <Stack spacing={4}>
-            <KeyMetricsCard view={view} onViewAll={() => goTab('analytics')} />
+            <KeyMetricsCard view={view} onViewAll={IN_DEVELOPMENT ? () => goTab('analytics') : null} />
             <AccountsCard view={view} onViewAll={() => goTab('accounts')} title={translate('crm.customer360.accountsAndProjects')}
               action={act.editable ? <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => act.open('account')}>{translate('crm.customer360.linkAccount')}</Button> : null} />
             <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />

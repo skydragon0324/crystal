@@ -118,7 +118,7 @@ async function devices(masterIds) {
         device: row.device || null,
         color: row.color || null,
         rgb: rgbOf(row.rgb),
-        imei: row.IMEI || row.imei || null,
+        imei: row.imei || row.imei_1 || null,
         created_at: row.created_at || null
       };
     })
