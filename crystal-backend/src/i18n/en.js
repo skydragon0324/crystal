@@ -564,6 +564,11 @@ module.exports = {
       nothingSent: 'nothing was sent',
       tooManyRows: 'at most {max} rows at a time'
     },
+    eshopLevels: {
+      noEshopProject: 'no project has the E-shop role yet (Settings > Projects)',
+      noAccounts: 'this customer has no linked e-shop account',
+      couldNotAsk: 'the e-shop could not be asked: {error}'
+    },
     organizations: {
       chooseAnIndustry: 'choose one or more industries',
       primaryMustBeChosen: 'the primary industry must be one of the industries chosen'

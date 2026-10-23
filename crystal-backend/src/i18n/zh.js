@@ -530,6 +530,11 @@ module.exports = {
       nothingSent: '未发送任何数据',
       tooManyRows: '每次最多 {max} 行'
     },
+    eshopLevels: {
+      noEshopProject: '尚无项目设为电商角色（设置 > 项目）',
+      noAccounts: '该客户没有已关联的电商账号',
+      couldNotAsk: '无法查询电商：{error}'
+    },
     organizations: {
       chooseAnIndustry: '请选择一个或多个行业',
       primaryMustBeChosen: '主要行业必须是所选行业之一'

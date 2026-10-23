@@ -487,6 +487,43 @@ function eshopOrders(params) {
   };
 }
 
+/**
+ * The e-shop's level / grade call: each account's `loyal_level` (1-5) and
+ * `loyal_grade` (1-3), and when the shop last changed them, the same for the
+ * same account every time.
+ */
+function eshopLevels(params) {
+  return {
+    status: 'success',
+    items: String(params.userIds || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean).map(function (id) {
+      return { account_id: id, loyal_level: pick(id, 'eshop-level', 1, 5), loyal_grade: pick(id, 'eshop-grade', 1, 3), updated_at: stamp(pick(id, 'eshop-changed', 3, 60), 10) };
+    })
+  };
+}
+
+/**
+ * getOrdersListByIds - the CRM's call: several accounts' orders in one list.
+ * Each account's are the ones getUserOrderLists gives for it, each carrying the
+ * `account_id` it belongs to; merged newest first, paged, and `tPrice` the
+ * total of every order's prices.
+ */
+function eshopOrdersByIds(params) {
+  const rows = [];
+  String(params.userIds || '').split(',').map(function (id) { return id.trim(); }).filter(Boolean).forEach(function (id) {
+    JSON.parse(eshopOrders({ userPk: id, start: 0, length: 100000 }).data.lists).forEach(function (row) {
+      rows.push(Object.assign({ account_id: id }, row));
+    });
+  });
+  rows.sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+  const total = rows.reduce(function (sum, row) {
+    return sum + Number(row.foreign_price || 0) + Number(row.native_price || 0) + Number(row.point_price || 0);
+  }, 0);
+  return {
+    status: 'success',
+    data: { tCount: rows.length, tPrice: Math.round(total * 100) / 100, lists: JSON.stringify(paged(rows, params.start, params.length)) }
+  };
+}
+
 /** One order's lines. Here `lists` is a real array, not a string - as it is upstream. */
 function eshopOrderDetail(params) {
   return { status: 'success', data: { lists: eshopLines(params.orderId) } };
@@ -1527,6 +1564,8 @@ const ROUTES = {
   '/www/backend/others/prhn_apis/fetch_card_info': eshopCardInfo,
   '/www/backend/others/prhn_apis/get_transactions': eshopTransactions,
   '/www/backend/others/prhn_apis/getUserOrderLists': eshopOrders,
+  '/www/backend/others/prhn_apis/getOrdersListByIds': eshopOrdersByIds,
+  '/www/backend/others/prhn_apis/getLevelInfoByIds': eshopLevels,
   '/www/backend/others/prhn_apis/getOrderDetail': eshopOrderDetail,
   '/api/v2/maininfo/remainingCoins': appstoreBalance,
   '/api/v3/histories': appstoreHistories,

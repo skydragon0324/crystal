@@ -650,3 +650,31 @@ response: {
 }
 Also, on the customers page, there is a button that allows you to link the `smartphone_offline` account for all users at once—how should we handle cases where a limit is reached during this process?
 ---------------------------------------------------------------------
+Displaying the purchase history from the online store relied on an existing API from the 'account' page, which only allowed for retrieving data for one primary key (PK) at a time.
+Consequently, when two or more accounts were linked, the system had to fetch the data for each account individually and then perform additional processing on the backend before sending it to the frontend—a process that compromised the accuracy of the information.
+Therefore, the plan is to continue using the existing API for the 'account' page while integrating a new, separate API to handle these cases.
+URL: /getOrdersListByIds
+params: {
+    userIds: "xxx, yyy",
+    start: ,
+    length:
+}
+The response is similar to the previous one, but with the addition of `tPrice` (representing the total price) to the `data` object, and the inclusion of an `account_id` in each item within the `lists` array.
+----------------------------------------------------------------
+I also intend to implement level and grade synchronization with the e-store.
+Lonely is similar to smartphone_offline.
+It sends userIds as a parameter.
+{ userIds: "xxx, yyyy, zzzz"}
+The response is as follows.
+{
+    status:
+    items: [
+        {
+            account_id: xxx,
+            loyal_level: ,
+            loyal_grade: ,
+            updated_at: 
+        }
+    ]
+}
+The `updated_at` field must be used to accurately reflect the date on which a rank or grade was changed.

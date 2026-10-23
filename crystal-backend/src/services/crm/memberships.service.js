@@ -90,37 +90,52 @@ function history(membershipId) {
 }
 
 /** The tier history appended and the current tier set, together; `membership` is locked by the caller. */
-async function moveTo(trx, membership, tier, reason) {
-  await trx('crm_membership_tier_history').insert({
+async function moveTo(trx, membership, tier, reason, changedAt) {
+  await trx('crm_membership_tier_history').insert(Object.assign({
     membership_id: membership.membership_id, old_tier_id: membership.current_tier_id, new_tier_id: tier.project_tier_id,
     change_reason: reason ? String(reason).trim().slice(0, 250) : null
-  });
+  }, changedAt ? { changed_at: changedAt } : {}));
   const [after] = await trx('crm_membership').where('membership_id', membership.membership_id)
     .update({ current_tier_id: tier.project_tier_id, updated_at: trx.fn.now() }).returning('*');
   return after;
 }
 
 /**
- * An account put on a tier its project reported - a sync, not a manager: the
+ * An account put on a tier its project reported - a sync, not a manager. With
+ * `changedAt` - when the project says the tier changed - the tier history and
+ * a new membership's joined date carry that date rather than now. The
  * account gets a place on the tier's kind of ladder, or moves to the tier
  * there, or is already on it. CREATED, CHANGED or UNCHANGED, with the rows.
  * The tier is the account's project's, checked by the caller.
  */
-async function placeOn(trx, projectAccountId, tier, reason) {
+async function placeOn(trx, projectAccountId, tier, reason, changedAt) {
   const membership = await trx('crm_membership')
     .where({ project_account_id: projectAccountId, tier_kind: tier.tier_kind }).forUpdate().first();
   if (membership) {
     if (String(membership.current_tier_id) === String(tier.project_tier_id)) return { status: 'UNCHANGED', after: membership };
-    return { status: 'CHANGED', before: membership, after: await moveTo(trx, membership, tier, reason) };
+    return { status: 'CHANGED', before: membership, after: await moveTo(trx, membership, tier, reason, changedAt) };
   }
   const [row] = await trx('crm_membership').insert({
     project_account_id: projectAccountId, tier_kind: tier.tier_kind, current_tier_id: tier.project_tier_id,
-    membership_status: 'ACTIVE', joined_at: trx.fn.now()
+    membership_status: 'ACTIVE', joined_at: changedAt || trx.fn.now()
   }).returning('*');
-  await trx('crm_membership_tier_history').insert({
+  await trx('crm_membership_tier_history').insert(Object.assign({
     membership_id: row.membership_id, old_tier_id: null, new_tier_id: tier.project_tier_id, change_reason: reason || null
-  });
+  }, changedAt ? { changed_at: changedAt } : {}));
   return { status: 'CREATED', after: row };
+}
+
+/** A tier value as a system sends it and a tier's Code in the project, compared as numbers when both are ("03" is 3). */
+function sameCode(sent, code) {
+  const a = String(sent).trim();
+  const b = String(code === null || code === undefined ? '' : code).trim();
+  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return Number(a) === Number(b);
+  return a !== '' && a.toUpperCase() === b.toUpperCase();
+}
+
+/** The active tier of a kind whose Code in the project is the value a system sent, or null. */
+function tierByCode(tiers, kind, value) {
+  return (tiers || []).filter(function (tier) { return tier.tier_kind === kind && tier.is_active !== false && sameCode(value, tier.source_code); })[0] || null;
 }
 
 /** A manager's correction of a tier: within the membership's own project and kind. */
@@ -207,4 +222,4 @@ async function setStatus(membershipId, status, actor) {
   return after;
 }
 
-module.exports = { PAGE: PAGE, search: search, distribution: distribution, history: history, setTier: setTier, addTier: addTier, placeOn: placeOn, setStatus: setStatus };
+module.exports = { PAGE: PAGE, search: search, distribution: distribution, history: history, setTier: setTier, addTier: addTier, placeOn: placeOn, tierByCode: tierByCode, setStatus: setStatus };

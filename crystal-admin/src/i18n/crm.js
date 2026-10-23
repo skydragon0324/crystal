@@ -606,7 +606,7 @@ const en = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: 'Sync levels / grades',
-    syncLevelsExplained: 'Asks SMARTPHONE_OFFLINE for the reward points and grade of each linked account, and puts it on the level its points reach and on that grade.',
+    syncLevelsExplained: 'Asks each linked system for the level and grade of its accounts: SMARTPHONE_OFFLINE (the level from reward points, the grade as sent) and the e-shop (both as sent, dated when the shop changed them).',
     syncPoints: 'Sync points',
     syncPointsExplained: 'Asks SMARTPHONE_OFFLINE for the reward points of each linked account and stores them.',
     levelsResult: '{created} added, {changed} changed, {unchanged} unchanged.',
@@ -682,7 +682,7 @@ const en = {
     noAccounts: 'This customer has no linked e-shop account.',
     noPk: 'Not asked - no Account PK to ask the e-shop by: {accounts}. Add the PK on the Accounts tab.',
     unreachable: 'The e-shop could not be reached for {accounts}.',
-    capped: 'Showing the latest orders of each account only: {accounts}. Choose one account to page through all of its orders.',
+    totalPrice: 'Total {amount} across {n} orders',
     noOrders: 'No orders in the e-shop',
     unreachableShort: 'The e-shop could not be reached.',
     headerSub: 'E-shop, all accounts',
@@ -1603,7 +1603,7 @@ const zh = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: '同步等级 / 级别',
-    syncLevelsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的奖励积分和级别，按积分设定等级，并设为该级别。',
+    syncLevelsExplained: '向每个已关联的系统查询其账号的等级和级别：SMARTPHONE_OFFLINE（按奖励积分设定等级，级别按原值）和电商（均按原值，并以电商的变更时间为准）。',
     syncPoints: '同步积分',
     syncPointsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的奖励积分并保存。',
     levelsResult: '新增 {created}，变更 {changed}，未变 {unchanged}。',
@@ -1679,7 +1679,7 @@ const zh = {
     noAccounts: '该客户没有已关联的电商账号。',
     noPk: '未查询——以下账号没有可用于查询电商的账号 PK：{accounts}。请在“账号”页补充 PK。',
     unreachable: '无法连接电商查询：{accounts}。',
-    capped: '仅显示每个账号最新的订单：{accounts}。选择单个账号可分页查看其全部订单。',
+    totalPrice: '共 {n} 笔订单，合计 {amount}',
     noOrders: '电商中暂无订单',
     unreachableShort: '无法连接电商。',
     headerSub: '电商，全部账号',
@@ -2600,7 +2600,7 @@ const ru = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: 'Синхронизировать уровни / грейды',
-    syncLevelsExplained: 'Запрашивает у SMARTPHONE_OFFLINE бонусные баллы и грейд каждого привязанного аккаунта: уровень присваивается по баллам, грейд — как есть.',
+    syncLevelsExplained: 'Запрашивает у каждой связанной системы уровень и грейд её аккаунтов: SMARTPHONE_OFFLINE (уровень по бонусным баллам, грейд как есть) и интернет-магазин (оба как есть, с датой изменения в магазине).',
     syncPoints: 'Синхронизировать баллы',
     syncPointsExplained: 'Запрашивает у SMARTPHONE_OFFLINE бонусные баллы каждого привязанного аккаунта и сохраняет их.',
     levelsResult: 'Добавлено: {created}, изменено: {changed}, без изменений: {unchanged}.',
@@ -2676,7 +2676,7 @@ const ru = {
     noAccounts: 'У клиента нет привязанного аккаунта интернет-магазина.',
     noPk: 'Не запрошено — нет PK аккаунта для запроса: {accounts}. Добавьте PK на вкладке «Аккаунты».',
     unreachable: 'Интернет-магазин недоступен для: {accounts}.',
-    capped: 'Показаны только последние заказы каждого аккаунта: {accounts}. Выберите один аккаунт, чтобы листать все его заказы.',
+    totalPrice: 'Итого {amount} за {n} заказов',
     noOrders: 'В интернет-магазине нет заказов',
     unreachableShort: 'Интернет-магазин недоступен.',
     headerSub: 'Интернет-магазин, все аккаунты',

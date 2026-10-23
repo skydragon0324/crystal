@@ -466,16 +466,8 @@ function levelForPoints(tiers, points) {
 const RANKS = [
   { kind: 'LEVEL', by: 'POINTS', value: function (item) { return item.reward_point; }, tierOf: levelForPoints },
   { kind: 'GRADE', by: 'CODE', value: function (item) { return item.purchase_level; },
-    tierOf: function (tiers, value) { return tiers.filter(function (tier) { return tier.tier_kind === 'GRADE' && sameCode(value, tier.source_code); })[0] || null; } }
+    tierOf: function (tiers, value) { return memberships.tierByCode(tiers, 'GRADE', value); } }
 ];
-
-/** A level as the system sends it and a tier's code, compared as numbers when both are ("03" is 3). */
-function sameCode(sent, code) {
-  const a = String(sent).trim();
-  const b = String(code === null || code === undefined ? '' : code).trim();
-  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return Number(a) === Number(b);
-  return a !== '' && a.toUpperCase() === b.toUpperCase();
-}
 
 /** The customer's live accounts in the system, and getLevelInfo's item for each by master id. */
 async function levelsOf(partyPk) {

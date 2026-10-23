@@ -12,10 +12,8 @@ const { HttpError } = require('../../utils/response');
  * shop's order API is keyed by - the same API the member's own Orders page
  * on the website calls.
  *
- * The shop answers for one account at a time. So:
- *   one account   its page, as the shop pages it;
- *   ALL accounts  the latest MAX_PER_ACCOUNT orders of each, merged newest
- *                 first and paged here; `capped` says when an account has more.
+ * One account or ALL of them, in one request: the shop's CRM call
+ * (getOrdersListByIds) merges, pages and totals them itself.
  *
  * An account the shop cannot be asked about (no PK) is listed but not asked;
  * one whose call fails is reported in `failed`, and the rest still show.
@@ -61,33 +59,34 @@ async function list(partyPk, filters, paging) {
   const accounts = chosen.length ? chosen : found.accounts.slice(0, 1);
   const summary = Object.assign(base, { selected: all ? 'ALL' : String(accounts[0].project_account_id) });
 
-  if (!all) {
-    const account = accounts[0];
-    if (!account.external_account_pk) return { rows: [], total: 0, summary: Object.assign(summary, { no_pk: [account.external_account_id] }) };
-    try {
-      const result = await eshopApi.orders(account.external_account_pk, paging.offset, paging.limit);
-      return { rows: tagged(result.rows, account), total: result.total, summary: summary };
-    } catch (error) {
-      summary.failed.push({ external_account_id: account.external_account_id, error: error.message });
-      return { rows: [], total: 0, summary: summary };
-    }
-  }
-
   const askable = accounts.filter(function (account) { return account.external_account_pk; });
   summary.no_pk = accounts.filter(function (account) { return !account.external_account_pk; }).map(function (account) { return account.external_account_id; });
-  const results = await Promise.all(askable.map(function (account) {
-    return eshopApi.orders(account.external_account_pk, 0, MAX_PER_ACCOUNT)
-      .then(function (result) {
-        if (result.total > result.rows.length) summary.capped.push({ external_account_id: account.external_account_id, total: result.total, shown: result.rows.length });
-        return tagged(result.rows, account);
-      })
-      .catch(function (error) {
-        summary.failed.push({ external_account_id: account.external_account_id, error: error.message });
-        return [];
-      });
-  }));
-  const merged = [].concat.apply([], results).sort(function (a, b) { return String(b.at || '').localeCompare(String(a.at || '')); });
-  return { rows: merged.slice(paging.offset, paging.offset + paging.limit), total: merged.length, summary: summary };
+  if (!askable.length) return { rows: [], total: 0, summary: summary };
+
+  /*
+   * ONE REQUEST, whether one account or ALL: getOrdersListByIds takes every
+   * account's PK at once and merges, pages and totals them itself, so every
+   * page is the shop's own - no account capped, no total that stops at the
+   * cap. Each order says the account it is from (`account_id`), by PK or ID.
+   */
+  try {
+    const result = await eshopApi.ordersByIds(askable.map(function (account) { return account.external_account_pk; }), paging.offset, paging.limit);
+    const accountOf = function (row) {
+      return askable.filter(function (account) {
+        return row.account_id !== null && (String(account.external_account_pk) === row.account_id || String(account.external_account_id) === row.account_id);
+      })[0] || (askable.length === 1 ? askable[0] : null);
+    };
+    const rows = result.rows.map(function (row) {
+      const account = accountOf(row);
+      return account ? tagged([row], account)[0]
+        : Object.assign({}, row, { project_account_id: null, external_account_id: row.account_id, external_account_pk: null });
+    });
+    summary.total_price = result.total_price;
+    return { rows: rows, total: result.total, summary: summary };
+  } catch (error) {
+    askable.forEach(function (account) { summary.failed.push({ external_account_id: account.external_account_id, error: error.message }); });
+    return { rows: [], total: 0, summary: summary };
+  }
 }
 
 /**

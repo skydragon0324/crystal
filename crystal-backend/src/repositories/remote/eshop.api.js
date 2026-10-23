@@ -263,39 +263,110 @@ async function orders(userPk, offset, limit) {
 
   return {
     total: Number(data.data && data.data.tCount) || 0,
-    rows: lists.map(function (row) {
-      return Object.assign({
-        /*
-         * The vendor's order page keys a row on `id` and opens its detail
-         * with `order_id`; both come back. The date is `created_at` - the
-         * vendor formats that and nothing else - so an `order_dt` read alone
-         * left every real order undated.
-         */
-        id: row.id || row.order_id,
-        order_id: row.order_id || row.id,
-        order_no: row.order_no,
-        /* The order's number as the shop shows it, converted from its order_id on the shop's side. */
-        tx_id: row.tx_id || null,
-        status: statusName(row.status),
-        status_code: Number(row.status),
-        goods_name: row.goods_name,
-        goods_count: Number(row.goods_count) || 0,
-        tenders: tendersOf(row),
-        pay_type: row.pay_type || null,
-        /*
-         * Three fields that are one thing on the page. Kept together because
-         * a delivery address with the flat number missing is not an address.
-         */
-        address: {
-          line: row.address || null,
-          building: row.building || null,
-          contact: row.contact || null,
-          receiver: row.receiver || null
-        },
-        at: row.created_at || row.order_dt || null
-      }, cancellation(row));
+    rows: lists.map(orderRow)
+  };
+}
+
+/**
+ * THE CRM'S CALL: the orders of SEVERAL of one customer's e-shop accounts, in
+ * one request - the shop merges them, newest first, and pages and totals the
+ * merged list itself. The member's own page keeps calling `orders`.
+ *
+ *   userIds   "pk1,pk2" - each account's eshop_pk
+ *   -> the same reply as `orders`, each order in `lists` with the `account_id`
+ *      it belongs to, and `data.tPrice`: the total price of every order
+ *
+ * `total_price` is that total. Orders are read exactly as `orders` reads them.
+ */
+async function ordersByIds(userPks, offset, limit) {
+  const data = await remote.post(SERVICE, '/www/backend/others/prhn_apis/getOrdersListByIds', {
+    userIds: (userPks || []).map(function (pk) { return String(pk).trim(); }).filter(Boolean).join(','),
+    start: offset,
+    length: limit
+  });
+
+  if (data.status !== 'success') return { rows: [], total: 0, total_price: 0 };
+
+  return {
+    total: Number(data.data && data.data.tCount) || 0,
+    total_price: Number(data.data && data.data.tPrice) || 0,
+    rows: parseRows(data.data && data.data.lists).map(function (row) {
+      return Object.assign(orderRow(row), { account_id: row.account_id == null ? null : String(row.account_id) });
     })
   };
+}
+
+/*
+ * THE PATH OF THE LEVEL / GRADE CALL. The spec names its parameters and its
+ * reply but not its URL; this is the CRM's assumption, beside the shop's
+ * other prhn_apis, and is named here and in mock.js only.
+ */
+const LEVELS_PATH = '/www/backend/others/prhn_apis/getLevelInfoByIds';
+
+/** A time as the shop sends it ("2026-10-20 14:03:00", or ISO), or null when it cannot be read. */
+function timeOf(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const text = String(value).trim();
+  const date = new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? text.replace(' ', 'T') : text);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * THE LEVEL AND GRADE OF SOME ACCOUNTS, by their PKs - one request:
+ *
+ *   userIds   "pk1,pk2"
+ *   -> { status, items: [{ account_id, loyal_level, loyal_grade, updated_at }] }
+ *
+ * `loyal_level` is the CRM's LEVEL and `loyal_grade` its GRADE, passed on as
+ * text - the form a tier's "Code in the project" is matched in. `updated_at`
+ * is when the shop changed them: the CRM dates the change in its tier history
+ * by it, not by when it synced. Each is null when not sent.
+ */
+async function levelsByIds(userPks) {
+  const ids = (userPks || []).map(function (pk) { return String(pk).trim(); }).filter(Boolean);
+  if (!ids.length) return { items: [] };
+  const data = await remote.post(SERVICE, LEVELS_PATH, { userIds: ids.join(',') });
+  if (!data || data.status !== 'success') throw new Error('the e-shop answered ' + (data && data.status ? data.status : 'nothing'));
+  const text = function (value) { return value === null || value === undefined || String(value).trim() === '' ? null : String(value).trim(); };
+  return {
+    items: (Array.isArray(data.items) ? data.items : []).map(function (row) {
+      return { account_id: text(row.account_id), level: text(row.loyal_level), grade: text(row.loyal_grade), updated_at: timeOf(row.updated_at) };
+    }).filter(function (row) { return row.account_id; })
+  };
+}
+
+/** One order as the CRM and the member's page show it - from either call's `lists`. */
+function orderRow(row) {
+  return Object.assign({
+    /*
+     * The vendor's order page keys a row on `id` and opens its detail
+     * with `order_id`; both come back. The date is `created_at` - the
+     * vendor formats that and nothing else - so an `order_dt` read alone
+     * left every real order undated.
+     */
+    id: row.id || row.order_id,
+    order_id: row.order_id || row.id,
+    order_no: row.order_no,
+    /* The order's number as the shop shows it, converted from its order_id on the shop's side. */
+    tx_id: row.tx_id || null,
+    status: statusName(row.status),
+    status_code: Number(row.status),
+    goods_name: row.goods_name,
+    goods_count: Number(row.goods_count) || 0,
+    tenders: tendersOf(row),
+    pay_type: row.pay_type || null,
+    /*
+     * Three fields that are one thing on the page. Kept together because
+     * a delivery address with the flat number missing is not an address.
+     */
+    address: {
+      line: row.address || null,
+      building: row.building || null,
+      contact: row.contact || null,
+      receiver: row.receiver || null
+    },
+    at: row.created_at || row.order_dt || null
+  }, cancellation(row));
 }
 
 /**
@@ -351,5 +422,8 @@ module.exports = {
   cardInfo: cardInfo,
   transactions: transactions,
   orders: orders,
+  ordersByIds: ordersByIds,
+  LEVELS_PATH: LEVELS_PATH,
+  levelsByIds: levelsByIds,
   orderDetail: orderDetail
 };

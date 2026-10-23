@@ -505,6 +505,8 @@ export const crm = {
     /* getLevelInfo for the customer's SMARTPHONE_OFFLINE accounts: their level and grade tiers, or their reward points. */
     syncSmartphoneLevels: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/sync-levels'),
     syncSmartphonePoints: (id) => client.post(CRM + '/parties/' + id + '/smartphone-offline/sync-points'),
+    /* The e-shop's loyal_level / loyal_grade for the customer's e-shop accounts, dated by the shop's updated_at. */
+    syncEshopLevels: (id) => client.post(CRM + '/parties/' + id + '/eshop/sync-levels'),
     setConsent: (id, payload) => client.put(CRM + '/parties/' + id + '/consents', payload),
     merge: (id, mergedId, reason) => client.post(CRM + '/parties/' + id + '/merge', { merged_party_pk: mergedId, merge_reason: reason }),
     /* Separate a merge again; id is either customer of it. */

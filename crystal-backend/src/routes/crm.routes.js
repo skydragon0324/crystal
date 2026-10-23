@@ -207,6 +207,9 @@ router.post('/parties/:id/smartphone-offline/sync-levels', write(PAGES.CUSTOMERS
   response.ok(res, await smartphoneOffline.syncLevels(req.params.id, req.actor)));
 router.post('/parties/:id/smartphone-offline/sync-points', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, rewardPoints.translated(await smartphoneOffline.syncPoints(req.params.id, req.actor), req.locale)));
+/* The customer's e-shop level and grade, from the e-shop: each linked account on the tiers its loyal_level / loyal_grade name. */
+router.post('/parties/:id/eshop/sync-levels', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await require('../services/crm/eshopLevels.service').syncLevels(req.params.id, req.actor)));
 /* Linking jobs: all customers, a range, or an earlier job's failures - in the background, followed by polling the job. */
 router.post('/smartphone-offline/jobs', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, await smartphoneOffline.startJob(req.body || {}, req.actor)));
