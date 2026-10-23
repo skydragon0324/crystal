@@ -540,7 +540,8 @@ module.exports = {
       chooseARange: '请输入起始和结束客户编号',
       rangeIsBackwards: '起始客户编号不能大于结束客户编号',
       noCustomersInRange: '该范围内没有带电话号码的客户',
-      rangeTooLarge: '该范围内有 {count} 个客户；每次最多关联 {max} 个',
+      nothingToRetry: '该任务没有需要重新查询的号码',
+      jobIsNot: '该任务当前状态为 {status}',
       runInProgress: '已有关联任务正在进行',
       noAccounts: '该客户没有已关联的 SMARTPHONE_OFFLINE 账号',
       couldNotAsk: '无法查询 SMARTPHONE_OFFLINE 系统：{error}'

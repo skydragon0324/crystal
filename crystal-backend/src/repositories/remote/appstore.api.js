@@ -355,48 +355,81 @@ async function purchases(customerId, offset, limit, filter) {
     filterOf(filter)
   ));
 
-  return table(data, function (row) {
-    const kind = purchaseKind(row.purchasable_type);
+  return table(data, purchaseRow);
+}
 
-    /*
-     * NULL, not a guess, for a state the store has no name for. It used to
-     * default to PURCHASING, which told the member their purchase was still
-     * going through whatever had actually happened to it - and put the key
-     * button on the row as well. The page has the vendor's fallback: the
-     * store's own `spd_change_reason` when there is one, and "purchase
-     * failed" when there is not.
-     */
-    const state = named(PURCHASE_STATE, row.spd_state_id, null);
+/**
+ * THE CRM'S CALL: the purchases of SEVERAL of one customer's accounts, in one
+ * request - the store merges them, newest first, and pages, filters and totals
+ * the merged list itself. The member's own page keeps calling `purchases`.
+ *
+ *   customers   [{ customer_pk, customer_id }] - each account's appstore_pk and
+ *               its Account ID
+ *   -> the same DataTables reply as `purchases`, each row with the `account_id`
+ *      it belongs to, and `tPrice`: the total of every purchase in the window
+ *
+ * `total_price` is that total. Rows are read exactly as `purchases` reads them.
+ */
+async function purchasesByIds(customers, offset, limit, filter) {
+  const data = await remote.post(STORE, '/api/maininfo/getPurchaseListByIds', Object.assign(
+    {
+      customers: (customers || []).map(function (customer) {
+        return { customer_pk: customer.customer_pk, customer_id: customer.customer_id };
+      })
+    },
+    windowOf(offset, limit),
+    filterOf(filter)
+  ));
 
-    return {
-      id: row.purchase_history_unique_id,
-      kind: kind,
-      name: purchasedName(row, kind),
-      url: purchasedUrl(row, kind),
-      app_version: row.app_version || null,
-      device_no: row.device_no || null,
-      /* Which purse it came out of, and how much. */
-      currency: named(MONEY_TYPE, row.purchasemoney_type, 'COMPANY'),
-      price: Number(row.purchase_actual_value) || 0,
-      status: state,
-      /* Only a failure explains itself, and the service's words are used. */
-      status_reason: row.spd_change_reason || null,
-      /*
-       * Null for an id outside the table, not 'NONE' - the vendor draws no
-       * tag at all there, and 'NONE' is a word it does not have. A state the
-       * store invented tomorrow should read as an empty cell rather than as
-       * "this purchase has no licence", which is a claim.
-       */
-      licence_state: named(LICENCE_STATE, row.spd_state_id, null),
-      /*
-       * WHETHER THERE IS ANYTHING TO FETCH, decided here rather than by a
-       * page comparing state ids. The vendor offered the key button on two
-       * states and warned on the rest, which is a rule about the service.
-       */
-      licence_available: LICENCE_AVAILABLE.indexOf(state) > -1,
-      at: row.created_at
-    };
+  const result = table(data, function (row) {
+    return Object.assign(purchaseRow(row), { account_id: row.account_id == null ? null : String(row.account_id) });
   });
+  result.total_price = data && !data.errors ? Number(data.tPrice) || 0 : 0;
+  return result;
+}
+
+/** One purchase as the CRM and the member's page show it - from either call's `mData`. */
+function purchaseRow(row) {
+  const kind = purchaseKind(row.purchasable_type);
+
+  /*
+   * NULL, not a guess, for a state the store has no name for. It used to
+   * default to PURCHASING, which told the member their purchase was still
+   * going through whatever had actually happened to it - and put the key
+   * button on the row as well. The page has the vendor's fallback: the
+   * store's own `spd_change_reason` when there is one, and "purchase
+   * failed" when there is not.
+   */
+  const state = named(PURCHASE_STATE, row.spd_state_id, null);
+
+  return {
+    id: row.purchase_history_unique_id,
+    kind: kind,
+    name: purchasedName(row, kind),
+    url: purchasedUrl(row, kind),
+    app_version: row.app_version || null,
+    device_no: row.device_no || null,
+    /* Which purse it came out of, and how much. */
+    currency: named(MONEY_TYPE, row.purchasemoney_type, 'COMPANY'),
+    price: Number(row.purchase_actual_value) || 0,
+    status: state,
+    /* Only a failure explains itself, and the service's words are used. */
+    status_reason: row.spd_change_reason || null,
+    /*
+     * Null for an id outside the table, not 'NONE' - the vendor draws no
+     * tag at all there, and 'NONE' is a word it does not have. A state the
+     * store invented tomorrow should read as an empty cell rather than as
+     * "this purchase has no licence", which is a claim.
+     */
+    licence_state: named(LICENCE_STATE, row.spd_state_id, null),
+    /*
+     * WHETHER THERE IS ANYTHING TO FETCH, decided here rather than by a
+     * page comparing state ids. The vendor offered the key button on two
+     * states and warned on the rest, which is a rule about the service.
+     */
+    licence_available: LICENCE_AVAILABLE.indexOf(state) > -1,
+    at: row.created_at
+  };
 }
 
 async function comments(customerId, offset, limit, filter) {
@@ -697,6 +730,7 @@ module.exports = {
   balance: balance,
   transactions: transactions,
   purchases: purchases,
+  purchasesByIds: purchasesByIds,
   comments: comments,
   favorites: favorites,
   license: license,

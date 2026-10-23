@@ -12,7 +12,7 @@ const config = require('../../config');
  *
  * Five questions are asked of it:
  *
- *   USERS    which user has this phone number?            linking by phone
+ *   USERS    which users have these phone numbers?        linking by phone
  *   DEVICES  which devices are registered to these ids?    the Products tab
  *   SERVICES what service have these ids' devices had?    the Service tab
  *   PRIVILEGES the privileges of these ids' devices         the Privileges tab
@@ -44,32 +44,78 @@ function mode() {
 }
 
 /**
- * One user as the CRM keeps it: ID required, PK optional, the rest for
- * display. The server's names for them are not settled, so the likely ones
- * are each read - and that guessing stops at this function.
+ * One user as the CRM keeps it: its master id (ID, required), its account PK
+ * (optional) and the phone number it was found by, as digits. The names before
+ * the server's were settled (user_id, user_pk, phone) are still read.
  */
 function userOf(row) {
-  const id = row && (row.user_id != null ? row.user_id : row.master_id != null ? row.master_id : row.id);
+  const id = row && (row.master_id != null ? row.master_id : row.user_id);
   if (id == null || String(id).trim() === '') return null;
-  const pk = row.user_pk != null ? row.user_pk : row.pk;
+  const pk = row.account_pk != null ? row.account_pk : row.user_pk;
+  const phone = String(row.phone_number != null ? row.phone_number : (row.phone || '')).replace(/\D/g, '');
   return {
     user_id: String(id).trim(),
     user_pk: pk == null || String(pk).trim() === '' ? null : String(pk).trim(),
-    phone: row.phone || null,
-    province: row.province || null,
-    city: row.city || null
+    phone: phone || null
   };
 }
 
+function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+
+/** One request, tried again after 1s, 2s, 4s ... when the server fails or refuses it; the last error is thrown. */
+async function askWithRetries(body) {
+  const tries = Math.max(0, config.smartphoneOffline.lookupRetries) + 1;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await remote.post(PHONE, USERS_PATH, body);
+    } catch (error) {
+      if (attempt >= tries) throw error;
+      // eslint-disable-next-line no-await-in-loop
+      await wait(1000 * Math.pow(2, attempt - 1));
+    }
+  }
+}
+
 /**
- * The users holding one phone number: usually one, none when the number is
- * unknown there. Throws when the server cannot be asked, so the caller can
- * tell "nobody" from "could not ask".
+ * WHO HOLDS THESE PHONE NUMBERS - many numbers in one request:
+ *
+ *   phone_numbers=8613800000101,8613800000102
+ *   -> { items: [{ phone_number, master_id, account_pk }] }
+ *
+ * `master_id` is the user's id there (the CRM's Account ID) and `account_pk`
+ * its PK. Numbers are sent and compared as digits. A number held by nobody is
+ * simply absent; one held by two users appears twice.
+ *
+ * Asked config.smartphoneOffline.lookupBatch numbers at a time, with a pause
+ * after each request so a job of thousands of requests stays inside what the
+ * server allows. A request that still fails after its retries does not stop
+ * the rest: its numbers come back in `failed` with the reason, so the caller
+ * can tell "nobody has it" from "could not ask".
+ *
+ *   -> { users: [{ user_id, user_pk, phone }], failed: [{ phone, error }] }
  */
-async function findByPhone(phone) {
-  const data = await remote.post(PHONE, USERS_PATH, { phone: phone });
-  const rows = Array.isArray(data && data.items) ? data.items : [];
-  return rows.map(userOf).filter(Boolean);
+async function findByPhones(phones) {
+  const numbers = Array.from(new Set((phones || []).map(function (phone) { return String(phone || '').replace(/\D/g, ''); }).filter(Boolean)));
+  const size = Math.max(1, config.smartphoneOffline.lookupBatch);
+  const users = [];
+  const failed = [];
+  for (let start = 0; start < numbers.length; start += size) {
+    const batch = numbers.slice(start, start + size);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const data = await askWithRetries({ phone_numbers: batch.join(',') });
+      (Array.isArray(data && data.items) ? data.items : []).forEach(function (row) {
+        const user = userOf(row);
+        if (user && user.phone) users.push(user);
+      });
+    } catch (error) {
+      batch.forEach(function (phone) { failed.push({ phone: phone, error: error.message }); });
+    }
+    // eslint-disable-next-line no-await-in-loop
+    if (config.smartphoneOffline.lookupPauseMs > 0 && start + size < numbers.length) await wait(config.smartphoneOffline.lookupPauseMs);
+  }
+  return { users: users, failed: failed };
 }
 
 /**
@@ -331,7 +377,7 @@ module.exports = {
   LEVELS_PATH: LEVELS_PATH,
   SERVICE_KINDS: SERVICE_KINDS,
   mode: mode,
-  findByPhone: findByPhone,
+  findByPhones: findByPhones,
   devices: devices,
   services: services,
   privileges: privileges,

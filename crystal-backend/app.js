@@ -140,6 +140,11 @@ if (require.main === module || config.bundled) {
      * begin expiring warranties and raising purchase orders.
      */
     sweeps.schedule();
+
+    /* A SMARTPHONE_OFFLINE linking job this server was in the middle of goes on from its last saved chunk. */
+    require('./src/services/crm/smartphoneOffline.service').resumeJobs()
+      .then(function (count) { if (count) console.log('  resumed ' + count + ' SMARTPHONE_OFFLINE linking job(s)'); })
+      .catch(function (error) { console.warn('  SMARTPHONE_OFFLINE linking jobs not resumed - ' + error.message); });
   });
 }
 

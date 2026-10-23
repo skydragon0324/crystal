@@ -375,8 +375,11 @@ export const crm = {
   /* Linking customers to the SMARTPHONE_OFFLINE system by phone, over a range of customer numbers. */
   smartphoneOffline: {
     status: () => client.get(CRM + '/smartphone-offline'),
-    startRun: (fromPk, toPk) => client.post(CRM + '/smartphone-offline/runs', { from_party_pk: fromPk, to_party_pk: toPk }),
-    run: (runId) => client.get(CRM + '/smartphone-offline/runs/' + runId)
+    /* { scope: 'ALL' } | { scope: 'RANGE', from_party_pk, to_party_pk } | { scope: 'RETRY', retry_of_job_id } */
+    startJob: (payload) => client.post(CRM + '/smartphone-offline/jobs', payload),
+    job: (jobId) => client.get(CRM + '/smartphone-offline/jobs/' + jobId),
+    /* action: pause | resume | cancel */
+    jobAction: (jobId, action) => client.post(CRM + '/smartphone-offline/jobs/' + jobId + '/' + action)
   },
 
   analysis: {

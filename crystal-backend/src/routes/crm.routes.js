@@ -184,8 +184,8 @@ router.post('/parties/:id/accounts/:accountId/unlink', write(PAGES.CUSTOMERS), c
 
 /*
  * The SMARTPHONE_OFFLINE system: customers linked to its users by
- * phone number - one customer from the Accounts tab, a range of customer
- * numbers from the Customers page (a background run the page polls).
+ * phone number - one customer from the Accounts tab, every customer (or a
+ * range) from the Customers page: a background job the page polls.
  */
 router.get('/smartphone-offline', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await smartphoneOffline.status()));
 /* The mobile devices registered to the customer in SMARTPHONE_OFFLINE, by their linked Account IDs (master ids). */
@@ -207,9 +207,12 @@ router.post('/parties/:id/smartphone-offline/sync-levels', write(PAGES.CUSTOMERS
   response.ok(res, await smartphoneOffline.syncLevels(req.params.id, req.actor)));
 router.post('/parties/:id/smartphone-offline/sync-points', write(PAGES.CUSTOMERS), async (req, res) =>
   response.ok(res, rewardPoints.translated(await smartphoneOffline.syncPoints(req.params.id, req.actor), req.locale)));
-router.post('/smartphone-offline/runs', write(PAGES.CUSTOMERS), async (req, res) =>
-  response.ok(res, await smartphoneOffline.startRun(req.body || {}, req.actor)));
-router.get('/smartphone-offline/runs/:runId', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, smartphoneOffline.getRun(req.params.runId)));
+/* Linking jobs: all customers, a range, or an earlier job's failures - in the background, followed by polling the job. */
+router.post('/smartphone-offline/jobs', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.startJob(req.body || {}, req.actor)));
+router.get('/smartphone-offline/jobs/:jobId', read(PAGES.CUSTOMERS), async (req, res) => response.ok(res, await smartphoneOffline.getJob(req.params.jobId)));
+router.post('/smartphone-offline/jobs/:jobId/:action(pause|resume|cancel)', write(PAGES.CUSTOMERS), async (req, res) =>
+  response.ok(res, await smartphoneOffline.setJobState(req.params.jobId, req.params.action, req.actor)));
 router.put('/parties/:id/consents', write(PAGES.CUSTOMERS), crmController.parties.setConsent);
 router.post('/parties/:id/merge', write(PAGES.CUSTOMERS), crmController.parties.merge);
 router.post('/parties/:id/merges/:mergeId/unmerge', write(PAGES.CUSTOMERS), crmController.parties.unmerge);

@@ -11,9 +11,10 @@ const { HttpError } = require('../../utils/response');
  * the customer's linked Appstore accounts - the appstore_pk its purchase API
  * calls customer_id - the same API the member's own Purchases page calls.
  *
- * One account at a time, as the store answers; ALL asks each and merges the
- * latest MAX_PER_ACCOUNT of each, newest first. An account with no PK cannot
- * be asked and is reported, as is one the store could not answer for.
+ * One account or ALL of them, in one request: the store's CRM call
+ * (getPurchaseListByIds) merges, pages, filters and totals them itself. An
+ * account with no PK cannot be asked and is reported, as is a store that could
+ * not answer.
  *
  * The licence key is the most sensitive thing here: it is fetched only on
  * request, only for a purchase found in that account's own list (the store's
@@ -69,31 +70,34 @@ async function list(partyPk, filters, paging) {
 
   summary.no_pk = accounts.filter(function (account) { return !account.external_account_pk; }).map(function (account) { return account.external_account_id; });
   const askable = accounts.filter(function (account) { return account.external_account_pk; });
+  if (!askable.length) return { rows: [], total: 0, summary: summary };
 
-  if (!all) {
-    if (!askable.length) return { rows: [], total: 0, summary: summary };
-    try {
-      const result = await appstoreApi.purchases(askable[0].external_account_pk, paging.offset, paging.limit, filter);
-      return { rows: tagged(result.rows, askable[0]), total: result.total, summary: summary };
-    } catch (error) {
-      summary.failed.push({ external_account_id: askable[0].external_account_id, error: error.message });
-      return { rows: [], total: 0, summary: summary };
-    }
+  /*
+   * ONE REQUEST, whether one account or ALL: getPurchaseListByIds takes every
+   * account at once and merges, pages, filters and totals them itself, so every
+   * page is the store's own - no account capped, no total that stops at the
+   * cap. Each row says the account it is from (`account_id`), by Account ID or PK.
+   */
+  try {
+    const result = await appstoreApi.purchasesByIds(askable.map(function (account) {
+      return { customer_pk: account.external_account_pk, customer_id: account.external_account_id };
+    }), paging.offset, paging.limit, filter);
+    const accountOf = function (row) {
+      return askable.filter(function (account) {
+        return row.account_id !== null && (String(account.external_account_id) === row.account_id || String(account.external_account_pk) === row.account_id);
+      })[0] || (askable.length === 1 ? askable[0] : null);
+    };
+    const rows = result.rows.map(function (row) {
+      const account = accountOf(row);
+      return account ? tagged([row], account)[0]
+        : Object.assign({}, row, { project_account_id: null, external_account_id: row.account_id, external_account_pk: null });
+    });
+    summary.total_price = result.total_price;
+    return { rows: rows, total: result.total, summary: summary };
+  } catch (error) {
+    askable.forEach(function (account) { summary.failed.push({ external_account_id: account.external_account_id, error: error.message }); });
+    return { rows: [], total: 0, summary: summary };
   }
-
-  const results = await Promise.all(askable.map(function (account) {
-    return appstoreApi.purchases(account.external_account_pk, 0, MAX_PER_ACCOUNT, filter)
-      .then(function (result) {
-        if (result.total > result.rows.length) summary.capped.push({ external_account_id: account.external_account_id, total: result.total, shown: result.rows.length });
-        return tagged(result.rows, account);
-      })
-      .catch(function (error) {
-        summary.failed.push({ external_account_id: account.external_account_id, error: error.message });
-        return [];
-      });
-  }));
-  const merged = [].concat.apply([], results).sort(function (a, b) { return String(b.at || '').localeCompare(String(a.at || '')); });
-  return { rows: merged.slice(paging.offset, paging.offset + paging.limit), total: merged.length, summary: summary };
 }
 
 /** One purchase's licence: only for a purchase in that account's own list; the look is audited. */

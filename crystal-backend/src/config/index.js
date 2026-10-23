@@ -184,7 +184,18 @@ const config = {
    */
   smartphoneOffline: {
     /* The CRM project that stands for it, by its code in Settings > Projects. */
-    projectCode: str('SMARTPHONE_OFFLINE_PROJECT_CODE', 'SMARTPHONE_OFFLINE')
+    projectCode: str('SMARTPHONE_OFFLINE_PROJECT_CODE', 'SMARTPHONE_OFFLINE'),
+    /*
+     * HOW HARD A LINKING JOB LEANS ON THE PHONE SERVER, set to its limits:
+     * numbers per getUserByPhone request, a pause after each request, and how
+     * many times a failed request is tried again (each after a longer wait)
+     * before its numbers are recorded as failed.
+     */
+    lookupBatch: int('SMARTPHONE_OFFLINE_LOOKUP_BATCH', 100),
+    lookupPauseMs: int('SMARTPHONE_OFFLINE_LOOKUP_PAUSE_MS', 200),
+    lookupRetries: int('SMARTPHONE_OFFLINE_LOOKUP_RETRIES', 3),
+    /* Customers a job takes at a time: read, looked up and linked together, then its progress is saved. */
+    jobChunk: int('SMARTPHONE_OFFLINE_JOB_CHUNK', 500)
   },
 
   auth: {

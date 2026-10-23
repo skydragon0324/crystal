@@ -540,7 +540,8 @@ module.exports = {
       chooseARange: 'укажите первый и последний номер клиента',
       rangeIsBackwards: 'первый номер клиента не может быть больше последнего',
       noCustomersInRange: 'в этом диапазоне нет клиентов с номером телефона',
-      rangeTooLarge: 'в диапазоне {count} клиентов; за один раз можно связать не более {max}',
+      nothingToRetry: 'в этом задании нет номеров для повторной проверки',
+      jobIsNot: 'задание сейчас в состоянии {status}',
       runInProgress: 'связывание уже выполняется',
       noAccounts: 'у клиента нет привязанного аккаунта SMARTPHONE_OFFLINE',
       couldNotAsk: 'не удалось обратиться к системе SMARTPHONE_OFFLINE: {error}'

@@ -809,6 +809,28 @@ function appstorePurchases(params) {
 }
 
 /**
+ * getPurchaseListByIds - the CRM's call: several accounts' purchases in one
+ * list. Each account's are the ones getPurchaseTableData gives for its pk, each
+ * row carrying the `account_id` it belongs to; merged newest first, filtered,
+ * paged, and `tPrice` the total of every purchase the filter kept.
+ */
+function appstorePurchasesByIds(params) {
+  const window = { from: params.from, to: params.to, sSearch: params.sSearch, iDisplayStart: 0, iDisplayLength: 100000 };
+  const rows = [];
+  (Array.isArray(params.customers) ? params.customers : []).forEach(function (customer) {
+    appstorePurchases(Object.assign({ customer_id: customer.customer_pk }, window)).mData.forEach(function (row) {
+      rows.push(Object.assign({ account_id: customer.customer_id }, row));
+    });
+  });
+  rows.sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+  return {
+    iTotalRecords: rows.length,
+    tPrice: Math.round(rows.reduce(function (sum, row) { return sum + Number(row.purchase_actual_value || 0); }, 0) * 100) / 100,
+    mData: paged(rows, params.iDisplayStart, params.iDisplayLength)
+  };
+}
+
+/**
  * Comments the member left, with the app they are about NESTED under `app`.
  *
  * `active` is whether the store has approved it. A member's own comment can
@@ -1275,15 +1297,18 @@ function licenseErrorReport(params) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Who has a phone number. A number ending in an even digit belongs to one
- * user, an odd one to nobody - enough to exercise linking both ways. The
- * user's master id is derived from the number, so the same number always
- * finds the same user.
+ * Who has these phone numbers (phone_numbers="p1,p2"). A number ending in an
+ * even digit belongs to one user, an odd one to nobody - enough to exercise
+ * linking both ways. The user's master id is derived from the number, so the
+ * same number always finds the same user.
  */
 function phoneUserByPhone(params) {
-  const digits = String(params.phone || '').replace(/\D/g, '');
-  if (!digits || Number(digits.slice(-1)) % 2) return { items: [] };
-  return { items: [{ user_id: 'so' + digits.slice(-11), user_pk: digits.slice(-8), phone: digits, province: null, city: null }] };
+  const numbers = String(params.phone_numbers || '').split(',').map(function (phone) { return phone.replace(/\D/g, ''); }).filter(Boolean);
+  return {
+    items: numbers.filter(function (digits) { return Number(digits.slice(-1)) % 2 === 0; }).map(function (digits) {
+      return { phone_number: digits, master_id: 'so' + digits.slice(-11), account_pk: digits.slice(-8) };
+    })
+  };
 }
 
 /* Who a master id's devices and service records are registered to - the same one for the id everywhere. */
@@ -1506,6 +1531,7 @@ const ROUTES = {
   '/api/v2/maininfo/remainingCoins': appstoreBalance,
   '/api/v3/histories': appstoreHistories,
   '/api/maininfo/getPurchaseTableData': appstorePurchases,
+  '/api/maininfo/getPurchaseListByIds': appstorePurchasesByIds,
   '/api/maininfo/getCommentTableData': appstoreComments,
   '/api/maininfo/getFavouriteTableData': appstoreFavorites,
   '/api/maininfo/getSpdMsg': appstoreLicense,

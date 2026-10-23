@@ -574,7 +574,8 @@ module.exports = {
       chooseARange: 'enter the first and the last customer number',
       rangeIsBackwards: 'the first customer number must not be larger than the last',
       noCustomersInRange: 'no customer with a phone number in that range',
-      rangeTooLarge: '{count} customers in that range; link at most {max} at a time',
+      nothingToRetry: 'that job left no numbers to look up again',
+      jobIsNot: 'the job is {status} now',
       runInProgress: 'a linking run is already in progress',
       noAccounts: 'this customer has no linked SMARTPHONE_OFFLINE account',
       couldNotAsk: 'the SMARTPHONE_OFFLINE system could not be asked: {error}'

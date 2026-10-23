@@ -170,10 +170,9 @@ export default function AppstorePurchasesSection({ partyPk }) {
         {(summary.failed || []).length ? (
           <Alert status="error" fontSize="sm" mb={2} borderRadius="md"><AlertIcon />{translate('crm.appstore.unreachable', { accounts: summary.failed.map((row) => row.external_account_id).join(', ') })}</Alert>
         ) : null}
-        {(summary.capped || []).length ? (
-          <Alert status="info" fontSize="sm" mb={2} borderRadius="md"><AlertIcon />
-            {translate('crm.eshopOrders.capped', { accounts: summary.capped.map((row) => row.external_account_id + ' (' + row.shown + ' / ' + row.total + ')').join(', ') })}
-          </Alert>
+        {/* The store's own total of every purchase in the period and search, across the accounts shown. */}
+        {summary.total_price !== undefined && summary.total_price !== null && list.total ? (
+          <Text fontSize="sm" mb={2}>{translate('crm.appstore.totalPrice', { amount: money(summary.total_price), n: list.total })}</Text>
         ) : null}
       </Box>
       <Box px={2} pb={2}>

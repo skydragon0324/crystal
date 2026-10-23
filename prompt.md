@@ -616,3 +616,37 @@ Instead of using the `loyal_level` value provided via the API, we must now deter
 For the 'grade,' you should continue to use the `purchase_level` value as is.The criteria for determining the 'level' have changed in the context of how the operational framework, levels, and grades are linked.
 Instead of using the `loyal_level` value provided via the API, we must now determine and store the level internally by using the `reward_point` value and mapping it against the 'from value' defined for each level within the project tiers.
 For the 'grade,' you should continue to use the `purchase_level` value as is.
+-----------------------------10 / 23 ---------------------------------------
+Currently, the purchase history from the App Store used in the CRM is retrieved by leveraging the same logic as the account page. When two accounts are linked, the system sends separate API requests for each, then consolidates and reorganizes the retrieved data before presenting it on the front end.
+To improve this, we intend to create a new API specifically for the CRM, while keeping the existing API as is.
+The URL will be `getPurchaseListByIds`.
+Params: {
+customers: [
+{customer_pk: , customer_id: }
+],
+isDisplayStart: ,
+iDisplayLength: ,
+from: ,
+to: ,
+sSearch
+}
+
+The response structure will be similar to the previous one, with the addition of `tPrice` and the inclusion of `account_id` in each item within `mData`.
+-------------------------------------------------------------------------------
+A feature for linking accounts within the current `smartphone_offline` system has already been implemented.
+I need to update this.
+URL: /getUserByPhone
+params: {
+phone_numbers: "phone1,phone2"
+}
+response: {
+    items: [
+        {
+            phone_number: ,
+            master_id: ,
+            account_pk:
+        }
+    ]
+}
+Also, on the customers page, there is a button that allows you to link the `smartphone_offline` account for all users at once—how should we handle cases where a limit is reached during this process?
+---------------------------------------------------------------------

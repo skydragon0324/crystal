@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const db = require('../../config/db');
 const config = require('../../config');
 const remote = require('../../repositories/remote/smartphoneOffline.api');
@@ -9,11 +8,7 @@ const { transaction } = require('../../repositories/shared/transaction');
 const { HttpError } = require('../../utils/response');
 
 const PAGE = '/admin/crm/customers';
-/* One run links at most this many customers; a larger range is split by the manager. */
-const MAX_RUN = 1000;
-/* Lookups in flight at once during a run. */
-const CONCURRENCY = 5;
-/* Conflicts and failures a run keeps to show; the counts are always complete. */
+/* Conflicts and failures a job keeps to show; the counts are always complete, and every failure is kept in the failure table. */
 const KEEP = 200;
 
 /**
@@ -92,29 +87,61 @@ async function attach(partyPk, projectId, phone, user, summary, actor) {
   }
 }
 
-/** Every phone of one customer, asked and linked. Adds to `summary`. */
-async function linkOne(party, projectId, summary, actor) {
-  summary.customers += 1;
-  const phones = await phonesOf(party.party_pk);
-  for (let index = 0; index < phones.length; index += 1) {
-    const phone = phones[index];
+/**
+ * Every phone of some customers, looked up and linked. Their numbers, and the
+ * ones already linked, are read in two queries for all of them; the numbers not
+ * linked yet go to the system together (getUserByPhone takes many per request -
+ * see smartphoneOffline.api findByPhones, which also retries and paces). Adds to
+ * `summary`; every number that could not be looked up is also put in
+ * `failures`, when given, for a job to keep.
+ */
+async function linkMany(parties, projectId, summary, actor, failures) {
+  const pks = parties.map(function (party) { return party.party_pk; });
+  summary.customers += pks.length;
+  if (!pks.length) return;
+
+  const [numbers, linked] = await Promise.all([
+    db('crm_contact_point').whereIn('party_pk', pks).whereIn('contact_type', ['MOBILE', 'PHONE']).where('status', 'ACTIVE')
+      .whereNotNull('normalized_value').whereNot('normalized_value', '').distinct('party_pk', 'normalized_value'),
+    db('crm_project_account').where('project_id', projectId).whereIn('party_pk', pks).whereNull('unlinked_at').whereNotNull('matched_phone')
+      .select('party_pk', 'matched_phone')
+  ]);
+  const isLinked = {};
+  linked.forEach(function (row) { isLinked[row.party_pk + ':' + row.matched_phone] = true; });
+  const asks = [];
+  numbers.forEach(function (row) {
     summary.phones += 1;
-    // eslint-disable-next-line no-await-in-loop
-    const known = await db('crm_project_account').where({ project_id: projectId, party_pk: party.party_pk, matched_phone: phone }).whereNull('unlinked_at').first('project_account_id');
-    if (known) { summary.skipped += 1; continue; }
-    let users;
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      users = await remote.findByPhone(phone);
-    } catch (error) {
+    if (isLinked[row.party_pk + ':' + row.normalized_value]) summary.skipped += 1;
+    else asks.push({ party_pk: row.party_pk, phone: row.normalized_value });
+  });
+  if (!asks.length) return;
+
+  const digits = function (value) { return String(value || '').replace(/\D/g, ''); };
+  let found;
+  try {
+    found = await remote.findByPhones(asks.map(function (ask) { return ask.phone; }));
+  } catch (error) {
+    found = { users: [], failed: asks.map(function (ask) { return { phone: digits(ask.phone), error: error.message }; }) };
+  }
+  const failedOf = {};
+  found.failed.forEach(function (row) { failedOf[row.phone] = row.error || 'failed'; });
+  const byPhone = {};
+  found.users.forEach(function (user) { (byPhone[user.phone] = byPhone[user.phone] || []).push(user); });
+
+  for (let index = 0; index < asks.length; index += 1) {
+    const ask = asks[index];
+    const key = digits(ask.phone);
+    if (failedOf[key] !== undefined) {
       summary.failed_count = (summary.failed_count || 0) + 1;
-      if (summary.failed.length < KEEP) summary.failed.push({ party_pk: String(party.party_pk), phone: phone, error: error.message });
+      if (summary.failed.length < KEEP) summary.failed.push({ party_pk: String(ask.party_pk), phone: ask.phone, error: failedOf[key] });
+      if (failures) failures.push({ party_pk: ask.party_pk, phone: ask.phone, error: failedOf[key] });
       continue;
     }
+    const users = byPhone[key] || [];
     if (!users.length) { summary.not_found += 1; continue; }
     for (let user = 0; user < users.length; user += 1) {
       // eslint-disable-next-line no-await-in-loop
-      await attach(party.party_pk, projectId, phone, users[user], summary, actor);
+      await attach(ask.party_pk, projectId, ask.phone, users[user], summary, actor);
     }
   }
 }
@@ -134,89 +161,212 @@ async function linkParty(partyPk, actor) {
   if (!party) throw new HttpError(404, 'common.notFound');
   if (party.party_status === 'MERGED') throw new HttpError(409, 'crm.common.thisPartyWasMerged');
   const summary = emptySummary();
-  await linkOne(party, target.project_id, summary, actor);
+  await linkMany([party], target.project_id, summary, actor);
   return finished(summary);
 }
 
-/* ------------------------------------------------------------ runs over a range */
+/* ------------------------------------------------------------ linking jobs */
 
 /*
- * A range of customers is linked in the background - a thousand customers
- * outlast any request - and the Customers page polls the run. Runs live in
- * this process only: one at a time, the last few kept to be read back. A
- * restart ends a run part-way; running the same range again only asks about
- * the numbers it had not reached (the rest are skipped).
+ * LINKING EVERY CUSTOMER - hundreds of thousands - in one click, as a JOB.
+ *
+ * A job is a row (crm_smartphone_offline_job), not a run in this process's
+ * memory. It covers ALL customers with a phone number, a RANGE of customer
+ * numbers, or - RETRY - the customers whose numbers an earlier job could not
+ * look up. It goes through them in customer-number order, a chunk at a time
+ * (config jobChunk): reads the chunk's numbers, looks them up together, links
+ * what is found, and saves where it got to (last_party_pk) and its counts.
+ * So:
+ *
+ *   it is never all in memory     the next chunk is "after the last one done"
+ *   a restart loses one chunk     resumeJobs() at start-up, or the next status
+ *                                 call, takes a RUNNING job up again from its
+ *                                 last saved chunk; numbers linked are skipped
+ *   one at a time                 a unique index allows one RUNNING / PAUSED
+ *   it can be paused, resumed     between chunks, by its status
+ *   and cancelled
+ *   failures are kept             every number not looked up, in
+ *                                 crm_smartphone_offline_job_failure, for a
+ *                                 RETRY job to ask about again
  */
-const runs = new Map();
-let current = null;
+const JOBS = 'crm_smartphone_offline_job';
+const FAILURES = 'crm_smartphone_offline_job_failure';
+const ACTIVE = ['RUNNING', 'PAUSED'];
+const SCOPES = ['ALL', 'RANGE', 'RETRY'];
+/* Jobs this process is working through now: a job is worked by one loop at a time. */
+const working = new Set();
 
-function publicRun(run) {
+function publicJob(row) {
+  if (!row) return null;
   return {
-    run_id: run.run_id, from_party_pk: run.from_party_pk, to_party_pk: run.to_party_pk, status: run.status,
-    total: run.total, done: run.done, started_at: run.started_at, finished_at: run.finished_at, error: run.error,
-    summary: finished(run.summary)
+    job_id: String(row.job_id), scope: row.scope, status: row.status,
+    from_party_pk: row.from_party_pk == null ? null : String(row.from_party_pk),
+    to_party_pk: row.to_party_pk == null ? null : String(row.to_party_pk),
+    retry_of_job_id: row.retry_of_job_id == null ? null : String(row.retry_of_job_id),
+    total: Number(row.total) || 0, done: Number(row.done) || 0,
+    last_party_pk: row.last_party_pk == null ? null : String(row.last_party_pk),
+    started_at: row.started_at, updated_at: row.updated_at, finished_at: row.finished_at, error: row.error,
+    summary: finished(Object.assign(emptySummary(), row.summary || {}))
   };
 }
 
-async function startRun(body, actor) {
-  const from = String((body || {}).from_party_pk || '').trim();
-  const to = String((body || {}).to_party_pk || '').trim();
-  if (!/^[1-9][0-9]*$/.test(from) || !/^[1-9][0-9]*$/.test(to)) throw new HttpError(400, 'crm.smartphoneOffline.chooseARange');
-  if (BigInt(from) > BigInt(to)) throw new HttpError(400, 'crm.smartphoneOffline.rangeIsBackwards');
-  if (current) throw new HttpError(409, 'crm.smartphoneOffline.runInProgress');
-  available();
-  const target = await project();
-
-  // Customers in the range who have a phone to ask about, oldest number first.
-  const parties = await db('crm_party as party').whereBetween('party.party_pk', [from, to]).whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
+/** The customers a job covers: live, with a phone number, in its range or among the earlier job's failures. */
+function covered(job) {
+  const qb = db('crm_party as party').whereIn('party.party_status', ['ACTIVE', 'INACTIVE'])
     .whereExists(function () {
       this.select(db.raw(1)).from('crm_contact_point as phone').whereRaw('phone.party_pk = party.party_pk')
         .whereIn('phone.contact_type', ['MOBILE', 'PHONE']).where('phone.status', 'ACTIVE');
-    })
-    .orderBy('party.party_pk').select('party.party_pk', 'party.party_status');
-  if (!parties.length) throw new HttpError(400, 'crm.smartphoneOffline.noCustomersInRange');
-  if (parties.length > MAX_RUN) throw new HttpError(400, 'crm.smartphoneOffline.rangeTooLarge', null, { max: MAX_RUN, count: parties.length });
-
-  const run = {
-    run_id: crypto.randomBytes(8).toString('hex'), from_party_pk: from, to_party_pk: to, status: 'RUNNING',
-    total: parties.length, done: 0, started_at: new Date().toISOString(), finished_at: null, error: null, summary: emptySummary()
-  };
-  runs.set(run.run_id, run);
-  if (runs.size > 20) runs.delete(runs.keys().next().value);
-  current = run;
-
-  let next = 0;
-  const worker = async function () {
-    while (next < parties.length && run.status === 'RUNNING') {
-      const party = parties[next];
-      next += 1;
-      // eslint-disable-next-line no-await-in-loop
-      await linkOne(party, target.project_id, run.summary, actor);
-      run.done += 1;
-    }
-  };
-  Promise.all(Array.from({ length: Math.min(CONCURRENCY, parties.length) }, worker))
-    .then(function () { run.status = 'DONE'; })
-    .catch(function (error) { run.status = 'FAILED'; run.error = error.message; })
-    .then(function () {
-      run.finished_at = new Date().toISOString();
-      current = null;
-      audit.created(actor, 'crm_smartphone_offline_run', run.run_id, publicRun(run), PAGE);
     });
-
-  return publicRun(run);
+  if (job.scope === 'RANGE') qb.whereBetween('party.party_pk', [job.from_party_pk, job.to_party_pk]);
+  if (job.scope === 'RETRY') {
+    qb.whereExists(function () {
+      this.select(db.raw(1)).from(FAILURES + ' as failure').whereRaw('failure.party_pk = party.party_pk').where('failure.job_id', job.retry_of_job_id);
+    });
+  }
+  return qb;
 }
 
-function getRun(id) {
-  const run = runs.get(String(id || ''));
-  if (!run) throw new HttpError(404, 'common.notFound');
-  return publicRun(run);
+/**
+ * Start a job: { scope: 'ALL' }, { scope: 'RANGE', from_party_pk, to_party_pk }
+ * or { scope: 'RETRY', retry_of_job_id }. Answers at once; the job goes on in
+ * the background and is followed with getJob().
+ */
+async function startJob(body, actor) {
+  const input = body || {};
+  const scope = SCOPES.indexOf(input.scope) !== -1 ? input.scope : (input.from_party_pk || input.to_party_pk ? 'RANGE' : 'ALL');
+  const draft = { scope: scope, from_party_pk: null, to_party_pk: null, retry_of_job_id: null };
+  if (scope === 'RANGE') {
+    const from = String(input.from_party_pk || '').trim();
+    const to = String(input.to_party_pk || '').trim();
+    if (!/^[1-9][0-9]*$/.test(from) || !/^[1-9][0-9]*$/.test(to)) throw new HttpError(400, 'crm.smartphoneOffline.chooseARange');
+    if (BigInt(from) > BigInt(to)) throw new HttpError(400, 'crm.smartphoneOffline.rangeIsBackwards');
+    draft.from_party_pk = from;
+    draft.to_party_pk = to;
+  }
+  if (scope === 'RETRY') {
+    const earlier = /^[1-9][0-9]*$/.test(String(input.retry_of_job_id || '')) ? await db(JOBS).where('job_id', input.retry_of_job_id).first() : null;
+    if (!earlier) throw new HttpError(404, 'common.notFound');
+    if (ACTIVE.indexOf(earlier.status) !== -1) throw new HttpError(409, 'crm.smartphoneOffline.runInProgress');
+    draft.retry_of_job_id = earlier.job_id;
+  }
+  available();
+  await project();
+  if (await db(JOBS).whereIn('status', ACTIVE).first('job_id')) throw new HttpError(409, 'crm.smartphoneOffline.runInProgress');
+
+  const total = Number((await covered(draft).count({ c: '*' }).first()).c);
+  if (!total) throw new HttpError(400, scope === 'RETRY' ? 'crm.smartphoneOffline.nothingToRetry' : 'crm.smartphoneOffline.noCustomersInRange');
+
+  let row;
+  try {
+    [row] = await db(JOBS).insert(Object.assign({}, draft, {
+      status: 'RUNNING', total: total, summary: JSON.stringify(emptySummary()), started_by_manager_id: (actor && actor.manager_id) || null
+    })).returning('*');
+  } catch (error) {
+    if (error.code === '23505') throw new HttpError(409, 'crm.smartphoneOffline.runInProgress');
+    throw error;
+  }
+  audit.created(actor, JOBS, row.job_id, publicJob(row), PAGE);
+  work(row.job_id, actor);
+  return publicJob(row);
 }
 
-/** What the Customers page needs before it offers a run: the project, whether the system is reachable, a run already going. */
+/**
+ * The job's loop, a chunk at a time, while it is RUNNING. Its progress is saved
+ * after each chunk, and its status read before the next - so a pause or a
+ * cancel takes effect between chunks, and a server stopped part-way loses at
+ * most the chunk it was on.
+ */
+async function work(jobId, actor) {
+  const key = String(jobId);
+  if (working.has(key)) return;
+  working.add(key);
+  try {
+    const target = await project();
+    const size = Math.max(1, config.smartphoneOffline.jobChunk);
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop
+      const job = await db(JOBS).where('job_id', jobId).first();
+      if (!job || job.status !== 'RUNNING') return;
+      const chunkQuery = covered(job).orderBy('party.party_pk').limit(size).select('party.party_pk');
+      if (job.last_party_pk) chunkQuery.where('party.party_pk', '>', job.last_party_pk);
+      // eslint-disable-next-line no-await-in-loop
+      const chunk = await chunkQuery;
+      if (!chunk.length) {
+        // eslint-disable-next-line no-await-in-loop
+        await db(JOBS).where({ job_id: jobId, status: 'RUNNING' })
+          .update({ status: 'DONE', total: db.raw('GREATEST(total, done)'), finished_at: db.fn.now(), updated_at: db.fn.now() });
+        return;
+      }
+      const summary = Object.assign(emptySummary(), job.summary || {});
+      const failures = [];
+      // eslint-disable-next-line no-await-in-loop
+      await linkMany(chunk, target.project_id, summary, actor, failures);
+      for (let start = 0; start < failures.length; start += 500) {
+        // eslint-disable-next-line no-await-in-loop
+        await db(FAILURES).insert(failures.slice(start, start + 500).map(function (failure) {
+          return { job_id: jobId, party_pk: failure.party_pk, phone: String(failure.phone).slice(0, 50), error: failure.error ? String(failure.error).slice(0, 500) : null };
+        }));
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await db(JOBS).where('job_id', jobId).update({
+        done: Number(job.done) + chunk.length, last_party_pk: chunk[chunk.length - 1].party_pk,
+        summary: JSON.stringify(summary), updated_at: db.fn.now()
+      });
+    }
+  } catch (error) {
+    await db(JOBS).where('job_id', jobId).whereIn('status', ACTIVE)
+      .update({ status: 'FAILED', error: String(error.message).slice(0, 1000), finished_at: db.fn.now(), updated_at: db.fn.now() })
+      .catch(function () {});
+  } finally {
+    working.delete(key);
+    const after = await db(JOBS).where('job_id', jobId).first().catch(function () { return null; });
+    if (after && (after.status === 'DONE' || after.status === 'FAILED')) audit.updated(actor, JOBS, jobId, null, publicJob(after), PAGE);
+  }
+}
+
+/** Pause, resume or cancel a job - taking effect between chunks. */
+async function setJobState(id, action, actor) {
+  const job = /^[1-9][0-9]*$/.test(String(id || '')) ? await db(JOBS).where('job_id', id).first() : null;
+  if (!job) throw new HttpError(404, 'common.notFound');
+  const allowed = { pause: ['RUNNING'], resume: ['PAUSED'], cancel: ACTIVE }[action];
+  if (!allowed) throw new HttpError(400, 'crm.common.notAStatusYouCanSet');
+  if (allowed.indexOf(job.status) === -1) throw new HttpError(409, 'crm.smartphoneOffline.jobIsNot', null, { status: job.status });
+  const patch = { status: { pause: 'PAUSED', resume: 'RUNNING', cancel: 'CANCELLED' }[action], updated_at: db.fn.now() };
+  if (action === 'cancel') patch.finished_at = db.fn.now();
+  const [after] = await db(JOBS).where({ job_id: job.job_id, status: job.status }).update(patch).returning('*');
+  if (!after) throw new HttpError(409, 'crm.smartphoneOffline.jobIsNot', null, { status: job.status });
+  audit.updated(actor, JOBS, job.job_id, publicJob(job), publicJob(after), PAGE);
+  if (action === 'resume') work(after.job_id, actor);
+  return publicJob(after);
+}
+
+async function getJob(id) {
+  const job = /^[1-9][0-9]*$/.test(String(id || '')) ? await db(JOBS).where('job_id', id).first() : null;
+  if (!job) throw new HttpError(404, 'common.notFound');
+  if (job.status === 'RUNNING' && !working.has(String(job.job_id))) work(job.job_id, null);
+  return publicJob(job);
+}
+
+/** At start-up: a job left RUNNING by a server that stopped is taken up again from its last saved chunk. */
+async function resumeJobs() {
+  const jobs = await db(JOBS).where('status', 'RUNNING').select('job_id');
+  jobs.forEach(function (job) { work(job.job_id, null); });
+  return jobs.length;
+}
+
+/** What the Customers page needs before it offers a job: the project, whether the system is reachable, the active job, the last one. */
 async function status() {
   const row = await db('crm_project').where('project_code', config.smartphoneOffline.projectCode).first('project_id', 'project_name');
-  return { mode: remote.mode(), project: row || null, project_code: config.smartphoneOffline.projectCode, max_run: MAX_RUN, running: current ? publicRun(current) : null };
+  const [active, last] = await Promise.all([
+    db(JOBS).whereIn('status', ACTIVE).first(),
+    db(JOBS).whereNotIn('status', ACTIVE).orderBy('job_id', 'desc').first()
+  ]);
+  /* A RUNNING job nobody is working on - the server restarted - is taken up again. */
+  if (active && active.status === 'RUNNING' && !working.has(String(active.job_id))) work(active.job_id, null);
+  return {
+    mode: remote.mode(), project: row || null, project_code: config.smartphoneOffline.projectCode,
+    chunk: config.smartphoneOffline.jobChunk, active: publicJob(active), last: publicJob(last)
+  };
 }
 
 /**
@@ -401,4 +551,4 @@ async function syncPoints(partyPk, actor) {
   return Object.assign(summary, { accounts: asked.accounts.length, not_found: notFound });
 }
 
-module.exports = { linkParty, startRun, getRun, status, devicesOfParty, servicesOfParty, privilegesOfParty, syncLevels, syncPoints, MAX_RUN };
+module.exports = { linkParty, startJob, getJob, setJobState, resumeJobs, status, devicesOfParty, servicesOfParty, privilegesOfParty, syncLevels, syncPoints };
