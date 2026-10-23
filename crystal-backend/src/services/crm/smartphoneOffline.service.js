@@ -284,18 +284,40 @@ async function privilegesOfParty(partyPk) {
  * says all three for a set of master ids. Two buttons on the Accounts tab
  * read it for one customer's linked accounts:
  *
- *   Sync levels / grades   loyal_level -> LEVEL, purchase_level -> GRADE: each
- *                          account is put on the project tier of that kind
- *                          whose Code in the project (source_code) is the
- *                          value sent, the step kept in the tier history
+ *   Sync levels / grades   each account put on its LEVEL and its GRADE tier,
+ *                          the step kept in the tier history:
+ *                            LEVEL  worked out here from reward_point - the
+ *                                   level tier with the highest From value
+ *                                   (min_value) at or below the points.
+ *                                   The system's loyal_level is not used.
+ *                            GRADE  purchase_level, as sent: the grade tier
+ *                                   whose Code in the project (source_code)
+ *                                   is that value
  *   Sync points            reward_point -> the account's reward points, as a
  *                          figure the project sent (crm_reward_points, API)
  *
- * A value with no tier is reported, never guessed: the tier is added in
- * Settings > Project tiers with that value as its Code in the project.
+ * Nothing is guessed. Points below every level's From value (or levels with
+ * none set), or a grade no tier has the code of, are reported, and the tier is
+ * set up in Settings > Project tiers.
  */
-const RANKS = [{ field: 'loyal_level', kind: 'LEVEL' }, { field: 'purchase_level', kind: 'GRADE' }];
 const SYNC_REASON = 'Synced from SMARTPHONE_OFFLINE';
+
+/** The level the points reach: the active LEVEL tier with the highest From value at or below them; null below every one. */
+function levelForPoints(tiers, points) {
+  if (points === null || points === undefined || isNaN(Number(points))) return null;
+  return tiers.filter(function (tier) {
+    return tier.tier_kind === 'LEVEL' && tier.min_value !== null && tier.min_value !== undefined && Number(tier.min_value) <= Number(points);
+  }).sort(function (a, b) {
+    return (Number(b.min_value) - Number(a.min_value)) || ((Number(b.rank_no) || 0) - (Number(a.rank_no) || 0));
+  })[0] || null;
+}
+
+/* What each kind is read from, and how its tier is found. `by` is what a report of a missing tier says it was looking for. */
+const RANKS = [
+  { kind: 'LEVEL', by: 'POINTS', value: function (item) { return item.reward_point; }, tierOf: levelForPoints },
+  { kind: 'GRADE', by: 'CODE', value: function (item) { return item.purchase_level; },
+    tierOf: function (tiers, value) { return tiers.filter(function (tier) { return tier.tier_kind === 'GRADE' && sameCode(value, tier.source_code); })[0] || null; } }
+];
 
 /** A level as the system sends it and a tier's code, compared as numbers when both are ("03" is 3). */
 function sameCode(sent, code) {
@@ -323,11 +345,14 @@ async function levelsOf(partyPk) {
   return { project: target, accounts: accounts, byId: byId };
 }
 
-/** Sync levels / grades: every linked account on the LEVEL and GRADE tiers the system reports. */
+/**
+ * Sync levels / grades: every linked account on its LEVEL tier - worked out from its reward_point, always;
+ * the system's loyal_level is never read - and on its GRADE tier, from purchase_level (see RANKS).
+ */
 async function syncLevels(partyPk, actor) {
   const asked = await levelsOf(partyPk);
   const tiers = await db('crm_project_tier').where({ project_id: asked.project.project_id, is_active: true })
-    .whereIn('tier_kind', RANKS.map(function (rank) { return rank.kind; })).whereNotNull('source_code');
+    .whereIn('tier_kind', RANKS.map(function (rank) { return rank.kind; }));
   const summary = { accounts: asked.accounts.length, created: 0, changed: 0, unchanged: 0, not_found: [], unknown: [] };
 
   for (let index = 0; index < asked.accounts.length; index += 1) {
@@ -336,10 +361,10 @@ async function syncLevels(partyPk, actor) {
     if (!item) { summary.not_found.push(account.external_account_id); continue; }
     for (let step = 0; step < RANKS.length; step += 1) {
       const rank = RANKS[step];
-      const value = item[rank.field];
+      const value = rank.value(item);
       if (value === null || value === undefined) continue;
-      const tier = tiers.filter(function (row) { return row.tier_kind === rank.kind && sameCode(value, row.source_code); })[0];
-      if (!tier) { summary.unknown.push({ external_account_id: account.external_account_id, tier_kind: rank.kind, value: value }); continue; }
+      const tier = rank.tierOf(tiers, value);
+      if (!tier) { summary.unknown.push({ external_account_id: account.external_account_id, tier_kind: rank.kind, by: rank.by, value: value }); continue; }
       // eslint-disable-next-line no-await-in-loop
       const result = await transaction(function (trx) { return memberships.placeOn(trx, account.project_account_id, tier, SYNC_REASON); });
       summary[result.status.toLowerCase()] += 1;

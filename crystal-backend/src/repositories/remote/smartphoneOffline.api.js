@@ -104,7 +104,7 @@ async function devices(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
 
-  const data = await remote.post(PHONE, DEVICES_PATH, { master_ids: ids.join(', ') });
+  const data = await remote.post(PHONE, DEVICES_PATH, { master_ids: ids.join(',') });
   const rows = Array.isArray(data && data.items) ? data.items : [];
 
   return {
@@ -237,7 +237,7 @@ async function services(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
 
-  const data = await remote.post(PHONE, SERVICES_PATH, { master_ids: ids.join(', ') });
+  const data = await remote.post(PHONE, SERVICES_PATH, { master_ids: ids.join(',') });
   const groups = Array.isArray(data && data.items) ? data.items : [];
   const items = [];
   groups.forEach(function (group) {
@@ -273,7 +273,7 @@ async function privileges(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
 
-  const data = await remote.post(PHONE, PRIVILEGES_PATH, { master_ids: ids.join(', ') });
+  const data = await remote.post(PHONE, PRIVILEGES_PATH, { master_ids: ids.join(',') });
   const rows = Array.isArray(data && data.items) ? data.items : [];
 
   return {
@@ -299,22 +299,23 @@ async function privileges(masterIds) {
  *   master_ids=s2342523, sd652342, ej234234
  *   -> { items: [{ master_id, loyal_level, purchase_level, reward_point }] }
  *
- * `loyal_level` is the CRM's LEVEL and `purchase_level` its GRADE; both are
- * passed on as text, the form a tier's "Code in the project" is matched in.
- * `reward_point` is the points the user holds there. Each is null when not sent.
+ * `purchase_level` is the CRM's GRADE, passed on as text - the form a tier's
+ * "Code in the project" is matched in. `reward_point` is the points the user
+ * holds there; the CRM works the LEVEL out from it (smartphoneOffline.service
+ * levelForPoints). The system's own `loyal_level` is not read: the CRM does not
+ * use it. Each is null when not sent.
  */
 async function levels(masterIds) {
   const ids = Array.from(new Set((masterIds || []).map(function (id) { return String(id || '').trim(); }).filter(Boolean)));
   if (!ids.length) return { items: [] };
 
-  const data = await remote.post(PHONE, LEVELS_PATH, { master_ids: ids.join(', ') });
+  const data = await remote.post(PHONE, LEVELS_PATH, { master_ids: ids.join(',') });
   const rows = Array.isArray(data && data.items) ? data.items : [];
 
   return {
     items: rows.map(function (row) {
       return {
         master_id: text(row.master_id),
-        loyal_level: text(row.loyal_level),
         purchase_level: text(row.purchase_level),
         reward_point: amount(row.reward_point)
       };

@@ -610,3 +610,9 @@ Furthermore, dealerships may receive various forms of support, such as handling 
 B2B clients, however, do not receive any such services.
 
 Given this situation, is it appropriate to classify both these dealerships and B2B clients under the single category of "corporate customer"?
+---------------------------------------------------------
+The criteria for determining the 'level' have changed in the context of how the operational framework, levels, and grades are linked.
+Instead of using the `loyal_level` value provided via the API, we must now determine and store the level internally by using the `reward_point` value and mapping it against the 'from value' defined for each level within the project tiers.
+For the 'grade,' you should continue to use the `purchase_level` value as is.The criteria for determining the 'level' have changed in the context of how the operational framework, levels, and grades are linked.
+Instead of using the `loyal_level` value provided via the API, we must now determine and store the level internally by using the `reward_point` value and mapping it against the 'from value' defined for each level within the project tiers.
+For the 'grade,' you should continue to use the `purchase_level` value as is.

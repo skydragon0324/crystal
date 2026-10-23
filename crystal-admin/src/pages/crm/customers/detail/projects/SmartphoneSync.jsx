@@ -9,10 +9,11 @@ import { useT } from '../../../../../i18n';
  * SYNC FROM SMARTPHONE_OFFLINE, one customer at a time.
  *
  * The system's getLevelInfo says, for each of the customer's linked accounts
- * there, its level (loyal_level), its grade (purchase_level) and its reward
- * points. Two buttons ask it:
+ * there, its grade (purchase_level) and its reward points, which the CRM works
+ * the level out from. Two buttons ask it:
  *
- *   kind="levels"   beside Add tier: each account put on its LEVEL and GRADE tier
+ *   kind="levels"   beside Add tier: each account put on its LEVEL tier (the one
+ *                   its reward points reach) and its GRADE tier (purchase_level)
  *   kind="points"   beside Add points: each account's reward points stored
  *
  * Shown only to a customer with a linked SMARTPHONE_OFFLINE account - the
@@ -45,9 +46,15 @@ export default function SmartphoneSyncButton({ kind, partyPk, accounts, onDone }
         ? translate('crm.smartphoneSync.levelsResult', { created: result.created || 0, changed: result.changed || 0, unchanged: result.unchanged || 0 })
         : translate('crm.smartphoneSync.pointsResult', { updated: result.updated || 0, unchanged: result.unchanged || 0 })];
       if ((result.not_found || []).length) lines.push(translate('crm.smartphoneSync.notFound', { accounts: result.not_found.join(', ') }));
-      if ((result.unknown || []).length) {
+      /* A level is worked out from points, a grade matched by its code: each says which it could not find. */
+      const byPoints = (result.unknown || []).filter((row) => row.by === 'POINTS');
+      const byCode = (result.unknown || []).filter((row) => row.by !== 'POINTS');
+      if (byPoints.length) {
+        lines.push(translate('crm.smartphoneSync.noLevel', { values: byPoints.map((row) => row.value + ' (' + row.external_account_id + ')').join(', ') }));
+      }
+      if (byCode.length) {
         lines.push(translate('crm.smartphoneSync.noTier', {
-          values: result.unknown.map((row) => (row.tier_kind === 'GRADE' ? translate('crm.smartphoneSync.grade') : translate('crm.smartphoneSync.level'))
+          values: byCode.map((row) => (row.tier_kind === 'GRADE' ? translate('crm.smartphoneSync.grade') : translate('crm.smartphoneSync.level'))
             + ' ' + row.value + ' (' + row.external_account_id + ')').join(', ')
         }));
       }

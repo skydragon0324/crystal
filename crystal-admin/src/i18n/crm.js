@@ -593,7 +593,7 @@ const en = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: 'Sync levels / grades',
-    syncLevelsExplained: 'Asks SMARTPHONE_OFFLINE for the level and grade of each linked account and puts it on those tiers.',
+    syncLevelsExplained: 'Asks SMARTPHONE_OFFLINE for the reward points and grade of each linked account, and puts it on the level its points reach and on that grade.',
     syncPoints: 'Sync points',
     syncPointsExplained: 'Asks SMARTPHONE_OFFLINE for the reward points of each linked account and stores them.',
     levelsResult: '{created} added, {changed} changed, {unchanged} unchanged.',
@@ -601,7 +601,8 @@ const en = {
     notFound: 'Not known to SMARTPHONE_OFFLINE: {accounts}.',
     noTier: 'No tier has this Code in the project: {values}. Add it under Settings > Project tiers.',
     level: 'Level',
-    grade: 'Grade'
+    grade: 'Grade',
+    noLevel: 'No level has a From value at or below these reward points: {values}. Set a From value on each level under Settings > Project tiers.'
   },
   /* AppstorePurchases.jsx */
   appstore: {
@@ -1575,7 +1576,7 @@ const zh = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: '同步等级 / 级别',
-    syncLevelsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的等级和级别，并设为相应的层级。',
+    syncLevelsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的奖励积分和级别，按积分设定等级，并设为该级别。',
     syncPoints: '同步积分',
     syncPointsExplained: '向 SMARTPHONE_OFFLINE 查询每个已关联账号的奖励积分并保存。',
     levelsResult: '新增 {created}，变更 {changed}，未变 {unchanged}。',
@@ -1583,7 +1584,8 @@ const zh = {
     notFound: 'SMARTPHONE_OFFLINE 中没有以下账号：{accounts}。',
     noTier: '没有“项目内代码”为以下值的等级：{values}。请在“设置 > 项目等级”中添加。',
     level: '等级',
-    grade: '级别'
+    grade: '级别',
+    noLevel: '没有等级的“起始数值”小于或等于以下奖励积分：{values}。请在“设置 > 项目等级”中设置各等级的起始数值。'
   },
   /* AppstorePurchases.jsx */
   appstore: {
@@ -2557,7 +2559,7 @@ const ru = {
   /* SmartphoneSync.jsx */
   smartphoneSync: {
     syncLevels: 'Синхронизировать уровни / грейды',
-    syncLevelsExplained: 'Запрашивает у SMARTPHONE_OFFLINE уровень и грейд каждого привязанного аккаунта и присваивает их.',
+    syncLevelsExplained: 'Запрашивает у SMARTPHONE_OFFLINE бонусные баллы и грейд каждого привязанного аккаунта: уровень присваивается по баллам, грейд — как есть.',
     syncPoints: 'Синхронизировать баллы',
     syncPointsExplained: 'Запрашивает у SMARTPHONE_OFFLINE бонусные баллы каждого привязанного аккаунта и сохраняет их.',
     levelsResult: 'Добавлено: {created}, изменено: {changed}, без изменений: {unchanged}.',
@@ -2565,7 +2567,8 @@ const ru = {
     notFound: 'Неизвестны SMARTPHONE_OFFLINE: {accounts}.',
     noTier: 'Нет уровня с таким «Кодом в проекте»: {values}. Добавьте его в Настройки > Уровни проектов.',
     level: 'Уровень',
-    grade: 'Грейд'
+    grade: 'Грейд',
+    noLevel: 'Нет уровня, у которого «От значения» не больше этих бонусных баллов: {values}. Задайте «От значения» для каждого уровня в Настройки > Уровни проектов.'
   },
   /* AppstorePurchases.jsx */
   appstore: {
