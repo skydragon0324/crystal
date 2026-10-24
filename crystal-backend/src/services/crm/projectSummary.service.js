@@ -25,12 +25,25 @@ const identityProjects = require('./identityProjects');
  *   activity   the newest events across all of it, for the timeline.
  *
  * A system that cannot be asked is named in `failed`, and the rest still count.
- * The e-shop and the Appstore answer at most MAX_PER_ACCOUNT rows per account,
- * so a figure over that is a floor, and `capped` says so.
+ *
+ * AS FEW CALLS AS THE SYSTEMS ALLOW: one per system, whatever the number of
+ * accounts - the e-shop's getOrdersListByIds and the Appstore's
+ * getPurchaseListByIds take every account at once, and SMARTPHONE_OFFLINE
+ * takes every master id at once. The order counts are the systems' own totals.
+ * Spend is added up from the rows, MAX_ROWS of the newest per system: a
+ * customer with more is a floor, and `capped` says so.
+ *
+ * And the answer is kept for CACHE_MS per customer and set of linked accounts,
+ * so a page that reloads after a tag or a note does not ask the systems again;
+ * linking or unlinking an account changes the set, and is asked afresh.
  */
 
-const MAX_PER_ACCOUNT = 200;
+const MAX_ROWS = 1000;
 const ACTIVITY = 40;
+/* The newest e-shop orders the Overview's Recent orders card shows - from this answer, not a call of its own. */
+const RECENT_ORDERS = 5;
+const CACHE_MS = 60 * 1000;
+const cache = new Map();
 /* E-shop orders that were not paid in the end. */
 const NOT_SPENT = ['CANCELLED', 'CANCEL_PENDING', 'REFUNDED', 'REFUND_ACCEPTED', 'REFUND_PENDING'];
 
@@ -47,27 +60,58 @@ function add(totals, unit, amount) {
   totals[unit] = Math.round(((totals[unit] || 0) + value) * 100) / 100;
 }
 
-/** Every account's rows of one system, asked side by side; a failure is noted, not thrown. */
-function askEach(accounts, ask, system, summary) {
-  return Promise.all(accounts.filter(function (account) { return account.external_account_pk; }).map(function (account) {
-    return ask(account)
-      .then(function (result) {
-        if (result.total > result.rows.length) summary.capped.push({ system: system, external_account_id: account.external_account_id });
-        return result.rows.map(function (row) { return Object.assign({ external_account_id: account.external_account_id }, row); });
-      })
-      .catch(function (error) {
-        summary.failed.push({ system: system, external_account_id: account.external_account_id, error: error.message });
-        return [];
-      });
-  })).then(function (lists) { return [].concat.apply([], lists); });
+/**
+ * One system's rows for all of a customer's accounts there, in ONE call; each
+ * row named by the account it is from (the system's `account_id`, by PK or ID).
+ * A failure is noted, not thrown; more rows than were fetched is noted as capped.
+ */
+function askAll(accounts, ask, system, summary) {
+  const askable = accounts.filter(function (account) { return account.external_account_pk; });
+  if (!askable.length) return Promise.resolve({ rows: [], total: 0 });
+  return ask(askable)
+    .then(function (result) {
+      if (result.total > result.rows.length) summary.capped.push({ system: system });
+      const nameOf = function (row) {
+        const account = askable.filter(function (candidate) {
+          return row.account_id !== null && row.account_id !== undefined
+            && (String(candidate.external_account_pk) === String(row.account_id) || String(candidate.external_account_id) === String(row.account_id));
+        })[0] || (askable.length === 1 ? askable[0] : null);
+        return account ? account.external_account_id : row.account_id;
+      };
+      return { total: result.total, rows: result.rows.map(function (row) { return Object.assign({ external_account_id: nameOf(row) }, row); }) };
+    })
+    .catch(function (error) {
+      summary.failed.push({ system: system, error: error.message });
+      return { rows: [], total: 0 };
+    });
 }
 
+/** The summary, from the cache while the customer's linked accounts are the same and it is younger than CACHE_MS. */
 async function summary(partyPk) {
+  const accounts = await db('crm_project_account').where('party_pk', partyPk).whereNull('unlinked_at')
+    .orderBy('project_account_id').select('project_account_id', 'external_account_pk', 'external_account_id');
+  const key = String(partyPk) + '|' + accounts.map(function (account) {
+    return account.project_account_id + ':' + (account.external_account_pk || '') + ':' + account.external_account_id;
+  }).join(',');
+  const kept = cache.get(String(partyPk));
+  if (kept && kept.key === key && Date.now() - kept.at < CACHE_MS) return kept.value;
+  const value = await fresh(partyPk);
+  /* A summary with a system that could not be asked is not kept: the next look asks again. */
+  if (!value.failed.length) {
+    cache.set(String(partyPk), { key: key, at: Date.now(), value: value });
+    if (cache.size > 500) cache.delete(cache.keys().next().value);
+  }
+  return value;
+}
+
+async function fresh(partyPk) {
   const out = {
     spend: { currencies: {}, other: {} },
     orders: { eshop: 0, appstore: 0, total: 0 },
+    accounts: { eshop: 0, appstore: 0, smartphone_offline: 0 },
     devices: { total: 0 },
     services: { total: 0, open: 0, points: 0, last_at: null, monthly: [], reasons: [], agents: 0 },
+    recent_orders: [],
     activity: [],
     failed: [],
     capped: []
@@ -80,6 +124,7 @@ async function summary(partyPk) {
     accountsIn(partyPk, eshopProject), accountsIn(partyPk, appstoreProject), accountsIn(partyPk, phoneProject),
     db('crm_currency').select('currency_code', 'currency_name')
   ]);
+  out.accounts = { eshop: eshopAccounts.length, appstore: appstoreAccounts.length, smartphone_offline: phoneAccounts.length };
   /* A tender or purse named FOREIGN / NATIVE is shown by the CRM's own code for the currency of that name. */
   const codeOf = function (name) {
     const found = currencies.filter(function (row) { return String(row.currency_name || '').toUpperCase() === name; })[0];
@@ -87,14 +132,23 @@ async function summary(partyPk) {
   };
 
   const masterIds = phoneAccounts.map(function (account) { return account.external_account_id; });
-  const [orders, purchases, devices, services] = await Promise.all([
-    askEach(eshopAccounts, function (account) { return eshopApi.orders(account.external_account_pk, 0, MAX_PER_ACCOUNT); }, 'ESHOP', out),
-    askEach(appstoreAccounts, function (account) { return appstoreApi.purchases(account.external_account_pk, 0, MAX_PER_ACCOUNT, {}); }, 'APPSTORE', out),
+  const [orderList, purchaseList, devices, services] = await Promise.all([
+    askAll(eshopAccounts, function (askable) {
+      return eshopApi.ordersByIds(askable.map(function (account) { return account.external_account_pk; }), 0, MAX_ROWS);
+    }, 'ESHOP', out),
+    askAll(appstoreAccounts, function (askable) {
+      return appstoreApi.purchasesByIds(askable.map(function (account) {
+        return { customer_pk: account.external_account_pk, customer_id: account.external_account_id };
+      }), 0, MAX_ROWS, {});
+    }, 'APPSTORE', out),
     masterIds.length ? phoneApi.devices(masterIds).then(function (found) { return found.items; })
       .catch(function (error) { out.failed.push({ system: 'SMARTPHONE_OFFLINE', error: error.message }); return []; }) : [],
     masterIds.length ? phoneApi.services(masterIds).then(function (found) { return found.items; })
       .catch(function (error) { out.failed.push({ system: 'SMARTPHONE_OFFLINE', error: error.message }); return []; }) : []
   ]);
+
+  const orders = orderList.rows;
+  const purchases = purchaseList.rows;
 
   /* ---- e-shop orders: spend per tender, the order count, the timeline ---- */
   orders.forEach(function (order) {
@@ -110,7 +164,9 @@ async function summary(partyPk) {
       tenders: (order.tenders || []).map(function (tender) { return { unit: tender.kind === 'POINT' ? 'POINT' : (codeOf(tender.kind) || tender.kind), price: tender.price }; })
     });
   });
-  out.orders.eshop = orders.length;
+  /* The shop's own count, not the rows fetched; and its newest few, for the Recent orders card. */
+  out.orders.eshop = orderList.total || orders.length;
+  out.recent_orders = orders.slice().sort(newestFirst).slice(0, RECENT_ORDERS);
 
   /* ---- Appstore purchases: spend per purse, the count, the timeline ---- */
   purchases.forEach(function (purchase) {
@@ -125,7 +181,7 @@ async function summary(partyPk) {
       price: purchase.price, unit: purchase.currency === 'FOREIGN' ? (codeOf('FOREIGN') || 'FOREIGN') : (purchase.currency || 'COMPANY')
     });
   });
-  out.orders.appstore = purchases.length;
+  out.orders.appstore = purchaseList.total || purchases.length;
   out.orders.total = out.orders.eshop + out.orders.appstore;
 
   /* ---- SMARTPHONE_OFFLINE devices ---- */
@@ -190,4 +246,4 @@ function lastMonths(n) {
   return out;
 }
 
-module.exports = { summary, MAX_PER_ACCOUNT };
+module.exports = { summary, MAX_ROWS };

@@ -261,26 +261,22 @@ function OrderDrawer({ partyPk, order, onClose }) {
  * newest few across all of the customer's e-shop accounts. A row, or View
  * all, opens the Orders tab, where the lines are.
  */
-export function RecentEshopOrdersCard({ partyPk, onViewAll }) {
+export function RecentEshopOrdersCard({ summary, onViewAll }) {
   const translate = useT();
-  const [state, setState] = useState({ rows: null, summary: {} });
-
-  useEffect(() => {
-    let live = true;
-    crm.parties.eshopOrders(partyPk, { project_account_id: 'ALL', page: 1, limit: 5 })
-      .then(({ data }) => { if (live) setState({ rows: (data && data.rows) || [], summary: (data && data.summary) || {} }); })
-      .catch(() => { if (live) setState({ rows: [], summary: { failed: [{}] } }); });
-    return () => { live = false; };
-  }, [partyPk]);
-
-  const summary = state.summary || {};
-  const empty = summary.project && !(summary.accounts || []).length ? 'crm.eshopOrders.noAccounts'
-    : (summary.failed || []).length ? 'crm.eshopOrders.unreachableShort' : 'crm.eshopOrders.noOrders';
+  /*
+   * The newest orders come with the page's project summary (`recent_orders`),
+   * which has already asked the e-shop - so this card makes no call of its own.
+   * Null while the summary is loading.
+   */
+  const rows = summary ? (summary.recent_orders || []) : null;
+  const known = summary || {};
+  const empty = known.accounts && !known.accounts.eshop ? 'crm.eshopOrders.noAccounts'
+    : (known.failed || []).some((row) => row.system === 'ESHOP' || !row.system) ? 'crm.eshopOrders.unreachableShort' : 'crm.eshopOrders.noOrders';
   return (
     <Card360 icon={Md.MdReceipt} title={translate('crm.customer360Cards.recentOrders')} onViewAll={onViewAll}>
-      {state.rows === null ? <HStack justify="center" py={4}><Spinner size="sm" /></HStack> : (
+      {rows === null ? <HStack justify="center" py={4}><Spinner size="sm" /></HStack> : (
         <MiniTable
-          rows={state.rows}
+          rows={rows}
           rowKey={(row) => (row.project_account_id || '') + ':' + (row.order_id || row.id)}
           onRowClick={onViewAll ? () => onViewAll() : undefined}
           empty={empty}

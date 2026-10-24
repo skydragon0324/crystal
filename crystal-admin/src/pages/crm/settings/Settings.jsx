@@ -93,6 +93,7 @@ export default function Settings() {
           pkField={chosen.pk}
           canRestore={false}
           defaultSort={chosen.sort}
+          filters={chosen.filters}
           subtitle={chosen.hint ? translate(chosen.hint) : undefined}
           columns={chosen.columns}
           fields={chosen.fields}
@@ -173,7 +174,20 @@ function listsOf(meta, translate) {
       ],
       emptyRow: { is_active: true } },
 
-    { path: 'project-tiers', title: 'Project tiers', pk: 'project_tier_id', sort: 'project_tier_id', hint: 'crm.settings.tiersHint',
+    /* Each project's ladders, narrowed to a project and a kind, lowest rank first. */
+    { path: 'project-tiers', title: 'Project tiers', pk: 'project_tier_id', sort: 'rank_no', hint: 'crm.settings.tiersHint',
+      filters: (list) => (
+        <>
+          <Box w="12rem" maxW="100%">
+            <SelectField size="sm" placeholder={translate('Project')} value={list.params.project_id || null}
+              options={translateOptions(translate, projects)} onChange={(value) => list.setFilter({ project_id: value || undefined })} />
+          </Box>
+          <Box w="10rem" maxW="100%">
+            <SelectField size="sm" placeholder={translate('Kind')} value={list.params.tier_kind || null}
+              options={kinds} onChange={(value) => list.setFilter({ tier_kind: value || undefined })} />
+          </Box>
+        </>
+      ),
       columns: [
         { key: 'project_id', label: 'Project', render: (row) => labelOf(projects, row.project_id) },
         { key: 'tier_code', label: 'Code' }, { key: 'tier_name', label: 'Name' },

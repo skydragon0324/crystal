@@ -502,7 +502,7 @@ const VOCABULARIES = [
   /* The kinds of tier ladder (level, grade, ...); a tier is of one kind, a member holds one tier per kind. */
   { path: 'tier-kinds', table: 'crm_tier_kind', pk: 'tier_kind_id', code: 'kind_code',
     columns: ['kind_code', 'kind_name', 'sort_no', 'is_active'] },
-  { path: 'project-tiers', table: 'crm_project_tier', pk: 'project_tier_id', code: 'tier_code', filterable: ['project_id'],
+  { path: 'project-tiers', table: 'crm_project_tier', pk: 'project_tier_id', code: 'tier_code', filterable: ['project_id', 'tier_kind'], sort: 'rank_no',
     columns: ['project_id', 'tier_code', 'tier_name', 'rank_no', 'tier_kind', 'source_code', 'min_value', 'is_active'] },
   { path: 'point-types', table: 'crm_point_type', pk: 'point_type_id', code: 'point_type_code',
     columns: ['point_type_code', 'point_type_name', 'owner_project_id', 'is_dream_managed', 'decimal_places', 'expires_after_days', 'is_active'] },

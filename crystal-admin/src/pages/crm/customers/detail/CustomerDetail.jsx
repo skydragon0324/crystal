@@ -532,7 +532,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, s
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', '2xl': '1fr 1fr 1fr 1fr' }} gridGap={4}>
           <AccountsCard view={view} onViewAll={() => goTab('accounts')} />
           <MembershipSummaryCard record={record} onViewAll={() => goTab('accounts')} />
-          <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
+          <RecentEshopOrdersCard summary={summary} onViewAll={() => goTab('orders')} />
           <ValueMetricsCard view={view} onViewAll={IN_DEVELOPMENT ? () => goTab('analytics') : null} />
         </Grid>
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr', xl: '1fr 1fr 1fr' }} gridGap={4}>
@@ -570,7 +570,7 @@ function TabBody({ tabKey, isPerson, record, view, act, goTab, model, devices, s
           <ProductsCard view={view} onViewAll={() => goTab('products')} title={translate('crm.customer360.productsAndAssets')} />
           <ServiceSummaryCard summary={summary} onViewAll={() => goTab('service')} withRecent />
         </Grid>
-        <RecentEshopOrdersCard partyPk={record.party.party_pk} onViewAll={() => goTab('orders')} />
+        <RecentEshopOrdersCard summary={summary} onViewAll={() => goTab('orders')} />
       </Stack>
     );
   }

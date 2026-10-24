@@ -133,6 +133,8 @@ module.exports = function createCrudRepository(opts) {
           : name + '.' + defaultSort,
         paging.dir
       )
+      /* Rows that tie on the sort (two tiers of rank 1) keep one order, page after page. */
+      .orderBy(name + '.' + pk, 'asc')
       .limit(paging.limit)
       .offset(paging.offset);
 

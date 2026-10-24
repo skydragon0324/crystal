@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert, AlertIcon, Box, Button, Drawer, DrawerBody, DrawerCloseButton, DrawerContent, DrawerHeader, DrawerOverlay,
-  HStack, Icon, IconButton, Image, Input, Link, Spinner, Stack, Text, Tooltip, useClipboard
+  HStack, Icon, IconButton, Image, Link, Spinner, Stack, Text, Tooltip, useClipboard
 } from '@chakra-ui/react';
 import * as Md from 'react-icons/md';
 
 import DataTable from '../../../../../components/DataTable';
+import DatePicker from '../../../../../components/DatePicker';
 import Toolbar from '../../../../../components/Toolbar';
 import useList from '../../../../../hooks/useList';
 import { crm } from '../../../../../api';
@@ -147,11 +148,16 @@ export default function AppstorePurchasesSection({ partyPk }) {
           onSearch={(text) => list.setFilter({ q: String(text || '').trim() || undefined })}
           beside={(
             <HStack spacing={2}>
-              <Input type="date" size="sm" w="10rem" borderRadius="lg" value={list.params.from || ''} max={list.params.to || undefined}
-                aria-label={translate('crm.appstore.from')} onChange={(event) => list.setFilter({ from: event.target.value || undefined })} />
+              {/* The console's own calendar, as in every form - not the browser's. */}
+              <Box w="10rem">
+                <DatePicker size="sm" value={list.params.from || ''} max={list.params.to || undefined} placeholder={translate('crm.appstore.from')}
+                  aria-label={translate('crm.appstore.from')} onChange={(value) => list.setFilter({ from: value || undefined })} />
+              </Box>
               <Text fontSize="sm" color={surface.muted}>–</Text>
-              <Input type="date" size="sm" w="10rem" borderRadius="lg" value={list.params.to || ''} min={list.params.from || undefined}
-                aria-label={translate('crm.appstore.to')} onChange={(event) => list.setFilter({ to: event.target.value || undefined })} />
+              <Box w="10rem">
+                <DatePicker size="sm" value={list.params.to || ''} min={list.params.from || undefined} placeholder={translate('crm.appstore.to')}
+                  aria-label={translate('crm.appstore.to')} onChange={(value) => list.setFilter({ to: value || undefined })} />
+              </Box>
               {searched ? (
                 <Button size="xs" variant="ghost" onClick={() => list.setFilter({ q: undefined, from: undefined, to: undefined })}>{translate('crm.appstore.clearFilters')}</Button>
               ) : dated ? (
