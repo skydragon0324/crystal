@@ -21,6 +21,9 @@ import { useCrmMeta } from '../../../shared/shared';
  * Each system is asked in turn and answers for itself: what changed, what it
  * did not know and any value no tier has a code for are said in the toast, a
  * line per system, and one system failing does not stop the other.
+ *
+ * Another system is one more entry in SYSTEMS - which accounts are its, and
+ * its sync call - beside its own sync on the server.
  */
 const SYSTEMS = {
   levels: [
@@ -32,16 +35,11 @@ const SYSTEMS = {
   ]
 };
 const WORDS = {
-  levels: { named: 'crm.smartphoneSync.syncLevels', explained: 'crm.smartphoneSync.syncLevelsExplained' },
-  points: { named: 'crm.smartphoneSync.syncPoints', explained: 'crm.smartphoneSync.syncPointsExplained' }
+  levels: { named: 'crm.projectSync.syncLevels', explained: 'crm.projectSync.syncLevelsExplained' },
+  points: { named: 'crm.projectSync.syncPoints', explained: 'crm.projectSync.syncPointsExplained' }
 };
 
-/** Whether the customer has a live SMARTPHONE_OFFLINE account to sync. */
-export function hasSmartphoneAccount(accounts) {
-  return (accounts || []).some((account) => !account.unlinked_at && account.project_code === 'SMARTPHONE_OFFLINE');
-}
-
-export default function SmartphoneSyncButton({ kind, partyPk, accounts, onDone }) {
+export default function ProjectSyncButton({ kind, partyPk, accounts, onDone }) {
   const translate = useT();
   const toast = useToast();
   const meta = useCrmMeta();
@@ -58,19 +56,19 @@ export default function SmartphoneSyncButton({ kind, partyPk, accounts, onDone }
   /* One system's answer, as a sentence or two. */
   const linesOf = (result) => {
     const lines = [kind === 'levels'
-      ? translate('crm.smartphoneSync.levelsResult', { created: result.created || 0, changed: result.changed || 0, unchanged: result.unchanged || 0 })
-      : translate('crm.smartphoneSync.pointsResult', { updated: result.updated || 0, unchanged: result.unchanged || 0 })];
-    if ((result.not_found || []).length) lines.push(translate('crm.smartphoneSync.notFound', { accounts: result.not_found.join(', ') }));
+      ? translate('crm.projectSync.levelsResult', { created: result.created || 0, changed: result.changed || 0, unchanged: result.unchanged || 0 })
+      : translate('crm.projectSync.pointsResult', { updated: result.updated || 0, unchanged: result.unchanged || 0 })];
+    if ((result.not_found || []).length) lines.push(translate('crm.projectSync.notFound', { accounts: result.not_found.join(', ') }));
     if ((result.no_pk || []).length) lines.push(translate('crm.eshopOrders.noPk', { accounts: result.no_pk.join(', ') }));
     /* A level worked out from points, or a tier matched by its code: each says which it could not find. */
     const byPoints = (result.unknown || []).filter((row) => row.by === 'POINTS');
     const byCode = (result.unknown || []).filter((row) => row.by !== 'POINTS');
     if (byPoints.length) {
-      lines.push(translate('crm.smartphoneSync.noLevel', { values: byPoints.map((row) => row.value + ' (' + row.external_account_id + ')').join(', ') }));
+      lines.push(translate('crm.projectSync.noLevel', { values: byPoints.map((row) => row.value + ' (' + row.external_account_id + ')').join(', ') }));
     }
     if (byCode.length) {
-      lines.push(translate('crm.smartphoneSync.noTier', {
-        values: byCode.map((row) => (row.tier_kind === 'GRADE' ? translate('crm.smartphoneSync.grade') : translate('crm.smartphoneSync.level'))
+      lines.push(translate('crm.projectSync.noTier', {
+        values: byCode.map((row) => (row.tier_kind === 'GRADE' ? translate('crm.projectSync.grade') : translate('crm.projectSync.level'))
           + ' ' + row.value + ' (' + row.external_account_id + ')').join(', ')
       }));
     }

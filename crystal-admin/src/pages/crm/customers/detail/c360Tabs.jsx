@@ -26,7 +26,7 @@ import EshopOrdersSection from './projects/EshopOrders';
 import AppstorePurchasesSection from './projects/AppstorePurchases';
 import SmartphoneDevicesCard from './projects/SmartphoneDevices';
 import SmartphoneServicesCard from './projects/SmartphoneServices';
-import SmartphoneSyncButton from './projects/SmartphoneSync';
+import ProjectSyncButton from './projects/ProjectSync';
 
 /**
  * THE TABS OF THE CUSTOMER 360 RECORD - everything a card on the overview
@@ -176,7 +176,7 @@ export function AccountsTab({ record, view, act }) {
         <Card360 icon={Md.MdCardMembership} title={translate('crm.customer360Tabs.memberships')}
           action={act.editable ? (
             <HStack spacing={2}>
-              <SmartphoneSyncButton kind="levels" partyPk={record.party.party_pk} accounts={record.accounts} onDone={act.refresh} />
+              <ProjectSyncButton kind="levels" partyPk={record.party.party_pk} accounts={record.accounts} onDone={act.refresh} />
               <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} onClick={() => setTierFor({})}>{translate('crm.memberships.addTier')}</Button>
             </HStack>
           ) : null}>

@@ -12,7 +12,7 @@ import { accountLabel, amount } from '../shared/shared';
 import { MiniTable } from '../customers/detail/c360Cards';
 import { Card360 } from '../shared/ui360';
 import { ProjectTags } from '../shared/ui';
-import SmartphoneSyncButton from '../customers/detail/projects/SmartphoneSync';
+import ProjectSyncButton from '../customers/detail/projects/ProjectSync';
 
 /**
  * REWARD POINTS PER BUSINESS SYSTEM.
@@ -118,7 +118,7 @@ export function RewardPointsCard({ record, view, act }) {
     <Card360 icon={Md.MdStars} title={translate('crm.points.rewardPoints')}
       action={act.editable ? (
         <HStack spacing={2}>
-          <SmartphoneSyncButton kind="points" partyPk={partyPk} accounts={record.accounts} onDone={act.refresh} />
+          <ProjectSyncButton kind="points" partyPk={partyPk} accounts={record.accounts} onDone={act.refresh} />
           <Button size="xs" variant="outline" leftIcon={<Icon as={Md.MdAdd} />} isDisabled={!free.length}
             title={free.length ? undefined : translate('crm.points.everyAccountHasPoints')}
             onClick={() => setEditing({ project_account_id: free.length === 1 ? free[0].project_account_id : null })}>
